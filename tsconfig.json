@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@summon/devtools": ["packages/devtools/src/index.ts"],
+      "@summon/engine": ["packages/engine/src/index.ts"],
+      "@summon/host": ["packages/host/src/index.ts"],
+      "@summon/host/browser": ["packages/host/src/browser.ts"],
+      "@summon/host/envelope": ["packages/host/src/envelope.ts"],
+      "@summon/host/policy": ["packages/host/src/policy.ts"],
+      "@summon/react": ["packages/react/src/index.ts"],
+      "@summon/sandbox-runtime/assets": ["packages/sandbox-runtime/src/assets.ts"],
+      "@summon/sandbox-runtime/bootstrap.js?raw": ["packages/sandbox-runtime/src/bootstrap.js"],
+      "@summon/sandbox-runtime/tokens.css?raw": ["packages/sandbox-runtime/src/tokens.css"],
+      "@summon/server": ["packages/server/src/index.ts"]
+    }
+  }
+}

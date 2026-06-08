@@ -1,0 +1,27 @@
+export { PolicyEngine, defineIntent, IntentArgsError } from './policy-engine.js';
+export type {
+  IntentContext,
+  IntentEntry,
+  IntentHandler,
+  PolicyEngineOptions,
+  TypedIntentEntry,
+} from './policy-engine.js';
+export {
+  createCapabilityRegistry,
+  defineAction,
+  defineApprovalAction,
+  defineCapability,
+  defineDataResource,
+  defineWorkerAction,
+  defineWorkerResource,
+} from './capability-registry.js';
+export type {
+  ActionDefinition,
+  ApprovalActionDefinition,
+  ApprovalDecision,
+  ApprovalStateKeys,
+  CapabilityDefinition,
+  CapabilityRegistry,
+  DataResourceDefinition,
+  StateShapeDescriptor,
+} from './capability-registry.js';

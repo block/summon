@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": false,
+    "outDir": "./dist",
+    "paths": {
+      "@summon/devtools": ["packages/devtools/dist/index.d.ts"],
+      "@summon/engine": ["packages/engine/dist/index.d.ts"],
+      "@summon/host": ["packages/host/dist/index.d.ts"],
+      "@summon/host/envelope": ["packages/host/dist/envelope.d.ts"],
+      "@summon/sandbox-runtime/assets": ["packages/sandbox-runtime/dist/assets.d.ts"]
+    },
+    "rootDir": "./src",
+    "sourceMap": true
+  },
+  "include": ["src/**/*"]
+}

@@ -1,0 +1,308 @@
+import type {
+  CapabilityPack,
+  ScriptPolicy,
+  SurfacePlan,
+  SurfacePlanMode,
+} from '@summon/engine';
+import type { CapabilityRegistry } from '@summon/host';
+import { createDemoCapabilityRegistry, type DemoHandlerOptions } from './capabilities.js';
+
+export type Mode = SurfacePlanMode;
+
+export interface RepairOptions {
+  enabled: boolean;
+  maxAttempts?: number;
+  maxTargets?: number;
+}
+
+export interface ShowcaseScenario {
+  id: string;
+  label: string;
+  prompt: string;
+  mode: Mode;
+  capabilityNames: string[];
+  componentNames?: string[];
+  surfacePlan: SurfacePlan;
+  scriptPolicy?: ScriptPolicy;
+  layoutId?: string;
+  tokenOverrides?: Record<string, string>;
+  repair?: RepairOptions;
+  directionId?: string | null;
+}
+
+export interface ActiveContract {
+  scenarioId: string;
+  prompt: string;
+  mode: Mode;
+  capabilityNames: string[];
+  componentNames?: string[];
+  surfacePlan: SurfacePlan;
+  scriptPolicy: ScriptPolicy;
+  layoutId?: string;
+  tokenOverrides?: Record<string, string>;
+  repair?: RepairOptions;
+  directionId?: string | null;
+}
+
+export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
+  {
+    id: 'host-resource-search',
+    label: 'Host-resource search',
+    prompt:
+      'help me build a weeknight dinner finder where i can search for recipes and see loading, error, and real host data states clearly',
+    mode: 'interactive',
+    capabilityNames: ['search'],
+    surfacePlan: {
+      purpose: 'explore',
+      runtime: 'declarative',
+      data: 'host-resource',
+      authority: 'read',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'host-ai-brainstorm',
+    label: 'Host AI brainstorm',
+    prompt:
+      'build a brainstorm helper where i can ask host AI for birthday gift ideas and see loading, error, and response states clearly',
+    mode: 'interactive',
+    capabilityNames: ['ai'],
+    surfacePlan: {
+      purpose: 'explore',
+      runtime: 'declarative',
+      data: 'host-resource',
+      authority: 'read',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'github-profile-lookup',
+    label: 'GitHub profile lookup',
+    prompt:
+      'build a GitHub profile lookup where i can enter a username and see loading, error, avatar, follower, and repo states from host data',
+    mode: 'interactive',
+    capabilityNames: ['github_lookup'],
+    surfacePlan: {
+      purpose: 'explore',
+      runtime: 'declarative',
+      data: 'host-resource',
+      authority: 'read',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'component-islands',
+    label: 'Component islands',
+    prompt:
+      'build a compact launch-readiness dashboard that uses host-rendered component islands for the key metrics, a sparkline, and the approval gate while writing the surrounding analysis and actions yourself',
+    mode: 'interactive',
+    capabilityNames: ['choose'],
+    componentNames: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
+    surfacePlan: {
+      purpose: 'review',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'static-summary',
+    label: 'Static summary',
+    prompt: 'compare Roth vs traditional IRA for someone new to retirement saving',
+    mode: 'static',
+    capabilityNames: [],
+    surfacePlan: {
+      purpose: 'compare',
+      runtime: 'static',
+      data: 'embedded',
+      authority: 'none',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'declarative-form',
+    label: 'Declarative form',
+    prompt:
+      'help me collect a team lunch order with required fields, submit validation, a success state, and field errors',
+    mode: 'interactive',
+    capabilityNames: ['submit'],
+    surfacePlan: {
+      purpose: 'collect',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'worker-analysis',
+    label: 'Worker analysis',
+    prompt:
+      'analyze and score a product launch readiness topic with a host-owned background worker and visible loading, error, and result states',
+    mode: 'interactive',
+    capabilityNames: ['analysis', 'compute_score'],
+    surfacePlan: {
+      purpose: 'review',
+      runtime: 'worker',
+      data: 'worker',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'approval-publish',
+    label: 'Approval-gated publish',
+    prompt:
+      'build a publish approval panel where i can review a titled summary, request host approval, and show pending, approved, denied, and error states',
+    mode: 'interactive',
+    capabilityNames: ['publish_summary'],
+    surfacePlan: {
+      purpose: 'operate',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'approval-gated',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'scripted-interactive',
+    label: 'Scripted interactive',
+    prompt:
+      'build a keyboard-friendly scoring picker with local highlighted selection plus host-backed choose and counter controls',
+    mode: 'interactive',
+    capabilityNames: ['choose', 'counter'],
+    scriptPolicy: 'allow',
+    surfacePlan: {
+      purpose: 'explore',
+      runtime: 'scripted',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'token-override',
+    label: 'Token override',
+    prompt:
+      'build a compact option picker with a prominent accent action and status badge, using only direction tokens for color',
+    mode: 'interactive',
+    capabilityNames: ['choose'],
+    tokenOverrides: {
+      'color-accent': '#0f8cff',
+      'color-accent-fg': '#ffffff',
+    },
+    surfacePlan: {
+      purpose: 'explore',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+    directionId: 'pulse',
+  },
+  {
+    id: 'layout-card',
+    label: 'Layout-constrained card',
+    prompt:
+      'create a compact project intake card with a crisp header, useful content, and one or two validated action controls',
+    mode: 'interactive',
+    capabilityNames: ['submit'],
+    layoutId: 'card-structured',
+    surfacePlan: {
+      purpose: 'collect',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'sibling-summon',
+    label: 'Sibling summon',
+    prompt:
+      'build a recipe explorer that can search for dinner ideas and includes a clear action to summon a separate prep guide for one result',
+    mode: 'interactive',
+    capabilityNames: ['search', 'summon'],
+    surfacePlan: {
+      purpose: 'explore',
+      runtime: 'declarative',
+      data: 'host-resource',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'repair-diagnostics',
+    label: 'Repair diagnostics',
+    prompt:
+      'build a compact onboarding checklist with validated submit controls and clear section structure; if a section is rejected, repair it within the same section',
+    mode: 'interactive',
+    capabilityNames: ['submit'],
+    repair: { enabled: true, maxAttempts: 1, maxTargets: 2 },
+    surfacePlan: {
+      purpose: 'collect',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+  },
+];
+
+export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
+  return {
+    id: `ghost-${rootId}`,
+    label: `Ghost steer: ${rootId}`,
+    prompt:
+      'generate a compact review surface that follows this Ghost memory root and keeps all controls host-granted',
+    mode: 'interactive',
+    capabilityNames: ['choose', 'log'],
+    surfacePlan: {
+      purpose: 'review',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+    },
+    directionId: `ghost:${rootId}`,
+  };
+}
+
+export function narrowCapabilityPack(
+  pack: CapabilityPack,
+  capabilityNames: readonly string[],
+): CapabilityPack {
+  const allowed = new Set(capabilityNames);
+  const intents = pack.intents.filter((intent) => allowed.has(intent.name));
+  const denied = pack.intents
+    .map((intent) => intent.name)
+    .filter((name) => !allowed.has(name));
+  const patterns = (pack.patterns ?? []).filter((pattern) => {
+    if (denied.some((name) => mentionsCapability(pattern.code, name))) return false;
+    return capabilityNames.some((name) => mentionsCapability(pattern.code, name));
+  });
+  return {
+    intents,
+    ...(patterns.length > 0 ? { patterns } : {}),
+  };
+}
+
+export function createScopedDemoRegistry(
+  opts: DemoHandlerOptions,
+  capabilityNames: readonly string[],
+): CapabilityRegistry {
+  const registry = createDemoCapabilityRegistry(opts);
+  const allowed = new Set(capabilityNames);
+  const excluded = registry.intents().filter((name) => !allowed.has(name));
+  return registry.without(excluded);
+}
+
+function mentionsCapability(code: string, name: string): boolean {
+  return (
+    code.includes(`"${name}"`) ||
+    code.includes(`'${name}'`) ||
+    code.includes(`=${name}`) ||
+    code.includes(`>${name}<`)
+  );
+}

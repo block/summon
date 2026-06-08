@@ -1,0 +1,84 @@
+/* Summon default design tokens.
+ * This fallback must satisfy the same token contract advertised by
+ * @summon/engine. Direction-specific tokens can still replace it per sandbox.
+ */
+:root {
+  color-scheme: light;
+
+  /* Palette */
+  --color-bg: oklch(98% 0 0);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-muted: oklch(96% 0.003 260);
+  --color-border: oklch(90% 0.005 260);
+  --color-border-input: oklch(84% 0.007 260);
+  --color-border-strong: oklch(22% 0.02 260);
+  --color-text: oklch(22% 0.02 260);
+  --color-text-muted: oklch(50% 0.01 260);
+  --color-text-alt: oklch(38% 0.012 260);
+  --color-accent: oklch(60% 0.19 265);
+  --color-accent-fg: oklch(99% 0 0);
+  --color-danger: oklch(58% 0.2 25);
+  --color-success: oklch(64% 0.15 155);
+  --color-info: oklch(60% 0.16 250);
+  --color-warning: oklch(72% 0.15 75);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
+  --space-9: 64px;
+  --space-10: 80px;
+  --space-11: 120px;
+  --space-12: 160px;
+
+  /* Radii */
+  --radius-pill: 999px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 48px;
+  --text-display: clamp(44px, 7vw, 72px);
+
+  /* Typographic tuning */
+  --tracking-label: 0.08em;
+  --tracking-tight: -0.02em;
+  --tracking-display: -0.04em;
+  --leading-display: 0.95;
+  --leading-section: 1.1;
+  --leading-body: 1.45;
+  --leading-reading: 1.65;
+
+  /* Shadows */
+  --shadow-mini: 0 1px 3px oklch(22% 0.02 260 / 0.08);
+  --shadow-card: 0 8px 24px oklch(22% 0.02 260 / 0.08);
+  --shadow-elevated: 0 14px 40px oklch(22% 0.02 260 / 0.12);
+  --shadow-popover: 0 18px 48px oklch(22% 0.02 260 / 0.16);
+  --shadow-modal: 0 28px 80px oklch(22% 0.02 260 / 0.2);
+}
+
+html, body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}

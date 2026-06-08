@@ -1,0 +1,9 @@
+{
+  "name": "Ghost",
+  "description": "Monochromatic, magazine-inspired. Pill-rounded interactions, moderate-radius containers, tight editorial typography.",
+  "overridable": ["color-accent", "color-accent-fg"],
+  "sourceExpression": {
+    "id": "ghost-ui",
+    "commit": "16f0ab5"
+  }
+}
