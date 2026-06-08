@@ -37,18 +37,11 @@ export interface SpawnOptions {
    * Host-controlled allowlist of intents this sandbox may emit. The bridge
    * enforces it; anything else is rejected before reaching `onIntent`.
    *
-   * If omitted, falls back to `artifact.intents` for backwards compatibility.
-   * That fallback is convenient for self-described artifacts the host fully
-   * trusts (adversarial harness, fixed demos), but it conflates two roles:
-   *   - `artifact.intents` is the artifact's *declaration* — what the LLM /
-   *     author said the artifact will use. Advisory.
-   *   - `grantedIntents` is the *host's grant* — what the bridge actually
-   *     allows through. Enforced.
-   * For LLM-authored artifacts, always set `grantedIntents` from a
-   * host-trusted value so a misbehaving artifact cannot escalate by listing
-   * extra intents in its own declaration.
+   * This is required even for static/read-only surfaces. Pass `[]` when the
+   * host grants no executable intents. `artifact.intents` is advisory only and
+   * never becomes executable authority.
    */
-  grantedIntents?: string[];
+  grantedIntents: string[];
   /**
    * Host-controlled capability grant metadata. Used by the sandbox runtime
    * only to resolve declarative resource aliases to host-owned state keys.
@@ -205,10 +198,9 @@ function normalizeComponentDescriptors(raw: unknown): ComponentIslandDescriptor[
 
 export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
   const sandboxId = randomSandboxId();
-  // Bridge allowlist comes from the host's grant when set. The artifact's
-  // own `intents` field is only consulted as a fallback — see SpawnOptions
-  // for the security rationale.
-  const intentAllowlist = new Set(opts.grantedIntents ?? opts.artifact.intents);
+  // Bridge allowlist comes only from the host grant. A JS caller that omits
+  // grantedIntents fails closed because `new Set(undefined)` grants nothing.
+  const intentAllowlist = new Set(opts.grantedIntents);
   const grantedCapabilities = opts.grantedCapabilities ?? opts.artifact.capabilities ?? [];
   const resourceMap = resourceMapFromCapabilities(grantedCapabilities);
 

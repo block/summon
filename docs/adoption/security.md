@@ -15,7 +15,7 @@ The hard boundary is:
 - The bridge accepts only messages carrying the per-sandbox random
   `sandbox_id`.
 - `grantedIntents` and `grantedCapabilities` come from the host. Artifact
-  declarations are advisory.
+  declarations are advisory, and missing `grantedIntents` grants nothing.
 - `PolicyEngine` validates intent args before host handlers run.
 - Data resources fetch through host-owned handlers and validate returned data
   before pushing state back.
@@ -75,8 +75,8 @@ requires a compatible host registry for the same reason.
 
 ## Host Rules
 
-- Always pass `grantedIntents` from a host-owned registry. Do not rely on
-  `artifact.intents` for LLM-authored artifacts.
+- Always pass `grantedIntents` from a host-owned registry. Use `[]` for static
+  surfaces. Do not rely on `artifact.intents` for LLM-authored artifacts.
 - Prefer `defineAction` and `defineDataResource`; they keep schemas, prompt
   text, runtime validation, host handlers, and initial state in one place.
 - Use `defineWorkerAction` / `defineWorkerResource` for host-owned background

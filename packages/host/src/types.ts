@@ -93,9 +93,9 @@ export interface SandboxHandle {
   dispose(): void;
 }
 
-/** Artifact — for MVP this is just a blob of HTML plus a declared intent vocabulary. */
+/** Artifact — generated HTML plus advisory declarations used for diagnostics and replay. */
 export interface Artifact {
-  /** Intents the artifact is allowed to emit. Unknown intents are rejected at the bridge. */
+  /** Intents the artifact declares it may emit. Execution is governed by host grants. */
   intents: string[];
   /** Advisory capabilities the artifact claims to use. Execution is still governed by grants. */
   capabilities?: ValidationCapability[];

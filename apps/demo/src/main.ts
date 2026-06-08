@@ -80,8 +80,7 @@ spawnSandbox({
   iframe,
   artifact: {
     // Artifact deliberately over-declares — the bridge must ignore this and
-    // honor the host's grant below. If grantedIntents were absent, this
-    // would (insecurely) become the allowlist.
+    // honor the host's grant below.
     intents: ['report', 'escalate'],
     html: ADVERSARIAL_BODY_HTML,
   },
