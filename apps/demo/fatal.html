@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Summon — sandbox self-test</title>
+<link rel="stylesheet" href="/summon.css">
+</head>
+<body>
+<nav class="summon-nav">
+  <a class="summon-brand" href="/">summon</a>
+  <a href="/generate.html">Generate</a>
+  <a href="/batch.html">Batch</a>
+</nav>
+
+<h1 class="page-title">Bootstrap self-test</h1>
+<p class="lede">Drives bootstrap into a deliberately misconfigured sandbox. Bootstrap's startup self-test should detect the regression and post SUMMON_FATAL instead of SUMMON_READY.</p>
+
+<div class="case">
+  <h2>Case A — correctly configured (control)</h2>
+  <p>sandbox="allow-scripts" — null-origin. Self-test should pass and bootstrap should post SUMMON_READY.</p>
+  <div class="layout cols-2">
+    <div class="pane">
+      <header>Sandbox iframe</header>
+      <iframe id="case-a-frame" class="h-200" title="control"></iframe>
+    </div>
+    <div class="pane">
+      <header>Result</header>
+      <div id="case-a-result" class="results">…</div>
+    </div>
+  </div>
+</div>
+
+<div class="case">
+  <h2>Case B — misconfigured (allow-same-origin)</h2>
+  <p>sandbox="allow-scripts allow-same-origin" — same-origin with parent. Self-test should detect and post SUMMON_FATAL.</p>
+  <div class="layout cols-2">
+    <div class="pane">
+      <header>Sandbox iframe</header>
+      <iframe id="case-b-frame" class="h-200" title="misconfigured"></iframe>
+    </div>
+    <div class="pane">
+      <header>Result</header>
+      <div id="case-b-result" class="results">…</div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/src/fatal-main.ts"></script>
+</body>
+</html>

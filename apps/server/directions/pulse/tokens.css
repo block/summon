@@ -1,0 +1,72 @@
+/* Pulse direction tokens.
+ * Synthetic public direction for high-contrast action and status surfaces.
+ */
+:root {
+  color-scheme: light;
+
+  /* Palette - neutral page, strong ink accent, semantic status colors */
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef1f5;
+  --color-border: #d7dce3;
+  --color-border-input: #b9c1cc;
+  --color-border-strong: #111827;
+  --color-text: #111827;
+  --color-text-muted: #667085;
+  --color-text-alt: #475467;
+  --color-accent: #111827;
+  --color-accent-fg: #ffffff;
+  --color-danger: #d92d20;
+  --color-success: #067647;
+  --color-info: #175cd3;
+  --color-warning: #b54708;
+
+  /* Spacing - compact operational rhythm */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+  --space-10: 72px;
+
+  /* Radii - precise controls, moderate surfaces */
+  --radius-pill: 999px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+
+  /* Typography - system stacks, compact ramp */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --font-serif: Georgia, "Times New Roman", serif;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 19px;
+  --text-xl: 26px;
+  --text-2xl: 36px;
+  --text-3xl: 52px;
+  --text-display: clamp(44px, 7vw, 72px);
+
+  /* Type tuning */
+  --tracking-label: 0.08em;
+  --tracking-tight: -0.02em;
+  --tracking-display: -0.04em;
+  --leading-display: 0.95;
+  --leading-section: 1.08;
+  --leading-body: 1.45;
+  --leading-reading: 1.6;
+}
+
+html, body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}

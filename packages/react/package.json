@@ -1,0 +1,37 @@
+{
+  "name": "@summon/react",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@summon/devtools": "workspace:*",
+    "@summon/engine": "workspace:*",
+    "@summon/host": "workspace:*",
+    "@summon/sandbox-runtime": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18.3.0 || >=19.0.0",
+    "react-dom": ">=18.3.0 || >=19.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

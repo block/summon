@@ -1,0 +1,28 @@
+{
+  "name": "summon",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @summon/demo dev",
+    "dev:server": "pnpm --filter @summon/demo-server dev",
+    "dev:all": "pnpm -r --parallel --stream --filter @summon/demo-server --filter @summon/demo dev",
+    "build": "pnpm -r build",
+    "pack:dry-run": "pnpm -r --filter \"./packages/**\" exec npm --cache /tmp/summon-npm-cache pack --dry-run --json",
+    "test": "pnpm -r --filter @summon/engine --filter @summon/host --filter @summon/server --filter @summon/demo-server --filter @summon/demo test",
+    "test:safety": "playwright test",
+    "test:safety:ui": "playwright test --ui",
+    "typecheck": "pnpm -r typecheck",
+    "port-direction": "tsx scripts/port-direction.ts",
+    "eval-directions": "tsx scripts/eval-directions.ts"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.88.0",
+    "@playwright/test": "^1.60.0",
+    "tsx": "^4.7.0"
+  }
+}

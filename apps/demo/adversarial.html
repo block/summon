@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Summon — adversarial harness</title>
+<link rel="stylesheet" href="/summon.css">
+</head>
+<body>
+<nav class="summon-nav">
+  <a class="summon-brand" href="/">summon</a>
+  <a href="/generate.html">Generate</a>
+  <a href="/batch.html">Batch</a>
+</nav>
+
+<h1 class="page-title">Phase 1 adversarial harness</h1>
+<p class="lede">Loads a sandbox with a deliberately malicious artifact. Each attempt that fails is a win.</p>
+
+<div class="layout cols-2">
+  <div class="pane">
+    <header>Sandbox iframe</header>
+    <iframe id="sandbox" class="h-320" title="Summon sandbox"></iframe>
+  </div>
+  <div class="pane">
+    <header>Test results</header>
+    <div id="results" class="log h-320"></div>
+    <div class="summary" id="summary">Running…</div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

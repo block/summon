@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Summon — strict tier</title>
+<link rel="stylesheet" href="/summon.css">
+</head>
+<body>
+<nav class="summon-nav">
+  <a class="summon-brand" href="/">summon</a>
+  <a href="/generate.html">Generate</a>
+  <a href="/batch.html">Batch</a>
+</nav>
+
+<h1 class="page-title">Strict tier — host-owned card input</h1>
+<p class="lede">Outer sandbox draws the form layout but does <em>not</em> render the card field. It reserves a placeholder, emits <code>mount_strict_input</code> with bounds, and the host overlays a trusted input on top. Outer never sees the digits — only a tokenized result.</p>
+
+<div class="layout cols-3-2">
+  <div class="pane">
+    <header>Sandbox iframe (overlay sits on top)</header>
+    <iframe id="sandbox" class="h-540" title="Summon strict-tier demo"></iframe>
+  </div>
+  <div class="pane">
+    <header>Host bridge log</header>
+    <div id="log" class="log h-540"></div>
+  </div>
+</div>
+
+<script type="module" src="/src/strict-main.ts"></script>
+</body>
+</html>
