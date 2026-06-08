@@ -1,6 +1,6 @@
 {
   "name": "@anarchitecture/summon-react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "React adapter for rendering Summon surfaces and component islands",
   "license": "Apache-2.0",
   "author": "Block, Inc.",
@@ -42,7 +42,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@anarchitecture/summon": "^0.1.0"
+    "@anarchitecture/summon": "^0.2.0"
   },
   "peerDependencies": {
     "react": ">=18.3.0 || >=19.0.0",
