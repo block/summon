@@ -19,10 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@summon-internal/devtools": "workspace:*",
-    "@summon-internal/engine": "workspace:*",
-    "@summon-internal/host": "workspace:*",
-    "@summon-internal/sandbox-runtime": "workspace:*"
+    "@anarchitecture/summon": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18.3.0 || >=19.0.0",

@@ -47,8 +47,8 @@
       "types": "./dist/devtools.d.ts",
       "import": "./dist/devtools.js"
     },
-    "./bootstrap.js": "./dist/sandbox-runtime/bootstrap.js",
-    "./tokens.css": "./dist/sandbox-runtime/tokens.css",
+    "./bootstrap.js": "./dist/_internal/sandbox-runtime/bootstrap.js",
+    "./tokens.css": "./dist/_internal/sandbox-runtime/tokens.css",
     "./package.json": "./package.json"
   },
   "files": [

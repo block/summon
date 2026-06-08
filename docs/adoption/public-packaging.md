@@ -14,11 +14,11 @@ Publish by install environment, not by internal implementation layer.
 @anarchitecture/summon-react
 ```
 
-`@anarchitecture/summon` is the frameworkless client/core package. It owns the
-browser-facing runtime contract: protocol types and parsers, surface envelopes,
-capability registry helpers, `PolicyEngine`, stream consumption,
-`spawnSandbox`, runtime assets, validation helpers, and Devtools event store
-exports.
+`@anarchitecture/summon` is the shared host/contract package. Its root export is
+kept narrow: protocol parsing, surface-plan helpers, host capability/component
+contract helpers, and public diagnostics types. Browser runtime, policy,
+envelope, assets, and Devtools APIs live on explicit subpaths such as
+`@anarchitecture/summon/browser` and `@anarchitecture/summon/policy`.
 
 `@anarchitecture/summon-server` is the provider-neutral generation package. It
 owns `runSurfaceGeneration`, prompt/contract assembly, repair feedback, summary
@@ -73,9 +73,11 @@ Keep the private implementation graph boring:
 - Keep docs/examples on public package names.
 - Publish only `@anarchitecture/summon`, `@anarchitecture/summon-server`, and
   `@anarchitecture/summon-react`.
-- Build public packages by copying implementation `dist` output and rewriting
-  private imports to public or relative imports.
-- Fail CI if public JS or `.d.ts` imports `@summon-internal/*`.
+- Build public packages by copying implementation `dist` output under
+  `dist/_internal/*` and writing explicit public wrapper files.
+- Fail CI if public JS or `.d.ts` imports `@summon-internal/*`, public wrappers
+  use `export *`, public-looking implementation dirs appear at `dist/*`, or
+  wrapper exports drift from `scripts/public-api-manifest.json`.
 - Do source-health work here when it is destination-agnostic: tests, security
   fixes, API cleanup, build reliability, and package metadata correctness.
 

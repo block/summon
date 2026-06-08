@@ -5,7 +5,7 @@ import {
   compileDirectionContract,
   coerceOpts,
   type DirectionOpts,
-} from '@anarchitecture/summon';
+} from '@summon-internal/engine';
 
 export const PREFERRED_DEFAULT_DIRECTION_ID = 'ghost';
 

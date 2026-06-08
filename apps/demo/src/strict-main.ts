@@ -10,11 +10,11 @@
  */
 import {
   spawnSandbox,
-  PolicyEngine,
   createStrictInputRegistry,
   type SandboxHandle,
   type StrictInputController,
-} from '@anarchitecture/summon';
+} from '@anarchitecture/summon/browser';
+import { PolicyEngine } from '@anarchitecture/summon/policy';
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
 import tokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { STRICT_DEMO_BODY_HTML } from './strict-demo-artifact.js';
