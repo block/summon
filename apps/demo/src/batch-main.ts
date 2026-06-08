@@ -1,4 +1,5 @@
-import { spawnSandbox, PolicyEngine, type SandboxHandle } from '@anarchitecture/summon';
+import { spawnSandbox, type SandboxHandle } from '@anarchitecture/summon/browser';
+import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
   parseProtocolLine,
   SectionAccumulator,

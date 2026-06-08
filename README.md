@@ -82,8 +82,9 @@ generation starts. The model sees that plan as a contract but cannot widen it.
 
 ## Public Packages
 
-- `@anarchitecture/summon` - core protocol, validation, surface plans, policy,
-  browser sandbox host, runtime assets, envelopes, and Devtools events.
+- `@anarchitecture/summon` - core protocol, surface plans, host contract
+  helpers, diagnostics primitives, and explicit browser/policy/envelope/assets/
+  Devtools subpaths.
 - `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
   repair, summaries, and model-provider interfaces.
 - `@anarchitecture/summon-react` - `SummonSurface` and React component island

@@ -1,1 +1,4 @@
-export * from '@summon-internal/sandbox-runtime/assets';
+export {
+  bootstrapSource,
+  tokensSource,
+} from '@summon-internal/sandbox-runtime/assets';

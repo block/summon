@@ -1,23 +1,25 @@
-import { createEventStore, type DevtoolsEvent, type EventStore } from '@summon-internal/devtools';
-import { SectionAccumulator, type ProtocolLine } from '@summon-internal/engine';
 import {
-  createComponentIslandRegistry,
-  defineComponent as defineHostComponent,
-  PolicyEngine,
-  spawnSandbox,
-  type Artifact,
   type CapabilityRegistry,
   type ComponentDefinition,
+  type ComponentRegistry,
+  SectionAccumulator,
+  type ProtocolLine,
+} from '@anarchitecture/summon';
+import {
+  createComponentIslandRegistry,
+  spawnSandbox,
+  type Artifact,
   type ComponentIslandError,
   type ComponentIslandRegistry,
-  type ComponentRegistry,
   type SandboxHandle,
-} from '@summon-internal/host';
-import type { SurfaceEnvelope } from '@summon-internal/host/envelope';
+} from '@anarchitecture/summon/browser';
+import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
+import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
+import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
   bootstrapSource as defaultBootstrapSource,
   tokensSource as defaultTokensSource,
-} from '@summon-internal/sandbox-runtime/assets';
+} from '@anarchitecture/summon/assets';
 import { createElement, useEffect, useMemo, useRef, type ComponentType, type CSSProperties } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
@@ -193,7 +195,7 @@ export function defineReactComponent<T, P = T>(
 ): ComponentDefinition<T> {
   const roots = new WeakMap<HTMLElement, Root>();
   const { component, mapProps, ...rest } = definition;
-  return defineHostComponent({
+  return {
     ...rest,
     render: ({ container, props, componentId, sandboxId, emitIntent }) => {
       let root = roots.get(container);
@@ -215,7 +217,7 @@ export function defineReactComponent<T, P = T>(
       root?.unmount();
       roots.delete(container);
     },
-  });
+  };
 }
 
 function resolveHtml(props: SummonSurfaceProps): string {

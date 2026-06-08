@@ -1,1 +1,25 @@
-export * from '@summon-internal/devtools';
+export { createEventStore } from '@summon-internal/devtools';
+export type {
+  BaseEvent,
+  ComponentErrorEvent,
+  ComponentSyncEvent,
+  DevtoolsEvent,
+  DevtoolsEventKind,
+  EventStore,
+  EventStoreOptions,
+  IntentDispatchedEvent,
+  IntentEmittedEvent,
+  IntentRejectedEvent,
+  IntentSettledEvent,
+  ProtocolLineEvent,
+  ProtocolParseErrorEvent,
+  RenderEvent,
+  SandboxDisposedEvent,
+  SandboxFatalEvent,
+  SandboxReadyEvent,
+  SandboxSpawnedEvent,
+  StatePushedEvent,
+  StreamGraphEvent,
+  StreamLifecycleEvent,
+  SurfacePlanEvent,
+} from '@summon-internal/devtools';

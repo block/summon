@@ -1,4 +1,4 @@
-import { spawnSandbox } from '@anarchitecture/summon';
+import { spawnSandbox } from '@anarchitecture/summon/browser';
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
 import tokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { ADVERSARIAL_BODY_HTML } from './adversarial-artifact.js';

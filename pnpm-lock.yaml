@@ -29,6 +29,9 @@ importers:
       '@anarchitecture/summon':
         specifier: workspace:*
         version: link:../../packages/summon
+      '@summon-internal/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       zod:
         specifier: ^3.23.0
         version: 3.25.76
@@ -54,6 +57,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.88.0
         version: 0.88.0(zod@4.4.3)
+      '@summon-internal/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       cors:
         specifier: ^2.8.5
         version: 2.8.6
@@ -116,18 +122,9 @@ importers:
 
   packages/react:
     dependencies:
-      '@summon-internal/devtools':
+      '@anarchitecture/summon':
         specifier: workspace:*
-        version: link:../devtools
-      '@summon-internal/engine':
-        specifier: workspace:*
-        version: link:../engine
-      '@summon-internal/host':
-        specifier: workspace:*
-        version: link:../host
-      '@summon-internal/sandbox-runtime':
-        specifier: workspace:*
-        version: link:../sandbox-runtime
+        version: link:../summon
     devDependencies:
       '@types/react':
         specifier: ^18.3.0
