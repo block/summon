@@ -8,7 +8,7 @@ import {
   type GhostMemoryStackLayer,
   type PackageMemory,
 } from '@anarchitecture/ghost/scan';
-import { compileTokenContract, type ProtocolLine } from '@summon/engine';
+import { compileTokenContract, type ProtocolLine } from '@anarchitecture/summon';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -395,7 +395,7 @@ async function resolveGhostTokenSource(
   }
   return {
     kind: 'summon-default',
-    source: '@summon/sandbox-runtime/tokens.css',
+    source: '@anarchitecture/summon/tokens.css',
     css: DEFAULT_TOKENS_CSS,
     warnings: [
       ...warnings,

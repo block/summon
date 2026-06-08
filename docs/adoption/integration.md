@@ -14,7 +14,7 @@ import {
   createCapabilityRegistry,
   defineAction,
   defineDataResource,
-} from '@summon/host';
+} from '@anarchitecture/summon';
 
 const registry = createCapabilityRegistry([
   defineAction({
@@ -69,7 +69,7 @@ import { z } from 'zod';
 import {
   createComponentRegistry,
   defineComponent,
-} from '@summon/host';
+} from '@anarchitecture/summon';
 
 const componentRegistry = createComponentRegistry([
   defineComponent({
@@ -102,7 +102,7 @@ emits host actions.
 
 ## 3. Run Server Generation
 
-The generation server should use `@summon/server` for the repeatable lifecycle:
+The generation server should use `@anarchitecture/summon-server` for the repeatable lifecycle:
 compile contracts, emit host-owned meta lines, harden model JSONL, optionally
 repair retryable sections, and end with validation and stream-graph summaries.
 
@@ -110,8 +110,8 @@ repair retryable sections, and end with validation and stream-graph summaries.
 import {
   runSurfaceGeneration,
   type SummonModelProvider,
-} from '@summon/server';
-import type { SurfacePlan } from '@summon/engine';
+} from '@anarchitecture/summon-server';
+import type { SurfacePlan } from '@anarchitecture/summon';
 
 const surfacePlan: SurfacePlan = {
   purpose: 'explore',
@@ -168,13 +168,13 @@ section path.
 
 ## 4. Apply Protocol On The Client
 
-The client should let `@summon/host` own chunk decoding, protocol parsing,
+The client should let `@anarchitecture/summon` own chunk decoding, protocol parsing,
 section accumulation, stream health, and render timing. Product hosts still own
 fetching, aborts, request payloads, and product-specific meta interpretation.
 
 ```ts
-import { deriveSurfacePlanControls } from '@summon/engine';
-import { consumeSurfaceStream } from '@summon/host/browser';
+import { deriveSurfacePlanControls } from '@anarchitecture/summon';
+import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
 
 const controls = deriveSurfacePlanControls(surfacePlan);
 const response = await fetch('/api/generate', {
@@ -216,11 +216,11 @@ import {
   PolicyEngine,
   spawnSandbox,
   type SandboxHandle,
-} from '@summon/host';
+} from '@anarchitecture/summon';
 import {
   bootstrapSource,
   tokensSource,
-} from '@summon/sandbox-runtime/assets';
+} from '@anarchitecture/summon/assets';
 
 let sandbox: SandboxHandle | null = null;
 const islands = createComponentIslandRegistry({

@@ -5,7 +5,7 @@ import {
   type CapabilitySurface,
   type CapabilityTrigger,
   type IntentSpec,
-} from '@summon/engine';
+} from '@anarchitecture/summon';
 
 /**
  * Validate a capability pack sent by the client. The server is intent-agnostic

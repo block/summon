@@ -1,0 +1,75 @@
+{
+  "name": "@anarchitecture/summon",
+  "version": "0.1.0",
+  "description": "Sandboxed generative UI runtime, protocol, policy bridge, and browser host primitives",
+  "license": "Apache-2.0",
+  "author": "Block, Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/block/summon.git"
+  },
+  "homepage": "https://github.com/block/summon#readme",
+  "bugs": {
+    "url": "https://github.com/block/summon/issues"
+  },
+  "keywords": [
+    "generative-ui",
+    "sandbox",
+    "llm",
+    "protocol",
+    "runtime"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./policy": {
+      "types": "./dist/policy.d.ts",
+      "import": "./dist/policy.js"
+    },
+    "./envelope": {
+      "types": "./dist/envelope.d.ts",
+      "import": "./dist/envelope.js"
+    },
+    "./assets": {
+      "types": "./dist/assets.d.ts",
+      "import": "./dist/assets.js"
+    },
+    "./devtools": {
+      "types": "./dist/devtools.d.ts",
+      "import": "./dist/devtools.js"
+    },
+    "./bootstrap.js": "./dist/sandbox-runtime/bootstrap.js",
+    "./tokens.css": "./dist/sandbox-runtime/tokens.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-public-packages.mjs summon",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

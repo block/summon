@@ -24,7 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm --filter @summon/demo dev --host 127.0.0.1 --port 5173',
+    command: 'pnpm --filter @summon-internal/demo dev --host 127.0.0.1 --port 5173',
     url: 'http://127.0.0.1:5173/generate.html',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

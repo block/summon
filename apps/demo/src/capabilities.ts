@@ -14,7 +14,7 @@ import {
   type CapabilityDefinition,
   type CapabilityRegistry,
   type IntentHandler,
-} from '@summon/host';
+} from '@anarchitecture/summon';
 import { z } from 'zod';
 
 const logArgsSchema = z.object({ payload: z.any().optional() }).passthrough();

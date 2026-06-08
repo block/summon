@@ -1,18 +1,17 @@
 # Summon Package Consumption
 
-Summon V1 is consumed as built workspace packages. Do not import `src/*.ts`
-paths from applications.
+Summon V1 is consumed as built public packages. Do not import `src/*.ts` paths
+or `@summon-internal/*` packages from applications.
 
-For the follow-up package boundary, see
-[Public Packaging Plan](public-packaging.md). Public scope and package renames
-should happen in that package-boundary PR, not in the clean source import.
+For package boundary rationale, see
+[Public Packaging Plan](public-packaging.md).
 
 ## React Hosts
 
 ```ts
-import { SummonSurface, defineReactComponent } from '@summon/react';
-import { createCapabilityRegistry, defineAction } from '@summon/host';
-import { tokensSource } from '@summon/sandbox-runtime/assets';
+import { SummonSurface, defineReactComponent } from '@anarchitecture/summon-react';
+import { createCapabilityRegistry, defineAction } from '@anarchitecture/summon';
+import { tokensSource } from '@anarchitecture/summon/assets';
 ```
 
 `SummonSurface` accepts an envelope or direct `html` / `protocolLines`. Pass a
@@ -25,8 +24,8 @@ React hosts can register component islands with host-owned React components:
 
 ```tsx
 import { z } from 'zod';
-import { createComponentRegistry } from '@summon/host';
-import { SummonSurface, defineReactComponent } from '@summon/react';
+import { createComponentRegistry } from '@anarchitecture/summon';
+import { SummonSurface, defineReactComponent } from '@anarchitecture/summon-react';
 
 const componentRegistry = createComponentRegistry([
   defineReactComponent({
@@ -72,22 +71,22 @@ defineReactComponent({
 ```ts
 import {
   deriveSurfacePlanControls,
-} from '@summon/engine';
+} from '@anarchitecture/summon';
 import {
   consumeSurfaceStream,
   createComponentIslandRegistry,
   spawnSandbox,
   type SandboxHandle,
-} from '@summon/host/browser';
+} from '@anarchitecture/summon/browser';
 import {
   createComponentRegistry,
   defineComponent,
-} from '@summon/host';
-import { PolicyEngine } from '@summon/host/policy';
+} from '@anarchitecture/summon';
+import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
   bootstrapSource,
   tokensSource,
-} from '@summon/sandbox-runtime/assets';
+} from '@anarchitecture/summon/assets';
 ```
 
 Use `consumeSurfaceStream()` to decode streamed chunks, parse accepted protocol
@@ -166,7 +165,7 @@ await consumeSurfaceStream(response.body!, {
 import {
   runSurfaceGeneration,
   type SummonModelProvider,
-} from '@summon/server';
+} from '@anarchitecture/summon-server';
 ```
 
 `runSurfaceGeneration()` is provider-neutral. The provider receives compiled
@@ -185,5 +184,6 @@ Run this before publishing:
 
 ```sh
 pnpm build
+pnpm check:public-packages
 pnpm pack:dry-run
 ```

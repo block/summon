@@ -13,7 +13,7 @@ import type {
   SurfaceCeiling,
   SurfacePlan,
   TokenOverride,
-} from '@summon/engine';
+} from '@summon-internal/engine';
 
 export interface SummonModelRequest {
   prompt: string;

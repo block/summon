@@ -1,5 +1,5 @@
-import type { EventStore } from '@summon/devtools';
-import { hasCompleteResourceStateKeys, type ValidationCapability } from '@summon/engine';
+import type { EventStore } from '@summon-internal/devtools';
+import { hasCompleteResourceStateKeys, type ValidationCapability } from '@summon-internal/engine';
 import type {
   Artifact,
   ComponentIslandDescriptor,
@@ -55,9 +55,9 @@ export interface SpawnOptions {
    * Intent execution remains governed solely by `grantedIntents`.
    */
   grantedCapabilities?: ValidationCapability[];
-  /** Raw source of `@summon/sandbox-runtime/bootstrap.js`; published consumers can use `@summon/sandbox-runtime/assets`. */
+  /** Raw bootstrap source; published consumers can use `@anarchitecture/summon/assets`. */
   bootstrapSource: string;
-  /** Raw source of `@summon/sandbox-runtime/tokens.css`. */
+  /** Raw token CSS source; published consumers can use `@anarchitecture/summon/assets`. */
   tokensSource: string;
   /** Receives only intents that passed the bridge allowlist. */
   onIntent?: (intent: string, args: Record<string, unknown>) => void;

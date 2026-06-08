@@ -5,14 +5,14 @@ import type {
   SurfacePlan,
   ValidationCapability,
   ValidationComponent,
-} from '@summon/engine';
+} from '@summon-internal/engine';
 import {
   isProtocolLine,
   normalizeSurfacePlan,
   surfacePlanScriptPolicy,
   validateHtmlFragment,
   validateProtocolLine,
-} from '@summon/engine';
+} from '@summon-internal/engine';
 
 export const SUMMON_SURFACE_ENVELOPE_VERSION = 1;
 

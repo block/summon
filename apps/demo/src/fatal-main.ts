@@ -1,5 +1,5 @@
-import bootstrapSource from '@summon/sandbox-runtime/bootstrap.js?raw';
-import tokensSource from '@summon/sandbox-runtime/tokens.css?raw';
+import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
+import tokensSource from '@anarchitecture/summon/tokens.css?raw';
 
 /**
  * Self-test harness. We deliberately drive the bootstrap into two iframes:

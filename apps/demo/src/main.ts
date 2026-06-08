@@ -1,6 +1,6 @@
-import { spawnSandbox } from '@summon/host';
-import bootstrapSource from '@summon/sandbox-runtime/bootstrap.js?raw';
-import tokensSource from '@summon/sandbox-runtime/tokens.css?raw';
+import { spawnSandbox } from '@anarchitecture/summon';
+import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
+import tokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { ADVERSARIAL_BODY_HTML } from './adversarial-artifact.js';
 
 const iframe = document.getElementById('sandbox') as HTMLIFrameElement;

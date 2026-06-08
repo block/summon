@@ -1,4 +1,4 @@
-import type { ValidationCapability, ValidationComponent } from '@summon/engine';
+import type { ValidationCapability, ValidationComponent } from '@summon-internal/engine';
 
 /** Messages from host into the sandbox iframe. */
 export interface StateMessage {

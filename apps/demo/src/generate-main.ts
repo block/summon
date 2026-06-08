@@ -10,7 +10,7 @@ import {
   type SurfaceStreamContext,
   type SurfaceStreamResult,
   type SurfaceEnvelope,
-} from '@summon/host';
+} from '@anarchitecture/summon';
 import {
   deriveSurfacePlanControls,
   normalizeSurfacePlan,
@@ -30,10 +30,10 @@ import {
   type SummonLayout,
   type ValidationCapability,
   type ValidationComponent,
-} from '@summon/engine';
-import { createEventStore, type DevtoolsEvent } from '@summon/devtools';
-import bootstrapSource from '@summon/sandbox-runtime/bootstrap.js?raw';
-import defaultTokensSource from '@summon/sandbox-runtime/tokens.css?raw';
+} from '@anarchitecture/summon';
+import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
+import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
+import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import {
   createGhostShowcaseScenario,
   createScopedDemoRegistry,

@@ -1,20 +1,17 @@
 {
-  "name": "@summon/demo",
+  "name": "@summon-internal/demo",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @summon/devtools --filter @summon/engine --filter @summon/host --filter @summon/sandbox-runtime build && vite",
-    "build": "pnpm --filter @summon/devtools --filter @summon/engine --filter @summon/host --filter @summon/sandbox-runtime build && vite build",
+    "dev": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && vite",
+    "build": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && vite build",
     "preview": "vite preview",
     "test": "tsx --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@summon/devtools": "workspace:*",
-    "@summon/engine": "workspace:*",
-    "@summon/host": "workspace:*",
-    "@summon/sandbox-runtime": "workspace:*",
+    "@anarchitecture/summon": "workspace:*",
     "zod": "^3.23.0"
   },
   "devDependencies": {

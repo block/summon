@@ -8,7 +8,7 @@ import {
   type ProtocolHardenerResult,
   type ProtocolLine,
   type RepairFeedbackMetaValue,
-} from '@summon/engine';
+} from '@summon-internal/engine';
 import { buildEditBlock } from './edit.js';
 import {
   normalizeRepairOptions,

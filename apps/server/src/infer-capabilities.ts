@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { CapabilityPack } from '@summon/engine';
+import type { CapabilityPack } from '@anarchitecture/summon';
 
 export interface InferenceResult {
   /** Narrowed pack — never wider than the ceiling. Null when mode is static. */

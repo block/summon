@@ -1,5 +1,5 @@
 {
-  "name": "@summon/demo-server",
+  "name": "@summon-internal/demo-server",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -12,10 +12,10 @@
   "dependencies": {
     "@anarchitecture/ghost": "^0.2.0",
     "@anthropic-ai/sdk": "^0.88.0",
-    "@summon/engine": "workspace:*",
-    "@summon/server": "workspace:*",
     "cors": "^2.8.5",
-    "express": "^4.22.1"
+    "express": "^4.21.2",
+    "@anarchitecture/summon": "workspace:*",
+    "@anarchitecture/summon-server": "workspace:*"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

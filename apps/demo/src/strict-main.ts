@@ -14,9 +14,9 @@ import {
   createStrictInputRegistry,
   type SandboxHandle,
   type StrictInputController,
-} from '@summon/host';
-import bootstrapSource from '@summon/sandbox-runtime/bootstrap.js?raw';
-import tokensSource from '@summon/sandbox-runtime/tokens.css?raw';
+} from '@anarchitecture/summon';
+import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
+import tokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { STRICT_DEMO_BODY_HTML } from './strict-demo-artifact.js';
 
 const iframe = document.getElementById('sandbox') as HTMLIFrameElement;

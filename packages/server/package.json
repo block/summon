@@ -1,5 +1,5 @@
 {
-  "name": "@summon/server",
+  "name": "@summon-internal/server",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,19 +14,17 @@
   "files": [
     "dist"
   ],
-  "publishConfig": {
-    "access": "restricted"
-  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "test": "tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@summon/engine": "workspace:*"
+    "@summon-internal/engine": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"
-  }
+  },
+  "private": true
 }
