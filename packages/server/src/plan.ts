@@ -6,7 +6,7 @@ import {
   normalizeSurfaceCeiling,
   normalizeSurfacePlan,
   surfacePlanWithinCeiling,
-} from '@summon/engine';
+} from '@summon-internal/engine';
 import type {
   ResolvedSurfaceGenerationPlan,
   ResolveSurfaceGenerationPlanInput,

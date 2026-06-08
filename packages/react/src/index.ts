@@ -1,5 +1,5 @@
-import { createEventStore, type DevtoolsEvent, type EventStore } from '@summon/devtools';
-import { SectionAccumulator, type ProtocolLine } from '@summon/engine';
+import { createEventStore, type DevtoolsEvent, type EventStore } from '@summon-internal/devtools';
+import { SectionAccumulator, type ProtocolLine } from '@summon-internal/engine';
 import {
   createComponentIslandRegistry,
   defineComponent as defineHostComponent,
@@ -12,12 +12,12 @@ import {
   type ComponentIslandRegistry,
   type ComponentRegistry,
   type SandboxHandle,
-} from '@summon/host';
-import type { SurfaceEnvelope } from '@summon/host/envelope';
+} from '@summon-internal/host';
+import type { SurfaceEnvelope } from '@summon-internal/host/envelope';
 import {
   bootstrapSource as defaultBootstrapSource,
   tokensSource as defaultTokensSource,
-} from '@summon/sandbox-runtime/assets';
+} from '@summon-internal/sandbox-runtime/assets';
 import { createElement, useEffect, useMemo, useRef, type ComponentType, type CSSProperties } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
@@ -205,7 +205,10 @@ export function defineReactComponent<T, P = T>(
       const componentProps = mapProps
         ? mapProps(props as T, runtimeContext)
         : props as unknown as P;
-      root.render(createElement(component, componentProps as Record<string, unknown>));
+      root.render(createElement(
+        component as ComponentType<Record<string, unknown>>,
+        componentProps as Record<string, unknown>,
+      ));
     },
     destroy: ({ container }) => {
       const root = roots.get(container);

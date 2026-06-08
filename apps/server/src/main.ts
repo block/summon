@@ -9,7 +9,7 @@ import {
   type ScriptPolicy,
   type SummonLayout,
   type TokenOverride,
-} from '@summon/engine';
+} from '@anarchitecture/summon';
 import {
   resolveSurfaceGenerationPlan,
   runSurfaceGeneration,
@@ -18,7 +18,7 @@ import {
   type RepairOptions as SurfaceRepairOptions,
   type SurfaceGenerationSummary,
   type SummonModelChunk,
-} from '@summon/server';
+} from '@anarchitecture/summon-server';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

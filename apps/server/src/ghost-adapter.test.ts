@@ -99,7 +99,7 @@ describe('Ghost adapter', () => {
     const ctx = await resolveGhostContext(parsed.request, roots);
 
     assert.equal(ctx.tokenSource.kind, 'summon-default');
-    assert.equal(ctx.tokenSource.source, '@summon/sandbox-runtime/tokens.css');
+    assert.equal(ctx.tokenSource.source, '@anarchitecture/summon/tokens.css');
     assert.match(ctx.tokenSource.css, /--color-bg:/);
     assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('failed token contract')));
   });

@@ -15,17 +15,27 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@summon/devtools": ["packages/devtools/src/index.ts"],
-      "@summon/engine": ["packages/engine/src/index.ts"],
-      "@summon/host": ["packages/host/src/index.ts"],
-      "@summon/host/browser": ["packages/host/src/browser.ts"],
-      "@summon/host/envelope": ["packages/host/src/envelope.ts"],
-      "@summon/host/policy": ["packages/host/src/policy.ts"],
-      "@summon/react": ["packages/react/src/index.ts"],
-      "@summon/sandbox-runtime/assets": ["packages/sandbox-runtime/src/assets.ts"],
-      "@summon/sandbox-runtime/bootstrap.js?raw": ["packages/sandbox-runtime/src/bootstrap.js"],
-      "@summon/sandbox-runtime/tokens.css?raw": ["packages/sandbox-runtime/src/tokens.css"],
-      "@summon/server": ["packages/server/src/index.ts"]
+      "@summon-internal/devtools": ["packages/devtools/src/index.ts"],
+      "@summon-internal/engine": ["packages/engine/src/index.ts"],
+      "@summon-internal/host": ["packages/host/src/index.ts"],
+      "@summon-internal/host/browser": ["packages/host/src/browser.ts"],
+      "@summon-internal/host/envelope": ["packages/host/src/envelope.ts"],
+      "@summon-internal/host/policy": ["packages/host/src/policy.ts"],
+      "@summon-internal/react": ["packages/react/src/index.ts"],
+      "@summon-internal/sandbox-runtime/assets": ["packages/sandbox-runtime/src/assets.ts"],
+      "@summon-internal/sandbox-runtime/bootstrap.js?raw": ["packages/sandbox-runtime/src/bootstrap.js"],
+      "@summon-internal/sandbox-runtime/tokens.css?raw": ["packages/sandbox-runtime/src/tokens.css"],
+      "@summon-internal/server": ["packages/server/src/index.ts"],
+      "@anarchitecture/summon": ["packages/summon/src/index.ts"],
+      "@anarchitecture/summon/browser": ["packages/summon/src/browser.ts"],
+      "@anarchitecture/summon/policy": ["packages/summon/src/policy.ts"],
+      "@anarchitecture/summon/envelope": ["packages/summon/src/envelope.ts"],
+      "@anarchitecture/summon/assets": ["packages/summon/src/assets.ts"],
+      "@anarchitecture/summon/devtools": ["packages/summon/src/devtools.ts"],
+      "@anarchitecture/summon/bootstrap.js?raw": ["packages/sandbox-runtime/src/bootstrap.js"],
+      "@anarchitecture/summon/tokens.css?raw": ["packages/sandbox-runtime/src/tokens.css"],
+      "@anarchitecture/summon-server": ["packages/summon-server/src/index.ts"],
+      "@anarchitecture/summon-react": ["packages/summon-react/src/index.ts"]
     }
   }
 }

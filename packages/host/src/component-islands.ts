@@ -1,4 +1,4 @@
-import type { EventStore } from '@summon/devtools';
+import type { EventStore } from '@summon-internal/devtools';
 import type {
   ComponentIslandBounds,
   ComponentIslandDescriptor,

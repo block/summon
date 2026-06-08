@@ -27,4 +27,4 @@ export type {
   ProtocolLine,
   ProtocolSkipMetaValue,
   RepairFeedbackMetaValue,
-} from '@summon/engine';
+} from '@summon-internal/engine';

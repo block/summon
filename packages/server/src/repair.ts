@@ -3,7 +3,7 @@ import type {
   ContractPromptBlock,
   ProtocolLine,
   RepairFeedbackMetaValue,
-} from '@summon/engine';
+} from '@summon-internal/engine';
 import type {
   RepairOptions,
   SummonModelChunk,

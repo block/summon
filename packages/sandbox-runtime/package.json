@@ -1,5 +1,5 @@
 {
-  "name": "@summon/sandbox-runtime",
+  "name": "@summon-internal/sandbox-runtime",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/assets.js",
@@ -16,11 +16,9 @@
   "files": [
     "dist"
   ],
-  "publishConfig": {
-    "access": "restricted"
-  },
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "node scripts/build.mjs --check"
-  }
+  },
+  "private": true
 }

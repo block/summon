@@ -3,8 +3,8 @@ import type {
   ScriptPolicy,
   SurfacePlan,
   SurfacePlanMode,
-} from '@summon/engine';
-import type { CapabilityRegistry } from '@summon/host';
+} from '@anarchitecture/summon';
+import type { CapabilityRegistry } from '@anarchitecture/summon';
 import { createDemoCapabilityRegistry, type DemoHandlerOptions } from './capabilities.js';
 
 export type Mode = SurfacePlanMode;

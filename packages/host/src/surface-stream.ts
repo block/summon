@@ -8,7 +8,7 @@ import {
   type SectionApplyResult,
   type StreamGraphSnapshot,
   type SurfacePlanMode,
-} from '@summon/engine';
+} from '@summon-internal/engine';
 
 export type SurfaceStreamChunk = string | Uint8Array;
 export type SurfaceStreamSource =

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { ProtocolLine } from '@summon/engine';
+import type { ProtocolLine } from '@summon-internal/engine';
 import {
   SectionAccumulator,
   StreamGraph,
-} from '@summon/engine';
+} from '@summon-internal/engine';
 import {
   consumeSurfaceStream,
   type SurfaceStreamContext,

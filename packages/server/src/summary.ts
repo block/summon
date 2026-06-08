@@ -1,4 +1,4 @@
-import type { ContractIssue, ProtocolLine, StreamGraph } from '@summon/engine';
+import type { ContractIssue, ProtocolLine, StreamGraph } from '@summon-internal/engine';
 import type { RepairStats } from './types.js';
 
 const MAX_VALIDATION_EXAMPLES = 8;

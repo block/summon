@@ -1,5 +1,5 @@
 {
-  "name": "@summon/devtools",
+  "name": "@summon-internal/devtools",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -14,14 +14,12 @@
   "files": [
     "dist"
   ],
-  "publishConfig": {
-    "access": "restricted"
-  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.4.0"
-  }
+  },
+  "private": true
 }

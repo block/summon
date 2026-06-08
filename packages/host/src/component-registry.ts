@@ -4,8 +4,8 @@ import type {
   ComponentPack,
   ComponentSizing,
   ComponentSurface,
-} from '@summon/engine';
-import { compileComponentContract } from '@summon/engine';
+} from '@summon-internal/engine';
+import { compileComponentContract } from '@summon-internal/engine';
 import type { ZodType, ZodTypeAny } from 'zod';
 import { formatZodSchema } from './capability-registry.js';
 

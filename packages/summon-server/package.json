@@ -1,0 +1,50 @@
+{
+  "name": "@anarchitecture/summon-server",
+  "version": "0.1.0",
+  "description": "Provider-neutral server-side generation primitives for Summon surfaces",
+  "license": "Apache-2.0",
+  "author": "Block, Inc.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/block/summon.git"
+  },
+  "homepage": "https://github.com/block/summon#readme",
+  "bugs": {
+    "url": "https://github.com/block/summon/issues"
+  },
+  "keywords": [
+    "generative-ui",
+    "server",
+    "llm",
+    "streaming",
+    "summon"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-public-packages.mjs summon-server",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@anarchitecture/summon": "^0.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

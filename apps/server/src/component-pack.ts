@@ -3,7 +3,7 @@ import type {
   ComponentPack,
   ComponentSizing,
   ComponentSurface,
-} from '@summon/engine';
+} from '@anarchitecture/summon';
 
 /**
  * Validate a component pack sent by the client. The server remains renderer

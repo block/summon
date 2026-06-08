@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { deriveSurfacePlanControls } from '@summon/engine';
+import { deriveSurfacePlanControls } from '@anarchitecture/summon';
 import {
   createScopedDemoRegistry,
   narrowCapabilityPack,

@@ -7,8 +7,8 @@ import type {
   CompiledCapabilityContract,
   IntentSpec,
   CapabilitySurface,
-} from '@summon/engine';
-import { compileCapabilityContract } from '@summon/engine';
+} from '@summon-internal/engine';
+import { compileCapabilityContract } from '@summon-internal/engine';
 import type { ZodType, ZodTypeAny } from 'zod';
 import { defineIntent, type IntentEntry, type IntentHandler } from './policy-engine.js';
 

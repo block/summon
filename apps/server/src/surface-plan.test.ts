@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveSurfaceGenerationPlan } from '@summon/server';
-import type { CapabilityPack } from '@summon/engine';
+import { resolveSurfaceGenerationPlan } from '@anarchitecture/summon-server';
+import type { CapabilityPack } from '@anarchitecture/summon';
 import { parseCapabilityPack } from './capability-pack.js';
 
 const capabilities: CapabilityPack = {

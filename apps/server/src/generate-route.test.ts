@@ -6,7 +6,7 @@ import { createServer, type IncomingMessage } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import type { CapabilityPack, ProtocolLine, SurfaceCeiling, SurfacePlan } from '@summon/engine';
+import type { CapabilityPack, ProtocolLine, SurfaceCeiling, SurfacePlan } from '@anarchitecture/summon';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(here, '..');

@@ -4,7 +4,7 @@
  * credential access, and state mutation live. The sandbox never sees any of it.
  */
 
-import type { EventStore } from '@summon/devtools';
+import type { EventStore } from '@summon-internal/devtools';
 import type { ZodType } from 'zod';
 
 export interface IntentContext<T = Record<string, unknown>> {

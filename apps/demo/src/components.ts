@@ -3,8 +3,8 @@ import {
   defineComponent,
   type ComponentDefinition,
   type ComponentRegistry,
-} from '@summon/host';
-import type { ComponentPack } from '@summon/engine';
+} from '@anarchitecture/summon';
+import type { ComponentPack } from '@anarchitecture/summon';
 import { z } from 'zod';
 
 const metricCardPropsSchema = z.object({

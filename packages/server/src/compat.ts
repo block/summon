@@ -1,4 +1,4 @@
-import type { ProtocolLine } from '@summon/engine';
+import type { ProtocolLine } from '@summon-internal/engine';
 import { runSurfaceGeneration } from './runner.js';
 import type {
   GenerateSurfaceInput,

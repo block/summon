@@ -41,9 +41,9 @@ handlers, network, credentials, state, grants, and the selected `SurfacePlan`.
 Generated artifacts must not emit or widen `/surface-plan`.
 
 New generation servers should prefer `runSurfaceGeneration(input, emit)` from
-`@summon/server`; `generateSurfaceStream()` remains available for existing
-async-generator integrations. Applications should consume built package exports,
-not `src/*.ts` paths.
+`@anarchitecture/summon-server`; `generateSurfaceStream()` remains available for
+existing async-generator integrations. Applications should consume built public
+package exports, not `src/*.ts` paths or `@summon-internal/*` packages.
 
 Use `defineAction` and `defineDataResource` for common host-backed
 interactivity. Use `defineWorkerAction` / `defineWorkerResource` for host-owned

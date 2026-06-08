@@ -11,12 +11,17 @@ network, credentials, state, handlers, grants, and persistence.
 
 ## Project Status: Beta
 
-Summon is pre-1.0 and under active development. The protocol, package layout,
-workspace package names, generated-surface contract, and public JavaScript
-exports may change before a stable release.
+Summon is pre-1.0 and under active development. The protocol,
+generated-surface contract, and public JavaScript exports may change before a
+stable release.
 
-This initial public import keeps the existing `@summon/*` workspace package
-names. Public npm packaging will be introduced in a follow-up change.
+The public package boundary is:
+
+```txt
+@anarchitecture/summon
+@anarchitecture/summon-server
+@anarchitecture/summon-react
+```
 
 ## Quickstart
 
@@ -75,20 +80,21 @@ generation starts. The model sees that plan as a contract but cannot widen it.
   sandbox description.
 - `/fatal.html` - sandbox startup failure handling.
 
+## Public Packages
+
+- `@anarchitecture/summon` - core protocol, validation, surface plans, policy,
+  browser sandbox host, runtime assets, envelopes, and Devtools events.
+- `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
+  repair, summaries, and model-provider interfaces.
+- `@anarchitecture/summon-react` - `SummonSurface` and React component island
+  adapter. `react` and `react-dom` are peer dependencies.
+
 ## Workspace Map
 
-- `packages/sandbox-runtime` - built `bootstrap.js`, `tokens.css`, and
-  `@summon/sandbox-runtime/assets` string exports for non-Vite consumers.
-- `packages/host` - policy, capability registry, envelope helpers, and the
-  browser-only `spawnSandbox` iframe primitive.
-- `packages/engine` - protocol constants/parsers, `SectionAccumulator`,
-  `StreamGraph`, contract compilers, protocol hardener, token validation, and
-  parser-based runtime validation.
-- `packages/devtools` - `EventStore` and typed lifecycle, protocol, intent,
-  state, render, and stream-graph events.
-- `packages/react` - controlled `SummonSurface` component for React hosts.
-- `packages/server` - provider-neutral generation primitives; no Express
-  routes.
+- `packages/summon*` - public package facades.
+- `packages/engine`, `packages/host`, `packages/devtools`,
+  `packages/sandbox-runtime`, `packages/server`, `packages/react` - private
+  implementation workspaces published only through the public facades.
 - `apps/server` - Anthropic-backed demo server, direction loading, repair
   feedback, and demo backing routes.
 - `apps/demo` - Vite host app for generation, batch runs, adversarial checks,
