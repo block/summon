@@ -18,11 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10.0.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: Show package manager config
+        run: |
+          pnpm --version
+          pnpm config get registry
+      - run: pnpm install --frozen-lockfile --reporter append-only
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
@@ -36,10 +41,15 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10.0.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: Show package manager config
+        run: |
+          pnpm --version
+          pnpm config get registry
+      - run: pnpm install --frozen-lockfile --reporter append-only
       - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm test:safety
