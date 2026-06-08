@@ -26,7 +26,19 @@ jobs:
         run: |
           pnpm --version
           pnpm config get registry
-      - run: pnpm install --frozen-lockfile --reporter append-only
+      - name: Install dependencies
+        run: |
+          set +e
+          pnpm install --frozen-lockfile --reporter append-only 2>&1 | tee pnpm-install.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::group::pnpm install failure tail"
+            tail -120 pnpm-install.log
+            echo "::endgroup::"
+            message=$(tail -40 pnpm-install.log | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=pnpm install failed::$message"
+            exit "$status"
+          fi
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
@@ -48,6 +60,18 @@ jobs:
         run: |
           pnpm --version
           pnpm config get registry
-      - run: pnpm install --frozen-lockfile --reporter append-only
+      - name: Install dependencies
+        run: |
+          set +e
+          pnpm install --frozen-lockfile --reporter append-only 2>&1 | tee pnpm-install.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            echo "::group::pnpm install failure tail"
+            tail -120 pnpm-install.log
+            echo "::endgroup::"
+            message=$(tail -40 pnpm-install.log | sed -e 's/%/%25/g' -e 's/\r/%0D/g' -e ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error title=pnpm install failed::$message"
+            exit "$status"
+          fi
       - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm test:safety
