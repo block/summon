@@ -170,7 +170,7 @@ importers:
   packages/summon-react:
     dependencies:
       '@anarchitecture/summon':
-        specifier: ^0.1.0
+        specifier: ^0.2.0
         version: link:../summon
     devDependencies:
       '@types/react':
@@ -192,7 +192,7 @@ importers:
   packages/summon-server:
     dependencies:
       '@anarchitecture/summon':
-        specifier: ^0.1.0
+        specifier: ^0.2.0
         version: link:../summon
     devDependencies:
       typescript:
