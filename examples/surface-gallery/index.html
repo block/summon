@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Summon Surface Gallery</title>
+</head>
+<body>
+  <main id="app" class="gallery-shell">
+    <aside class="preset-rail" aria-label="Surface presets">
+      <a class="wordmark" href="/">summon</a>
+      <div class="rail-intro">
+        <p class="eyebrow">Surface Gallery</p>
+        <h1>Sandboxed mini-apps with host-owned authority.</h1>
+      </div>
+      <div id="preset-list" class="preset-list"></div>
+    </aside>
+
+    <section class="surface-stage" aria-label="Generated surface">
+      <header class="stage-header">
+        <div>
+          <p class="eyebrow" id="preset-category">Gallery</p>
+          <h2 id="preset-title">Static Brief</h2>
+          <p id="preset-description">Choose a preset to see a focused Summon surface.</p>
+        </div>
+        <button id="run" type="button">Generate</button>
+      </header>
+
+      <label class="prompt-label" for="prompt">Prompt</label>
+      <textarea id="prompt" class="prompt-box" spellcheck="false"></textarea>
+
+      <div class="sandbox-frame">
+        <iframe id="sandbox" title="Summon surface gallery sandbox"></iframe>
+        <div id="welcome" class="welcome">
+          <strong>Choose a preset, then generate.</strong>
+          <span>Live generation streams into a null-origin iframe.</span>
+        </div>
+      </div>
+
+      <details id="event-strip" class="event-strip">
+        <summary>Events <span id="event-count">0</span></summary>
+        <div id="event-log" class="event-log"></div>
+      </details>
+    </section>
+
+    <aside class="contract-panel" aria-label="Host contract">
+      <div class="panel-block">
+        <p class="eyebrow">Host contract</p>
+        <div id="contract-summary" class="contract-summary"></div>
+      </div>
+      <div class="panel-block">
+        <p class="eyebrow">Stream health</p>
+        <div class="health-grid">
+          <div><span>Status</span><strong id="status">idle</strong></div>
+          <div><span>Accepted</span><strong id="accepted-count">0</strong></div>
+          <div><span>Skipped</span><strong id="skipped-count">0</strong></div>
+          <div><span>Blocked</span><strong id="blocked-count">0</strong></div>
+        </div>
+      </div>
+      <div class="panel-block">
+        <p class="eyebrow">Host state</p>
+        <pre id="state-preview">{}</pre>
+      </div>
+      <div id="setup-note" class="setup-note" hidden></div>
+    </aside>
+  </main>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
