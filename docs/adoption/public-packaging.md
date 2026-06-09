@@ -87,10 +87,12 @@ Keep the private implementation graph boring:
 - Keep docs/examples on public package names.
 - Publish only `@anarchitecture/summon`, `@anarchitecture/summon-server`, and
   `@anarchitecture/summon-react`.
-- Build public packages by copying implementation `dist` output and rewriting
-  private imports to public or relative imports.
-- Fail CI if public JS or `.d.ts` imports `@summon-internal/*`.
-- Fail CI if the public root export snapshot drifts without an intentional
+- Build public packages by copying implementation `dist` output under
+  `dist/_internal/*` and writing explicit public wrapper files.
+- Fail CI if public JS or `.d.ts` imports `@summon-internal/*`, public wrappers
+  use `export *`, public-looking implementation dirs appear at `dist/*`, or
+  wrapper exports drift from `scripts/public-api-manifest.json`.
+- Fail CI if the runtime public API snapshot drifts without an intentional
   update to `scripts/check-public-api.mjs`.
 - Do source-health work here when it is destination-agnostic: tests, security
   fixes, API cleanup, build reliability, and package metadata correctness.

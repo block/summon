@@ -34,7 +34,6 @@ const expectedRootExports = [
 ].sort();
 
 const expectedServerExports = [
-  'buildEditBlock',
   'generateSurfaceStream',
   'resolveSurfaceGenerationPlan',
   'runSurfaceGeneration',

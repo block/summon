@@ -12,15 +12,10 @@ export const publicPackageDirs = [
   'packages/summon-react',
 ];
 
-const strippedEnvKeys = new Set([
-  'npm_config_link_workspace_packages',
-  'npm_config_node_linker',
-]);
-
 function cleanEnv() {
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
-    if (strippedEnvKeys.has(key.toLowerCase())) {
+    if (key.toLowerCase().startsWith('npm_config_')) {
       delete env[key];
     }
   }
@@ -31,9 +26,11 @@ async function createNpmScratch() {
   const dir = await mkdtemp(join(tmpdir(), 'summon-npm-'));
   const cacheDir = join(dir, 'cache');
   const userConfig = join(dir, '.npmrc');
+  const globalConfig = join(dir, '.npm-globalrc');
   await mkdir(cacheDir, { recursive: true });
   await writeFile(userConfig, 'registry=https://registry.npmjs.org/\n');
-  return { cacheDir, userConfig };
+  await writeFile(globalConfig, '');
+  return { cacheDir, globalConfig, userConfig };
 }
 
 export async function readPackageManifest(packageDir) {
@@ -65,6 +62,8 @@ export async function packPublicPackages(options = {}) {
       packagePath,
       '--cache',
       scratch.cacheDir,
+      '--globalconfig',
+      scratch.globalConfig,
       '--userconfig',
       scratch.userConfig,
     ];

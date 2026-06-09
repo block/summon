@@ -82,11 +82,9 @@ generation starts. The model sees that plan as a contract but cannot widen it.
 
 ## Public Packages
 
-- `@anarchitecture/summon` - core protocol, validation, surface plans, policy,
-  browser sandbox host, runtime assets, envelopes, and Devtools events. The
-  root entrypoint is curated for host-authoring helpers; advanced APIs live at
-  `/browser`, `/engine`, `/host`, `/policy`, `/envelope`, `/assets`, and
-  `/devtools`.
+- `@anarchitecture/summon` - curated host-authoring helpers, policy helpers,
+  and surface-plan APIs. Advanced browser, engine, host, policy, envelope,
+  assets, and Devtools APIs live on explicit subpaths.
 - `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
   repair, summaries, and model-provider interfaces.
 - `@anarchitecture/summon-react` - `SummonSurface` and React component island
