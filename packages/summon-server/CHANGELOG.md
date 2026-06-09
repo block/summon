@@ -1,5 +1,12 @@
 # @anarchitecture/summon-server
 
+## 0.3.0
+
+### Patch Changes
+
+- Align the public server package version with the Summon public package release
+  train.
+
 ## 0.2.0
 
 ### Minor Changes

@@ -121,11 +121,58 @@ async function assertPublicApi(packageDir, distDir, failures) {
   }
 }
 
-const failures = [];
+async function readPublicPackageManifests() {
+  return Promise.all(
+    publicPackages.map(async (packageDir) => {
+      const packageJsonPath = join(rootDir, packageDir, 'package.json');
+      const manifest = JSON.parse(await readFile(packageJsonPath, 'utf8'));
+      return { packageDir, manifest };
+    }),
+  );
+}
 
-for (const packageDir of publicPackages) {
-  const packageJsonPath = join(rootDir, packageDir, 'package.json');
-  const manifest = JSON.parse(await readFile(packageJsonPath, 'utf8'));
+function assertPublicPackageVersions(publicPackageManifests, failures) {
+  const versions = new Map();
+  for (const { manifest } of publicPackageManifests) {
+    const packages = versions.get(manifest.version) ?? [];
+    packages.push(manifest.name);
+    versions.set(manifest.version, packages);
+  }
+
+  if (versions.size > 1) {
+    failures.push(
+      `public package versions must match: ${Array.from(versions)
+        .map(([version, packages]) => `${version} (${packages.join(', ')})`)
+        .join('; ')}`,
+    );
+  }
+
+  const corePackage = publicPackageManifests.find(
+    ({ manifest }) => manifest.name === '@anarchitecture/summon',
+  );
+  if (!corePackage) {
+    failures.push('public package manifests must include @anarchitecture/summon');
+    return;
+  }
+
+  const expectedCoreRange = `^${corePackage.manifest.version}`;
+  for (const { packageDir, manifest } of publicPackageManifests) {
+    if (manifest.name === corePackage.manifest.name) continue;
+    const actualRange = manifest.dependencies?.[corePackage.manifest.name];
+    if (actualRange !== expectedCoreRange) {
+      failures.push(
+        `${packageDir}/package.json must depend on ${corePackage.manifest.name}@${expectedCoreRange}`,
+      );
+    }
+  }
+}
+
+const failures = [];
+const publicPackageManifests = await readPublicPackageManifests();
+
+assertPublicPackageVersions(publicPackageManifests, failures);
+
+for (const { packageDir, manifest } of publicPackageManifests) {
   const manifestText = JSON.stringify({
     dependencies: manifest.dependencies ?? {},
     peerDependencies: manifest.peerDependencies ?? {},

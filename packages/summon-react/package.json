@@ -1,6 +1,6 @@
 {
   "name": "@anarchitecture/summon-react",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "React adapter for rendering Summon surfaces and component islands",
   "license": "Apache-2.0",
   "author": "Block, Inc.",
