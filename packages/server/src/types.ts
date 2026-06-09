@@ -10,6 +10,7 @@ import type {
   SectionAccumulatorSnapshot,
   StreamGraphSnapshot,
   SummonLayout,
+  SurfacePolicy,
   SurfaceCeiling,
   SurfacePlan,
   TokenOverride,
@@ -95,6 +96,7 @@ export interface SurfaceGenerationInput {
   editBlock?: string | null;
   capabilities?: CapabilityPack | null;
   components?: ComponentPack | null;
+  surfacePolicy?: SurfacePolicy | null;
   scriptPolicy?: ScriptPolicy;
   surfacePlan?: SurfacePlan | null;
   tokenOverrides?: TokenOverride[];

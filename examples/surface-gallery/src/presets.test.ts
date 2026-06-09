@@ -4,15 +4,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
-  deriveSurfacePlanControls,
-  normalizeSurfacePlan,
-  surfacePlanWithinCeiling,
+  compileSurfacePolicy,
+  normalizeSurfacePolicy,
 } from '@anarchitecture/summon';
-import { allGalleryCapabilityNames } from './capabilities.js';
-import { allGalleryComponentNames } from './components.js';
+import { allGalleryCapabilityNames, createGalleryCapabilityRegistry } from './capabilities.js';
+import { allGalleryComponentNames, createGalleryComponentRegistry } from './components.js';
 import { GALLERY_PRESETS } from './presets.js';
 
-test('gallery presets are explicit, valid, and contract-complete', () => {
+test('gallery presets are explicit, valid, and policy-complete', () => {
   const capabilityNames = new Set(allGalleryCapabilityNames());
   const componentNames = new Set(allGalleryComponentNames());
   const seen = new Set<string>();
@@ -22,16 +21,34 @@ test('gallery presets are explicit, valid, and contract-complete', () => {
   for (const preset of GALLERY_PRESETS) {
     assert.equal(seen.has(preset.id), false, `duplicate preset ${preset.id}`);
     seen.add(preset.id);
-    assert.deepEqual(normalizeSurfacePlan(preset.surfacePlan), preset.surfacePlan);
-    assert.equal(surfacePlanWithinCeiling(preset.surfacePlan, preset.surfaceCeiling), true);
-    assert.equal(preset.scriptPolicy, deriveSurfacePlanControls(preset.surfacePlan).scriptPolicy);
+    assert.deepEqual(normalizeSurfacePolicy(preset.surfacePolicy), {
+      tier: preset.surfacePolicy.tier,
+      purpose: preset.surfacePolicy.purpose ?? 'inform',
+      grants: preset.surfacePolicy.grants ?? [],
+      components: preset.surfacePolicy.components ?? [],
+      persistence: preset.surfacePolicy.persistence ?? 'replayable',
+    });
 
-    for (const capability of preset.capabilityNames) {
+    for (const capability of preset.surfacePolicy.grants ?? []) {
       assert.equal(capabilityNames.has(capability), true, `${preset.id} references unknown capability ${capability}`);
     }
-    for (const component of preset.componentNames ?? []) {
+    for (const component of preset.surfacePolicy.components ?? []) {
       assert.equal(componentNames.has(component), true, `${preset.id} references unknown component ${component}`);
     }
+
+    const compiled = compileSurfacePolicy(preset.surfacePolicy, {
+      capabilities: createGalleryCapabilityRegistry().toContract().pack,
+      components: createGalleryComponentRegistry().toContract().pack,
+    });
+    assert.deepEqual(compiled.issues, []);
+    assert.deepEqual(
+      compiled.capabilities?.intents.map((intent) => intent.name) ?? [],
+      preset.surfacePolicy.grants ?? [],
+    );
+    assert.deepEqual(
+      compiled.components?.components.map((component) => component.name) ?? [],
+      preset.surfacePolicy.components ?? [],
+    );
   }
 });
 

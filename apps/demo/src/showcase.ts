@@ -3,7 +3,7 @@ import type {
   ScriptPolicy,
   SurfacePlan,
   SurfacePlanMode,
-} from '@anarchitecture/summon';
+} from '@anarchitecture/summon/engine';
 import type { CapabilityRegistry } from '@anarchitecture/summon';
 import { createDemoCapabilityRegistry, type DemoHandlerOptions } from './capabilities.js';
 

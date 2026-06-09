@@ -1,7 +1,9 @@
 import {
   StreamGraph,
+  compileSurfacePolicy,
   compileSystemContracts,
   createProtocolHardener,
+  type CompiledSurfacePolicy,
   type CompiledSystemContracts,
   type ContractIssue,
   type ProtocolHardener,
@@ -25,6 +27,7 @@ import type {
 
 export class SurfaceGenerationSession {
   private readonly systemContracts: CompiledSystemContracts;
+  private readonly surfacePolicy: CompiledSurfacePolicy | null;
   private readonly hardener: ProtocolHardener;
   private readonly acceptedLines: ProtocolLine[] = [];
   private readonly emittedLines: ProtocolLine[] = [];
@@ -45,16 +48,22 @@ export class SurfaceGenerationSession {
     private readonly emit: (line: ProtocolLine) => void | Promise<void>,
   ) {
     const editBlock = input.edit ? buildEditBlock(input.edit) : input.editBlock ?? null;
+    this.surfacePolicy = input.surfacePolicy
+      ? compileSurfacePolicy(input.surfacePolicy, {
+          capabilities: input.capabilities ?? null,
+          components: input.components ?? null,
+        })
+      : null;
     this.systemContracts = compileSystemContracts({
-      mode: input.mode ?? 'static',
+      mode: this.surfacePolicy?.mode ?? input.mode ?? 'static',
       direction: input.direction ?? null,
       ghostPrompt: input.ghostPrompt ?? null,
       layout: input.layout ?? null,
       editBlock,
-      capabilities: input.capabilities ?? null,
-      components: input.components ?? null,
-      scriptPolicy: input.scriptPolicy,
-      surfacePlan: input.surfacePlan ?? null,
+      capabilities: this.surfacePolicy?.capabilities ?? input.capabilities ?? null,
+      components: this.surfacePolicy?.components ?? input.components ?? null,
+      scriptPolicy: this.surfacePolicy?.scriptPolicy ?? input.scriptPolicy,
+      surfacePlan: this.surfacePolicy?.surfacePlan ?? input.surfacePlan ?? null,
       tokenOverrides: input.tokenOverrides,
       activeTokensCss: input.activeTokensCss ?? null,
     });
@@ -66,7 +75,10 @@ export class SurfaceGenerationSession {
       allowedSectionIds: input.allowedSectionIds ?? input.edit?.targetSections,
     });
 
-    this.validationIssues = [...this.systemContracts.issues];
+    this.validationIssues = [
+      ...(this.surfacePolicy?.issues ?? []),
+      ...this.systemContracts.issues,
+    ];
     this.repair = normalizeRepairOptions(input.repair);
   }
 
@@ -74,8 +86,12 @@ export class SurfaceGenerationSession {
     for (const line of this.input.preludeLines ?? []) {
       await this.writeProtocolLine(line);
     }
-    if (this.input.surfacePlan) {
-      await this.writeProtocolLine({ op: 'meta', path: '/surface-plan', value: this.input.surfacePlan });
+    if (this.surfacePolicy) {
+      await this.writeProtocolLine({ op: 'meta', path: '/surface-policy', value: this.surfacePolicy.policy });
+    }
+    const surfacePlan = this.surfacePolicy?.surfacePlan ?? this.input.surfacePlan;
+    if (surfacePlan) {
+      await this.writeProtocolLine({ op: 'meta', path: '/surface-plan', value: surfacePlan });
     }
     for (const line of this.systemContracts.startupLines) {
       this.acceptedLines.push(line);

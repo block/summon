@@ -66,7 +66,7 @@ test('registry converts actions and resources into prompt and validation metadat
         surface: { data: 'host-resource', authority: 'read' },
       },
     ],
-    patterns: [{ name: 'Counter', code: '<button>+</button>' }],
+    patterns: [{ name: 'Counter', code: '<button>+</button>', intent: 'counter' }],
   });
   assert.deepEqual(contract.validationCapabilities, [
     { name: 'counter', kind: 'action', triggers: ['click', 'submit'], surface: { authority: 'host-action' } },

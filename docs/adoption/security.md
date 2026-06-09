@@ -34,24 +34,19 @@ Use the narrowest tier that fits the host surface.
 
 | Tier | Contract | When to use |
 | --- | --- | --- |
-| Static | `mode: "static"` | Read-only summaries, cards, explainers, comparisons, and dashboards. Scripts and capabilities are omitted. |
-| Declarative interactive | `mode: "interactive", scriptPolicy: "forbid"` | Production default for forms, search, pickers, loading/error/data states, foreach lists, and safe attribute binding. Uses only `data-summon-*`. |
-| Scripted interactive | `mode: "interactive", SurfacePlan.runtime: "scripted", scriptPolicy: "allow"` | Restricted pilots that need custom keyboard handling, DOM-local state, or computed presentation that declarative bindings cannot express. |
+| Static | `SurfacePolicy.tier: "static"` | Read-only summaries, cards, explainers, comparisons, and dashboards. Scripts and capabilities are omitted. |
+| Declarative interactive | `SurfacePolicy.tier: "declarative"` | Production default for forms, search, pickers, loading/error/data states, foreach lists, and safe attribute binding. Uses only `data-summon-*`. |
+| Scripted interactive | `SurfacePolicy.tier: "scripted"` | Restricted pilots that need custom keyboard handling, DOM-local state, or computed presentation that declarative bindings cannot express. |
+| Worker | `SurfacePolicy.tier: "worker"` | Host-owned background work through worker-backed resources/actions. |
+| Approval | `SurfacePolicy.tier: "approval"` | Operations that require a host approval adapter before the handler runs. |
 
 Declarative interactive still supports clicks, submits, mount-triggered reads,
 data resources, loading/error/data bindings, foreach templates, text binding,
 and safe image/data attributes. It forbids generated `<script>` tags. Custom
-scripts require both a scripted `SurfacePlan` runtime and
-`scriptPolicy: "allow"`.
-
-Surface planning is orthogonal to these tiers. `SurfacePlan` describes the
-product lifecycle contract: purpose (`inform`, `compare`, `collect`, `explore`,
-`operate`, `review`, `export`), runtime (`static`, `declarative`, `scripted`,
-`worker`), data (`embedded`, `host-resource`, `worker`), authority (`none`,
-`read`, `host-action`, `approval-gated`), and persistence (`ephemeral`,
-`replayable`). Shape describes visual composition; posture describes the act;
-mode/scriptPolicy describes sandbox execution; SurfacePlan describes the whole
-surface boundary.
+scripts require a scripted policy tier. Summon compiles `SurfacePolicy` into a
+`SurfacePlan` with exact runtime, data, authority, and script policy for
+validation and diagnostics. Shape describes visual composition; posture
+describes the act; `SurfacePolicy` describes the public host decision.
 
 ## Component Islands
 
@@ -77,9 +72,9 @@ requires a compatible host registry for the same reason.
 
 - Always pass `grantedIntents` from a host-owned registry. Use `[]` for static
   surfaces. Do not rely on `artifact.intents` for LLM-authored artifacts.
-- Always submit a host-selected `SurfacePlan` for generation. Missing or
-  out-of-ceiling plans resolve to embedded data with no host authority; prompt
-  heuristics and capability metadata are never executable authority.
+- Always submit a host-selected `SurfacePolicy` for generation. Summon narrows
+  capability/component ceilings from that policy and emits the compiled
+  `/surface-plan` diagnostic before model output.
 - Prefer `defineAction` and `defineDataResource`; they keep schemas, prompt
   text, runtime validation, host handlers, and initial state in one place.
 - Use `defineWorkerAction` / `defineWorkerResource` for host-owned background
@@ -88,7 +83,7 @@ requires a compatible host registry for the same reason.
 - Proxy external data and assets through host handlers. The sandbox should see
   validated state and data URLs, not credentials or network endpoints.
 - Treat component definitions as trusted host code. Register only components
-  whose data and authority surface matches the selected `SurfacePlan`.
+  whose data and authority surface matches the selected `SurfacePolicy`.
 - Treat custom scripts as an escalation. Prefer declarative bindings unless the
   host can justify the extra behavior and test coverage.
 - Run the adversarial browser harness before changing iframe sandbox

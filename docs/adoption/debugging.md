@@ -27,6 +27,7 @@ declared adoption path.
 
 | Path | Meaning |
 | --- | --- |
+| `/surface-policy` | Host-owned public tier/grants/components/purpose/persistence policy selected for this run. |
 | `/surface-plan` | Host-owned purpose/runtime/data/authority/persistence plan selected for this run. |
 | `/shape` | Optional server-inferred response shape used to narrow direction exemplars. |
 | `/token-overrides` | Resolved direction token overrides, including applied and rejected entries. |
@@ -96,8 +97,10 @@ agent. Common fixes:
 - `inline-handler` - use `data-summon-on-*` or scoped `addEventListener`.
 - `static-script` - remove scripts or switch to interactive mode.
 - `script-not-granted` - use only declarative `data-summon-*` bindings, or
-  compile with `SurfacePlan.runtime: "scripted"` and `scriptPolicy: "allow"`
-  for a scripted host tier.
+  select `SurfacePolicy.tier: "scripted"` for a scripted host tier.
+- `surface-policy-*` - fix the host-selected `SurfacePolicy`; the compiler
+  blocks unknown grants/components and tier-exceeded authority before the model
+  is called.
 - `unknown-intent` - use only capabilities granted in the Capabilities block.
 - `invalid-args-json` - make `data-summon-args` a valid one-line JSON object.
 - `unknown-component` - use only names from the Components prompt block.
@@ -109,7 +112,7 @@ agent. Common fixes:
   `data-summon-props` a valid one-line JSON object.
 - `nested-component` - keep component placeholders as siblings in the freeform
   layout; do not put one placeholder inside another.
-- `surface-runtime-exceeded` - use only capabilities allowed by the selected
+- `surface-runtime-exceeded` - use only capabilities allowed by the compiled
   SurfacePlan runtime.
 - `surface-data-exceeded` - align resource/worker usage with the selected
   SurfacePlan data source.

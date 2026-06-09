@@ -13,17 +13,10 @@ import {
   type SurfaceEnvelope,
 } from '@anarchitecture/summon/envelope';
 import {
-  parseTokenValues,
-  SectionAccumulator,
-  type ProtocolLine,
-  type SummonLayout,
-  type ValidationCapability,
-  type ValidationComponent,
-} from '@anarchitecture/summon/engine';
-import {
   deriveSurfacePlanControls,
   normalizeSurfacePlan,
-  PolicyEngine,
+  parseTokenValues,
+  SectionAccumulator,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_PERSISTENCE_VALUES,
@@ -31,9 +24,16 @@ import {
   SURFACE_RUNTIME_VALUES,
   type CapabilityPack,
   type ComponentPack,
+  type ProtocolLine,
   type ScriptPolicy,
+  type SummonLayout,
   type SurfaceCeiling,
   type SurfacePlan,
+  type ValidationCapability,
+  type ValidationComponent,
+} from '@anarchitecture/summon/engine';
+import {
+  PolicyEngine,
 } from '@anarchitecture/summon';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';

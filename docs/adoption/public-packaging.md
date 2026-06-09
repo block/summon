@@ -16,8 +16,9 @@ Publish by install environment, not by internal implementation layer.
 
 `@anarchitecture/summon` is the frameworkless client/core package. Its root
 entrypoint is curated for host-authoring helpers: capability and component
-registries, `PolicyEngine`, and `SurfacePlan` helpers/types. Advanced runtime
-surfaces live behind explicit subpaths:
+registries, `PolicyEngine`, and `SurfacePolicy` helpers/types. Compiled
+`SurfacePlan` helpers and advanced runtime surfaces live behind explicit
+subpaths:
 
 ```txt
 @anarchitecture/summon/browser

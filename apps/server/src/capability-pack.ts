@@ -55,7 +55,11 @@ export function parseCapabilityPack(raw: unknown): CapabilityPack | null {
       if (!r || typeof r !== 'object') continue;
       const p = r as Record<string, unknown>;
       if (typeof p.name !== 'string' || typeof p.code !== 'string') continue;
-      patterns.push({ name: p.name.slice(0, 100), code: p.code.slice(0, 4000) });
+      patterns.push({
+        name: p.name.slice(0, 100),
+        code: p.code.slice(0, 4000),
+        ...(typeof p.intent === 'string' && p.intent ? { intent: p.intent.slice(0, 40) } : {}),
+      });
       if (patterns.length >= 12) break;
     }
   }

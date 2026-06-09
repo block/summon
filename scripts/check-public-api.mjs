@@ -5,16 +5,12 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 const rootDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 
 const expectedRootExports = [
-  'DEFAULT_SURFACE_CEILING',
-  'DEFAULT_SURFACE_PLAN',
   'IntentArgsError',
   'PolicyEngine',
-  'SURFACE_AUTHORITY_VALUES',
-  'SURFACE_DATA_VALUES',
   'SURFACE_PERSISTENCE_VALUES',
   'SURFACE_PURPOSE_VALUES',
-  'SURFACE_RUNTIME_VALUES',
-  'constrainSurfacePlan',
+  'SURFACE_TIER_VALUES',
+  'compileSurfacePolicy',
   'createCapabilityRegistry',
   'createComponentRegistry',
   'defineAction',
@@ -25,13 +21,7 @@ const expectedRootExports = [
   'defineIntent',
   'defineWorkerAction',
   'defineWorkerResource',
-  'deriveSurfacePlanControls',
-  'inferSurfacePlan',
-  'normalizeSurfaceCeiling',
-  'normalizeSurfacePlan',
-  'suggestSurfacePlan',
-  'surfacePlanScriptPolicy',
-  'surfacePlanWithinCeiling',
+  'normalizeSurfacePolicy',
 ].sort();
 
 const expectedServerExports = [

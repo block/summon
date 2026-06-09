@@ -35,6 +35,23 @@ test('blocks malformed screen declarations', () => {
   assert.deepEqual(codes(issues), ['duplicate-section-id']);
 });
 
+test('blocks generated host-owned surface meta paths', () => {
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      { op: 'meta', path: '/surface-policy', value: { tier: 'static' } },
+      baseContext,
+    )),
+    ['host-owned-meta'],
+  );
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      { op: 'meta', path: '/surface-plan', value: {} },
+      baseContext,
+    )),
+    ['host-owned-meta'],
+  );
+});
+
 test('allows safe static markup', () => {
   const issues = validateProtocolLine(
     {

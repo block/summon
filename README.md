@@ -63,7 +63,8 @@ Summon's supported integration path is intentionally narrow:
 
 ```txt
 host capability registry
-  -> SurfacePlan: purpose/runtime/data/authority/persistence
+  -> SurfacePolicy: tier/grants/components/purpose/persistence
+  -> compiled SurfacePlan: purpose/runtime/data/authority/persistence
   -> createCapabilityRegistry(...).toContract()
   -> compileSystemContracts()
   -> protocol hardener + repair feedback
@@ -74,18 +75,16 @@ host capability registry
 No generated artifact gets to mint permissions for itself. Artifact-declared
 intents are advisory; execution is governed by host grants.
 
-Surface planning is Summon's lifecycle layer. A host can declare the minimum
-safe surface across purpose, runtime, data, authority, and persistence before
-generation starts. The model sees that plan as a contract but cannot widen it.
-Prompt-based `suggestSurfacePlan()` output is only advisory host UI scaffolding;
-generation falls back to no host data or authority unless the host submits an
-explicit accepted `SurfacePlan`.
+Surface policy is Summon's lifecycle layer. A host declares the public tier,
+grants, trusted components, purpose, and persistence before generation starts.
+Summon compiles that policy into the stricter `SurfacePlan` contract the model
+sees and cannot widen.
 
 ## Demo Map
 
 - `examples/surface-gallery` - first-run OSS gallery with curated live presets,
   compact host contracts, a sandboxed surface, and a small event strip.
-- `/generate.html` - contract cockpit with scenario grants, surface plans,
+- `/generate.html` - contract cockpit with scenario grants, compiled surface plans,
   static/declarative/scripted/worker tiers, component islands, host resources,
   token overrides, repair diagnostics, edit/replay, Ghost steering, Devtools,
   and stream graph events.

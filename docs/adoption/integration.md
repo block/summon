@@ -111,14 +111,12 @@ import {
   runSurfaceGeneration,
   type SummonModelProvider,
 } from '@anarchitecture/summon-server';
-import type { SurfacePlan } from '@anarchitecture/summon';
+import type { SurfacePolicy } from '@anarchitecture/summon';
 
-const surfacePlan: SurfacePlan = {
+const surfacePolicy: SurfacePolicy = {
+  tier: 'declarative',
   purpose: 'explore',
-  runtime: 'declarative',
-  data: 'host-resource',
-  authority: 'read',
-  persistence: 'replayable',
+  grants: ['search'],
 };
 
 const modelProvider: SummonModelProvider = async function* ({ prompt, promptBlocks }) {
@@ -130,13 +128,11 @@ const modelProvider: SummonModelProvider = async function* ({ prompt, promptBloc
 await runSurfaceGeneration({
   prompt,
   modelProvider,
-  mode: 'interactive',
-  // Production default: declarative data-summon-* interactivity only.
-  // Use "allow" only for hosts that intentionally permit custom artifact scripts.
-  scriptPolicy: 'forbid',
-  surfacePlan,
+  surfacePolicy,
   direction,
   layout,
+  // Full host ceilings. Summon narrows these from surfacePolicy before
+  // constructing prompt and validation contracts.
   capabilities: capabilityContract.pack,
   components: componentContract.pack,
   activeTokensCss: direction?.tokensCss ?? null,
@@ -148,25 +144,19 @@ await runSurfaceGeneration({
 });
 ```
 
-Surface plans are host-owned. A model may react to the selected plan, but it
-must not emit or widen `/surface-plan`; `runSurfaceGeneration()` emits that meta
-line before model output for clients and replay envelopes. Hosts must choose
-the plan before generation. If a generation resolver receives no valid explicit
-plan, it falls back to an inert default with embedded data and no host
-authority; prompt text and capability metadata do not select authority.
+Surface policies are host-owned. A model may react to the compiled plan, but it
+must not emit or widen `/surface-policy` or `/surface-plan`;
+`runSurfaceGeneration()` emits both meta lines before model output for clients
+and replay envelopes. Hosts choose the policy before generation.
 
-`suggestSurfacePlan()` is available from `@anarchitecture/summon` for host UI
-prefill or demos. Treat it as advisory scaffolding only: submit the chosen
-`surfacePlan` explicitly after the host has applied product policy.
+Common policies:
 
-Common plans:
-
-| Situation | SurfacePlan |
+| Situation | SurfacePolicy |
 | --- | --- |
-| Static summary | `inform/static/embedded/none/replayable` |
-| Host-backed search | `explore/declarative/host-resource/read/replayable` |
-| Worker-backed analysis | `explore/worker/worker/host-action/replayable` |
-| Approval-gated operation | `operate/declarative/embedded/approval-gated/replayable` |
+| Static summary | `{ tier: "static", purpose: "inform" }` |
+| Host-backed search | `{ tier: "declarative", purpose: "explore", grants: ["search"] }` |
+| Worker-backed analysis | `{ tier: "worker", purpose: "review", grants: ["analysis"] }` |
+| Approval-gated operation | `{ tier: "approval", purpose: "operate", grants: ["publish_summary"] }` |
 
 To enable targeted repair, pass `repair: { enabled: true, provider, maxAttempts,
 maxTargets }`. The repair provider receives the compiled prompt blocks and a
@@ -180,21 +170,25 @@ section accumulation, stream health, and render timing. Product hosts still own
 fetching, aborts, request payloads, and product-specific meta interpretation.
 
 ```ts
-import { deriveSurfacePlanControls } from '@anarchitecture/summon';
+import { compileSurfacePolicy } from '@anarchitecture/summon';
 import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
 
-const controls = deriveSurfacePlanControls(surfacePlan);
+const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
+  capabilities: capabilityContract.pack,
+  components: componentContract.pack,
+});
 const response = await fetch('/api/generate', {
   method: 'POST',
   body: JSON.stringify({
     prompt,
-    surfacePlan,
-    scriptPolicy: controls.scriptPolicy,
+    surfacePolicy,
+    capabilities: capabilityContract.pack,
+    components: componentContract.pack,
   }),
 });
 
 const result = await consumeSurfaceStream(response.body!, {
-  mode: controls.mode,
+  mode: compiledPolicy.mode,
   onMeta: (line) => {
     if (line.path === '/status') renderStatus(String(line.value));
   },

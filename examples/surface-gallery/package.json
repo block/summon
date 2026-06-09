@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && vite --host 127.0.0.1 --port 5174",
+    "dev": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && vite",
     "build": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && vite build",
     "test": "tsx --test src/*.test.ts",
     "test:e2e": "playwright test -c playwright.config.ts",

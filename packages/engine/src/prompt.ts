@@ -358,6 +358,9 @@ export interface CapabilityPattern {
   name: string;
   /** HTML + <script> code block the LLM sees as an example. */
   code: string;
+  /** Optional owner intent. SurfacePolicy narrowing uses this to keep examples
+   * aligned with the grants selected for a generation. */
+  intent?: string;
 }
 
 export interface CapabilityPack {

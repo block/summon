@@ -2,14 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  type CapabilityPack,
-  type ScriptPolicy,
-} from '@anarchitecture/summon';
-import {
+  compileSurfacePolicy,
   parseTokenValues,
+  type CapabilityPack,
   type ContractPromptBlock,
   type ProtocolLine,
+  type ScriptPolicy,
   type SummonLayout,
+  type SurfacePlan,
   type TokenOverride,
 } from '@anarchitecture/summon/engine';
 import {
@@ -516,6 +516,8 @@ app.post('/api/generate', async (req, res) => {
   const edit = parsedEdit.edit;
   const repairOptions = parseRepairOptions(req.body?.repair);
 
+  const hasSurfacePolicy =
+    req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
   const requestedMode: 'static' | 'interactive' =
     req.body?.mode === 'interactive' ? 'interactive' : 'static';
   let scriptPolicy: ScriptPolicy | undefined =
@@ -527,6 +529,7 @@ app.post('/api/generate', async (req, res) => {
   let pack: CapabilityPack | null = null;
   let modeUpgraded = false;
   let inferenceUsed = false;
+  let surfacePlan: SurfacePlan;
 
   // Shape classification — picks ONE response shape so the per-direction
   // block ships only the matching shape exemplar (atoms always ship). Falls
@@ -539,53 +542,64 @@ app.post('/api/generate', async (req, res) => {
     shape = await inferShape(anthropic, prompt);
   }
 
-  // Layer 3: Haiku-based capability inference. Decides mode + narrows the
-  // pack to the minimal subset of intents the prompt actually needs. The
-  // pack is treated as a ceiling — inference can only narrow, never expand.
-  // Falls through to the Layer 2 regex on timeout or error.
-  if (process.env.SUMMON_INFER_CAPABILITIES === '1' && capabilityCeiling) {
-    const inferred = await inferPack(anthropic, prompt, capabilityCeiling);
-    if (inferred) {
-      inferenceUsed = true;
-      if (requestedMode === 'interactive') {
-        // Respect the user's explicit interactive choice. Haiku may narrow
-        // the pack, but won't downgrade to static.
-        mode = 'interactive';
-        pack = inferred.pack ?? capabilityCeiling;
-      } else {
-        mode = inferred.mode;
-        pack = inferred.pack;
-        modeUpgraded = mode === 'interactive';
+  if (hasSurfacePolicy) {
+    const compiledPolicy = compileSurfacePolicy(req.body.surfacePolicy, {
+      capabilities: capabilityCeiling,
+      components: componentPack,
+    });
+    mode = compiledPolicy.mode;
+    scriptPolicy = compiledPolicy.scriptPolicy;
+    pack = compiledPolicy.capabilities;
+    surfacePlan = compiledPolicy.surfacePlan;
+  } else {
+    // Layer 3: Haiku-based capability inference. Decides mode + narrows the
+    // pack to the minimal subset of intents the prompt actually needs. The
+    // pack is treated as a ceiling — inference can only narrow, never expand.
+    // Falls through to the Layer 2 regex on timeout or error.
+    if (process.env.SUMMON_INFER_CAPABILITIES === '1' && capabilityCeiling) {
+      const inferred = await inferPack(anthropic, prompt, capabilityCeiling);
+      if (inferred) {
+        inferenceUsed = true;
+        if (requestedMode === 'interactive') {
+          // Respect the user's explicit interactive choice. Haiku may narrow
+          // the pack, but won't downgrade to static.
+          mode = 'interactive';
+          pack = inferred.pack ?? capabilityCeiling;
+        } else {
+          mode = inferred.mode;
+          pack = inferred.pack;
+          modeUpgraded = mode === 'interactive';
+        }
       }
     }
-  }
 
-  // Layer 2 regex fallback — runs when inference is disabled, ceiling is
-  // missing, or Haiku returned null (timeout/parse failure). Only upgrades
-  // when a ceiling exists; without one there's no Capabilities block to emit.
-  if (!inferenceUsed) {
-    if (requestedMode === 'static' && capabilityCeiling && detectsInteractiveIntent(prompt)) {
-      mode = 'interactive';
-      modeUpgraded = true;
+    // Layer 2 regex fallback — runs when inference is disabled, ceiling is
+    // missing, or Haiku returned null (timeout/parse failure). Only upgrades
+    // when a ceiling exists; without one there's no Capabilities block to emit.
+    if (!inferenceUsed) {
+      if (requestedMode === 'static' && capabilityCeiling && detectsInteractiveIntent(prompt)) {
+        mode = 'interactive';
+        modeUpgraded = true;
+      }
+      pack = mode === 'interactive' ? capabilityCeiling : null;
     }
-    pack = mode === 'interactive' ? capabilityCeiling : null;
-  }
 
-  const resolvedSurface = resolveSurfaceGenerationPlan({
-    prompt,
-    mode,
-    scriptPolicy,
-    capabilities: pack,
-    rawSurfacePlan: req.body?.surfacePlan,
-    rawSurfaceCeiling: req.body?.surfaceCeiling,
-  });
-  if (mode !== resolvedSurface.mode) {
-    modeUpgraded = mode === 'static' && resolvedSurface.mode === 'interactive' ? true : modeUpgraded;
-    mode = resolvedSurface.mode;
-    pack = mode === 'interactive' ? pack ?? capabilityCeiling : null;
+    const resolvedSurface = resolveSurfaceGenerationPlan({
+      prompt,
+      mode,
+      scriptPolicy,
+      capabilities: pack,
+      rawSurfacePlan: req.body?.surfacePlan,
+      rawSurfaceCeiling: req.body?.surfaceCeiling,
+    });
+    if (mode !== resolvedSurface.mode) {
+      modeUpgraded = mode === 'static' && resolvedSurface.mode === 'interactive' ? true : modeUpgraded;
+      mode = resolvedSurface.mode;
+      pack = mode === 'interactive' ? pack ?? capabilityCeiling : null;
+    }
+    scriptPolicy = resolvedSurface.scriptPolicy;
+    surfacePlan = resolvedSurface.surfacePlan;
   }
-  scriptPolicy = resolvedSurface.scriptPolicy;
-  const surfacePlan = resolvedSurface.surfacePlan;
 
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -666,10 +680,11 @@ app.post('/api/generate', async (req, res) => {
         ghostPrompt: ghostContext?.prompt ?? null,
         layout,
         edit,
-        capabilities: pack,
+        capabilities: hasSurfacePolicy ? capabilityCeiling : pack,
         components: componentPack,
-        scriptPolicy,
-        surfacePlan,
+        surfacePolicy: hasSurfacePolicy ? req.body.surfacePolicy : null,
+        scriptPolicy: hasSurfacePolicy ? undefined : scriptPolicy,
+        surfacePlan: hasSurfacePolicy ? null : surfacePlan,
         tokenOverrides: overrides.applied,
         activeTokensCss: ghostContext?.tokenSource.css ?? direction?.tokensCss ?? null,
         preludeLines,
