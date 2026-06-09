@@ -410,6 +410,7 @@
     ".": {
       "file": "index",
       "values": [
+        "createProtocolLineWriter",
         "generateSurfaceStream",
         "resolveSurfaceGenerationPlan",
         "runSurfaceGeneration",
@@ -422,6 +423,8 @@
         "GenerateSurfaceInput",
         "GenerationSummary",
         "ProtocolLine",
+        "ProtocolLineWritableTarget",
+        "ProtocolLineWriterOptions",
         "ProtocolSkipMetaValue",
         "RepairFeedbackMetaValue",
         "RepairOptions",

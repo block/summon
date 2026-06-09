@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import test from 'node:test';
 import {
+  createProtocolLineWriter,
   generateSurfaceStream,
   resolveSurfaceGenerationPlan,
   runSurfaceGeneration,
@@ -9,6 +11,21 @@ import {
   type ProtocolLine,
   type SummonModelProvider,
 } from '../src/index.ts';
+
+class FakeWritable extends EventEmitter {
+  readonly writes: string[] = [];
+  writableEnded = false;
+  destroyed = false;
+
+  constructor(private readonly writeResults: boolean[] = []) {
+    super();
+  }
+
+  write(chunk: string): boolean {
+    this.writes.push(chunk);
+    return this.writeResults.shift() ?? true;
+  }
+}
 
 const surfacePlan = {
   purpose: 'inform',
@@ -28,6 +45,82 @@ async function collectGenerator(stream: AsyncGenerator<ProtocolLine, GenerationS
   return { lines, summary: next.value as GenerationSummary };
 }
 
+test('createProtocolLineWriter resolves immediately when writable accepts data', async () => {
+  const target = new FakeWritable([true]);
+  const writer = createProtocolLineWriter(target);
+  const line: ProtocolLine = { op: 'meta', path: '/status', value: 'ok' };
+
+  await writer(line);
+
+  assert.deepEqual(target.writes, [`${JSON.stringify(line)}\n`]);
+});
+
+test('createProtocolLineWriter waits for drain when write returns false', async () => {
+  const target = new FakeWritable([false]);
+  const writer = createProtocolLineWriter(target);
+  let settled = false;
+
+  const pending = writer({ op: 'meta', path: '/status', value: 'waiting' }).then(() => {
+    settled = true;
+  });
+  await Promise.resolve();
+  assert.equal(settled, false);
+
+  target.emit('drain');
+  await pending;
+  assert.equal(settled, true);
+});
+
+test('createProtocolLineWriter preserves write order across backpressure', async () => {
+  const target = new FakeWritable([false, true]);
+  const writer = createProtocolLineWriter(target);
+  const first: ProtocolLine = { op: 'set', path: '/screen', value: { sections: ['hero'] } };
+  const second: ProtocolLine = { op: 'add', path: '/section/hero', html: '<p>Hello</p>' };
+
+  const firstWrite = writer(first);
+  const secondWrite = writer(second);
+  await Promise.resolve();
+  assert.deepEqual(target.writes, [`${JSON.stringify(first)}\n`]);
+
+  target.emit('drain');
+  await Promise.all([firstWrite, secondWrite]);
+  assert.deepEqual(target.writes, [
+    `${JSON.stringify(first)}\n`,
+    `${JSON.stringify(second)}\n`,
+  ]);
+});
+
+test('createProtocolLineWriter rejects on writable error, closed target, and abort', async () => {
+  const errorTarget = new FakeWritable([false]);
+  const errorWriter = createProtocolLineWriter(errorTarget);
+  const errored = errorWriter({ op: 'meta', path: '/status', value: 'wait' });
+  await Promise.resolve();
+  errorTarget.emit('error', new Error('boom'));
+  await assert.rejects(errored, /boom/);
+
+  const closedTarget = new FakeWritable();
+  closedTarget.writableEnded = true;
+  await assert.rejects(
+    createProtocolLineWriter(closedTarget)({ op: 'meta', path: '/status', value: 'closed' }),
+    /closed/,
+  );
+
+  const destroyedTarget = new FakeWritable();
+  destroyedTarget.destroyed = true;
+  await assert.rejects(
+    createProtocolLineWriter(destroyedTarget)({ op: 'meta', path: '/status', value: 'destroyed' }),
+    /closed/,
+  );
+
+  const abortTarget = new FakeWritable([false]);
+  const controller = new AbortController();
+  const aborted = createProtocolLineWriter(abortTarget, {
+    signal: controller.signal,
+  })({ op: 'meta', path: '/status', value: 'wait' });
+  controller.abort(new Error('gone'));
+  await assert.rejects(aborted, /gone/);
+});
+
 test('generateSurfaceStream hardens provider JSONL and returns replay summary', async () => {
   const provider: SummonModelProvider = async function* () {
     yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
@@ -45,6 +138,25 @@ test('generateSurfaceStream hardens provider JSONL and returns replay summary', 
   assert.equal(summary.blocked, false);
   assert.equal(summary.acceptedLines.length, 2);
   assert.equal(summary.streamGraph.sections.length, 1);
+});
+
+test('runSurfaceGeneration can emit through createProtocolLineWriter', async () => {
+  const target = new FakeWritable();
+  const writer = createProtocolLineWriter(target);
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'hello',
+    modelProvider: async function* () {
+      yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
+      yield '{"op":"add","path":"/section/hero","html":"<p>Hello</p>"}\n';
+    },
+    mode: 'static',
+  }, writer);
+
+  const lines = target.writes.map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.equal(summary.blocked, false);
+  assert.deepEqual(lines.slice(0, 2).map((line) => line.path), ['/screen', '/section/hero']);
+  assert.equal(lines.at(-1)?.path, '/stream-graph-summary');
 });
 
 test('generateSurfaceStream blocks unsafe sections', async () => {

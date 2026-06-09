@@ -453,6 +453,7 @@ const serverExports = {
   '.': {
     values: {
       './_internal/server/index.js': [
+        'createProtocolLineWriter',
         'generateSurfaceStream',
         'resolveSurfaceGenerationPlan',
         'runSurfaceGeneration',
@@ -467,6 +468,8 @@ const serverExports = {
         'GenerateSurfaceInput',
         'GenerationSummary',
         'ProtocolLine',
+        'ProtocolLineWritableTarget',
+        'ProtocolLineWriterOptions',
         'ProtocolSkipMetaValue',
         'RepairFeedbackMetaValue',
         'RepairOptions',

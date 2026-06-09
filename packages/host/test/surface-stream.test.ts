@@ -213,6 +213,86 @@ test('consumeSurfaceStream can stop before applying a line', async () => {
   assert.equal(result.html, '');
 });
 
+test('consumeSurfaceStream cancels a ReadableStream when stop is returned', async () => {
+  let canceled = false;
+  const source = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(
+        '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n' +
+        '{"op":"add","path":"/section/hero","html":"<p>Stop</p>"}\n' +
+        '{"op":"add","path":"/section/hero","html":"<p>Ignored</p>"}\n',
+      ));
+    },
+    cancel() {
+      canceled = true;
+    },
+  });
+
+  const result = await consumeSurfaceStream(source, {
+    mode: 'static',
+    shouldApplyLine: (line) => line.op === 'add' ? 'stop' : 'apply',
+  });
+
+  assert.equal(result.stopped, true);
+  assert.equal(canceled, true);
+});
+
+test('consumeSurfaceStream can preserve source when cancelOnStop is false', async () => {
+  let canceled = false;
+  const source = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(
+        '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n' +
+        '{"op":"add","path":"/section/hero","html":"<p>Stop</p>"}\n',
+      ));
+    },
+    cancel() {
+      canceled = true;
+    },
+  });
+
+  const result = await consumeSurfaceStream(source, {
+    mode: 'static',
+    cancelOnStop: false,
+    shouldApplyLine: (line) => line.op === 'add' ? 'stop' : 'apply',
+  });
+
+  assert.equal(result.stopped, true);
+  assert.equal(canceled, false);
+});
+
+test('consumeSurfaceStream calls async iterator return when stop is returned', async () => {
+  let returned = false;
+  const chunks = [
+    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n' +
+    '{"op":"add","path":"/section/hero","html":"<p>Stop</p>"}\n',
+    '{"op":"add","path":"/section/hero","html":"<p>Ignored</p>"}\n',
+  ];
+  const source: AsyncIterable<string> = {
+    [Symbol.asyncIterator]() {
+      let index = 0;
+      return {
+        async next() {
+          if (index >= chunks.length) return { done: true, value: undefined };
+          return { done: false, value: chunks[index++]! };
+        },
+        async return() {
+          returned = true;
+          return { done: true, value: undefined };
+        },
+      };
+    },
+  };
+
+  const result = await consumeSurfaceStream(source, {
+    mode: 'static',
+    shouldApplyLine: (line) => line.op === 'add' ? 'stop' : 'apply',
+  });
+
+  assert.equal(result.stopped, true);
+  assert.equal(returned, true);
+});
+
 test('consumeSurfaceStream can use supplied accumulator and graph instances', async () => {
   const accumulator = new SectionAccumulator();
   const streamGraph = new StreamGraph();
