@@ -4,7 +4,7 @@ import type {
   SurfacePlan,
   SurfacePlanMode,
 } from '@anarchitecture/summon/engine';
-import type { CapabilityRegistry } from '@anarchitecture/summon';
+import type { CapabilityRegistry, SurfacePolicy } from '@anarchitecture/summon';
 import { createDemoCapabilityRegistry, type DemoHandlerOptions } from './capabilities.js';
 
 export type Mode = SurfacePlanMode;
@@ -22,6 +22,7 @@ export interface ShowcaseScenario {
   mode: Mode;
   capabilityNames: string[];
   componentNames?: string[];
+  surfacePolicy: SurfacePolicy;
   surfacePlan: SurfacePlan;
   scriptPolicy?: ScriptPolicy;
   layoutId?: string;
@@ -36,6 +37,7 @@ export interface ActiveContract {
   mode: Mode;
   capabilityNames: string[];
   componentNames?: string[];
+  surfacePolicy?: SurfacePolicy;
   surfacePlan: SurfacePlan;
   scriptPolicy: ScriptPolicy;
   layoutId?: string;
@@ -52,6 +54,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'help me build a weeknight dinner finder where i can search for recipes and see loading, error, and real host data states clearly',
     mode: 'interactive',
     capabilityNames: ['search'],
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search'] },
     surfacePlan: {
       purpose: 'explore',
       runtime: 'declarative',
@@ -67,6 +70,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'build a brainstorm helper where i can ask host AI for birthday gift ideas and see loading, error, and response states clearly',
     mode: 'interactive',
     capabilityNames: ['ai'],
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['ai'] },
     surfacePlan: {
       purpose: 'explore',
       runtime: 'declarative',
@@ -82,6 +86,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'build a GitHub profile lookup where i can enter a username and see loading, error, avatar, follower, and repo states from host data',
     mode: 'interactive',
     capabilityNames: ['github_lookup'],
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['github_lookup'] },
     surfacePlan: {
       purpose: 'explore',
       runtime: 'declarative',
@@ -98,6 +103,12 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     mode: 'interactive',
     capabilityNames: ['choose'],
     componentNames: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
+    surfacePolicy: {
+      tier: 'declarative',
+      purpose: 'review',
+      grants: ['choose'],
+      components: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
+    },
     surfacePlan: {
       purpose: 'review',
       runtime: 'declarative',
@@ -112,11 +123,28 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt: 'compare Roth vs traditional IRA for someone new to retirement saving',
     mode: 'static',
     capabilityNames: [],
+    surfacePolicy: { tier: 'static', purpose: 'compare' },
     surfacePlan: {
       purpose: 'compare',
       runtime: 'static',
       data: 'embedded',
       authority: 'none',
+      persistence: 'replayable',
+    },
+  },
+  {
+    id: 'decision-picker',
+    label: 'Decision Picker',
+    prompt:
+      'help me choose between three launch announcement approaches for a small developer tool. Compare tradeoffs and let me save the best option.',
+    mode: 'interactive',
+    capabilityNames: ['choose'],
+    surfacePolicy: { tier: 'declarative', purpose: 'compare', grants: ['choose'] },
+    surfacePlan: {
+      purpose: 'compare',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
       persistence: 'replayable',
     },
   },
@@ -127,6 +155,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'help me collect a team lunch order with required fields, submit validation, a success state, and field errors',
     mode: 'interactive',
     capabilityNames: ['submit'],
+    surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
     surfacePlan: {
       purpose: 'collect',
       runtime: 'declarative',
@@ -137,11 +166,12 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   },
   {
     id: 'worker-analysis',
-    label: 'Worker analysis',
+    label: 'Worker Analysis',
     prompt:
       'analyze and score a product launch readiness topic with a host-owned background worker and visible loading, error, and result states',
     mode: 'interactive',
     capabilityNames: ['analysis', 'compute_score'],
+    surfacePolicy: { tier: 'worker', purpose: 'review', grants: ['analysis', 'compute_score'] },
     surfacePlan: {
       purpose: 'review',
       runtime: 'worker',
@@ -157,6 +187,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'build a publish approval panel where i can review a titled summary, request host approval, and show pending, approved, denied, and error states',
     mode: 'interactive',
     capabilityNames: ['publish_summary'],
+    surfacePolicy: { tier: 'approval', purpose: 'operate', grants: ['publish_summary'] },
     surfacePlan: {
       purpose: 'operate',
       runtime: 'declarative',
@@ -172,6 +203,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'build a keyboard-friendly scoring picker with local highlighted selection plus host-backed choose and counter controls',
     mode: 'interactive',
     capabilityNames: ['choose', 'counter'],
+    surfacePolicy: { tier: 'scripted', purpose: 'explore', grants: ['choose', 'counter'] },
     scriptPolicy: 'allow',
     surfacePlan: {
       purpose: 'explore',
@@ -188,6 +220,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'build a compact option picker with a prominent accent action and status badge, using only direction tokens for color',
     mode: 'interactive',
     capabilityNames: ['choose'],
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose'] },
     tokenOverrides: {
       'color-accent': '#0f8cff',
       'color-accent-fg': '#ffffff',
@@ -208,6 +241,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'create a compact project intake card with a crisp header, useful content, and one or two validated action controls',
     mode: 'interactive',
     capabilityNames: ['submit'],
+    surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
     layoutId: 'card-structured',
     surfacePlan: {
       purpose: 'collect',
@@ -224,6 +258,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'build a recipe explorer that can search for dinner ideas and includes a clear action to summon a separate prep guide for one result',
     mode: 'interactive',
     capabilityNames: ['search', 'summon'],
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search', 'summon'] },
     surfacePlan: {
       purpose: 'explore',
       runtime: 'declarative',
@@ -239,6 +274,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'build a compact onboarding checklist with validated submit controls and clear section structure; if a section is rejected, retry it within the same section',
     mode: 'interactive',
     capabilityNames: ['submit'],
+    surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
     repair: { enabled: true, maxAttempts: 1, maxTargets: 2 },
     surfacePlan: {
       purpose: 'collect',
@@ -257,7 +293,8 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
     prompt:
       'generate a compact review surface that follows this Ghost memory root and keeps all controls host-allowed',
     mode: 'interactive',
-    capabilityNames: ['choose', 'log'],
+    capabilityNames: ['choose'],
+    surfacePolicy: { tier: 'declarative', purpose: 'review', grants: ['choose'] },
     surfacePlan: {
       purpose: 'review',
       runtime: 'declarative',

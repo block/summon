@@ -38,6 +38,62 @@ pnpm dev:all
 
 Open `http://localhost:5173/generate.html`.
 
+The Generate workbench uses the same surface configs as the gallery where they
+overlap, but keeps maintainer controls visible: stream diagnostics, Devtools,
+validation retry, edit/replay, custom SurfacePlan overrides, directions, and
+Ghost steering internals.
+
+## Run A Ghost Sandbox
+
+The Surface Gallery and Generate workbench both add Ghost-backed sandbox presets
+when trusted roots are configured. The bundled **Ghost** direction is a visual
+direction snapshot; root-backed product memory is enabled separately so the
+host still owns which repositories the model can read from.
+
+Add one or more trusted Ghost roots to `apps/server/.env`:
+
+```sh
+SUMMON_GHOST_ROOTS=checkout=/absolute/path/to/checkout
+```
+
+Canonical Ghost packages use this layout:
+
+```txt
+/absolute/path/to/checkout
+└── .ghost
+    ├── config.yml
+    └── fingerprint
+        ├── manifest.yml
+        ├── prose.yml
+        ├── inventory.yml
+        └── composition.yml
+```
+
+Legacy roots with `.ghost/fingerprint.yml` are still accepted through the
+compatibility bridge, but new examples and product fingerprints should use
+`.ghost/fingerprint/manifest.yml`.
+
+Then start the gallery or the workbench:
+
+```sh
+pnpm dev:gallery
+# or
+pnpm dev:all
+```
+
+Open `http://localhost:5174` for the adopter-facing gallery preset, or
+`http://localhost:5173/generate.html` for the diagnostic Ghost scenario and
+`Ghost · <id>` direction. Keep **Ghost base** on the bundled **Ghost** direction
+unless you are intentionally testing another token base. **Ghost target** is a
+relative path inside the configured repo root; use `.` for the root package or a
+nested surface path.
+
+When the run starts, the Stream drawer should show `/ghost-context`,
+`/ghost-token-source`, and `/ghost-review-packet` metadata. Those lines confirm
+the server resolved the fingerprint stack, chose token CSS, generated a Summon
+surface, and emitted the review packet needed to inspect the output against the
+same Ghost memory.
+
 ## Golden Scenario
 
 In the workbench, use the **Host Data Search** scenario. The scenario is

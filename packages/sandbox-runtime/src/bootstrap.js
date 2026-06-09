@@ -578,6 +578,16 @@
   // this, every entrance animation re-fires on every section arrival.
   const sectionEls = new Map();
 
+  function indexExistingSections(root) {
+    if (sectionEls.size > 0) return;
+    for (const child of Array.from(root.children)) {
+      if (child.tagName === 'SECTION' && child.hasAttribute('data-summon-section')) {
+        const id = child.getAttribute('data-summon-section');
+        if (id) sectionEls.set(id, child);
+      }
+    }
+  }
+
   /**
    * Render a blob of HTML into #summon-root.
    *
@@ -598,6 +608,7 @@
   function renderRoot(html) {
     const root = document.getElementById('summon-root');
     if (!root) return;
+    indexExistingSections(root);
     const incoming = typeof html === 'string' ? html : '';
 
     const tmp = document.createElement('div');

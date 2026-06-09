@@ -90,25 +90,26 @@ describe('Ghost adapter', () => {
     assert.equal(ctx.tokenSource.kind, 'ghost-config');
     assert.equal(ctx.tokenSource.source, 'tokens.css');
     assert.equal(ctx.tokenSource.css, await readDefaultTokensCss());
-    assert.equal(ctx.stack.merged.fingerprint.summary.product, 'Test Product');
+    assert.equal(ctx.product, 'Test Product');
     assert.match(ctx.prompt, /Test Product/);
     assert.match(ctx.prompt, /quiet/);
     assert.match(ctx.prompt, /exacting workflows/);
     assert.match(ctx.prompt, /Human-approved test intent/);
   });
 
-  it('rejects legacy single-file fingerprints', async () => {
+  it('bridges legacy fingerprint.yml roots', async () => {
     const root = await makeLegacyGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
-    const request = parsed.request;
 
-    await assert.rejects(
-      () => resolveGhostContext(request, roots),
-      /No \.ghost\/fingerprint\.yml found/,
-    );
+    const ctx = await resolveGhostContext(parsed.request, roots);
+
+    assert.equal(ctx.source, 'root');
+    if (ctx.source !== 'root') assert.fail('expected root context');
+    assert.equal(ctx.product, 'Test Product');
+    assert.match(ctx.prompt, /Preserve quiet density/);
   });
 
   it('falls back to Summon default tokens when Ghost token CSS is missing or invalid', async () => {
@@ -276,47 +277,61 @@ describe('Ghost adapter', () => {
 async function makeGhostFixture(options: { tokenCss?: string } = {}): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-'));
   fixtureRoots.push(root);
-  await mkdir(join(root, '.ghost'), { recursive: true });
+  await mkdir(join(root, '.ghost', 'fingerprint', 'enforcement'), { recursive: true });
+  await mkdir(join(root, '.ghost', 'fingerprint', 'memory'), { recursive: true });
   await writeFile(
-    join(root, '.ghost', 'fingerprint.yml'),
-    `schema: ghost.fingerprint/v1
+    join(root, '.ghost', 'fingerprint', 'manifest.yml'),
+    `schema: ghost.fingerprint-package/v1
+id: test-product
+`,
+  );
+  await writeFile(
+    join(root, '.ghost', 'fingerprint', 'prose.yml'),
+    `schema: ghost.fingerprint-prose/v1
 summary:
   product: Test Product
   audience: [operators]
   goals: [keep work legible]
   tone: [quiet, exacting workflows]
+situations: []
+principles:
+  - id: calm-density
+    principle: Preserve quiet density and clear hierarchy.
+experience_contracts: []
+`,
+  );
+  await writeFile(
+    join(root, '.ghost', 'fingerprint', 'inventory.yml'),
+    `schema: ghost.fingerprint-inventory/v1
 topology:
   scopes:
     - id: app
       paths: [.]
       surface_types: [dashboard]
   surface_types: [dashboard]
-situations: []
-principles:
-  - id: calm-density
-    status: accepted
-    principle: Preserve quiet density and clear hierarchy.
-experience_contracts: []
-patterns:
-  - id: measured-surfaces
-    status: accepted
-    kind: visual
-    pattern: Surfaces are compact, rectangular, and information-first.
-implementation_vocabulary:
+building_blocks:
   tokens: [--color-bg, --color-text]
   components: []
-review_policy: {}
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'checks.yml'),
+    join(root, '.ghost', 'fingerprint', 'composition.yml'),
+    `schema: ghost.fingerprint-composition/v1
+patterns:
+  - id: measured-surfaces
+    kind: visual
+    pattern: Surfaces are compact, rectangular, and information-first.
+`,
+  );
+  await writeFile(
+    join(root, '.ghost', 'fingerprint', 'enforcement', 'checks.yml'),
     `schema: ghost.checks/v1
 id: test-product
 checks: []
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'intent.md'),
+    join(root, '.ghost', 'fingerprint', 'memory', 'intent.md'),
     `# Intent
 
 Human-approved test intent keeps generated surfaces grounded.
@@ -344,7 +359,7 @@ async function makeLegacyGhostFixture(): Promise<string> {
   fixtureRoots.push(root);
   await mkdir(join(root, '.ghost'), { recursive: true });
   await writeFile(
-    join(root, '.ghost', 'fingerprint.md'),
+    join(root, '.ghost', 'fingerprint.yml'),
     `schema: ghost.fingerprint/v1
 summary:
   product: Test Product

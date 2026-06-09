@@ -22,11 +22,13 @@ import {
 } from './components.js';
 import {
   GALLERY_PRESETS,
+  createGhostGalleryPreset,
   findPreset,
   policyComponents,
   policyGrants,
   policyText,
   type GalleryPreset,
+  type GhostRootInfo,
 } from './presets.js';
 import './styles.css';
 
@@ -57,14 +59,15 @@ let handle: SandboxHandle | null = null;
 let islands: ComponentIslandRegistry | null = null;
 let policy: PolicyEngine | null = null;
 let abortController: AbortController | null = null;
+let galleryPresets: GalleryPreset[] = [...GALLERY_PRESETS];
+let activeTokensSourceOverride: string | null = null;
 let acceptedStructuralLines = 0;
 let skippedLines = 0;
 let blockedLines = 0;
 
 events.subscribe(renderEvents);
 
-renderPresetCards();
-selectPreset(selectedPreset.id);
+void initGallery();
 
 runButton.addEventListener('click', () => {
   void generateSelectedSurface();
@@ -72,7 +75,7 @@ runButton.addEventListener('click', () => {
 
 function renderPresetCards(): void {
   presetList.innerHTML = '';
-  for (const preset of GALLERY_PRESETS) {
+  for (const preset of galleryPresets) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'preset-card';
@@ -89,7 +92,8 @@ function renderPresetCards(): void {
 }
 
 function selectPreset(id: string): void {
-  selectedPreset = findPreset(id);
+  selectedPreset = galleryPresets.find((preset) => preset.id === id) ?? findPreset(id);
+  activeTokensSourceOverride = null;
   for (const card of presetList.querySelectorAll<HTMLButtonElement>('.preset-card')) {
     card.classList.toggle('active', card.dataset.presetId === selectedPreset.id);
   }
@@ -105,7 +109,7 @@ function selectPreset(id: string): void {
   welcome.classList.remove('hidden');
 }
 
-function respawnSandbox(): void {
+function respawnSandbox(initialHtml = ''): void {
   islands?.destroy();
   islands = null;
   handle?.dispose();
@@ -155,7 +159,7 @@ function respawnSandbox(): void {
   handle = spawnSandbox({
     iframe,
     artifact: {
-      html: '',
+      html: initialHtml,
       intents: [],
       capabilities: capabilityContract.validationCapabilities,
       components: componentContract?.validationComponents,
@@ -166,7 +170,7 @@ function respawnSandbox(): void {
       ? capabilityContract.validationCapabilities
       : [],
     bootstrapSource,
-    tokensSource,
+    tokensSource: activeTokensSourceOverride ?? tokensSource,
     events,
     onIntent: (intent, args) => {
       void policy?.dispatch(intent, args);
@@ -213,6 +217,17 @@ async function generateSelectedSurface(): Promise<void> {
         surfacePolicy: selectedPreset.surfacePolicy,
         capabilities: capabilityPack,
         ...(componentPack ? { components: componentPack } : {}),
+        ...(selectedPreset.ghost
+          ? {
+              ghost: {
+                rootId: selectedPreset.ghost.rootId,
+                targetPath: selectedPreset.ghost.targetPath,
+                ...(selectedPreset.ghost.baseDirectionId
+                  ? { baseDirectionId: selectedPreset.ghost.baseDirectionId }
+                  : {}),
+              },
+            }
+          : {}),
       }),
     });
 
@@ -283,6 +298,14 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
     if (typeof value.health?.blockedCount === 'number') blockedLines = value.health.blockedCount;
     if (typeof value.health?.skippedCount === 'number') skippedLines = value.health.skippedCount;
   }
+  if (line.path === '/ghost-token-source') {
+    const value = line.value as { css?: unknown };
+    if (typeof value.css === 'string' && value.css.trim()) {
+      activeTokensSourceOverride = value.css;
+      const composed = accumulator.hasAnySection() ? accumulator.compose() : null;
+      respawnSandbox(composed ?? '');
+    }
+  }
   skippedCountEl.textContent = String(skippedLines);
   blockedCountEl.textContent = String(blockedLines);
 }
@@ -300,6 +323,9 @@ function renderContract(): void {
     ['tier', 'Surface type', selectedPreset.surfacePolicy.tier],
     ['grants', 'Allowed host tools', allowedHostTools],
     ['components', 'Trusted components', components],
+    ...(selectedPreset.ghost
+      ? [['ghost', 'Ghost root', `${selectedPreset.ghost.rootId} · ${selectedPreset.ghost.targetPath}`] as [string, string, string]]
+      : []),
   ];
   for (const [key, label, value] of rows) {
     const row = document.createElement('div');
@@ -307,6 +333,27 @@ function renderContract(): void {
     row.dataset.contractRow = key;
     row.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
     contractSummary.append(row);
+  }
+}
+
+async function initGallery(): Promise<void> {
+  galleryPresets = [
+    ...GALLERY_PRESETS,
+    ...(await loadGhostRoots()).map(createGhostGalleryPreset),
+  ];
+  selectedPreset = galleryPresets[0]!;
+  renderPresetCards();
+  selectPreset(selectedPreset.id);
+}
+
+async function loadGhostRoots(): Promise<GhostRootInfo[]> {
+  try {
+    const response = await fetch('/api/ghost-roots');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const roots = await response.json();
+    return Array.isArray(roots) ? roots as GhostRootInfo[] : [];
+  } catch {
+    return [];
   }
 }
 

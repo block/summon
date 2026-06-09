@@ -57,6 +57,13 @@ Open `http://localhost:5173/generate.html`.
 4. Open `http://localhost:5173/adversarial.html` and confirm the sandbox
    boundary still holds.
 
+To steer generation from a Ghost fingerprint, set `SUMMON_GHOST_ROOTS` in
+`apps/server/.env` before starting the demos. Each configured root should use
+the canonical `.ghost/fingerprint/manifest.yml` package layout; legacy
+`.ghost/fingerprint.yml` roots are bridged for compatibility. The Surface
+Gallery adds a Ghost preset for each root, and the Generate workbench adds both
+the Ghost scenario and the `Ghost · <id>` direction option.
+
 The full guided path lives in
 [docs/adoption/quickstart.md](docs/adoption/quickstart.md).
 
@@ -76,9 +83,10 @@ registered host tools.
 
 ## Demo Map
 
-- `examples/surface-gallery` - first-run OSS gallery with curated live presets,
-  compact host tools, a sandboxed surface, and a small event strip.
-- `/generate.html` - maintainer workbench for surface configs, allowed host
+- `examples/surface-gallery` - primary adopter gallery with curated live
+  presets, compact host tools, Ghost-root presets when configured, a sandboxed
+  surface, and a small event strip.
+- `/generate.html` - diagnostic maintainer workbench for surface configs, allowed host
   tools, trusted host components, token overrides, validation retries,
   edit/replay, Ghost steering, Devtools, and stream diagnostics.
 - `/batch.html` - parallel prompt harness for prompt coverage, host tool wiring,
