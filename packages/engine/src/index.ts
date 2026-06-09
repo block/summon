@@ -83,6 +83,9 @@ export type {
   ContractPromptBlock,
   CapabilityContractOptions,
   DirectionContractInput,
+  GhostGenerationContext,
+  GhostGenerationSource,
+  GhostTokenSourceKind,
   SystemContractInput,
   TokenContractInput,
 } from './contracts.js';

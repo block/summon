@@ -119,6 +119,28 @@ test('runSurfaceGeneration emits prelude, surface plan, and layout startup befor
   assert.equal(summary.blocked, false);
 });
 
+test('runSurfaceGeneration forwards first-class Ghost context to the model contract', async () => {
+  let ghostBlockText: string | undefined;
+  const provider: SummonModelProvider = async function* (request) {
+    ghostBlockText = request.promptBlocks.find((block) => block.id === 'ghost')?.text;
+    yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
+    yield '{"op":"add","path":"/section/hero","html":"<p>Hello</p>"}\n';
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'hello',
+    modelProvider: provider,
+    mode: 'static',
+    ghost: {
+      source: 'resolved-context',
+      prompt: 'Portable Ghost context.',
+    },
+  }, () => {});
+
+  assert.equal(summary.blocked, false);
+  assert.equal(ghostBlockText, 'Portable Ghost context.');
+});
+
 test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows contracts', async () => {
   const lines: ProtocolLine[] = [];
   let systemText = '';

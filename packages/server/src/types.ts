@@ -4,6 +4,7 @@ import type {
   ContractIssue,
   ContractPromptBlock,
   DirectionContractInput,
+  GhostGenerationContext,
   ProtocolLine,
   RepairFeedbackMetaValue,
   ScriptPolicy,
@@ -15,6 +16,8 @@ import type {
   SurfacePlan,
   TokenOverride,
 } from '@summon-internal/engine';
+
+export type { GhostGenerationContext } from '@summon-internal/engine';
 
 export interface SummonModelRequest {
   prompt: string;
@@ -90,6 +93,8 @@ export interface SurfaceGenerationInput {
   modelProvider: SummonModelProvider;
   mode?: 'static' | 'interactive';
   direction?: DirectionContractInput | null;
+  ghost?: GhostGenerationContext | null;
+  /** @deprecated Use `ghost` with a first-class GhostGenerationContext. */
   ghostPrompt?: string | null;
   layout?: SummonLayout | null;
   edit?: GenerateEditInput | null;
