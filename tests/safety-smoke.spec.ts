@@ -58,11 +58,13 @@ test('generate page boots without server credentials', async ({ page }) => {
   await expect(page.locator('#sandbox')).toHaveAttribute('sandbox', 'allow-scripts');
   await expect(page.locator('#go')).toBeEnabled();
   await expect(page.locator('#welcome')).toBeVisible();
-  await expect(page.locator('#welcome')).toContainText('Host-resource search');
-  await expect(page.locator('#scenario')).toContainText('Host-resource search');
+  await expect(page.locator('#welcome')).toContainText('Host Data Search');
+  await expect(page.locator('#scenario')).toContainText('Host Data Search');
   await expect(page.locator('.generate-shell')).toBeVisible();
-  await expect(page.locator('.scenario-card.active')).toContainText('Host-resource search');
-  await expect(page.locator('#contract-summary [data-contract-row="requested"]')).toContainText('Requested Plan');
+  await expect(page.locator('.scenario-card.active')).toContainText('Host Data Search');
+  await expect(page.locator('#contract-summary [data-contract-row="requested"]')).toContainText(
+    'Requested surface config',
+  );
   await expect(page.locator('#custom-contract-panel')).toBeHidden();
   await page.locator('#custom-contract-enabled').check();
   await expect(page.locator('#custom-contract-panel')).toBeVisible();
@@ -116,12 +118,12 @@ test('generate showcase sends narrowed scenario contract', async ({ page }) => {
   });
 
   await page.goto('/generate.html');
-  await expect(page.locator('#scenario')).toContainText('Repair diagnostics');
+  await expect(page.locator('#scenario')).toContainText('Validation Retry Diagnostics');
   await page.locator('#scenario').selectOption('repair-diagnostics');
   await page.locator('#token-preset').selectOption('accent-blue');
 
   await expect(page.locator('#prompt')).toHaveValue(/onboarding checklist/);
-  await expect(page.locator('.scenario-card.active')).toContainText('Repair diagnostics');
+  await expect(page.locator('.scenario-card.active')).toContainText('Validation Retry Diagnostics');
   await expect(page.locator('#repair-enabled')).toBeChecked();
   await expect(page.locator('#custom-contract-panel')).toBeHidden();
   await page.locator('#custom-contract-enabled').check();
@@ -133,7 +135,9 @@ test('generate showcase sends narrowed scenario contract', async ({ page }) => {
   await expect(page.locator('#iframe-status')).toContainText('done');
   await expect(page.locator('#result-toolbar')).toBeVisible();
   await expect(page.locator('#edit-card')).toBeVisible();
-  await expect(page.locator('#contract-summary [data-contract-row="effective"]')).toContainText('collect/declarative');
+  await expect(page.locator('#contract-summary [data-contract-row="effective"]')).toContainText(
+    'collect · declarative',
+  );
 
   expect(captured).toBeTruthy();
   expect(captured.mode).toBe('interactive');

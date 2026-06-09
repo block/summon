@@ -46,8 +46,8 @@ importers:
   apps/server:
     dependencies:
       '@anarchitecture/ghost':
-        specifier: ^0.7.1
-        version: 0.7.1
+        specifier: ^0.2.0
+        version: 0.2.0
       '@anarchitecture/summon':
         specifier: workspace:*
         version: link:../../packages/summon
