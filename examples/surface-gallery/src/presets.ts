@@ -7,12 +7,23 @@ export interface GalleryPreset {
   description: string;
   prompt: string;
   surfacePolicy: SurfacePolicy;
+  ghost?: {
+    rootId: string;
+    targetPath: string;
+    baseDirectionId?: string | null;
+  };
+}
+
+export interface GhostRootInfo {
+  id: string;
+  defaultTargetPath?: string;
+  defaultBaseDirectionId?: string | null;
 }
 
 export const GALLERY_PRESETS: GalleryPreset[] = [
   {
-    id: 'static-brief',
-    title: 'Static Brief',
+    id: 'static-summary',
+    title: 'Static summary',
     category: 'Read-only',
     description: 'A rich generated brief with embedded data and no executable authority.',
     prompt:
@@ -23,8 +34,8 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
     },
   },
   {
-    id: 'search-explorer',
-    title: 'Search Explorer',
+    id: 'host-resource-search',
+    title: 'Host Data Search',
     category: 'Host data',
     description: 'Generated search UI reads through a host-owned data resource.',
     prompt:
@@ -49,8 +60,8 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
     },
   },
   {
-    id: 'approval-flow',
-    title: 'Approval Flow',
+    id: 'approval-publish',
+    title: 'Approval Publish',
     category: 'Approval',
     description: 'Generated publish UI can request approval, but the host owns the decision.',
     prompt:
@@ -62,8 +73,8 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
     },
   },
   {
-    id: 'component-island-dashboard',
-    title: 'Component Island Dashboard',
+    id: 'component-islands',
+    title: 'Trusted Components',
     category: 'Trusted components',
     description: 'The model authors layout; trusted host components render outside the iframe.',
     prompt:
@@ -92,6 +103,27 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
 
 export function findPreset(id: string): GalleryPreset {
   return GALLERY_PRESETS.find((preset) => preset.id === id) ?? GALLERY_PRESETS[0]!;
+}
+
+export function createGhostGalleryPreset(root: GhostRootInfo): GalleryPreset {
+  return {
+    id: `ghost-${root.id}`,
+    title: `Ghost steer: ${root.id}`,
+    category: 'Ghost',
+    description: 'Generated review surface grounded in a configured Ghost fingerprint root.',
+    prompt:
+      'generate a compact review surface that follows this Ghost fingerprint root and keeps all controls host-allowed',
+    surfacePolicy: {
+      tier: 'declarative',
+      purpose: 'review',
+      grants: ['choose'],
+    },
+    ghost: {
+      rootId: root.id,
+      targetPath: root.defaultTargetPath ?? '.',
+      baseDirectionId: root.defaultBaseDirectionId ?? null,
+    },
+  };
 }
 
 export function policyGrants(policy: SurfacePolicy): string[] {

@@ -8,12 +8,12 @@ test('gallery boots and preset selection updates the contract panel', async ({ p
   await page.goto('/');
 
   await expect(page.locator('[data-preset-id]')).toHaveCount(6);
-  await expect(page.locator('#preset-title')).toContainText('Static Brief');
+  await expect(page.locator('#preset-title')).toContainText('Static summary');
   await expect(page.locator('[data-contract-row="policy"]')).toContainText('Surface config');
   await expect(page.locator('[data-contract-row="policy"]')).toContainText('static');
 
-  await page.locator('[data-preset-id="search-explorer"]').click();
-  await expect(page.locator('#preset-title')).toContainText('Search Explorer');
+  await page.locator('[data-preset-id="host-resource-search"]').click();
+  await expect(page.locator('#preset-title')).toContainText('Host Data Search');
   await expect(page.locator('#prompt')).toHaveValue(/weeknight dinner explorer/);
   await expect(page.locator('[data-contract-row="tier"]')).toContainText('Surface type');
   await expect(page.locator('[data-contract-row="tier"]')).toContainText('declarative');
@@ -149,7 +149,7 @@ test('component island preset renders host overlays and reports invalid props', 
   });
 
   await page.goto('/');
-  await page.locator('[data-preset-id="component-island-dashboard"]').click();
+  await page.locator('[data-preset-id="component-islands"]').click();
   await page.locator('#run').click();
   await expect(page.locator('[data-summon-component-id="launch-score"]')).toContainText('Launch score');
   await expect(page.locator('[data-summon-component-id="quality-trend"]')).toContainText('Quality trend');
@@ -164,4 +164,103 @@ test('component island preset renders host overlays and reports invalid props', 
   await page.locator('#run').click();
   await expect(page.locator('[data-summon-component-id="bad-props"]')).toHaveCount(0);
   await expect(page.locator('#event-log')).toContainText('component props-invalid');
+});
+
+test('gallery loads Ghost root preset and sends Ghost generation payload', async ({ page }) => {
+  let captured: any = null;
+  await page.route('**/api/ghost-roots', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([{
+        id: 'checkout',
+        defaultTargetPath: '.',
+        defaultBaseDirectionId: 'ghost',
+      }]),
+    });
+  });
+  await page.route('**/api/generate', async (route) => {
+    captured = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/plain',
+      body: streamBody([
+        {
+          op: 'meta',
+          path: '/ghost-context',
+          value: {
+            source: 'root',
+            rootId: 'checkout',
+            product: 'Checkout',
+            targetPath: '.',
+            layers: ['.'],
+          },
+        },
+        {
+          op: 'meta',
+          path: '/ghost-token-source',
+          value: {
+            kind: 'base-direction',
+            source: 'direction:ghost/tokens.css',
+            css: ':root { --color-bg: #ffffff; --color-text: #111111; }',
+            warnings: [],
+          },
+        },
+        { op: 'meta', path: '/surface-policy', value: captured.surfacePolicy },
+        {
+          op: 'meta',
+          path: '/surface-plan',
+          value: {
+            purpose: 'review',
+            runtime: 'declarative',
+            data: 'embedded',
+            authority: 'host-action',
+            persistence: 'replayable',
+          },
+        },
+        { op: 'set', path: '/screen', value: { sections: ['main'] } },
+        { op: 'add', path: '/section/main', html: '<section><h1>Checkout Review</h1></section>' },
+        {
+          op: 'meta',
+          path: '/ghost-review-packet',
+          value: {
+            source: 'root',
+            product: 'Checkout',
+            sections: [{ id: 'main', html: '<section><h1>Checkout Review</h1></section>' }],
+          },
+        },
+        {
+          op: 'meta',
+          path: '/stream-graph-summary',
+          value: {
+            health: {
+              complete: true,
+              missingDeclared: [],
+              blockedCount: 0,
+              skippedCount: 0,
+              repairedCount: 0,
+            },
+            sections: [],
+          },
+        },
+      ]),
+    });
+  });
+
+  await page.goto('/');
+  await expect(page.locator('[data-preset-id="ghost-checkout"]')).toContainText('Ghost steer: checkout');
+  await page.locator('[data-preset-id="ghost-checkout"]').click();
+  await page.locator('#run').click();
+  await expect(page.frameLocator('#sandbox').locator('h1')).toContainText('Checkout Review');
+
+  expect(captured.ghost).toEqual({
+    rootId: 'checkout',
+    targetPath: '.',
+    baseDirectionId: 'ghost',
+  });
+  expect(captured.surfacePolicy).toEqual({
+    tier: 'declarative',
+    purpose: 'review',
+    grants: ['choose'],
+  });
 });

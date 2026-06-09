@@ -16,7 +16,8 @@
     "express": "^4.21.2",
     "@anarchitecture/summon": "workspace:*",
     "@anarchitecture/summon-server": "workspace:*",
-    "@summon-internal/engine": "workspace:*"
+    "@summon-internal/engine": "workspace:*",
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

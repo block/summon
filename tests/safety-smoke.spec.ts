@@ -6,6 +6,33 @@ function collectPageErrors(page: Page): Error[] {
   return errors;
 }
 
+const hostSearchPlan = {
+  purpose: 'explore',
+  runtime: 'declarative',
+  data: 'host-resource',
+  authority: 'read',
+  persistence: 'replayable',
+};
+
+const componentIslandsPlan = {
+  purpose: 'review',
+  runtime: 'declarative',
+  data: 'embedded',
+  authority: 'host-action',
+  persistence: 'replayable',
+};
+
+const componentIslandsPolicy = {
+  tier: 'declarative',
+  purpose: 'review',
+  grants: ['choose'],
+  components: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
+};
+
+function jsonl(lines: any[]): string {
+  return `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`;
+}
+
 test('adversarial sandbox boundary holds', async ({ page }) => {
   await page.goto('/adversarial.html');
 
@@ -72,12 +99,59 @@ test('generate page boots without server credentials', async ({ page }) => {
   expect(pageErrors.map((error) => error.message)).toEqual([]);
 });
 
-test('generate showcase sends narrowed scenario contract', async ({ page }) => {
+test('generate showcase sends SurfacePolicy by default', async ({ page }) => {
+  let captured: any = null;
+  await page.route('**/api/generate', async (route) => {
+    captured = route.request().postDataJSON();
+    const body = jsonl([
+      { op: 'meta', path: '/surface-policy', value: captured.surfacePolicy },
+      { op: 'meta', path: '/surface-plan', value: hostSearchPlan },
+      { op: 'set', path: '/screen', value: { sections: ['main'] } },
+      {
+        op: 'add',
+        path: '/section/main',
+        html: '<section><h1>Dinner Finder</h1><button data-summon-intent="search">Search</button></section>',
+      },
+      {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: true,
+            missingDeclared: [],
+            blockedCount: 0,
+            skippedCount: 0,
+            repairedCount: 0,
+          },
+          sections: [],
+        },
+      },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/generate.html');
+  await page.locator('#scenario').selectOption('host-resource-search');
+  await page.locator('#go').click();
+  await expect(page.locator('#iframe-status')).toContainText('done');
+
+  expect(captured).toBeTruthy();
+  expect(captured.surfacePolicy).toEqual({
+    tier: 'declarative',
+    purpose: 'explore',
+    grants: ['search'],
+  });
+  expect(captured.surfacePlan).toBeUndefined();
+  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['search']);
+  expect(captured.scriptPolicy).toBe('forbid');
+});
+
+test('generate showcase sends raw SurfacePlan from the advanced override', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
     const surfacePlan = captured.surfacePlan;
-    const body = [
+    const body = jsonl([
       { op: 'meta', path: '/surface-plan', value: surfacePlan },
       { op: 'meta', path: '/shape', value: 'card' },
       {
@@ -113,7 +187,7 @@ test('generate showcase sends narrowed scenario contract', async ({ page }) => {
           sections: [],
         },
       },
-    ].map((line) => JSON.stringify(line)).join('\n') + '\n';
+    ]);
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
@@ -142,6 +216,7 @@ test('generate showcase sends narrowed scenario contract', async ({ page }) => {
   expect(captured).toBeTruthy();
   expect(captured.mode).toBe('interactive');
   expect(captured.scriptPolicy).toBe('forbid');
+  expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toEqual({
     purpose: 'collect',
     runtime: 'declarative',
@@ -158,11 +233,123 @@ test('generate showcase sends narrowed scenario contract', async ({ page }) => {
   expect(captured.repair).toEqual({ enabled: true, maxAttempts: 1, maxTargets: 2 });
 });
 
+test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page }) => {
+  let captured: any = null;
+  await page.route('**/api/directions', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 'ghost',
+          name: 'Ghost',
+          description: 'Ghost base tokens',
+          tokensCss: ':root { --color-bg: #ffffff; --color-fg: #101010; }',
+        },
+      ]),
+    });
+  });
+  await page.route('**/api/ghost-roots', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        { id: 'checkout', defaultTargetPath: '.', defaultBaseDirectionId: 'ghost' },
+      ]),
+    });
+  });
+  await page.route('**/api/generate', async (route) => {
+    captured = route.request().postDataJSON();
+    const body = jsonl([
+      {
+        op: 'meta',
+        path: '/ghost-context',
+        value: {
+          product: 'Checkout',
+          source: 'root',
+          targetPath: '.',
+          layers: ['checkout'],
+          baseDirectionId: 'ghost',
+          styleSource: 'ghost-config-token-css',
+        },
+      },
+      {
+        op: 'meta',
+        path: '/surface-policy',
+        value: captured.surfacePolicy,
+      },
+      { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
+      { op: 'set', path: '/screen', value: { sections: ['main'] } },
+      { op: 'add', path: '/section/main', html: '<section><h1>Checkout Review</h1><button data-summon-intent="choose">Accept</button></section>' },
+      {
+        op: 'meta',
+        path: '/ghost-token-source',
+        value: {
+          kind: 'css',
+          source: 'ghost-config-token-css',
+          css: ':root { --color-bg: #fafafa; --color-accent: #1a73e8; }',
+          baseDirectionId: 'ghost',
+          warnings: [],
+        },
+      },
+      {
+        op: 'meta',
+        path: '/ghost-review-packet',
+        value: {
+          baseDirectionId: 'ghost',
+          styleSource: 'ghost-config-token-css',
+          declaredSections: ['main'],
+          validation: { blocked: 0, warnings: 0 },
+        },
+      },
+      {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: true,
+            missingDeclared: [],
+            blockedCount: 0,
+            skippedCount: 0,
+            repairedCount: 0,
+          },
+          sections: [],
+        },
+      },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/generate.html');
+  await expect(page.locator('#scenario')).toContainText('Ghost steer: checkout');
+  await page.locator('#scenario').selectOption('ghost-checkout');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#iframe-status')).toContainText('done');
+  await expect(page.locator('#log')).toContainText('ghost context');
+  await expect(page.locator('#log')).toContainText('Checkout Review');
+  await expect(page.locator('#log')).toContainText('ghost review packet');
+
+  expect(captured).toBeTruthy();
+  expect(captured.ghost).toEqual({
+    rootId: 'checkout',
+    targetPath: '.',
+    baseDirectionId: 'ghost',
+  });
+  expect(captured.directionId).toBeUndefined();
+  expect(captured.surfacePolicy).toEqual({
+    tier: 'declarative',
+    purpose: 'review',
+    grants: ['choose'],
+  });
+  expect(captured.surfacePlan).toBeUndefined();
+  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['choose']);
+});
+
 test('component islands render in host overlay without widening the sandbox', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
-    const surfacePlan = captured.surfacePlan;
     const html = `
       <section style="padding:24px;min-height:900px;">
         <div
@@ -173,8 +360,8 @@ test('component islands render in host overlay without widening the sandbox', as
         ></div>
         <p id="sandbox-proof">Sandbox placeholder only</p>
       </section>`;
-    const body = [
-      { op: 'meta', path: '/surface-plan', value: surfacePlan },
+    const body = jsonl([
+      { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
       { op: 'set', path: '/screen', value: { sections: ['main'] } },
       { op: 'add', path: '/section/main', html },
       {
@@ -191,7 +378,7 @@ test('component islands render in host overlay without widening the sandbox', as
           sections: [],
         },
       },
-    ].map((line) => JSON.stringify(line)).join('\n') + '\n';
+    ]);
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
@@ -209,6 +396,8 @@ test('component islands render in host overlay without widening the sandbox', as
     'TrendSparkline',
     'ApprovalStatus',
   ]);
+  expect(captured.surfacePolicy).toEqual(componentIslandsPolicy);
+  expect(captured.surfacePlan).toBeUndefined();
   expect(captured.scriptPolicy).toBe('forbid');
 
   const sandbox = page.frameLocator('#sandbox');
@@ -255,8 +444,8 @@ test('component island prop failures do not render host DOM and emit diagnostics
           style="width:240px;height:112px;"
         ></div>
       </section>`;
-    const body = [
-      { op: 'meta', path: '/surface-plan', value: captured.surfacePlan },
+    const body = jsonl([
+      { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
       { op: 'set', path: '/screen', value: { sections: ['main'] } },
       { op: 'add', path: '/section/main', html },
       {
@@ -273,7 +462,7 @@ test('component island prop failures do not render host DOM and emit diagnostics
           sections: [],
         },
       },
-    ].map((line) => JSON.stringify(line)).join('\n') + '\n';
+    ]);
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 

@@ -34,6 +34,7 @@ import {
 } from '@anarchitecture/summon/engine';
 import {
   PolicyEngine,
+  type SurfacePolicy,
 } from '@anarchitecture/summon';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
@@ -531,6 +532,7 @@ function readActiveContract(): ActiveContract {
     mode: readMode(),
     capabilityNames: scenario.capabilityNames,
     componentNames: scenario.componentNames,
+    ...(customContractEnabledEl.checked ? {} : { surfacePolicy: scenario.surfacePolicy }),
     surfacePlan,
     scriptPolicy: deriveSurfacePlanControls(surfacePlan).scriptPolicy,
     ...(layoutSel.value ? { layoutId: layoutSel.value } : {}),
@@ -823,6 +825,7 @@ function respawn(
   directionId: string | null,
   mode: Mode,
   active: ActiveContract = readActiveContract(),
+  initialHtml = '',
 ): SandboxHandle {
   if (componentIslands) {
     componentIslands.destroy();
@@ -895,7 +898,7 @@ function respawn(
       intents: policy?.intents ?? [],
       capabilities: grantedCapabilities,
       components: grantedComponents,
-      html: '',
+      html: initialHtml,
       initialState: policy?.getState(),
     },
     // Read from the host-owned engine, not from the (LLM-influenced) artifact,
@@ -1093,7 +1096,7 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
         targetPath?: unknown;
         layers?: unknown;
         baseDirectionId?: unknown;
-          styleSource?: unknown;
+        styleSource?: unknown;
         }
       | undefined;
     const product = typeof value?.product === 'string' ? value.product : 'Ghost';
@@ -1221,6 +1224,7 @@ interface StreamOptions {
   directionId: string | null;
   layout?: SummonLayout | null;
   scriptPolicy?: ScriptPolicy;
+  surfacePolicy?: SurfacePolicy;
   surfacePlan?: SurfacePlan;
   tokenOverrides?: Record<string, string>;
   edit?: {
@@ -1271,6 +1275,7 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
       ...(target.components ? { components: target.components } : {}),
       surfaceCeiling: demoSurfaceCeiling,
       ...(opts.scriptPolicy ? { scriptPolicy: opts.scriptPolicy } : {}),
+      ...(opts.surfacePolicy ? { surfacePolicy: opts.surfacePolicy } : {}),
       ...(opts.surfacePlan ? { surfacePlan: opts.surfacePlan } : {}),
       ...(opts.tokenOverrides ? { tokenOverrides: opts.tokenOverrides } : {}),
       ...(opts.layout ? { layout: opts.layout } : {}),
@@ -1380,6 +1385,13 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
   };
 }
 
+function surfaceRequestFor(active: ActiveContract): Pick<StreamOptions, 'surfacePolicy' | 'surfacePlan'> {
+  if (!customContractEnabledEl.checked && active.surfacePolicy) {
+    return { surfacePolicy: active.surfacePolicy };
+  }
+  return { surfacePlan: active.surfacePlan };
+}
+
 function createParentTarget(active: ActiveContract): SandboxTarget {
   return {
     getHandle: () => handle,
@@ -1403,15 +1415,13 @@ function createParentTarget(active: ActiveContract): SandboxTarget {
     onTokenOverrides: (applied) => {
       activeTokensSourceOverride = applyTokenOverrideCss(tokensFor(currentDirectionId), applied);
       const composed = acc.hasAnySection() ? acc.compose() : null;
-      respawn(currentDirectionId, currentMode, active);
-      if (composed) handle?.render(composed);
+      respawn(currentDirectionId, currentMode, active, composed ?? '');
       renderContractSummary();
     },
     onGhostTokenSource: (css) => {
       activeTokensSourceOverride = css;
       const composed = acc.hasAnySection() ? acc.compose() : null;
-      respawn(currentDirectionId, currentMode, active);
-      if (composed) handle?.render(composed);
+      respawn(currentDirectionId, currentMode, active, composed ?? '');
     },
     onValidationSummary: (value) => {
       currentValidationSummary = summarizeValidationMeta(value);
@@ -1602,7 +1612,7 @@ async function generate(prompt: string) {
       directionId: currentDirectionId,
       layout: readLayout(),
       scriptPolicy: active.scriptPolicy,
-      surfacePlan: active.surfacePlan,
+      ...surfaceRequestFor(active),
       tokenOverrides: active.tokenOverrides,
       repair: active.repair,
       signal: abortController.signal,
@@ -1661,7 +1671,7 @@ async function editArtifact(instruction: string) {
       directionId: currentDirectionId,
       layout: readLayout(),
       scriptPolicy: active.scriptPolicy,
-      surfacePlan: active.surfacePlan,
+      ...surfaceRequestFor(active),
       tokenOverrides: active.tokenOverrides,
       repair: active.repair,
       edit,
@@ -1764,14 +1774,14 @@ function summonChild(childPrompt: string, title?: string) {
     events,
   });
 
-  const spawnChildSandbox = () => {
+  const spawnChildSandbox = (initialHtml = '') => {
     childHandle?.dispose();
     childHandle = spawnSandbox({
       iframe: childIframe,
       artifact: {
         intents: childPolicy.intents,
         capabilities: childGrantedCapabilities,
-        html: '',
+        html: initialHtml,
         initialState: childPolicy.getState(),
       },
       grantedIntents: childPolicy.intents,
@@ -1805,8 +1815,7 @@ function summonChild(childPrompt: string, title?: string) {
     onGhostTokenSource: (css) => {
       childTokensSourceOverride = css;
       const composed = childAcc.hasAnySection() ? childAcc.compose() : null;
-      spawnChildSandbox();
-      if (composed) childHandle?.render(composed);
+      spawnChildSandbox(composed ?? '');
     },
   };
 

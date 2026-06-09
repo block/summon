@@ -1,26 +1,21 @@
-import {
-  loadMemoryStackForPath,
-  memoryStackToPackageMemory,
-  normalizeMemoryDir,
-  readOptionalPackageConfig,
-  writePackageContextBundleFromMemory,
-  type GhostMemoryStack,
-  type GhostMemoryStackLayer,
-  type PackageMemory,
-} from '@anarchitecture/ghost/scan';
 import { compileTokenContract, type ProtocolLine } from '@anarchitecture/summon/engine';
 import type { GhostGenerationContext } from '@anarchitecture/summon-server';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import {
   dirname,
   isAbsolute,
-  join,
   relative,
   resolve,
 } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  normalizeGhostMemoryDir,
+  readGhostPackageConfig,
+  resolveGhostRootCompat,
+  type GhostStackCompat,
+  type GhostStackLayerCompat,
+  type GhostContextCompat,
+} from './ghost-scan-compat.js';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
@@ -83,8 +78,8 @@ export interface ResolvedRootGhostSteer extends GhostGenerationContext {
   source: 'root';
   request: GhostRootRequest;
   root: string;
-  stack: GhostMemoryStack;
-  context: PackageMemory;
+  stack: GhostStackCompat;
+  context: GhostContextCompat;
   prompt: string;
   tokenSource: GhostTokenSource;
   baseDirectionId: string | null;
@@ -118,7 +113,7 @@ export interface GhostReviewPacket {
   product: string;
   layers: string[];
   memoryProvenance: {
-    merge: GhostMemoryStack['provenance']['merge'] | 'external';
+    merge: GhostStackCompat['provenance']['merge'] | 'external';
     layers: Array<{
       relativeRoot: string;
       memoryDir: string;
@@ -241,7 +236,7 @@ export function parseGhostRequest(
       return { ok: false, error: 'ghost.memoryDir must be a string' };
     }
     try {
-      memoryDir = normalizeMemoryDir(obj.memoryDir);
+      memoryDir = normalizeGhostMemoryDir(obj.memoryDir);
     } catch (err) {
       return {
         ok: false,
@@ -312,13 +307,15 @@ async function resolveRootGhostGenerationContext(
     throw new Error('ghost.targetPath must stay within the configured root');
   }
 
-  const stack = await loadMemoryStackForPath(request.targetPath, root, {
+  const resolved = await resolveGhostRootCompat({
+    root,
+    targetPath: request.targetPath,
     memoryDir: request.memoryDir,
   });
-  if (resolve(stack.repo_root) !== resolve(root)) {
+  const { stack, context } = resolved;
+  if (resolve(stack.repoRoot) !== resolve(root)) {
     throw new Error('configured Ghost root must resolve to the fingerprint stack repo root');
   }
-  const context = memoryStackToPackageMemory(stack);
   const [prompt, tokenSource] = await Promise.all([
     buildPromptFromContext(context),
     resolveGhostTokenSource(stack, baseDirection),
@@ -330,7 +327,7 @@ async function resolveRootGhostGenerationContext(
     stack,
     context,
     prompt,
-    product: stack.merged.fingerprint.summary.product ?? context.name,
+    product: stack.product ?? context.name,
     tokenSource,
     baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
   };
@@ -353,17 +350,17 @@ export function ghostContextMeta(ctx: ResolvedGhostContext) {
   return {
     source: ctx.source,
     rootId: ctx.request.rootId,
-    targetPath: ctx.stack.target_path,
-      memoryDir: ctx.stack.memory_dir,
-    layers: ctx.stack.layers.map((layer) => layer.relative_root),
+    targetPath: ctx.stack.targetPath,
+    memoryDir: ctx.stack.memoryDir,
+    layers: ctx.stack.layers.map((layer) => layer.relativeRoot),
     product: ctx.product,
     baseDirectionId: ctx.baseDirectionId,
     styleSource: ctx.tokenSource.kind,
     provenance: {
       merge: ctx.stack.provenance.merge,
       layers: ctx.stack.provenance.layers.map((layer) => ({
-        relativeRoot: layer.relative_root,
-        memoryDir: layer.memory_dir,
+        relativeRoot: layer.relativeRoot,
+        memoryDir: layer.memoryDir,
       })),
     },
   };
@@ -396,15 +393,15 @@ export function buildGhostReviewPacket(input: {
   const rootFields = input.context.source === 'root'
     ? {
         rootId: input.context.request.rootId,
-        targetPath: input.context.stack.target_path,
-        memoryDir: input.context.stack.memory_dir,
+        targetPath: input.context.stack.targetPath,
+        memoryDir: input.context.stack.memoryDir,
         product: input.context.product,
-        layers: input.context.stack.layers.map((layer) => layer.relative_root),
+        layers: input.context.stack.layers.map((layer) => layer.relativeRoot),
         memoryProvenance: {
           merge: input.context.stack.provenance.merge,
           layers: input.context.stack.provenance.layers.map((layer) => ({
-            relativeRoot: layer.relative_root,
-            memoryDir: layer.memory_dir,
+            relativeRoot: layer.relativeRoot,
+            memoryDir: layer.memoryDir,
           })),
         },
       }
@@ -441,29 +438,20 @@ export function buildGhostReviewPacket(input: {
   };
 }
 
-async function buildPromptFromContext(context: PackageMemory): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'summon-ghost-context-'));
-  try {
-    await writePackageContextBundleFromMemory(context, {
-      outDir: dir,
-      promptOnly: true,
-    });
-    return await readFile(join(dir, 'prompt.md'), 'utf-8');
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
+async function buildPromptFromContext(context: GhostContextCompat): Promise<string> {
+  return context.writePrompt();
 }
 
 async function resolveGhostTokenSource(
-  stack: GhostMemoryStack,
+  stack: GhostStackCompat,
   baseDirection: GhostBaseDirection | null,
 ): Promise<GhostTokenSource> {
   const warnings: string[] = [];
   for (const layer of [...stack.layers].reverse()) {
-    const configPath = resolve(layer.root, layer.memory_dir, 'config.yml');
+    const configPath = resolve(layer.root, layer.memoryDir, 'config.yml');
     let config;
     try {
-      config = await readOptionalPackageConfig(configPath);
+      config = await readGhostPackageConfig(configPath);
     } catch (err) {
       warnings.push(
         `${displayPath(stack, configPath)} could not be read: ${
@@ -577,7 +565,7 @@ function resolveFallbackTokenSource(
 }
 
 function resolveTokenPath(
-  layer: GhostMemoryStackLayer,
+  layer: GhostStackLayerCompat,
   rawRef: string,
 ): string | null {
   const raw = rawRef.trim();
@@ -662,7 +650,7 @@ function isWithinOrEqual(root: string, child: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-function displayPath(stack: GhostMemoryStack, absPath: string): string {
-  const rel = relative(stack.repo_root, absPath);
+function displayPath(stack: GhostStackCompat, absPath: string): string {
+  const rel = relative(stack.repoRoot, absPath);
   return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : absPath;
 }
