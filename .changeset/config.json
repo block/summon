@@ -2,7 +2,13 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
   "changelog": ["@changesets/changelog-github", { "repo": "block/summon" }],
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@anarchitecture/summon",
+      "@anarchitecture/summon-server",
+      "@anarchitecture/summon-react"
+    ]
+  ],
   "linked": [],
   "access": "public",
   "baseBranch": "main",

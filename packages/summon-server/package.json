@@ -1,6 +1,6 @@
 {
   "name": "@anarchitecture/summon-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Provider-neutral server-side generation primitives for Summon surfaces",
   "license": "Apache-2.0",
   "author": "Block, Inc.",
