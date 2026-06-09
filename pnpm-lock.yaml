@@ -95,6 +95,9 @@ importers:
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
+      '@types/node':
+        specifier: ^20.11.0
+        version: 20.19.39
       tsx:
         specifier: ^4.7.0
         version: 4.21.0
