@@ -250,7 +250,12 @@ class StaticCapabilityRegistry implements CapabilityRegistry {
       if ('defaultData' in definition) intent.defaultData = definition.defaultData;
       return intent;
     });
-    const patterns = this.definitions.flatMap((definition) => definition.patterns ?? []);
+    const patterns = this.definitions.flatMap((definition) =>
+      (definition.patterns ?? []).map((pattern) => ({
+        ...pattern,
+        intent: pattern.intent ?? definition.name,
+      })),
+    );
     const pack: CapabilityPack = patterns.length > 0 ? { intents, patterns } : { intents };
     return compileCapabilityContract(pack);
   }

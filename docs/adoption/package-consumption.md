@@ -81,7 +81,7 @@ defineReactComponent({
 
 ```ts
 import {
-  deriveSurfacePlanControls,
+  compileSurfacePolicy,
 } from '@anarchitecture/summon';
 import {
   consumeSurfaceStream,
@@ -104,14 +104,15 @@ Use `consumeSurfaceStream()` to decode streamed chunks, parse accepted protocol
 lines, maintain section HTML and stream graph health, and render through the
 sandbox handle. Spawn the iframe with `grantedIntents` and
 `grantedCapabilities` from host-owned contracts.
-`deriveSurfacePlanControls(surfacePlan)` is available for host UI defaults such
-as mode and script policy; it is a convenience helper, not a security boundary.
-`suggestSurfacePlan(input)` can prefill host controls from prompt text and
-capability metadata, but it is advisory only. Generation authority comes from
-the explicit `surfacePlan` the host submits, not from suggestions.
+`compileSurfacePolicy(surfacePolicy, ceilings)` gives the client the stream
+mode and narrowed contracts that the server will enforce. Generation authority
+comes from the explicit `surfacePolicy` the host submits.
 
 ```ts
-const controls = deriveSurfacePlanControls(surfacePlan);
+const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
+  capabilities: capabilityContract.pack,
+  components: componentContract.pack,
+});
 const componentRegistry = createComponentRegistry([
   defineComponent({
     name: 'MetricCard',
@@ -161,14 +162,14 @@ const response = await fetch('/api/generate', {
   method: 'POST',
   body: JSON.stringify({
     prompt,
-    surfacePlan,
-    scriptPolicy: controls.scriptPolicy,
+    surfacePolicy,
+    capabilities: capabilityContract.pack,
     components: componentContract.pack,
   }),
 });
 
 await consumeSurfaceStream(response.body!, {
-  mode: controls.mode,
+  mode: compiledPolicy.mode,
   onRenderHtml: (html) => handle?.render(html),
 });
 ```
@@ -184,7 +185,7 @@ import {
 
 `runSurfaceGeneration()` is provider-neutral. The provider receives compiled
 prompt blocks and returns text chunks. The runner compiles contracts, emits
-host-owned meta lines such as `/surface-plan`, validates JSONL, optionally runs
+host-owned meta lines such as `/surface-policy` and `/surface-plan`, validates JSONL, optionally runs
 targeted repair, emits accepted Summon lines and diagnostics, and returns a
 replay summary.
 

@@ -171,6 +171,14 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'unsafe-attr-binding':
     case 'bad-attr-binding-placement':
       return ['Use only safe data-summon-attr-* bindings on supported elements.'];
+    case 'host-owned-meta':
+      return ['Remove host-owned meta lines; the host emits /surface-policy and /surface-plan before model output.'];
+    case 'surface-policy-invalid':
+    case 'surface-policy-unknown-grant':
+    case 'surface-policy-unknown-component':
+    case 'surface-policy-tier-exceeded':
+    case 'surface-policy-tier-requirement':
+      return ['Fix the host-selected SurfacePolicy before generation; models cannot widen grants, components, or tiers.'];
     default:
       return ['Emit one valid replacement line for the same target path.'];
   }

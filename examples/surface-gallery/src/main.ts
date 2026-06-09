@@ -1,8 +1,8 @@
 import {
+  compileSurfacePolicy,
   PolicyEngine,
-  deriveSurfacePlanControls,
   type ComponentPack,
-  type SurfacePlan,
+  type CompiledSurfacePolicy,
 } from '@anarchitecture/summon';
 import {
   consumeSurfaceStream,
@@ -23,7 +23,9 @@ import {
 import {
   GALLERY_PRESETS,
   findPreset,
-  planText,
+  policyComponents,
+  policyGrants,
+  policyText,
   type GalleryPreset,
 } from './presets.js';
 import './styles.css';
@@ -78,7 +80,7 @@ function renderPresetCards(): void {
     button.innerHTML = `
       <span>${preset.category}</span>
       <strong>${preset.title}</strong>
-      <em>${planText(preset.surfacePlan)}</em>
+      <em>${policyText(preset.surfacePolicy)}</em>
       <small>${preset.description}</small>
     `;
     button.addEventListener('click', () => selectPreset(preset.id));
@@ -110,12 +112,13 @@ function respawnSandbox(): void {
   handle = null;
   policy = null;
 
-  const capabilityRegistry = createGalleryCapabilityRegistry(selectedPreset.capabilityNames, {
+  const compiledPolicy = compiledPolicyFor(selectedPreset);
+  const capabilityRegistry = createGalleryCapabilityRegistry(compiledPolicy.policy.grants, {
     onLog: pushHostMessage,
   });
   const capabilityContract = capabilityRegistry.toContract();
-  const componentRegistry = selectedPreset.componentNames?.length
-    ? createGalleryComponentRegistry(selectedPreset.componentNames)
+  const componentRegistry = compiledPolicy.policy.components.length
+    ? createGalleryComponentRegistry(compiledPolicy.policy.components)
     : null;
   const componentContract = componentRegistry?.toContract();
   if (componentRegistry) {
@@ -129,12 +132,12 @@ function respawnSandbox(): void {
     });
   }
 
-  const initialState = selectedPreset.mode === 'interactive'
+  const initialState = compiledPolicy.mode === 'interactive'
     ? capabilityContract.initialState
     : {};
   renderState(initialState);
 
-  if (selectedPreset.mode === 'interactive') {
+  if (compiledPolicy.mode === 'interactive') {
     policy = new PolicyEngine({
       initialState,
       handlers: capabilityRegistry.toPolicyHandlers(),
@@ -158,8 +161,8 @@ function respawnSandbox(): void {
       components: componentContract?.validationComponents,
       initialState,
     },
-    grantedIntents: selectedPreset.mode === 'interactive' ? capabilityRegistry.intents() : [],
-    grantedCapabilities: selectedPreset.mode === 'interactive'
+    grantedIntents: compiledPolicy.mode === 'interactive' ? capabilityRegistry.intents() : [],
+    grantedCapabilities: compiledPolicy.mode === 'interactive'
       ? capabilityContract.validationCapabilities
       : [],
     bootstrapSource,
@@ -196,11 +199,9 @@ async function generateSelectedSurface(): Promise<void> {
   setSetupNote(null);
   events.push({ kind: 'stream-lifecycle', at: Date.now(), phase: 'start' });
 
-  const capabilityPack = selectedPreset.mode === 'interactive'
-    ? createGalleryCapabilityRegistry(selectedPreset.capabilityNames).toContract().pack
-    : null;
-  const componentPack = componentPackFor(selectedPreset);
-  const controls = deriveSurfacePlanControls(selectedPreset.surfacePlan);
+  const compiledPolicy = compiledPolicyFor(selectedPreset);
+  const capabilityPack = createGalleryCapabilityRegistry().toContract().pack;
+  const componentPack = componentCeilingFor(selectedPreset);
 
   try {
     const response = await fetch('/api/generate', {
@@ -209,10 +210,7 @@ async function generateSelectedSurface(): Promise<void> {
       signal: abortController.signal,
       body: JSON.stringify({
         prompt: promptEl.value.trim(),
-        mode: selectedPreset.mode,
-        surfacePlan: selectedPreset.surfacePlan,
-        surfaceCeiling: selectedPreset.surfaceCeiling,
-        scriptPolicy: selectedPreset.scriptPolicy,
+        surfacePolicy: selectedPreset.surfacePolicy,
         capabilities: capabilityPack,
         ...(componentPack ? { components: componentPack } : {}),
       }),
@@ -224,7 +222,7 @@ async function generateSelectedSurface(): Promise<void> {
     }
 
     await consumeSurfaceStream(response.body, {
-      mode: controls.mode,
+      mode: compiledPolicy.mode,
       accumulator,
       onLine: (line, context) => handleLine(line, context),
       onMeta: (line) => handleMeta(line),
@@ -250,13 +248,16 @@ async function generateSelectedSurface(): Promise<void> {
   }
 }
 
-function componentPackFor(preset: GalleryPreset): ComponentPack | null {
-  if (!preset.componentNames?.length) return null;
-  const allowed = new Set(preset.componentNames);
-  const pack = createGalleryComponentRegistry().toContract().pack;
-  return {
-    components: pack.components.filter((component) => allowed.has(component.name)),
-  };
+function componentCeilingFor(preset: GalleryPreset): ComponentPack | null {
+  if (!policyComponents(preset.surfacePolicy).length) return null;
+  return createGalleryComponentRegistry().toContract().pack;
+}
+
+function compiledPolicyFor(preset: GalleryPreset): CompiledSurfacePolicy {
+  return compileSurfacePolicy(preset.surfacePolicy, {
+    capabilities: createGalleryCapabilityRegistry().toContract().pack,
+    components: createGalleryComponentRegistry().toContract().pack,
+  });
 }
 
 function handleLine(line: ProtocolLine, context: SurfaceStreamContext): void {
@@ -287,17 +288,16 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
 }
 
 function renderContract(): void {
-  const components = selectedPreset.componentNames?.length
-    ? selectedPreset.componentNames.join(', ')
+  const components = policyComponents(selectedPreset.surfacePolicy).length
+    ? policyComponents(selectedPreset.surfacePolicy).join(', ')
     : 'none';
-  const grants = selectedPreset.capabilityNames.length
-    ? selectedPreset.capabilityNames.join(', ')
+  const grants = policyGrants(selectedPreset.surfacePolicy).length
+    ? policyGrants(selectedPreset.surfacePolicy).join(', ')
     : 'none';
   contractSummary.innerHTML = '';
   const rows: Array<[string, string]> = [
-    ['Plan', planText(selectedPreset.surfacePlan)],
-    ['Mode', selectedPreset.mode],
-    ['Scripts', selectedPreset.scriptPolicy],
+    ['Policy', policyText(selectedPreset.surfacePolicy)],
+    ['Tier', selectedPreset.surfacePolicy.tier],
     ['Grants', grants],
     ['Components', components],
   ];

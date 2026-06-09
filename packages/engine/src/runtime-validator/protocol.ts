@@ -7,6 +7,7 @@ import type { ContractIssue } from '../contracts.js';
 
 const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
 const META_PATH_RE = /^\/[a-z][a-z0-9-/]{0,119}$/;
+const HOST_OWNED_META_PATHS = new Set(['/surface-policy', '/surface-plan']);
 
 export function validateProtocolLine(
   line: ProtocolLine,
@@ -18,6 +19,13 @@ export function validateProtocolLine(
   if (line.op === 'meta') {
     if (!META_PATH_RE.test(line.path)) {
       issues.push(protocolBlock('invalid-meta-path', `Invalid meta path "${line.path}"`, line.path));
+    }
+    if (HOST_OWNED_META_PATHS.has(line.path)) {
+      issues.push(protocolBlock(
+        'host-owned-meta',
+        `Generated artifacts cannot emit host-owned meta path "${line.path}"`,
+        line.path,
+      ));
     }
     return issues;
   }

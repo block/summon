@@ -6,8 +6,12 @@ import { createServer, type IncomingMessage } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import type { CapabilityPack, SurfaceCeiling, SurfacePlan } from '@anarchitecture/summon';
-import type { ProtocolLine } from '@anarchitecture/summon/engine';
+import type {
+  CapabilityPack,
+  ProtocolLine,
+  SurfaceCeiling,
+  SurfacePlan,
+} from '@anarchitecture/summon/engine';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(here, '..');
@@ -171,6 +175,55 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
   assert.equal(lines.at(-1)?.path, '/stream-graph-summary');
   assert.equal(lines.some((line) => line.path === '/error'), false);
+
+  const policyResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a dinner finder where i can search',
+      mode: 'static',
+      scriptPolicy: 'allow',
+      surfacePolicy: {
+        tier: 'declarative',
+        purpose: 'explore',
+        grants: ['search'],
+      },
+      capabilities: searchCapability,
+    }),
+  });
+  const policyBody = await policyResponse.text();
+  assert.equal(policyResponse.status, 200, policyBody);
+
+  assert.equal(anthropicRequests.length, 2);
+  const policyRequest = anthropicRequests[1] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(policyRequest.stream, true);
+  const policySystemText = policyRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(policySystemText, /Search host-owned dinner data/);
+  assert.match(policySystemText, /Surface plan/);
+  assert.match(policySystemText, /Runtime: `declarative`/);
+  assert.match(policySystemText, /Data: `host-resource`/);
+  assert.doesNotMatch(policySystemText, /Rules for scripts/);
+
+  const policyLines = policyBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.deepEqual(policyLines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
+    'meta /surface-policy',
+    'meta /surface-plan',
+    'meta /status',
+    'set /screen',
+  ]);
+  assert.equal(policyLines.some((line) => line.path === '/mode-upgraded'), false);
+  assert.deepEqual((policyLines[0] as Extract<ProtocolLine, { op: 'meta' }>).value, {
+    tier: 'declarative',
+    purpose: 'explore',
+    grants: ['search'],
+    components: [],
+    persistence: 'replayable',
+  });
+  assert.deepEqual((policyLines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, surfacePlan);
 });
 
 function sse(event: string, data: unknown): string {

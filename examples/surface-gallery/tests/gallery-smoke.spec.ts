@@ -9,12 +9,12 @@ test('gallery boots and preset selection updates the contract panel', async ({ p
 
   await expect(page.locator('[data-preset-id]')).toHaveCount(6);
   await expect(page.locator('#preset-title')).toContainText('Static Brief');
-  await expect(page.locator('[data-contract-row="plan"]')).toContainText('compare/static/embedded/none/replayable');
+  await expect(page.locator('[data-contract-row="policy"]')).toContainText('static');
 
   await page.locator('[data-preset-id="search-explorer"]').click();
   await expect(page.locator('#preset-title')).toContainText('Search Explorer');
   await expect(page.locator('#prompt')).toHaveValue(/weeknight dinner explorer/);
-  await expect(page.locator('[data-contract-row="plan"]')).toContainText('explore/declarative/host-resource/read/replayable');
+  await expect(page.locator('[data-contract-row="tier"]')).toContainText('declarative');
   await expect(page.locator('[data-contract-row="grants"]')).toContainText('search');
 });
 
@@ -26,7 +26,18 @@ test('mocked generation renders and generated intents update host state', async 
       status: 200,
       contentType: 'text/plain',
       body: streamBody([
-        { op: 'meta', path: '/surface-plan', value: captured.surfacePlan },
+        { op: 'meta', path: '/surface-policy', value: captured.surfacePolicy },
+        {
+          op: 'meta',
+          path: '/surface-plan',
+          value: {
+            purpose: 'compare',
+            runtime: 'declarative',
+            data: 'embedded',
+            authority: 'host-action',
+            persistence: 'replayable',
+          },
+        },
         { op: 'meta', path: '/status', value: 'writing' },
         { op: 'set', path: '/screen', value: { sections: ['main'] } },
         {
@@ -62,9 +73,18 @@ test('mocked generation renders and generated intents update host state', async 
   await page.locator('#run').click();
   await expect(page.locator('#status')).toContainText('done');
 
-  expect(captured.mode).toBe('interactive');
-  expect(captured.scriptPolicy).toBe('forbid');
-  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['choose']);
+  expect(captured.surfacePolicy).toEqual({
+    tier: 'declarative',
+    purpose: 'compare',
+    grants: ['choose'],
+  });
+  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual([
+    'search',
+    'choose',
+    'publish_summary',
+    'analysis',
+    'compute_score',
+  ]);
   expect(captured.components).toBeUndefined();
 
   const frame = page.frameLocator('#sandbox');
@@ -93,7 +113,18 @@ test('component island preset renders host overlays and reports invalid props', 
       status: 200,
       contentType: 'text/plain',
       body: streamBody([
-        { op: 'meta', path: '/surface-plan', value: captured.surfacePlan },
+        { op: 'meta', path: '/surface-policy', value: captured.surfacePolicy },
+        {
+          op: 'meta',
+          path: '/surface-plan',
+          value: {
+            purpose: 'review',
+            runtime: 'declarative',
+            data: 'embedded',
+            authority: 'host-action',
+            persistence: 'replayable',
+          },
+        },
         { op: 'set', path: '/screen', value: { sections: ['main'] } },
         { op: 'add', path: '/section/main', html },
         {

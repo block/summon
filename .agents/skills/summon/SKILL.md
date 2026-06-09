@@ -28,7 +28,8 @@ Follow this path unless the user explicitly asks for a runtime redesign:
 
 ```txt
 host capability registry
-  -> SurfacePlan: purpose/runtime/data/authority/persistence
+  -> SurfacePolicy: tier/grants/components/purpose/persistence
+  -> compiled SurfacePlan: purpose/runtime/data/authority/persistence
   -> createCapabilityRegistry(...).toContract()
   -> compileSystemContracts()
   -> protocol hardener and repair feedback
@@ -37,8 +38,8 @@ host capability registry
 ```
 
 Capabilities are host-owned. The model sees the contract; the host owns
-handlers, network, credentials, state, grants, and the selected `SurfacePlan`.
-Generated artifacts must not emit or widen `/surface-plan`.
+handlers, network, credentials, state, grants, and the selected `SurfacePolicy`.
+Generated artifacts must not emit or widen `/surface-policy` or `/surface-plan`.
 
 New generation servers should prefer `runSurfaceGeneration(input, emit)` from
 `@anarchitecture/summon-server`; `generateSurfaceStream()` remains available for
@@ -70,8 +71,9 @@ host approval adapter.
 
 For generation failures, inspect `/error`, `/validation-summary`,
 `/validation-blocked`, `/repair-feedback`, `/repair-summary`,
-`/stream-graph-summary`, `/protocol-skip`, `/surface-plan`, `/shape`,
-`/token-overrides`, `/screen-synthesized`, and `/mode-upgraded`.
+`/stream-graph-summary`, `/protocol-skip`, `/surface-policy`,
+`/surface-plan`, `/shape`, `/token-overrides`, `/screen-synthesized`, and
+`/mode-upgraded`.
 
 For client behavior, inspect Devtools events: `surface-plan`, `protocol-line`,
 `protocol-parse-error`, `sandbox-ready`, `render`, `intent-emitted`,
@@ -80,7 +82,7 @@ For client behavior, inspect Devtools events: `surface-plan`, `protocol-line`,
 
 Use `ContractIssue` plus `hintsForContractIssue(issue)` when feeding validation
 problems back to a model or another agent. For surface problems, check whether
-the requested runtime, data source, or authority exceeds the selected
+the requested grant/component exceeds the selected `SurfacePolicy` or compiled
 `SurfacePlan`.
 
 ## Commands

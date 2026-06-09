@@ -14,21 +14,11 @@ export {
 } from '@summon-internal/host';
 
 export {
-  DEFAULT_SURFACE_CEILING,
-  DEFAULT_SURFACE_PLAN,
-  deriveSurfacePlanControls,
-  inferSurfacePlan,
-  normalizeSurfaceCeiling,
-  normalizeSurfacePlan,
-  suggestSurfacePlan,
-  SURFACE_AUTHORITY_VALUES,
-  SURFACE_DATA_VALUES,
+  compileSurfacePolicy,
+  normalizeSurfacePolicy,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
-  SURFACE_RUNTIME_VALUES,
-  surfacePlanScriptPolicy,
-  surfacePlanWithinCeiling,
-  constrainSurfacePlan,
+  SURFACE_TIER_VALUES,
 } from '@summon-internal/engine';
 
 export type {
@@ -65,16 +55,12 @@ export type {
   ComponentPack,
   ComponentSpec,
   ComponentSurface,
+  CompiledSurfacePolicy,
+  CompileSurfacePolicyOptions,
   IntentSpec,
-  ScriptPolicy,
-  SurfaceAuthority,
-  SurfaceCeiling,
-  SurfaceData,
+  NormalizedSurfacePolicy,
   SurfacePersistence,
-  SurfacePlan,
-  SurfacePlanControls,
-  SurfacePlanInferenceInput,
-  SurfacePlanMode,
+  SurfacePolicy,
   SurfacePurpose,
-  SurfaceRuntime,
+  SurfaceTier,
 } from '@summon-internal/engine';

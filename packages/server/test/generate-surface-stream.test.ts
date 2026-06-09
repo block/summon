@@ -119,6 +119,134 @@ test('runSurfaceGeneration emits prelude, surface plan, and layout startup befor
   assert.equal(summary.blocked, false);
 });
 
+test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows contracts', async () => {
+  const lines: ProtocolLine[] = [];
+  let systemText = '';
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'choose one',
+    surfacePolicy: {
+      tier: 'declarative',
+      purpose: 'compare',
+      grants: ['choose'],
+      components: ['MetricCard'],
+    },
+    capabilities: {
+      intents: [
+        {
+          name: 'search',
+          description: 'Search host data',
+          argsSchema: '{}',
+          stateShape: '{}',
+          kind: 'resource',
+          surface: { data: 'host-resource', authority: 'read' },
+        },
+        {
+          name: 'choose',
+          description: 'Save a choice',
+          argsSchema: '{}',
+          stateShape: '{}',
+          kind: 'action',
+          surface: { authority: 'host-action' },
+        },
+      ],
+      patterns: [
+        { name: 'Search', code: '<form data-summon-resource="search"></form>', intent: 'search' },
+        { name: 'Choose', code: '<button data-summon-on-click="choose"></button>', intent: 'choose' },
+      ],
+    },
+    components: {
+      components: [
+        {
+          name: 'MetricCard',
+          description: 'Trusted metric',
+          propsSchema: '{}',
+          surface: { data: 'embedded', authority: 'none' },
+        },
+        {
+          name: 'SecretWidget',
+          description: 'Unselected widget',
+          propsSchema: '{}',
+          surface: { data: 'embedded', authority: 'none' },
+        },
+      ],
+    },
+    modelProvider: async function* ({ promptBlocks }) {
+      systemText = promptBlocks.map((block) => block.text).join('\n');
+      yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
+      yield '{"op":"add","path":"/section/hero","html":"<button data-summon-on-click=\\"choose\\" data-summon-args=\\"{}\\">Choose</button><div data-summon-component=\\"MetricCard\\" data-summon-component-id=\\"metric\\" data-summon-props=\\"{}\\"></div>"}\n';
+    },
+  }, (line) => {
+    lines.push(line);
+  });
+
+  assert.deepEqual(lines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
+    'meta /surface-policy',
+    'meta /surface-plan',
+    'set /screen',
+    'add /section/hero',
+  ]);
+  assert.equal(lines[0]?.op, 'meta');
+  assert.deepEqual((lines[0] as Extract<ProtocolLine, { op: 'meta' }>).value, {
+    tier: 'declarative',
+    purpose: 'compare',
+    grants: ['choose'],
+    components: ['MetricCard'],
+    persistence: 'replayable',
+  });
+  assert.equal(lines[1]?.op, 'meta');
+  assert.deepEqual((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, {
+    purpose: 'compare',
+    runtime: 'declarative',
+    data: 'embedded',
+    authority: 'host-action',
+    persistence: 'replayable',
+  });
+  assert.match(systemText, /Save a choice/);
+  assert.match(systemText, /MetricCard/);
+  assert.doesNotMatch(systemText, /Search host data/);
+  assert.doesNotMatch(systemText, /SecretWidget/);
+  assert.equal(summary.blocked, false);
+});
+
+test('runSurfaceGeneration blocks invalid surface policy before provider invocation', async () => {
+  let called = false;
+  const lines: ProtocolLine[] = [];
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'invalid worker grant',
+    surfacePolicy: {
+      tier: 'declarative',
+      grants: ['analysis'],
+    },
+    capabilities: {
+      intents: [{
+        name: 'analysis',
+        description: 'Worker analysis',
+        argsSchema: '{}',
+        stateShape: '{}',
+        kind: 'resource',
+        surface: { data: 'worker', authority: 'read' },
+      }],
+    },
+    modelProvider: async function* () {
+      called = true;
+      yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
+    },
+  }, (line) => {
+    lines.push(line);
+  });
+
+  assert.equal(called, false);
+  assert.equal(summary.blocked, true);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'surface-policy-tier-exceeded'));
+  assert.deepEqual(lines.slice(0, 3).map((line) => `${line.op} ${line.path}`), [
+    'meta /surface-policy',
+    'meta /surface-plan',
+    'meta /validation-blocked',
+  ]);
+});
+
 test('runSurfaceGeneration fails blocking compile issues before provider invocation', async () => {
   let called = false;
   const lines: ProtocolLine[] = [];

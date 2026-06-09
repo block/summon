@@ -167,6 +167,18 @@ export type {
   SurfacePurpose,
   SurfaceRuntime,
 } from './surface-plan.js';
+export {
+  compileSurfacePolicy,
+  normalizeSurfacePolicy,
+  SURFACE_TIER_VALUES,
+} from './surface-policy.js';
+export type {
+  CompiledSurfacePolicy,
+  CompileSurfacePolicyOptions,
+  NormalizedSurfacePolicy,
+  SurfacePolicy,
+  SurfaceTier,
+} from './surface-policy.js';
 export { createProtocolHardener } from './protocol-hardener.js';
 export type {
   ProtocolHardener,

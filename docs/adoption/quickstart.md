@@ -27,8 +27,9 @@ it does not silently fall back to replay. Use the preset cards to generate
 static, host-resource, host-action, approval-gated, component-island, and
 worker-backed surfaces.
 
-Each preset sends an explicit `SurfacePlan`, narrowed capability/component
-contracts, and matching script policy to `/api/generate`.
+Each preset sends an explicit `SurfacePolicy` plus capability/component
+ceilings to `/api/generate`. The server compiles that policy into narrowed
+contracts, matching script policy, and the diagnostic `/surface-plan` event.
 
 ## Run The Workbench
 
@@ -47,7 +48,7 @@ intentionally shaped to exercise the adoption path:
 - Loading, error, and data states through resource bindings.
 - A narrowed model-facing capability pack and matching sandbox grants.
 - Host state pushback from `PolicyEngine`.
-- A server-emitted `SurfacePlan`.
+- A server-emitted `SurfacePolicy` plus compiled `SurfacePlan`.
 - Devtools `stream-graph` health events.
 
 ## What To Verify
@@ -60,7 +61,7 @@ intentionally shaped to exercise the adoption path:
 5. When the UI renders, use its generated search control with a query such as
    `chicken pasta`.
 6. Open the **Stream** drawer and confirm accepted `add` or `set` protocol
-   lines plus `/surface-plan` are visible.
+   lines plus `/surface-policy` and `/surface-plan` are visible.
 7. Open the **Devtools** drawer and confirm these event kinds appear:
    `protocol-line`, `intent-emitted`, `intent-dispatched`, `state-pushed`,
    `render`, `surface-plan`, and `stream-graph`.
