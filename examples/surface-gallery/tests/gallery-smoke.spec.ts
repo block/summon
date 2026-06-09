@@ -9,16 +9,19 @@ test('gallery boots and preset selection updates the contract panel', async ({ p
 
   await expect(page.locator('[data-preset-id]')).toHaveCount(6);
   await expect(page.locator('#preset-title')).toContainText('Static Brief');
+  await expect(page.locator('[data-contract-row="policy"]')).toContainText('Surface config');
   await expect(page.locator('[data-contract-row="policy"]')).toContainText('static');
 
   await page.locator('[data-preset-id="search-explorer"]').click();
   await expect(page.locator('#preset-title')).toContainText('Search Explorer');
   await expect(page.locator('#prompt')).toHaveValue(/weeknight dinner explorer/);
+  await expect(page.locator('[data-contract-row="tier"]')).toContainText('Surface type');
   await expect(page.locator('[data-contract-row="tier"]')).toContainText('declarative');
+  await expect(page.locator('[data-contract-row="grants"]')).toContainText('Allowed host tools');
   await expect(page.locator('[data-contract-row="grants"]')).toContainText('search');
 });
 
-test('mocked generation renders and generated intents update host state', async ({ page }) => {
+test('mocked generation renders and generated host tool requests update host state', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
@@ -90,7 +93,7 @@ test('mocked generation renders and generated intents update host state', async 
   const frame = page.frameLocator('#sandbox');
   await frame.locator('button').click();
   await expect(page.locator('#state-preview')).toContainText('Balanced path');
-  await expect(page.locator('#event-log')).toContainText('intent choose');
+  await expect(page.locator('#event-log')).toContainText('host tool choose');
 });
 
 test('component island preset renders host overlays and reports invalid props', async ({ page }) => {

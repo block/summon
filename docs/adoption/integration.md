@@ -1,12 +1,23 @@
 # Summon Integration Guide
 
-Use this when wiring Summon into a host app or server. The goal is to reuse the
-current contract path and package-owned generation lifecycle.
+Use this when wiring Summon into a host app or server. The product model is:
 
-## 1. Define Host Capabilities
+1. Register host tools.
+2. Register trusted host components.
+3. Choose a surface config.
+4. Generate the surface.
+5. Render it in the sandbox.
+6. Inspect diagnostics when needed.
 
-Capabilities are host-owned. The model receives the contract, but only the host
-gets handlers, credentials, network, and durable state.
+The TypeScript APIs still use precise runtime names such as capability,
+`SurfacePolicy`, and `PolicyEngine`. In adopter-facing prose, think of them as
+host tools, surface config, and host dispatch.
+
+## 1. Register Host Tools
+
+Host tools are data sources or actions the generated UI may request. The host
+owns handlers, credentials, network, validation, and durable state. The model
+receives only a description of the tool.
 
 ```ts
 import { z } from 'zod';
@@ -58,11 +69,11 @@ const capabilityContract = registry.toContract();
 `capabilityContract.pack` is model-facing. `capabilityContract.validationCapabilities`
 and `capabilityContract.initialState` are runtime-facing.
 
-## 2. Define Component Islands
+## 2. Register Trusted Host Components
 
-Component islands are also host-owned. The model receives names, descriptions,
-prop schemas, examples, sizing hints, and placeholder rules. It never receives
-component implementations.
+Trusted host components let the generated UI place a host-rendered component
+without receiving its implementation. The model receives names, descriptions,
+prop schemas, examples, sizing hints, and placeholder rules.
 
 ```ts
 import { z } from 'zod';
@@ -100,17 +111,12 @@ is runtime-facing. The default component surface is
 `host-action` only when the trusted host component actually reads host data or
 emits host actions.
 
-## 3. Run Server Generation
+## 3. Choose A Surface Config
 
-The generation server should use `@anarchitecture/summon-server` for the repeatable lifecycle:
-compile contracts, emit host-owned meta lines, harden model JSONL, optionally
-repair retryable sections, and end with validation and stream-graph summaries.
+A surface config is the host's per-run choice of what the generated UI is
+allowed to do. The API type is `SurfacePolicy`.
 
 ```ts
-import {
-  runSurfaceGeneration,
-  type SummonModelProvider,
-} from '@anarchitecture/summon-server';
 import type { SurfacePolicy } from '@anarchitecture/summon';
 
 const surfacePolicy: SurfacePolicy = {
@@ -118,6 +124,31 @@ const surfacePolicy: SurfacePolicy = {
   purpose: 'explore',
   grants: ['search'],
 };
+```
+
+Common configs:
+
+| Situation | Surface config |
+| --- | --- |
+| Read-only summary | `{ tier: "static", purpose: "inform" }` |
+| Host-backed search | `{ tier: "declarative", purpose: "explore", grants: ["search"] }` |
+| Background host work | `{ tier: "worker", purpose: "review", grants: ["analysis"] }` |
+| Requires approval | `{ tier: "approval", purpose: "operate", grants: ["publish_summary"] }` |
+
+Hosts choose the config before generation. The model may react to the compiled
+safety details, but it cannot widen what the host allowed.
+
+## 4. Generate The Surface
+
+The generation server should use `@anarchitecture/summon-server` for the
+repeatable lifecycle: assemble prompts, apply the surface config, validate
+streamed JSONL, optionally retry invalid sections, and emit diagnostics.
+
+```ts
+import {
+  runSurfaceGeneration,
+  type SummonModelProvider,
+} from '@anarchitecture/summon-server';
 
 const modelProvider: SummonModelProvider = async function* ({ prompt, promptBlocks }) {
   // Convert promptBlocks into your provider's system-message shape, then yield
@@ -131,8 +162,8 @@ await runSurfaceGeneration({
   surfacePolicy,
   direction,
   layout,
-  // Full host ceilings. Summon narrows these from surfacePolicy before
-  // constructing prompt and validation contracts.
+  // Full host tool/component catalog. Summon narrows it from the surface config
+  // before constructing model-facing and validation contracts.
   capabilities: capabilityContract.pack,
   components: componentContract.pack,
   activeTokensCss: direction?.tokensCss ?? null,
@@ -144,75 +175,21 @@ await runSurfaceGeneration({
 });
 ```
 
-Surface policies are host-owned. A model may react to the compiled plan, but it
-must not emit or widen `/surface-policy` or `/surface-plan`;
-`runSurfaceGeneration()` emits both meta lines before model output for clients
-and replay envelopes. Hosts choose the policy before generation.
+To enable validation retries, pass
+`repair: { enabled: true, provider, maxAttempts, maxTargets }`. The provider
+receives the compiled prompt blocks and a single replacement prompt; return one
+replacement JSONL line for the same section path.
 
-Common policies:
+## 5. Render In The Sandbox
 
-| Situation | SurfacePolicy |
-| --- | --- |
-| Static summary | `{ tier: "static", purpose: "inform" }` |
-| Host-backed search | `{ tier: "declarative", purpose: "explore", grants: ["search"] }` |
-| Worker-backed analysis | `{ tier: "worker", purpose: "review", grants: ["analysis"] }` |
-| Approval-gated operation | `{ tier: "approval", purpose: "operate", grants: ["publish_summary"] }` |
-
-To enable targeted repair, pass `repair: { enabled: true, provider, maxAttempts,
-maxTargets }`. The repair provider receives the compiled prompt blocks and a
-single replacement prompt; return one replacement JSONL line for the same
-section path.
-
-## 4. Apply Protocol On The Client
-
-The client should let `@anarchitecture/summon` own chunk decoding, protocol parsing,
-section accumulation, stream health, and render timing. Product hosts still own
+The client should let `@anarchitecture/summon` own chunk decoding, protocol
+parsing, stream diagnostics, and render timing. Product hosts still own
 fetching, aborts, request payloads, and product-specific meta interpretation.
 
 ```ts
 import { compileSurfacePolicy } from '@anarchitecture/summon';
-import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
-
-const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
-  capabilities: capabilityContract.pack,
-  components: componentContract.pack,
-});
-const response = await fetch('/api/generate', {
-  method: 'POST',
-  body: JSON.stringify({
-    prompt,
-    surfacePolicy,
-    capabilities: capabilityContract.pack,
-    components: componentContract.pack,
-  }),
-});
-
-const result = await consumeSurfaceStream(response.body!, {
-  mode: compiledPolicy.mode,
-  onMeta: (line) => {
-    if (line.path === '/status') renderStatus(String(line.value));
-  },
-  onGraph: (snapshot) => {
-    events.push({ kind: 'stream-graph', at: Date.now(), health: snapshot.health });
-  },
-  onRenderHtml: (html) => {
-    sandbox?.render(html);
-  },
-});
-```
-
-Static streams render as accepted structural lines change. Interactive streams
-render once at completion so scripts execute against a complete DOM. Devtools
-consumers can publish `stream-graph` events from the snapshots so engineers can
-inspect section health without reading raw JSONL.
-
-## 5. Spawn The Sandbox
-
-The sandbox is the only place generated HTML runs. Grants come from the host,
-not from the artifact.
-
-```ts
 import {
+  consumeSurfaceStream,
   createComponentIslandRegistry,
   spawnSandbox,
   type SandboxHandle,
@@ -223,31 +200,35 @@ import {
   tokensSource,
 } from '@anarchitecture/summon/assets';
 
+const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
+  capabilities: capabilityContract.pack,
+  components: componentContract.pack,
+});
+
 let sandbox: SandboxHandle | null = null;
+const grantedCapabilities = capabilityContract.validationCapabilities;
+const policy = new PolicyEngine({
+  initialState: capabilityContract.initialState,
+  handlers: registry.toPolicyHandlers(),
+  onStateChange: (state) => sandbox?.pushState(state),
+});
+
 const islands = createComponentIslandRegistry({
   outerIframe: iframe,
   registry: componentRegistry,
 });
 
-const policy = new PolicyEngine({
-  initialState: capabilityContract.initialState,
-  handlers: registry.toPolicyHandlers(),
-  onStateChange: (state) => {
-    sandbox?.pushState(state);
-  },
-});
-
 sandbox = spawnSandbox({
   iframe,
   artifact: {
-    intents: policy.intents,
-    capabilities: capabilityContract.validationCapabilities,
-    components: componentContract.validationComponents,
     html: '',
+    intents: policy.intents,
+    capabilities: grantedCapabilities,
+    components: componentContract.validationComponents,
     initialState: policy.getState(),
   },
   grantedIntents: policy.intents,
-  grantedCapabilities: capabilityContract.validationCapabilities,
+  grantedCapabilities,
   bootstrapSource,
   tokensSource,
   onIntent: (intent, args) => {
@@ -262,61 +243,72 @@ sandbox = spawnSandbox({
     });
   },
 });
+
+const response = await fetch('/api/generate', {
+  method: 'POST',
+  body: JSON.stringify({
+    prompt,
+    surfacePolicy,
+    capabilities: capabilityContract.pack,
+    components: componentContract.pack,
+  }),
+});
+
+await consumeSurfaceStream(response.body!, {
+  mode: compiledPolicy.mode,
+  onMeta: (line) => {
+    if (line.path === '/status') renderStatus(String(line.value));
+  },
+  onGraph: (snapshot) => {
+    events.push({ kind: 'stream-graph', at: Date.now(), health: snapshot.health });
+  },
+  onRenderHtml: (html) => {
+    sandbox?.render(html);
+  },
+});
 ```
 
-This preserves the core invariant: the iframe may emit only host-granted intent
-names, and handlers run only after schema validation inside `PolicyEngine`.
+This preserves the main invariant: the sandbox may request only host-allowed
+tool names, and handlers run only after schema validation in the host.
 
-For LLM-authored artifacts, always pass `grantedIntents` and
-`grantedCapabilities` from host-owned contracts. `artifact.intents` and
-`artifact.capabilities` describe what the artifact claims to use; they are not
-permission.
-
-Component placeholders stay inside the sandbox HTML, but trusted component DOM is
-rendered by the host overlay. The sandbox only sends `SUMMON_COMPONENTS` bounds
-and props with its `sandbox_id`; it cannot inspect the host-rendered island DOM.
-
-## 6. Resource Markup The Model Should Emit
-
-Data resources use declarative bindings. A generated search form should look
-like this shape:
+Generated data-resource UI should use safe `data-summon-*` bindings instead of
+inline handlers:
 
 ```html
-<section data-summon-resource="search" data-summon-resource-as="recipes">
-  <form data-summon-resource-trigger="submit">
-    <input name="query" placeholder="Ingredient or craving">
-    <button type="submit">Search</button>
-  </form>
-
-  <p data-summon-show="$recipes.loading">Searching...</p>
-  <p data-summon-show="$recipes.error" data-summon-bind="$recipes.error"></p>
-
-  <div data-summon-show="$recipes.data">
-    <template data-summon-foreach="$recipes.data" data-summon-as="recipe">
-      <button
-        type="button"
-        data-summon-on-click="choose_recipe"
-        data-summon-args='{"id":"$recipe.id","title":"$recipe.title"}'
-        data-summon-bind="$recipe.title"
-      ></button>
-    </template>
-  </div>
-</section>
+<form data-summon-resource="search" data-summon-resource-trigger="submit">
+  <input name="query" placeholder="Search recipes" />
+  <button type="submit">Search</button>
+  <p data-summon-show="$search.loading">Searching...</p>
+  <p data-summon-show="$search.error" data-summon-text="$search.error"></p>
+  <ul data-summon-foreach="$search.data">
+    <li>
+      <span data-summon-text="$item.title"></span>
+      <span data-summon-text="$item.timeMinutes"></span>
+    </li>
+  </ul>
+</form>
 ```
 
-Use `data-summon-*` bindings instead of inline handlers. External URLs, unsafe
-tags, ungranted intents, and missing resource states are contract issues.
-
-Component placeholders follow the same declarative pattern:
+Trusted component placeholders follow the same declarative pattern:
 
 ```html
 <div
   data-summon-component="MetricCard"
-  data-summon-component-id="revenue-card"
+  data-summon-component-id="revenue"
   data-summon-props='{"label":"Revenue","value":"$284,120","delta":"+3.2%"}'
-  style="min-height:var(--space-10);"
 ></div>
 ```
 
-Use placeholders only when a registered component materially improves fidelity.
-Freeform HTML and CSS remain the primary composition layer.
+## 6. Inspect Diagnostics
+
+Diagnostics are for failures and maintainer investigation, not the first thing
+an adopter needs to learn.
+
+- If generation fails, inspect `/error`, `/validation-summary`,
+  `/validation-blocked`, and validation retry feedback in the Stream drawer.
+- If a generated control does nothing, inspect Devtools for rejected host tool
+  requests, host dispatch, handler completion, and pushed state.
+- If trusted components do not appear, inspect component sync and component
+  error events.
+- If sandbox safety looks suspect, run `pnpm test:safety` and inspect
+  `spawnSandbox` before changing iframe sandbox attributes or CSP.

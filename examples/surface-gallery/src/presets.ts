@@ -39,7 +39,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
     id: 'decision-picker',
     title: 'Decision Picker',
     category: 'Host action',
-    description: 'A comparison surface can save a choice through a host-granted action.',
+    description: 'A comparison surface can save a choice through a host-allowed action.',
     prompt:
       'help me choose between three launch announcement approaches for a small developer tool. Compare tradeoffs and let me save the best option.',
     surfacePolicy: {
@@ -107,5 +107,5 @@ export function policyText(policy: SurfacePolicy): string {
   const components = policyComponents(policy);
   const grantText = grants.length > 0 ? grants.join(',') : 'none';
   const componentText = components.length > 0 ? components.join(',') : 'none';
-  return `${policy.tier} · grants ${grantText} · components ${componentText}`;
+  return `${policy.tier} · allowed host tools ${grantText} · trusted components ${componentText}`;
 }

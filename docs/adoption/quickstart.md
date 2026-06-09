@@ -1,9 +1,8 @@
 # Summon Adoption Quickstart
 
 This is the golden path for proving Summon works locally. Start with the Surface
-Gallery to see rich host-owned surfaces without workbench controls, then use the
-Workbench to inspect generation, interactive data resources, host state
-pushback, Devtools events, stream health, and sandbox boundaries.
+Gallery to see generated UI in a sandbox, backed only by host tools the app
+allows. Use the maintainer workbench only when you want to inspect diagnostics.
 
 ## Prerequisites
 
@@ -24,12 +23,12 @@ Open `http://localhost:5174`.
 
 The gallery is live-first. It requires `apps/server` and `ANTHROPIC_API_KEY`;
 it does not silently fall back to replay. Use the preset cards to generate
-static, host-resource, host-action, approval-gated, component-island, and
-worker-backed surfaces.
+read-only surfaces, host-backed search, host-owned actions, approval flows,
+trusted host components, and background host work.
 
-Each preset sends an explicit `SurfacePolicy` plus capability/component
-ceilings to `/api/generate`. The server compiles that policy into narrowed
-contracts, matching script policy, and the diagnostic `/surface-plan` event.
+Each preset chooses a surface config and a short list of allowed host tools.
+The server turns that into the stricter validation details Summon uses during
+generation and replay.
 
 ## Run The Workbench
 
@@ -41,50 +40,55 @@ Open `http://localhost:5173/generate.html`.
 
 ## Golden Scenario
 
-In the workbench, use the **Host-resource search** scenario. The scenario is
-intentionally shaped to exercise the adoption path:
+In the workbench, use the **Host Data Search** scenario. The scenario is
+shaped to exercise the adopter path:
 
-- `defineDataResource` via the demo `search` resource.
-- Loading, error, and data states through resource bindings.
-- A narrowed model-facing capability pack and matching sandbox grants.
-- Host state pushback from `PolicyEngine`.
-- A server-emitted `SurfacePolicy` plus compiled `SurfacePlan`.
-- Devtools `stream-graph` health events.
+- The host registers a `search` data tool with `defineDataResource`.
+- The generated surface renders loading, error, and result states.
+- The surface can only request the `search` host tool.
+- The host owns state updates and pushes safe state back into the sandbox.
+- Diagnostics are available if generation or interaction fails.
 
 ## What To Verify
 
-1. Select **Host-resource search**.
+1. Select **Host Data Search**.
 2. Keep layout on **Free layout**.
-3. Confirm the contract cockpit shows
-   `explore/declarative/host-resource/read/replayable` and `Grants 1: search`.
+3. Confirm the run is interactive and only the `search` host tool is allowed.
 4. Run the scenario.
 5. When the UI renders, use its generated search control with a query such as
    `chicken pasta`.
-6. Open the **Stream** drawer and confirm accepted `add` or `set` protocol
-   lines plus `/surface-policy` and `/surface-plan` are visible.
-7. Open the **Devtools** drawer and confirm these event kinds appear:
-   `protocol-line`, `intent-emitted`, `intent-dispatched`, `state-pushed`,
-   `render`, `surface-plan`, and `stream-graph`.
-8. Confirm the `stream-graph` events report declared and present sections
-   without blocked sections.
-9. Open **Saved surfaces** and replay the completed surface. It should render
-   from the stored `SurfaceEnvelope` while keeping the sandbox boundary intact.
+6. Confirm the generated UI displays loading and then search results.
+7. Open **Saved surfaces** and replay the completed surface. It should render
+   the same UI while keeping the sandbox boundary intact.
 
 Then open `http://localhost:5173/adversarial.html` and confirm the sandbox
 checks pass. This proves the quickstart did not require relaxing the sandbox
 boundary.
 
+## Optional Diagnostics
+
+The Stream and Devtools drawers are for understanding a run after you have
+rendered and interacted with a surface:
+
+- Open the **Stream** drawer to inspect accepted protocol lines, the selected
+  surface config, validation summaries, and validation retry feedback.
+- Open the **Devtools** drawer to inspect sandbox startup, render events, host
+  tool requests, host dispatch, pushed state, trusted component sync, and stream
+  diagnostics.
+- For a healthy interactive run, expect to see a render event, a host tool
+  request when you submit the search, host dispatch, and pushed state.
+
 ## Optional Checks
 
 Open `http://localhost:5173/batch.html` to run several prompts through the same
-direction and capability ceiling. Use it when changing prompt contracts,
-directions, intent wiring, visual direction coverage, or throughput behavior.
+surface config and allowed host tool set. Use it when changing prompt contracts,
+directions, host tool wiring, visual direction coverage, or throughput behavior.
 
 Use the other `/generate.html` scenarios to exercise static summaries,
-declarative forms, host AI calls, GitHub lookup, component islands,
-worker-backed analysis, approval-gated publish, scripted interactive mode,
+declarative forms, host AI calls, GitHub lookup, trusted host components,
+background host work, approval-required publish, scripted interactive mode,
 token overrides, layout constraints, sibling summon, Ghost steering when
-configured, and repair diagnostics.
+configured, and validation retry diagnostics.
 
 Open `http://localhost:5173/strict.html` to see the trusted host overlay pattern
 for sensitive input. The generated sandbox describes the slot; the host owns the
@@ -94,11 +98,12 @@ real input and pushes only safe state back.
 
 - If generation fails immediately, check `apps/server/.env` for
   `ANTHROPIC_API_KEY` and confirm the server is listening on `:3001`.
-- If generated controls do nothing, confirm the page is in **Interactive** mode.
-  Static mode intentionally has no granted intents.
-- If the model emits unsafe HTML, inspect `/validation-summary`,
-  `/repair-feedback`, and `/repair-summary` in the Stream drawer.
-- If the sandbox does not update after an intent, inspect Devtools for
-  `intent-rejected`, `intent-dispatched`, `intent-settled`, and `state-pushed`.
-- If sections are missing or repaired, inspect `/stream-graph-summary` and the
-  Devtools `stream-graph` events.
+- If generated controls do nothing, confirm the run is interactive. Static
+  surfaces intentionally have no allowed host tools.
+- If the model emits unsafe HTML, inspect the Stream drawer for validation
+  summaries, blocked output, and validation retry feedback.
+- If the sandbox does not update after a generated control is used, inspect
+  Devtools for rejected host tool requests, host dispatch, handler completion,
+  and pushed state.
+- If sections are missing or retried, inspect stream diagnostics in the Stream
+  and Devtools drawers.

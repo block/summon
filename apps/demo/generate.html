@@ -33,12 +33,12 @@
     <section class="stage-context" aria-label="Selected scenario">
       <div>
         <div class="stage-eyebrow" id="scenario-active-category">Showcase</div>
-        <h2 id="scenario-active-title">Host-resource search</h2>
+        <h2 id="scenario-active-title">Host Data Search</h2>
         <p id="scenario-active-desc">Host-owned data with explicit read authority.</p>
       </div>
       <div class="stage-fingerprint">
         <span id="scenario-active-fingerprint">pending</span>
-        <strong id="scenario-active-grants">0 grants</strong>
+        <strong id="scenario-active-grants">0 host tools</strong>
       </div>
     </section>
 
@@ -75,7 +75,7 @@
       <div class="iframe-wrap">
         <iframe id="sandbox" class="h-640" title="Summon generate sandbox"></iframe>
         <div class="iframe-welcome" id="welcome">
-          <div class="welcome-text" id="welcome-text">Host-resource search awaits generated UI.</div>
+          <div class="welcome-text" id="welcome-text">Host Data Search awaits generated UI.</div>
         </div>
       </div>
     </div>
@@ -85,7 +85,7 @@
 
   <aside class="contract-inspector" aria-label="Contract inspector">
     <div class="inspector-heading">
-      <span>Contract Inspector</span>
+      <span>Surface Inspector</span>
       <span id="inspector-status">pending</span>
     </div>
     <div class="contract-summary" id="contract-summary"></div>
@@ -124,9 +124,9 @@
           <label><input type="radio" name="mode" value="static" checked><span>Static</span></label>
           <label><input type="radio" name="mode" value="interactive"><span>Interactive</span></label>
         </div>
-        <label class="repair-toggle" title="Enable targeted repair">
+        <label class="repair-toggle" title="Enable validation retry">
           <input id="repair-enabled" type="checkbox">
-          <span>Repair</span>
+          <span>Validation retry</span>
         </label>
       </div>
 
@@ -145,10 +145,10 @@
     <section class="custom-contract">
       <label class="custom-contract-toggle">
         <input id="custom-contract-enabled" type="checkbox">
-        <span>Custom Contract</span>
+        <span>Custom Surface Config</span>
       </label>
       <div id="custom-contract-panel" class="custom-contract-panel" hidden>
-        <div class="surface-controls" aria-label="Surface plan">
+        <div class="surface-controls" aria-label="Surface config controls">
           <select id="surface-purpose" class="pill-select" title="Surface purpose"></select>
           <select id="surface-runtime" class="pill-select" title="Surface runtime"></select>
           <select id="surface-data" class="pill-select" title="Surface data"></select>
