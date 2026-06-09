@@ -1,12 +1,12 @@
 import {
-  loadMemoryStackForPath,
-  memoryStackToPackageMemory,
+  fingerprintStackToPackageContext,
+  loadFingerprintStackForPath,
   normalizeMemoryDir,
   readOptionalPackageConfig,
-  writePackageContextBundleFromMemory,
-  type GhostMemoryStack,
-  type GhostMemoryStackLayer,
-  type PackageMemory,
+  writePackageContextBundleFromContext,
+  type GhostFingerprintStack,
+  type GhostFingerprintStackLayer,
+  type PackageContext,
 } from '@anarchitecture/ghost/scan';
 import { compileTokenContract, type ProtocolLine } from '@anarchitecture/summon/engine';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -67,8 +67,8 @@ export interface GhostBaseDirection {
 export interface ResolvedGhostSteer {
   request: GhostRequest;
   root: string;
-  stack: GhostMemoryStack;
-  memory: PackageMemory;
+  stack: GhostFingerprintStack;
+  context: PackageContext;
   prompt: string;
   tokenSource: GhostTokenSource;
   baseDirectionId: string | null;
@@ -85,7 +85,7 @@ export interface GhostReviewPacket {
   product: string;
   layers: string[];
   memoryProvenance: {
-    merge: GhostMemoryStack['provenance']['merge'];
+    merge: GhostFingerprintStack['provenance']['merge'];
     layers: Array<{
       relativeRoot: string;
       memoryDir: string;
@@ -212,22 +212,22 @@ export async function resolveGhostSteer(
     throw new Error('ghost.targetPath must stay within the configured root');
   }
 
-  const stack = await loadMemoryStackForPath(request.targetPath, root, {
+  const stack = await loadFingerprintStackForPath(request.targetPath, root, {
     memoryDir: request.memoryDir,
   });
   if (resolve(stack.repo_root) !== resolve(root)) {
-    throw new Error('configured Ghost root must resolve to the memory stack repo root');
+    throw new Error('configured Ghost root must resolve to the fingerprint stack repo root');
   }
-  const memory = memoryStackToPackageMemory(stack);
+  const context = fingerprintStackToPackageContext(stack);
   const [prompt, tokenSource] = await Promise.all([
-    buildPromptFromMemory(memory),
+    buildPromptFromContext(context),
     resolveGhostTokenSource(stack, baseDirection),
   ]);
   return {
     request,
     root,
     stack,
-    memory,
+    context,
     prompt,
     tokenSource,
     baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
@@ -238,9 +238,9 @@ export function ghostContextMeta(ctx: ResolvedGhostContext) {
   return {
     rootId: ctx.request.rootId,
     targetPath: ctx.stack.target_path,
-    memoryDir: ctx.stack.memory_dir,
+    memoryDir: ctx.stack.fingerprint_dir,
     layers: ctx.stack.layers.map((layer) => layer.relative_root),
-    product: ctx.stack.merged.fingerprint.summary.product ?? ctx.memory.name,
+    product: ctx.stack.merged.fingerprint.prose.summary.product ?? ctx.context.name,
     baseDirectionId: ctx.baseDirectionId,
     styleSource: ctx.tokenSource.kind,
   };
@@ -275,16 +275,16 @@ export function buildGhostReviewPacket(input: {
     prompt: input.prompt,
     rootId: input.context.request.rootId,
     targetPath: input.context.stack.target_path,
-    memoryDir: input.context.stack.memory_dir,
+    memoryDir: input.context.stack.fingerprint_dir,
     product:
-      input.context.stack.merged.fingerprint.summary.product ??
-      input.context.memory.name,
+      input.context.stack.merged.fingerprint.prose.summary.product ??
+      input.context.context.name,
     layers: input.context.stack.layers.map((layer) => layer.relative_root),
     memoryProvenance: {
       merge: input.context.stack.provenance.merge,
       layers: input.context.stack.provenance.layers.map((layer) => ({
         relativeRoot: layer.relative_root,
-        memoryDir: layer.memory_dir,
+        memoryDir: layer.fingerprint_dir,
       })),
     },
     tokenSource: {
@@ -303,10 +303,10 @@ export function buildGhostReviewPacket(input: {
   };
 }
 
-async function buildPromptFromMemory(memory: PackageMemory): Promise<string> {
+async function buildPromptFromContext(context: PackageContext): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'summon-ghost-context-'));
   try {
-    await writePackageContextBundleFromMemory(memory, {
+    await writePackageContextBundleFromContext(context, {
       outDir: dir,
       promptOnly: true,
     });
@@ -317,12 +317,12 @@ async function buildPromptFromMemory(memory: PackageMemory): Promise<string> {
 }
 
 async function resolveGhostTokenSource(
-  stack: GhostMemoryStack,
+  stack: GhostFingerprintStack,
   baseDirection: GhostBaseDirection | null,
 ): Promise<GhostTokenSource> {
   const warnings: string[] = [];
   for (const layer of [...stack.layers].reverse()) {
-    const configPath = resolve(layer.dir, 'config.yml');
+    const configPath = resolve(layer.root, layer.fingerprint_dir, 'config.yml');
     let config;
     try {
       config = await readOptionalPackageConfig(configPath);
@@ -405,7 +405,7 @@ async function resolveGhostTokenSource(
 }
 
 function resolveTokenPath(
-  layer: GhostMemoryStackLayer,
+  layer: GhostFingerprintStackLayer,
   rawRef: string,
 ): string | null {
   const raw = rawRef.trim();
@@ -478,7 +478,7 @@ function isWithinOrEqual(root: string, child: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-function displayPath(stack: GhostMemoryStack, absPath: string): string {
+function displayPath(stack: GhostFingerprintStack, absPath: string): string {
   const rel = relative(stack.repo_root, absPath);
   return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : absPath;
 }
