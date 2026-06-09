@@ -1,11 +1,10 @@
+import { PolicyEngine, type CapabilityPack } from '@anarchitecture/summon';
 import { spawnSandbox, type SandboxHandle } from '@anarchitecture/summon/browser';
-import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
   parseProtocolLine,
   SectionAccumulator,
-  type CapabilityPack,
   type ValidationCapability,
-} from '@anarchitecture/summon';
+} from '@anarchitecture/summon/engine';
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { ALL_PROMPTS, sample } from './prompts.js';

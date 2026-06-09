@@ -6,6 +6,17 @@ or `@summon-internal/*` packages from applications.
 For package boundary rationale, see
 [Public Packaging Plan](public-packaging.md).
 
+The root `@anarchitecture/summon` entrypoint is intentionally curated for
+host-authoring helpers, component/capability registries, policy helpers, and
+surface-plan types. Use explicit subpaths for runtime and advanced APIs:
+
+- `@anarchitecture/summon/browser` for iframe spawning, stream consumption,
+  component islands, and strict input.
+- `@anarchitecture/summon/engine` for protocol parsing, validators, prompt
+  contracts, `SectionAccumulator`, `StreamGraph`, and hardening.
+- `@anarchitecture/summon/host` for adapter authors who need the full host
+  runtime surface.
+
 ## React Hosts
 
 ```ts
@@ -185,5 +196,7 @@ Run this before publishing:
 ```sh
 pnpm build
 pnpm check:public-packages
+pnpm check:public-api
 pnpm pack:dry-run
+pnpm smoke:public-packages
 ```

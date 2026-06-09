@@ -18,7 +18,7 @@ jobs:
   release:
     name: Version or publish
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -34,9 +34,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm build
-
-      - run: pnpm check:public-packages
+      - run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Create Release PR or publish
         uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0

@@ -82,9 +82,9 @@ generation starts. The model sees that plan as a contract but cannot widen it.
 
 ## Public Packages
 
-- `@anarchitecture/summon` - core protocol, surface plans, host contract
-  helpers, diagnostics primitives, and explicit browser/policy/envelope/assets/
-  Devtools subpaths.
+- `@anarchitecture/summon` - curated host-authoring helpers, policy helpers,
+  and surface-plan APIs. Advanced browser, engine, host, policy, envelope,
+  assets, and Devtools APIs live on explicit subpaths.
 - `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
   repair, summaries, and model-provider interfaces.
 - `@anarchitecture/summon-react` - `SummonSurface` and React component island
@@ -137,6 +137,8 @@ pnpm typecheck
 pnpm test
 pnpm test:safety
 pnpm build
+pnpm check:public-api
+pnpm smoke:public-packages
 pnpm pack:dry-run
 pnpm dev:all
 pnpm port-direction <path-to-expression.md> [id]

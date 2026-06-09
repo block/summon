@@ -2,9 +2,8 @@ import {
   type CapabilityRegistry,
   type ComponentDefinition,
   type ComponentRegistry,
-  SectionAccumulator,
-  type ProtocolLine,
 } from '@anarchitecture/summon';
+import { SectionAccumulator, type ProtocolLine } from '@anarchitecture/summon/engine';
 import {
   createComponentIslandRegistry,
   spawnSandbox,
