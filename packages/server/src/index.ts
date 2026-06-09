@@ -8,6 +8,7 @@ export type {
   GenerateEditInput,
   GenerateSurfaceInput,
   GenerationSummary,
+  GhostGenerationContext,
   RepairOptions,
   RepairStats,
   ResolvedSurfaceGenerationPlan,

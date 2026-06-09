@@ -10,6 +10,7 @@ export type {
   GenerateEditInput,
   GenerateSurfaceInput,
   GenerationSummary,
+  GhostGenerationContext,
   ProtocolLine,
   ProtocolSkipMetaValue,
   RepairFeedbackMetaValue,

@@ -38,7 +38,7 @@ import {
   parseGhostRequest,
   parseGhostRoots,
   publicGhostRoots,
-  resolveGhostSteer,
+  resolveGhostGenerationContext,
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
 import { inferPack } from './infer-capabilities.js';
@@ -476,7 +476,7 @@ app.post('/api/generate', async (req, res) => {
   let ghostContext: ResolvedGhostSteer | null = null;
   try {
     ghostContext = ghostRequest
-      ? await resolveGhostSteer(
+      ? await resolveGhostGenerationContext(
           { ...ghostRequest, baseDirectionId: requestedGhostBaseDirectionId },
           ghostRoots,
           ghostBaseDirection ?? null,
@@ -677,7 +677,7 @@ app.post('/api/generate', async (req, res) => {
               layout,
             }
           : null,
-        ghostPrompt: ghostContext?.prompt ?? null,
+        ghost: ghostContext ?? null,
         layout,
         edit,
         capabilities: hasSurfacePolicy ? capabilityCeiling : pack,
@@ -720,7 +720,7 @@ app.post('/api/generate', async (req, res) => {
       const stats = summary.repairStats ?? { queued: 0, cancelled: 0, repaired: 0, failed: 0 };
       const upgradeTag = modeUpgraded ? ` (upgraded ${inferenceUsed ? 'via inference' : 'via regex'})` : '';
       console.log(
-        `[generate] dir=${directionId ?? 'none'} ghost=${ghostContext?.request.rootId ?? 'none'} mode=${mode}${upgradeTag}` +
+        `[generate] dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
           ` shape=${shape ?? 'all'}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` edit=${edit ? 'yes' : 'no'}` +
@@ -745,6 +745,12 @@ app.post('/api/generate', async (req, res) => {
     }
   });
 });
+
+function ghostLogId(context: ResolvedGhostSteer): string {
+  return context.source === 'root'
+    ? context.request.rootId
+    : (context.request.id ?? 'resolved-context');
+}
 
 app.listen(PORT, () => {
   console.log(`[summon-server] listening on http://localhost:${PORT}`);

@@ -224,6 +224,65 @@ test('api generate sends narrowed contract and stream meta shape through package
     persistence: 'replayable',
   });
   assert.deepEqual((policyLines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, surfacePlan);
+
+  const ghostResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build checkout status',
+      mode: 'static',
+      ghost: {
+        source: 'resolved-context',
+        id: 'checkout',
+        product: 'Checkout',
+        prompt: 'You are working inside the Checkout product experience.',
+        provenance: { layers: ['portable-bundle'] },
+      },
+    }),
+  });
+  const ghostBody = await ghostResponse.text();
+  assert.equal(ghostResponse.status, 200, ghostBody);
+
+  assert.equal(anthropicRequests.length, 3);
+  const ghostRequest = anthropicRequests[2] as { system?: Array<{ text?: string }>; stream?: boolean };
+  const ghostSystemText = ghostRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(ghostSystemText, /Checkout product experience/);
+
+  const ghostLines = ghostBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.deepEqual(ghostLines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
+    'meta /ghost-context',
+    'meta /ghost-token-source',
+    'meta /surface-plan',
+    'meta /status',
+  ]);
+  const ghostContext = ghostLines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((ghostContext.value as { source?: unknown }).source, 'resolved-context');
+  assert.equal((ghostContext.value as { product?: unknown }).product, 'Checkout');
+  const ghostTokenSource = ghostLines.find((line) => line.path === '/ghost-token-source') as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((ghostTokenSource.value as { kind?: unknown }).kind, 'base-direction');
+  const ghostReviewPacket = ghostLines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((ghostReviewPacket.value as { source?: unknown }).source, 'resolved-context');
+
+  const ghostOverrideResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build checkout status',
+      ghost: {
+        source: 'resolved-context',
+        prompt: 'You are working inside the Checkout product experience.',
+      },
+      tokenOverrides: { 'color-accent': 'red' },
+    }),
+  });
+  const ghostOverrideBody = await ghostOverrideResponse.text();
+  assert.equal(ghostOverrideResponse.status, 400);
+  assert.match(ghostOverrideBody, /tokenOverrides are not supported with Ghost product memory/);
+  assert.equal(anthropicRequests.length, 3);
 });
 
 function sse(event: string, data: unknown): string {

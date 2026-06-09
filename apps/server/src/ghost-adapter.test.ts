@@ -46,6 +46,7 @@ describe('Ghost adapter', () => {
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
     assert.equal(parsed.ok, true);
     assert.deepEqual(parsed.ok ? parsed.request : null, {
+      source: 'root',
       rootId: 'checkout',
       targetPath: '.',
       memoryDir: '.ghost',
@@ -60,11 +61,15 @@ describe('Ghost adapter', () => {
     }, roots);
     assert.equal(withBase.ok, true);
     assert.deepEqual(withBase.ok ? withBase.request : null, {
+      source: 'root',
       rootId: 'checkout',
       targetPath: 'app',
       memoryDir: '.ghost',
       baseDirectionId: 'ghost',
     });
+    const explicitRoot = parseGhostRequest({ source: 'root', rootId: 'checkout' }, roots);
+    assert.equal(explicitRoot.ok, true);
+    assert.equal(explicitRoot.ok ? explicitRoot.request?.source : null, 'root');
     assert.deepEqual(parseGhostRequest({ rootId: 'checkout', baseDirectionId: '../ghost' }, roots), {
       ok: false,
       error: 'ghost.baseDirectionId must be a valid direction id',
@@ -80,10 +85,12 @@ describe('Ghost adapter', () => {
 
     const ctx = await resolveGhostContext(parsed.request, roots);
 
+    assert.equal(ctx.source, 'root');
+    if (ctx.source !== 'root') assert.fail('expected root context');
     assert.equal(ctx.tokenSource.kind, 'ghost-config');
     assert.equal(ctx.tokenSource.source, 'tokens.css');
     assert.equal(ctx.tokenSource.css, await readDefaultTokensCss());
-    assert.equal(ctx.stack.merged.fingerprint.prose.summary.product, 'Test Product');
+    assert.equal(ctx.stack.merged.fingerprint.summary.product, 'Test Product');
     assert.match(ctx.prompt, /Test Product/);
     assert.match(ctx.prompt, /quiet/);
     assert.match(ctx.prompt, /exacting workflows/);
@@ -100,7 +107,7 @@ describe('Ghost adapter', () => {
 
     await assert.rejects(
       () => resolveGhostContext(request, roots),
-      /No \.ghost\/fingerprint\/manifest\.yml found/,
+      /No \.ghost\/fingerprint\.yml found/,
     );
   });
 
@@ -113,6 +120,8 @@ describe('Ghost adapter', () => {
 
     const ctx = await resolveGhostContext(parsed.request, roots);
 
+    assert.equal(ctx.source, 'root');
+    if (ctx.source !== 'root') assert.fail('expected root context');
     assert.equal(ctx.tokenSource.kind, 'summon-default');
     assert.equal(ctx.tokenSource.source, '@anarchitecture/summon/tokens.css');
     assert.match(ctx.tokenSource.css, /--color-bg:/);
@@ -132,6 +141,8 @@ describe('Ghost adapter', () => {
       tokensCss: baseTokens,
     });
 
+    assert.equal(ctx.source, 'root');
+    if (ctx.source !== 'root') assert.fail('expected root context');
     assert.equal(ctx.baseDirectionId, 'ghost');
     assert.equal(ctx.tokenSource.kind, 'base-direction');
     assert.equal(ctx.tokenSource.source, 'direction:ghost/tokens.css');
@@ -146,6 +157,8 @@ describe('Ghost adapter', () => {
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
     const ctx = await resolveGhostContext(parsed.request, roots);
+    assert.equal(ctx.source, 'root');
+    if (ctx.source !== 'root') assert.fail('expected root context');
 
     const packet = buildGhostReviewPacket({
       context: ctx,
@@ -161,6 +174,7 @@ describe('Ghost adapter', () => {
     });
 
     assert.equal(packet.schema, 'summon.ghost-generation/v1');
+    assert.equal(packet.source, 'root');
     assert.equal(packet.rootId, 'checkout');
     assert.equal(packet.product, 'Test Product');
     assert.equal(packet.baseDirectionId, null);
@@ -177,63 +191,132 @@ describe('Ghost adapter', () => {
     assert.equal(packet.tokenSource.kind, 'summon-default');
     assert.equal('css' in packet.tokenSource, false);
   });
+
+  it('resolves caller-provided Ghost context without repo access', async () => {
+    const roots = parseGhostRoots('');
+    const parsed = parseGhostRequest({
+      source: 'resolved-context',
+      id: 'checkout',
+      product: 'Checkout',
+      prompt: 'You are working inside the Checkout product experience.',
+      provenance: { layers: ['portable'] },
+    }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
+
+    const ctx = await resolveGhostSteer(parsed.request, roots);
+
+    assert.equal(ctx.source, 'resolved-context');
+    assert.equal(ctx.prompt, 'You are working inside the Checkout product experience.');
+    assert.equal(ctx.product, 'Checkout');
+    assert.equal(ctx.root, null);
+    assert.equal(ctx.stack, null);
+    assert.equal(ctx.tokenSource.kind, 'summon-default');
+    assert.deepEqual(ctx.provenance, { layers: ['portable'] });
+  });
+
+  it('uses valid resolved-context tokens', async () => {
+    const tokens = await readDefaultTokensCss();
+    const roots = parseGhostRoots('');
+    const parsed = parseGhostRequest({
+      source: 'resolved-context',
+      prompt: 'Use portable Ghost memory.',
+      tokensCss: tokens,
+      tokenSource: 'bundle/tokens.css',
+    }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
+
+    const ctx = await resolveGhostSteer(parsed.request, roots);
+
+    assert.equal(ctx.source, 'resolved-context');
+    assert.equal(ctx.tokenSource.kind, 'resolved-context');
+    assert.equal(ctx.tokenSource.source, 'bundle/tokens.css');
+    assert.equal(ctx.tokenSource.css, tokens);
+  });
+
+  it('falls back from invalid resolved-context tokens to base direction tokens', async () => {
+    const baseTokens = await readDefaultTokensCss();
+    const roots = parseGhostRoots('');
+    const parsed = parseGhostRequest({
+      source: 'resolved-context',
+      prompt: 'Use portable Ghost memory.',
+      tokensCss: ':root { --color-bg: red; }',
+      tokenSource: 'bundle/tokens.css',
+      baseDirectionId: 'ghost',
+    }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
+
+    const ctx = await resolveGhostSteer(parsed.request, roots, {
+      id: 'ghost',
+      tokensCss: baseTokens,
+    });
+
+    assert.equal(ctx.source, 'resolved-context');
+    assert.equal(ctx.tokenSource.kind, 'base-direction');
+    assert.equal(ctx.tokenSource.source, 'direction:ghost/tokens.css');
+    assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('bundle/tokens.css failed token contract')));
+  });
+
+  it('rejects resolved-context requests without prompt', () => {
+    const roots = parseGhostRoots('');
+
+    assert.deepEqual(parseGhostRequest({ source: 'resolved-context' }, roots), {
+      ok: false,
+      error: 'ghost.prompt is required for resolved-context',
+    });
+    assert.deepEqual(parseGhostRequest({ source: 'resolved-context', prompt: '   ' }, roots), {
+      ok: false,
+      error: 'ghost.prompt is required for resolved-context',
+    });
+  });
 });
 
 async function makeGhostFixture(options: { tokenCss?: string } = {}): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-'));
   fixtureRoots.push(root);
-  await mkdir(join(root, '.ghost', 'fingerprint', 'enforcement'), { recursive: true });
-  await mkdir(join(root, '.ghost', 'fingerprint', 'memory'), { recursive: true });
+  await mkdir(join(root, '.ghost'), { recursive: true });
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'manifest.yml'),
-    `schema: ghost.fingerprint-package/v1
-id: test-product
-`,
-  );
-  await writeFile(
-    join(root, '.ghost', 'fingerprint', 'prose.yml'),
-    `summary:
+    join(root, '.ghost', 'fingerprint.yml'),
+    `schema: ghost.fingerprint/v1
+summary:
   product: Test Product
   audience: [operators]
   goals: [keep work legible]
   tone: [quiet, exacting workflows]
-situations: []
-principles:
-  - id: calm-density
-    principle: Preserve quiet density and clear hierarchy.
-experience_contracts: []
-`,
-  );
-  await writeFile(
-    join(root, '.ghost', 'fingerprint', 'inventory.yml'),
-    `topology:
+topology:
   scopes:
     - id: app
       paths: [.]
       surface_types: [dashboard]
   surface_types: [dashboard]
-building_blocks:
-  tokens: [--color-bg, --color-text]
-  components: []
-`,
-  );
-  await writeFile(
-    join(root, '.ghost', 'fingerprint', 'composition.yml'),
-    `patterns:
+situations: []
+principles:
+  - id: calm-density
+    status: accepted
+    principle: Preserve quiet density and clear hierarchy.
+experience_contracts: []
+patterns:
   - id: measured-surfaces
+    status: accepted
     kind: visual
     pattern: Surfaces are compact, rectangular, and information-first.
+implementation_vocabulary:
+  tokens: [--color-bg, --color-text]
+  components: []
+review_policy: {}
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'enforcement', 'checks.yml'),
+    join(root, '.ghost', 'checks.yml'),
     `schema: ghost.checks/v1
 id: test-product
 checks: []
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'memory', 'intent.md'),
+    join(root, '.ghost', 'intent.md'),
     `# Intent
 
 Human-approved test intent keeps generated surfaces grounded.
@@ -261,7 +344,7 @@ async function makeLegacyGhostFixture(): Promise<string> {
   fixtureRoots.push(root);
   await mkdir(join(root, '.ghost'), { recursive: true });
   await writeFile(
-    join(root, '.ghost', 'fingerprint.yml'),
+    join(root, '.ghost', 'fingerprint.md'),
     `schema: ghost.fingerprint/v1
 summary:
   product: Test Product

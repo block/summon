@@ -138,7 +138,11 @@ test('system compiler returns deterministic prompt block order and validation co
       opts: {},
       layout,
     },
-    ghostPrompt: 'Ghost context block.',
+    ghost: {
+      source: 'resolved-context',
+      prompt: 'Ghost context block.',
+      product: 'Ghost Product',
+    },
     layout,
     editBlock: 'Edit block.',
     capabilities,
@@ -342,11 +346,24 @@ test('system compiler validates against explicit active tokens when direction is
       exemplars: [],
       opts: {},
     },
-    ghostPrompt: 'Ghost context block.',
+    ghost: {
+      source: 'resolved-context',
+      prompt: 'Ghost context block.',
+    },
     activeTokensCss: activeTokens,
   });
 
   assert.equal(compiled.validationContext.definedTokens?.has('ghost-config-only'), true);
+});
+
+test('system compiler keeps deprecated ghostPrompt compatibility', () => {
+  const compiled = compileSystemContracts({
+    mode: 'static',
+    ghostPrompt: 'Legacy Ghost context block.',
+  });
+
+  const ghostBlock = compiled.promptBlocks.find((block) => block.id === 'ghost');
+  assert.equal(ghostBlock?.text, 'Legacy Ghost context block.');
 });
 
 test('system compiler can produce declarative-only interactive contracts', () => {

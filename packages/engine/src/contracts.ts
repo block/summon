@@ -64,6 +64,28 @@ export interface ContractPromptBlock {
   cache: 'ephemeral' | 'none';
 }
 
+export type GhostGenerationSource = 'root' | 'resolved-context';
+
+export type GhostTokenSourceKind =
+  | 'ghost-config'
+  | 'resolved-context'
+  | 'base-direction'
+  | 'summon-default';
+
+export interface GhostGenerationContext {
+  source?: GhostGenerationSource;
+  prompt: string;
+  product?: string;
+  baseDirectionId?: string | null;
+  tokenSource?: {
+    kind: GhostTokenSourceKind;
+    source: string;
+    css: string;
+    warnings: string[];
+  };
+  provenance?: unknown;
+}
+
 export interface CompiledTokenContract {
   promptVocabulary: string;
   definedTokens: Set<string>;
@@ -110,6 +132,8 @@ export interface CompiledComponentContract {
 export interface SystemContractInput {
   mode: ValidationContext['mode'];
   direction?: DirectionContractInput | null;
+  ghost?: GhostGenerationContext | null;
+  /** @deprecated Use `ghost` with a first-class GhostGenerationContext. */
   ghostPrompt?: string | null;
   layout?: SummonLayout | null;
   editBlock?: string | null;
@@ -331,10 +355,11 @@ export function compileSystemContracts(
     issues.push(...direction.issues);
   }
 
-  if (input.ghostPrompt) {
+  const ghostPrompt = input.ghost?.prompt ?? input.ghostPrompt;
+  if (ghostPrompt) {
     promptBlocks.push({
       id: 'ghost',
-      text: input.ghostPrompt,
+      text: ghostPrompt,
       cache: 'ephemeral',
     });
   }

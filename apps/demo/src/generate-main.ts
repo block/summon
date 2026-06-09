@@ -1088,14 +1088,16 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
   if (line.op === 'meta' && line.path === '/ghost-context') {
     const value = line.value as
       | {
-          product?: unknown;
-          targetPath?: unknown;
-          layers?: unknown;
-          baseDirectionId?: unknown;
+        product?: unknown;
+        source?: unknown;
+        targetPath?: unknown;
+        layers?: unknown;
+        baseDirectionId?: unknown;
           styleSource?: unknown;
         }
       | undefined;
     const product = typeof value?.product === 'string' ? value.product : 'Ghost';
+    const source = typeof value?.source === 'string' ? value.source : 'root';
     const targetPath = typeof value?.targetPath === 'string' ? value.targetPath : '.';
     const layers = Array.isArray(value?.layers)
       ? value.layers.filter((layer): layer is string => typeof layer === 'string')
@@ -1104,7 +1106,7 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
     const style = typeof value?.styleSource === 'string' ? value.styleSource : 'unknown';
     target.onLog(
       'op-meta',
-      `ghost context → ${product}; target=${targetPath}; layers=${layers.join(' › ') || '.'}; base=${base}; style=${style}`,
+      `ghost context → ${product}; source=${source}; target=${targetPath}; layers=${layers.join(' › ') || '.'}; base=${base}; style=${style}`,
     );
     return;
   }
