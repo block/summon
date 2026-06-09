@@ -77,6 +77,9 @@ requires a compatible host registry for the same reason.
 
 - Always pass `grantedIntents` from a host-owned registry. Use `[]` for static
   surfaces. Do not rely on `artifact.intents` for LLM-authored artifacts.
+- Always submit a host-selected `SurfacePlan` for generation. Missing or
+  out-of-ceiling plans resolve to embedded data with no host authority; prompt
+  heuristics and capability metadata are never executable authority.
 - Prefer `defineAction` and `defineDataResource`; they keep schemas, prompt
   text, runtime validation, host handlers, and initial state in one place.
 - Use `defineWorkerAction` / `defineWorkerResource` for host-owned background

@@ -8,6 +8,7 @@ import {
   deriveSurfacePlanControls,
   inferSurfacePlan,
   normalizeSurfacePlan,
+  suggestSurfacePlan,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_PERSISTENCE_VALUES,
@@ -213,7 +214,7 @@ test('system compiler includes a host-owned surface plan block', () => {
   assert.match(surfaceBlock?.text ?? '', /Do not emit a `\/surface-plan` meta line/);
 });
 
-test('surface plan normalization and inference are stable', () => {
+test('surface plan normalization and suggestions are stable', () => {
   assert.deepEqual(normalizeSurfacePlan({
     purpose: 'operate',
     runtime: 'worker',
@@ -228,6 +229,30 @@ test('surface plan normalization and inference are stable', () => {
     persistence: 'replayable',
   });
 
+  const suggestion = suggestSurfacePlan({
+    prompt: 'compare payment plans and help me pick one',
+    mode: 'interactive',
+    scriptPolicy: 'forbid',
+    capabilities: {
+      intents: [
+        {
+          name: 'choose',
+          description: 'Choose.',
+          argsSchema: '{}',
+          stateShape: '{}',
+          surface: { authority: 'host-action' },
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(suggestion, {
+    purpose: 'compare',
+    runtime: 'declarative',
+    data: 'embedded',
+    authority: 'host-action',
+    persistence: 'replayable',
+  });
   assert.deepEqual(inferSurfacePlan({
     prompt: 'compare payment plans and help me pick one',
     mode: 'interactive',
@@ -243,13 +268,7 @@ test('surface plan normalization and inference are stable', () => {
         },
       ],
     },
-  }), {
-    purpose: 'compare',
-    runtime: 'declarative',
-    data: 'embedded',
-    authority: 'host-action',
-    persistence: 'replayable',
-  });
+  }), suggestion);
 });
 
 test('surface plan host control helpers expose values and derive defaults', () => {

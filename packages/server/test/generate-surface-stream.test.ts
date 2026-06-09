@@ -408,8 +408,9 @@ test('resolveSurfaceGenerationPlan preserves server surface resolution behavior'
     },
   });
 
+  assert.equal(resolved.source, 'default');
   assert.deepEqual(resolved.surfacePlan, {
-    purpose: 'explore',
+    purpose: 'inform',
     runtime: 'static',
     data: 'embedded',
     authority: 'none',

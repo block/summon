@@ -70,12 +70,15 @@ export interface ResolvedSurfaceGenerationPlan {
   surfacePlan: SurfacePlan;
   ceiling: SurfaceCeiling;
   explicitAccepted: boolean;
+  source: 'explicit' | 'default';
 }
 
 export interface ResolveSurfaceGenerationPlanInput {
+  /** @deprecated Ignored by plan resolution. Hosts must pass rawSurfacePlan to select authority. */
   prompt: string;
   mode: 'static' | 'interactive';
   scriptPolicy?: ScriptPolicy;
+  /** @deprecated Ignored by plan resolution. Capability metadata is not authority. */
   capabilities?: CapabilityPack | null;
   rawSurfacePlan?: unknown;
   rawSurfaceCeiling?: unknown;

@@ -65,6 +65,9 @@ intents are advisory; execution is governed by host grants.
 Surface planning is Summon's lifecycle layer. A host can declare the minimum
 safe surface across purpose, runtime, data, authority, and persistence before
 generation starts. The model sees that plan as a contract but cannot widen it.
+Prompt-based `suggestSurfacePlan()` output is only advisory host UI scaffolding;
+generation falls back to no host data or authority unless the host submits an
+explicit accepted `SurfacePlan`.
 
 ## Demo Map
 

@@ -95,6 +95,9 @@ sandbox handle. Spawn the iframe with `grantedIntents` and
 `grantedCapabilities` from host-owned contracts.
 `deriveSurfacePlanControls(surfacePlan)` is available for host UI defaults such
 as mode and script policy; it is a convenience helper, not a security boundary.
+`suggestSurfacePlan(input)` can prefill host controls from prompt text and
+capability metadata, but it is advisory only. Generation authority comes from
+the explicit `surfacePlan` the host submits, not from suggestions.
 
 ```ts
 const controls = deriveSurfacePlanControls(surfacePlan);

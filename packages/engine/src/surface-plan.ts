@@ -159,7 +159,7 @@ export function constrainSurfacePlan(plan: SurfacePlan, ceiling: SurfaceCeiling)
   };
 }
 
-export function inferSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan {
+export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan {
   if (input.mode === 'static') {
     return {
       purpose: inferPurpose(input.prompt),
@@ -187,6 +187,15 @@ export function inferSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan 
     authority: hasApproval ? 'approval-gated' : hasAction ? 'host-action' : hasResource ? 'read' : 'none',
     persistence: input.persistence ?? 'replayable',
   };
+}
+
+/**
+ * @deprecated Use suggestSurfacePlan(). Surface plan heuristics are advisory
+ * host UI scaffolding only; generation authority should use a host-selected
+ * explicit SurfacePlan.
+ */
+export function inferSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan {
+  return suggestSurfacePlan(input);
 }
 
 export function surfacePlanScriptPolicy(plan: SurfacePlan): ScriptPolicy {

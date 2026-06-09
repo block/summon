@@ -149,6 +149,7 @@ export {
   inferSurfacePlan,
   normalizeSurfaceCeiling,
   normalizeSurfacePlan,
+  suggestSurfacePlan,
   surfacePlanScriptPolicy,
   surfacePlanWithinCeiling,
 } from './surface-plan.js';
