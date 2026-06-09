@@ -14,11 +14,25 @@ Publish by install environment, not by internal implementation layer.
 @anarchitecture/summon-react
 ```
 
-`@anarchitecture/summon` is the frameworkless client/core package. It owns the
-browser-facing runtime contract: protocol types and parsers, surface envelopes,
-capability registry helpers, `PolicyEngine`, stream consumption,
-`spawnSandbox`, runtime assets, validation helpers, and Devtools event store
-exports.
+`@anarchitecture/summon` is the frameworkless client/core package. Its root
+entrypoint is curated for host-authoring helpers: capability and component
+registries, `PolicyEngine`, and `SurfacePlan` helpers/types. Advanced runtime
+surfaces live behind explicit subpaths:
+
+```txt
+@anarchitecture/summon/browser
+@anarchitecture/summon/engine
+@anarchitecture/summon/host
+@anarchitecture/summon/policy
+@anarchitecture/summon/envelope
+@anarchitecture/summon/assets
+@anarchitecture/summon/devtools
+```
+
+Use `/browser` for iframe spawning, stream consumption, component islands, and
+strict input. Use `/engine` for protocol, validation, prompt contracts, stream
+graph, and hardening. Use `/host` only when writing adapters that need the full
+host runtime surface.
 
 `@anarchitecture/summon-server` is the provider-neutral generation package. It
 owns `runSurfaceGeneration`, prompt/contract assembly, repair feedback, summary
@@ -76,6 +90,8 @@ Keep the private implementation graph boring:
 - Build public packages by copying implementation `dist` output and rewriting
   private imports to public or relative imports.
 - Fail CI if public JS or `.d.ts` imports `@summon-internal/*`.
+- Fail CI if the public root export snapshot drifts without an intentional
+  update to `scripts/check-public-api.mjs`.
 - Do source-health work here when it is destination-agnostic: tests, security
   fixes, API cleanup, build reliability, and package metadata correctness.
 
@@ -86,6 +102,8 @@ Run this before publishing:
 ```sh
 pnpm build
 pnpm check:public-packages
+pnpm check:public-api
 pnpm pack:dry-run
+pnpm smoke:public-packages
 pnpm test:safety
 ```

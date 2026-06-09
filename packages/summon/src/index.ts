@@ -1,4 +1,79 @@
-export * from '@summon-internal/engine';
-export * from '@summon-internal/host';
-export * from '@summon-internal/devtools';
-export { bootstrapSource, tokensSource } from '@summon-internal/sandbox-runtime/assets';
+export {
+  createCapabilityRegistry,
+  createComponentRegistry,
+  defineAction,
+  defineApprovalAction,
+  defineCapability,
+  defineComponent,
+  defineDataResource,
+  defineIntent,
+  defineWorkerAction,
+  defineWorkerResource,
+  IntentArgsError,
+  PolicyEngine,
+} from '@summon-internal/host';
+
+export {
+  DEFAULT_SURFACE_CEILING,
+  DEFAULT_SURFACE_PLAN,
+  deriveSurfacePlanControls,
+  inferSurfacePlan,
+  normalizeSurfaceCeiling,
+  normalizeSurfacePlan,
+  SURFACE_AUTHORITY_VALUES,
+  SURFACE_DATA_VALUES,
+  SURFACE_PERSISTENCE_VALUES,
+  SURFACE_PURPOSE_VALUES,
+  SURFACE_RUNTIME_VALUES,
+  surfacePlanScriptPolicy,
+  surfacePlanWithinCeiling,
+  constrainSurfacePlan,
+} from '@summon-internal/engine';
+
+export type {
+  ActionDefinition,
+  ApprovalActionDefinition,
+  ApprovalDecision,
+  ApprovalStateKeys,
+  CapabilityDefinition,
+  CapabilityRegistry,
+  ComponentDefinition,
+  ComponentDestroyer,
+  ComponentPropsParseResult,
+  ComponentRegistry,
+  ComponentRenderContext,
+  ComponentRenderer,
+  DataResourceDefinition,
+  IntentContext,
+  IntentEntry,
+  IntentHandler,
+  PolicyEngineOptions,
+  StateShapeDescriptor,
+  TypedIntentEntry,
+} from '@summon-internal/host';
+
+export type {
+  CapabilityBindingSpec,
+  CapabilityKind,
+  CapabilityPack,
+  CapabilityPattern,
+  CapabilityStateKeys,
+  CapabilitySurface,
+  CapabilityTrigger,
+  CapabilityTriggerSpec,
+  ComponentPack,
+  ComponentSpec,
+  ComponentSurface,
+  IntentSpec,
+  ScriptPolicy,
+  SurfaceAuthority,
+  SurfaceCeiling,
+  SurfaceData,
+  SurfacePersistence,
+  SurfacePlan,
+  SurfacePlanControls,
+  SurfacePlanInferenceInput,
+  SurfacePlanMode,
+  SurfacePurpose,
+  SurfaceRuntime,
+} from '@summon-internal/engine';

@@ -213,10 +213,10 @@ not from the artifact.
 ```ts
 import {
   createComponentIslandRegistry,
-  PolicyEngine,
   spawnSandbox,
   type SandboxHandle,
-} from '@anarchitecture/summon';
+} from '@anarchitecture/summon/browser';
+import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
   bootstrapSource,
   tokensSource,

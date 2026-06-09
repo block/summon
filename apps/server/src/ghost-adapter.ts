@@ -8,7 +8,7 @@ import {
   type GhostMemoryStackLayer,
   type PackageMemory,
 } from '@anarchitecture/ghost/scan';
-import { compileTokenContract, type ProtocolLine } from '@anarchitecture/summon';
+import { compileTokenContract, type ProtocolLine } from '@anarchitecture/summon/engine';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

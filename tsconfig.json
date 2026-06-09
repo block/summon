@@ -28,6 +28,8 @@
       "@summon-internal/server": ["packages/server/src/index.ts"],
       "@anarchitecture/summon": ["packages/summon/src/index.ts"],
       "@anarchitecture/summon/browser": ["packages/summon/src/browser.ts"],
+      "@anarchitecture/summon/engine": ["packages/summon/src/engine.ts"],
+      "@anarchitecture/summon/host": ["packages/summon/src/host.ts"],
       "@anarchitecture/summon/policy": ["packages/summon/src/policy.ts"],
       "@anarchitecture/summon/envelope": ["packages/summon/src/envelope.ts"],
       "@anarchitecture/summon/assets": ["packages/summon/src/assets.ts"],
