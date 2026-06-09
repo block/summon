@@ -29,6 +29,18 @@ The public package boundary is:
 pnpm install
 cp apps/server/.env.example apps/server/.env
 # edit apps/server/.env and set ANTHROPIC_API_KEY
+pnpm dev:gallery
+```
+
+Open `http://localhost:5174`.
+
+The Surface Gallery is the first OSS demo: curated live presets that show
+static, host-resource, host-action, approval-gated, component-island, and
+worker-backed Summon surfaces without exposing workbench controls.
+
+For the maintainer workbench:
+
+```sh
 pnpm dev:all
 ```
 
@@ -71,6 +83,8 @@ explicit accepted `SurfacePlan`.
 
 ## Demo Map
 
+- `examples/surface-gallery` - first-run OSS gallery with curated live presets,
+  compact host contracts, a sandboxed surface, and a small event strip.
 - `/generate.html` - contract cockpit with scenario grants, surface plans,
   static/declarative/scripted/worker tiers, component islands, host resources,
   token overrides, repair diagnostics, edit/replay, Ghost steering, Devtools,
@@ -99,10 +113,11 @@ explicit accepted `SurfacePlan`.
 - `packages/engine`, `packages/host`, `packages/devtools`,
   `packages/sandbox-runtime`, `packages/server`, `packages/react` - private
   implementation workspaces published only through the public facades.
+- `examples/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/server` - Anthropic-backed demo server, direction loading, repair
   feedback, and demo backing routes.
-- `apps/demo` - Vite host app for generation, batch runs, adversarial checks,
-  strict input, and fatal sandbox testing.
+- `apps/demo` - Vite workbench for generation, batch runs, adversarial checks,
+  strict input, Ghost steering, repair diagnostics, and fatal sandbox testing.
 
 ## Adoption Docs
 
@@ -139,10 +154,12 @@ pnpm test:safety
 pnpm typecheck
 pnpm test
 pnpm test:safety
+pnpm test:gallery
 pnpm build
 pnpm check:public-api
 pnpm smoke:public-packages
 pnpm pack:dry-run
+pnpm dev:gallery
 pnpm dev:all
 pnpm port-direction <path-to-expression.md> [id]
 pnpm eval-directions [--prompts N] [--directions id,id] [--seed N] [--dry]

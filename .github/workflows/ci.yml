@@ -43,6 +43,7 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm check:public-packages
+      - run: pnpm check:public-api
       - run: pnpm pack:dry-run
 
   safety:
@@ -74,4 +75,5 @@ jobs:
             exit "$status"
           fi
       - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm test:gallery
       - run: pnpm test:safety

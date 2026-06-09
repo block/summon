@@ -1,8 +1,9 @@
 # Summon Adoption Quickstart
 
-This is the golden path for proving Summon works locally: generation, interactive
-data resources, host state pushback, Devtools events, stream health, and sandbox
-boundaries.
+This is the golden path for proving Summon works locally. Start with the Surface
+Gallery to see rich host-owned surfaces without workbench controls, then use the
+Workbench to inspect generation, interactive data resources, host state
+pushback, Devtools events, stream health, and sandbox boundaries.
 
 ## Prerequisites
 
@@ -10,12 +11,28 @@ boundaries.
 - pnpm 10 or newer.
 - An Anthropic API key for `apps/server`.
 
-## Run The Demo
+## Run The Gallery
 
 ```sh
 pnpm install
 cp apps/server/.env.example apps/server/.env
 # edit apps/server/.env and set ANTHROPIC_API_KEY
+pnpm dev:gallery
+```
+
+Open `http://localhost:5174`.
+
+The gallery is live-first. It requires `apps/server` and `ANTHROPIC_API_KEY`;
+it does not silently fall back to replay. Use the preset cards to generate
+static, host-resource, host-action, approval-gated, component-island, and
+worker-backed surfaces.
+
+Each preset sends an explicit `SurfacePlan`, narrowed capability/component
+contracts, and matching script policy to `/api/generate`.
+
+## Run The Workbench
+
+```sh
 pnpm dev:all
 ```
 
@@ -23,8 +40,8 @@ Open `http://localhost:5173/generate.html`.
 
 ## Golden Scenario
 
-Use the **Host-resource search** scenario. The scenario is intentionally shaped
-to exercise the adoption path:
+In the workbench, use the **Host-resource search** scenario. The scenario is
+intentionally shaped to exercise the adoption path:
 
 - `defineDataResource` via the demo `search` resource.
 - Loading, error, and data states through resource bindings.
