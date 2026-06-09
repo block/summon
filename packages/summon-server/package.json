@@ -1,6 +1,6 @@
 {
   "name": "@anarchitecture/summon-server",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Provider-neutral server-side generation primitives for Summon surfaces",
   "license": "Apache-2.0",
   "author": "Block, Inc.",
@@ -42,7 +42,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@anarchitecture/summon": "^0.2.0"
+    "@anarchitecture/summon": "^0.3.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0"
