@@ -150,7 +150,14 @@ await runSurfaceGeneration({
 
 Surface plans are host-owned. A model may react to the selected plan, but it
 must not emit or widen `/surface-plan`; `runSurfaceGeneration()` emits that meta
-line before model output for clients and replay envelopes.
+line before model output for clients and replay envelopes. Hosts must choose
+the plan before generation. If a generation resolver receives no valid explicit
+plan, it falls back to an inert default with embedded data and no host
+authority; prompt text and capability metadata do not select authority.
+
+`suggestSurfacePlan()` is available from `@anarchitecture/summon` for host UI
+prefill or demos. Treat it as advisory scaffolding only: submit the chosen
+`surfacePlan` explicitly after the host has applied product policy.
 
 Common plans:
 

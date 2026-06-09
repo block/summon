@@ -27,6 +27,7 @@
         "inferSurfacePlan",
         "normalizeSurfaceCeiling",
         "normalizeSurfacePlan",
+        "suggestSurfacePlan",
         "surfacePlanScriptPolicy",
         "surfacePlanWithinCeiling"
       ],
@@ -199,6 +200,7 @@
         "isProtocolLine",
         "normalizeSurfaceCeiling",
         "normalizeSurfacePlan",
+        "suggestSurfacePlan",
         "normalizeValidationLimits",
         "parseDefinedTokens",
         "parseProtocolLine",
