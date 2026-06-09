@@ -29,6 +29,7 @@ const expectedRootExports = [
   'inferSurfacePlan',
   'normalizeSurfaceCeiling',
   'normalizeSurfacePlan',
+  'suggestSurfacePlan',
   'surfacePlanScriptPolicy',
   'surfacePlanWithinCeiling',
 ].sort();

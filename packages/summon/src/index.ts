@@ -20,6 +20,7 @@ export {
   inferSurfacePlan,
   normalizeSurfaceCeiling,
   normalizeSurfacePlan,
+  suggestSurfacePlan,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_PERSISTENCE_VALUES,
