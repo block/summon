@@ -232,12 +232,12 @@ function normalizeScannerStack(input: {
   layerMemoryDirKey: 'fingerprint_dir' | 'memory_dir';
 }): ResolvedGhostRootCompat {
   const rawLayers = Array.isArray(input.rawStack?.layers) ? input.rawStack.layers : [];
-  const layers = rawLayers.map((layer: any): GhostStackLayerCompat => ({
+  const layers: GhostStackLayerCompat[] = rawLayers.map((layer: any): GhostStackLayerCompat => ({
     root: resolve(String(layer.root ?? input.rawStack.repo_root)),
     relativeRoot: String(layer.relative_root ?? '.'),
     memoryDir: String(layer[input.layerMemoryDirKey] ?? input.memoryDir),
   }));
-  const provenanceLayers = Array.isArray(input.rawStack?.provenance?.layers)
+  const provenanceLayers: GhostStackCompat['provenance']['layers'] = Array.isArray(input.rawStack?.provenance?.layers)
     ? input.rawStack.provenance.layers.map((layer: any) => ({
         relativeRoot: String(layer.relative_root ?? '.'),
         memoryDir: String(layer[input.layerMemoryDirKey] ?? layer.memory_dir ?? input.memoryDir),
