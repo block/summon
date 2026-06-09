@@ -146,6 +146,7 @@ streamed JSONL, optionally retry invalid sections, and emit diagnostics.
 
 ```ts
 import {
+  createProtocolLineWriter,
   runSurfaceGeneration,
   type SummonModelProvider,
 } from '@anarchitecture/summon-server';
@@ -155,6 +156,11 @@ const modelProvider: SummonModelProvider = async function* ({ prompt, promptBloc
   // provider text chunks as they arrive.
   yield* callYourModel({ prompt, promptBlocks });
 };
+
+const abortController = new AbortController();
+// Wire this to your HTTP request/response close handling.
+const signal = abortController.signal;
+const writeProtocolLine = createProtocolLineWriter(response, { signal });
 
 await runSurfaceGeneration({
   prompt,
@@ -170,10 +176,12 @@ await runSurfaceGeneration({
   preludeLines: [
     { op: 'meta', path: '/shape', value: shape },
   ],
-}, (line) => {
-  response.write(`${JSON.stringify(line)}\n`);
-});
+  signal,
+}, writeProtocolLine);
 ```
+
+`createProtocolLineWriter()` serializes accepted Summon protocol lines as JSONL
+and waits for writable backpressure before generation continues.
 
 To enable validation retries, pass
 `repair: { enabled: true, provider, maxAttempts, maxTargets }`. The provider
@@ -183,8 +191,11 @@ replacement JSONL line for the same section path.
 ## 5. Render In The Sandbox
 
 The client should let `@anarchitecture/summon` own chunk decoding, protocol
-parsing, stream diagnostics, and render timing. Product hosts still own
-fetching, aborts, request payloads, and product-specific meta interpretation.
+parsing, stream diagnostics, and render timing for Summon-hardened JSONL
+streams. Do not point `consumeSurfaceStream()` directly at raw model output;
+the server runner is responsible for validation and hardening. Product hosts
+still own fetching, aborts, request payloads, and product-specific meta
+interpretation.
 
 ```ts
 import { compileSurfacePolicy } from '@anarchitecture/summon';

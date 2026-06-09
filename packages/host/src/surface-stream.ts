@@ -43,6 +43,7 @@ export interface SurfaceStreamOptions {
   accumulator?: SectionAccumulator;
   streamGraph?: StreamGraph;
   renderMode?: SurfaceStreamRenderMode;
+  cancelOnStop?: boolean;
   shouldApplyLine?: (
     line: ProtocolLine,
     context: SurfaceStreamContext,
@@ -98,6 +99,7 @@ export async function consumeSurfaceStream(
   let acceptedStructuralLines = 0;
   let stopped = false;
   let discarded = false;
+  const shouldCancelSource = () => stopped && options.cancelOnStop !== false;
 
   const context = (
     raw?: string,
@@ -178,7 +180,7 @@ export async function consumeSurfaceStream(
   };
 
   try {
-    for await (const chunk of chunksFromSource(source)) {
+    for await (const chunk of chunksFromSource(source, shouldCancelSource)) {
       if (stopped) break;
       buffer += decodeChunk(chunk, decoder);
       let nl = buffer.indexOf('\n');
@@ -188,6 +190,7 @@ export async function consumeSurfaceStream(
         if (stopped) break;
         nl = buffer.indexOf('\n');
       }
+      if (stopped) break;
     }
 
     if (!stopped) buffer += decoder.decode();
@@ -219,6 +222,7 @@ export async function consumeSurfaceStream(
 
 async function* chunksFromSource(
   source: SurfaceStreamSource,
+  shouldCancel: () => boolean,
 ): AsyncGenerator<SurfaceStreamChunk, void, void> {
   if (isReadableStream(source)) {
     const reader = source.getReader();
@@ -229,17 +233,42 @@ async function* chunksFromSource(
         if (value !== undefined) yield value;
       }
     } finally {
+      if (shouldCancel()) {
+        await reader.cancel().catch(() => {});
+      }
       reader.releaseLock();
     }
     return;
   }
 
   if (isAsyncIterable(source)) {
-    for await (const chunk of source) yield chunk;
+    const iterator = source[Symbol.asyncIterator]();
+    try {
+      while (true) {
+        const next = await iterator.next();
+        if (next.done) return;
+        yield next.value;
+      }
+    } finally {
+      if (shouldCancel()) {
+        await iterator.return?.();
+      }
+    }
     return;
   }
 
-  for (const chunk of source) yield chunk;
+  const iterator = source[Symbol.iterator]();
+  try {
+    while (true) {
+      const next = iterator.next();
+      if (next.done) return;
+      yield next.value;
+    }
+  } finally {
+    if (shouldCancel()) {
+      iterator.return?.();
+    }
+  }
 }
 
 function decodeChunk(chunk: SurfaceStreamChunk, decoder: TextDecoder): string {

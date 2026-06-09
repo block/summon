@@ -25,6 +25,7 @@ const expectedRootExports = [
 ].sort();
 
 const expectedServerExports = [
+  'createProtocolLineWriter',
   'generateSurfaceStream',
   'resolveSurfaceGenerationPlan',
   'runSurfaceGeneration',

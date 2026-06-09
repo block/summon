@@ -107,10 +107,11 @@ import {
 } from '@anarchitecture/summon/assets';
 ```
 
-Use `consumeSurfaceStream()` to decode streamed chunks, parse accepted protocol
-lines, maintain generated HTML, update stream diagnostics, and render through
-the sandbox handle. Spawn the iframe with allowed host tools from host-owned
-contracts.
+Use `consumeSurfaceStream()` to decode Summon-hardened streamed chunks, parse
+accepted protocol lines, maintain generated HTML, update stream diagnostics,
+and render through the sandbox handle. Do not use it as a direct raw-model
+parser; server-side hardening belongs in `runSurfaceGeneration()`. Spawn the
+iframe with allowed host tools from host-owned contracts.
 
 `compileSurfacePolicy(surfacePolicy, catalogs)` gives the client the stream
 mode and narrowed contracts that the server will enforce. Generation authority
@@ -188,6 +189,7 @@ await consumeSurfaceStream(response.body!, {
 
 ```ts
 import {
+  createProtocolLineWriter,
   runSurfaceGeneration,
   type SummonModelProvider,
 } from '@anarchitecture/summon-server';
@@ -197,10 +199,14 @@ import {
 prompt blocks and returns text chunks. The runner applies the surface config,
 validates streamed JSONL, optionally runs targeted validation retries, emits
 accepted Summon lines and diagnostics, and returns a replay summary.
+Use `createProtocolLineWriter()` when writing the stream to an HTTP response so
+the server waits for writable backpressure and aborts cleanly when the response
+signal aborts.
 
 `generateSurfaceStream()` remains available for existing integrations that
 consume an async generator, but new servers should prefer
-`runSurfaceGeneration(input, emit)`.
+`runSurfaceGeneration(input, emit)`. The generator compatibility path buffers
+lines internally, so it is less suitable for high-throughput HTTP serving.
 
 ## Package Gate
 

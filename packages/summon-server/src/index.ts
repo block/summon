@@ -1,4 +1,5 @@
 export {
+  createProtocolLineWriter,
   generateSurfaceStream,
   resolveSurfaceGenerationPlan,
   runSurfaceGeneration,
@@ -11,6 +12,8 @@ export type {
   GenerateSurfaceInput,
   GenerationSummary,
   ProtocolLine,
+  ProtocolLineWritableTarget,
+  ProtocolLineWriterOptions,
   ProtocolSkipMetaValue,
   RepairFeedbackMetaValue,
   RepairOptions,

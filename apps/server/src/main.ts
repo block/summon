@@ -13,6 +13,7 @@ import {
   type TokenOverride,
 } from '@anarchitecture/summon/engine';
 import {
+  createProtocolLineWriter,
   resolveSurfaceGenerationPlan,
   runSurfaceGeneration,
   summarizeContractIssues,
@@ -436,8 +437,8 @@ app.get('/api/ghost-roots', (_req, res) => {
 });
 
 /**
- * Streams LLM output as raw text — the client parses JSONL out of it. Each
- * completed newline-terminated line should be one protocol message.
+ * Streams hardened Summon JSONL. Each completed newline-terminated line is one
+ * protocol message that has passed through the server generation lifecycle.
  */
 app.post('/api/generate', async (req, res) => {
   const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
@@ -657,6 +658,16 @@ app.post('/api/generate', async (req, res) => {
     });
   }
 
+  const responseAbort = new AbortController();
+  res.once('close', () => {
+    if (!res.writableEnded) {
+      responseAbort.abort(new Error('client disconnected'));
+    }
+  });
+  const writeProtocolLine = createProtocolLineWriter(res, {
+    signal: responseAbort.signal,
+  });
+
   await withConcurrencyCap(async () => {
     try {
       let usage: AnthropicUsageSnapshot | null = null;
@@ -689,12 +700,11 @@ app.post('/api/generate', async (req, res) => {
         activeTokensCss: ghostContext?.tokenSource.css ?? direction?.tokensCss ?? null,
         preludeLines,
         repair,
+        signal: responseAbort.signal,
         modelProvider: (request) => streamAnthropicGeneration(request, (nextUsage) => {
           usage = nextUsage;
         }),
-      }, (line) => {
-        res.write(`${JSON.stringify(line)}\n`);
-      });
+      }, writeProtocolLine);
 
       if (ghostContext) {
         const reviewLine: ProtocolLine = {
@@ -709,7 +719,7 @@ app.post('/api/generate', async (req, res) => {
             prompt,
           }),
         };
-        res.write(`${JSON.stringify(reviewLine)}\n`);
+        await writeProtocolLine(reviewLine);
       }
       const finalUsage = usage ?? {
         input_tokens: 0,
@@ -736,12 +746,18 @@ app.post('/api/generate', async (req, res) => {
           ` cache_read=${finalUsage.cache_read_input_tokens ?? 0}` +
           ` cache_write=${finalUsage.cache_creation_input_tokens ?? 0}`
       );
-      res.end();
+      if (!res.writableEnded && !res.destroyed) res.end();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[generate] error:', msg);
-      res.write(`${JSON.stringify({ op: 'meta', path: '/error', value: msg } satisfies ProtocolLine)}\n`);
-      res.end();
+      if (!res.writableEnded && !res.destroyed) {
+        try {
+          await writeProtocolLine({ op: 'meta', path: '/error', value: msg });
+        } catch {
+          // Response closed while reporting the error.
+        }
+      }
+      if (!res.writableEnded && !res.destroyed) res.end();
     }
   });
 });
