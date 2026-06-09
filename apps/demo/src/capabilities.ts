@@ -13,8 +13,8 @@ import {
   defineWorkerResource,
   type CapabilityDefinition,
   type CapabilityRegistry,
-  type IntentHandler,
 } from '@anarchitecture/summon';
+import type { IntentHandler } from '@anarchitecture/summon/policy';
 import { z } from 'zod';
 
 const logArgsSchema = z.object({ payload: z.any().optional() }).passthrough();

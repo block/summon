@@ -1,6 +1,6 @@
 {
   "name": "@anarchitecture/summon",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Sandboxed generative UI runtime, protocol, policy bridge, and browser host primitives",
   "license": "Apache-2.0",
   "author": "Block, Inc.",
@@ -31,6 +31,14 @@
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.js"
     },
+    "./engine": {
+      "types": "./dist/engine.d.ts",
+      "import": "./dist/engine.js"
+    },
+    "./host": {
+      "types": "./dist/host.d.ts",
+      "import": "./dist/host.js"
+    },
     "./policy": {
       "types": "./dist/policy.d.ts",
       "import": "./dist/policy.js"
@@ -47,8 +55,8 @@
       "types": "./dist/devtools.d.ts",
       "import": "./dist/devtools.js"
     },
-    "./bootstrap.js": "./dist/sandbox-runtime/bootstrap.js",
-    "./tokens.css": "./dist/sandbox-runtime/tokens.css",
+    "./bootstrap.js": "./dist/_internal/sandbox-runtime/bootstrap.js",
+    "./tokens.css": "./dist/_internal/sandbox-runtime/tokens.css",
     "./package.json": "./package.json"
   },
   "files": [

@@ -2,14 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  parseTokenValues,
   type CapabilityPack,
+  type ScriptPolicy,
+} from '@anarchitecture/summon';
+import {
+  parseTokenValues,
   type ContractPromptBlock,
   type ProtocolLine,
-  type ScriptPolicy,
   type SummonLayout,
   type TokenOverride,
-} from '@anarchitecture/summon';
+} from '@anarchitecture/summon/engine';
 import {
   resolveSurfaceGenerationPlan,
   runSurfaceGeneration,

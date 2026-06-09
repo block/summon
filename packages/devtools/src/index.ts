@@ -17,5 +17,8 @@ export type {
   ProtocolParseErrorEvent,
   StreamLifecycleEvent,
   StreamGraphEvent,
+  SurfacePlanEvent,
   RenderEvent,
+  ComponentSyncEvent,
+  ComponentErrorEvent,
 } from './types.js';

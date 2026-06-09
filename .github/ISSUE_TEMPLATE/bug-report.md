@@ -1,31 +1,43 @@
 ---
-name: 🐛 Bug Report
-about: Thank you for taking the time, please report a reproducible bug
-title: "[Bug] <Bug Title Here>"
+name: Bug report
+about: Report a reproducible Summon bug
+title: "[Bug] "
 labels: bug
-assignees: add codeowner's @name here 
-
 ---
 
-**Describe the bug**
-*A clear and concise description of what the bug is.*
+## Summary
 
-**To Reproduce:**
-*Steps to reproduce the behavior:*
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+What broke?
 
-**Expected behavior:**
-*A clear and concise description of what you expected to happen.*
+## Reproduction
 
-**Supporting Material**
-*If applicable, add screenshots, output log and/or other documentation to help explain your problem.*
+1.
+2.
+3.
 
-**Environment (please complete the following information):**
- - OS: [ex: iOS]
- - Version 
+## Expected Behavior
 
-**Additional context**
-Add any other context that you feel is relevant about the problem here.
+What should have happened?
+
+## Actual Behavior
+
+What happened instead?
+
+## Environment
+
+- Package and version:
+- Browser/runtime:
+- Operating system:
+- Node/pnpm versions:
+
+## Generated Surface Context
+
+If this involves generated output, include the smallest useful protocol snippet,
+surface plan, validation issue, or Devtools event. Do not include credentials,
+private user data, or secrets.
+
+## Sandbox Or Security Impact
+
+Does this involve sandbox containment, grant bypass, CSP behavior, iframe
+configuration, or host-owned data exposure? If yes, do not file a public issue
+for exploitable behavior; use GitHub private vulnerability reporting instead.

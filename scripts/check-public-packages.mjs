@@ -3,11 +3,10 @@ import { dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
-const publicPackages = [
-  'packages/summon',
-  'packages/summon-server',
-  'packages/summon-react',
-];
+const publicApiManifest = JSON.parse(
+  await readFile(join(rootDir, 'scripts/public-api-manifest.json'), 'utf8'),
+);
+const publicPackages = Object.keys(publicApiManifest);
 const inspectedExtensions = new Set(['.js', '.d.ts']);
 
 async function* walk(dir) {
@@ -34,6 +33,94 @@ async function assertDist(packageDir) {
   return distDir;
 }
 
+function sortedUnique(values) {
+  return Array.from(new Set(values)).sort();
+}
+
+function exportedNames(text, kind) {
+  const names = [];
+  const re = /export\s+(type\s+)?\{([\s\S]*?)\}\s+from\s+['"][^'"]+['"]/g;
+  let match;
+  while ((match = re.exec(text))) {
+    const isType = Boolean(match[1]);
+    if ((kind === 'type') !== isType) continue;
+    for (const raw of match[2].split(',')) {
+      const name = raw.trim();
+      if (!name) continue;
+      names.push(name.split(/\s+as\s+/)[1]?.trim() ?? name);
+    }
+  }
+  return sortedUnique(names);
+}
+
+function equalList(a, b) {
+  const left = sortedUnique(a);
+  const right = sortedUnique(b);
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function listDiff(actual, expected) {
+  const actualSet = new Set(actual);
+  const expectedSet = new Set(expected);
+  const extra = actual.filter((name) => !expectedSet.has(name));
+  const missing = expected.filter((name) => !actualSet.has(name));
+  return { extra, missing };
+}
+
+function assertExportList(failures, label, actual, expected) {
+  if (equalList(actual, expected)) return;
+  const { extra, missing } = listDiff(actual, expected);
+  failures.push(
+    `${label} does not match public API manifest` +
+      `${extra.length ? `; extra: ${extra.join(', ')}` : ''}` +
+      `${missing.length ? `; missing: ${missing.join(', ')}` : ''}`,
+  );
+}
+
+async function assertNoPublicRootDirs(packageDir, distDir, failures) {
+  for (const entry of await readdir(distDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name === '_internal') continue;
+    failures.push(`${packageDir}/dist/${entry.name} is a public-looking implementation directory`);
+  }
+}
+
+async function assertPublicApi(packageDir, distDir, failures) {
+  const packageManifest = publicApiManifest[packageDir];
+  for (const [subpath, expected] of Object.entries(packageManifest)) {
+    const jsPath = join(distDir, `${expected.file}.js`);
+    const dtsPath = join(distDir, `${expected.file}.d.ts`);
+    const jsText = await readFile(jsPath, 'utf8');
+    const dtsText = await readFile(dtsPath, 'utf8');
+
+    if (/export\s+\*/.test(jsText)) {
+      failures.push(`${relative(rootDir, jsPath)} must not use export *`);
+    }
+    if (/export\s+\*/.test(dtsText)) {
+      failures.push(`${relative(rootDir, dtsPath)} must not use export *`);
+    }
+
+    assertExportList(
+      failures,
+      `${packageDir} ${subpath} value exports`,
+      exportedNames(jsText, 'value'),
+      expected.values,
+    );
+    assertExportList(
+      failures,
+      `${packageDir} ${subpath} declaration value exports`,
+      exportedNames(dtsText, 'value'),
+      expected.values,
+    );
+    assertExportList(
+      failures,
+      `${packageDir} ${subpath} type exports`,
+      exportedNames(dtsText, 'type'),
+      expected.types,
+    );
+  }
+}
+
 const failures = [];
 
 for (const packageDir of publicPackages) {
@@ -51,6 +138,8 @@ for (const packageDir of publicPackages) {
     failures.push(`${packageDir}/package.json exposes @summon-internal dependencies`);
   }
   const distDir = await assertDist(packageDir);
+  await assertNoPublicRootDirs(packageDir, distDir, failures);
+  await assertPublicApi(packageDir, distDir, failures);
   for await (const file of walk(distDir)) {
     if (file.endsWith('.map')) {
       failures.push(`${relative(rootDir, file)} should not be published in public package dist`);
@@ -72,4 +161,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('public package dist is clean');
+console.log('public package API and dist are clean');

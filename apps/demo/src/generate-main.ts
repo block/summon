@@ -2,34 +2,38 @@ import {
   consumeSurfaceStream,
   createComponentIslandRegistry,
   spawnSandbox,
-  PolicyEngine,
-  createSurfaceEnvelope,
-  parseSurfaceEnvelope,
-  type SandboxHandle,
   type ComponentIslandRegistry,
+  type SandboxHandle,
   type SurfaceStreamContext,
   type SurfaceStreamResult,
+} from '@anarchitecture/summon/browser';
+import {
+  createSurfaceEnvelope,
+  parseSurfaceEnvelope,
   type SurfaceEnvelope,
-} from '@anarchitecture/summon';
+} from '@anarchitecture/summon/envelope';
+import {
+  parseTokenValues,
+  SectionAccumulator,
+  type ProtocolLine,
+  type SummonLayout,
+  type ValidationCapability,
+  type ValidationComponent,
+} from '@anarchitecture/summon/engine';
 import {
   deriveSurfacePlanControls,
   normalizeSurfacePlan,
-  parseTokenValues,
-  SectionAccumulator,
+  PolicyEngine,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   SURFACE_RUNTIME_VALUES,
-  type ProtocolLine,
   type CapabilityPack,
   type ComponentPack,
   type ScriptPolicy,
   type SurfaceCeiling,
   type SurfacePlan,
-  type SummonLayout,
-  type ValidationCapability,
-  type ValidationComponent,
 } from '@anarchitecture/summon';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';

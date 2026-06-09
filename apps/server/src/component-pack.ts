@@ -1,9 +1,11 @@
 import type {
-  ComponentExample,
   ComponentPack,
-  ComponentSizing,
   ComponentSurface,
 } from '@anarchitecture/summon';
+import type {
+  ComponentExample,
+  ComponentSizing,
+} from '@anarchitecture/summon/engine';
 
 /**
  * Validate a component pack sent by the client. The server remains renderer

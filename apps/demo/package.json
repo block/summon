@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anarchitecture/summon": "workspace:*",
+    "@summon-internal/engine": "workspace:*",
     "zod": "^3.23.0"
   },
   "devDependencies": {
