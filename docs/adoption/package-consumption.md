@@ -6,14 +6,24 @@ or `@summon-internal/*` packages from applications.
 For package boundary rationale, see
 [Public Packaging Plan](public-packaging.md).
 
-The root `@anarchitecture/summon` entrypoint is intentionally curated for
-host-authoring helpers, component/capability registries, policy helpers, and
-surface-plan types. Use explicit subpaths for runtime and advanced APIs:
+Use the public packages by install environment:
 
-- `@anarchitecture/summon/browser` for iframe spawning, stream consumption,
-  component islands, and strict input.
-- `@anarchitecture/summon/engine` for protocol parsing, validators, prompt
-  contracts, `SectionAccumulator`, `StreamGraph`, and hardening.
+```txt
+@anarchitecture/summon
+@anarchitecture/summon-server
+@anarchitecture/summon-react
+```
+
+The root `@anarchitecture/summon` entrypoint is curated for host-authoring:
+registering host tools, registering trusted host components, choosing surface
+configs, and dispatching host-owned requests. Use explicit subpaths when you
+need lower-level browser, engine, host, policy, envelope, assets, or Devtools
+APIs:
+
+- `@anarchitecture/summon/browser` for sandbox spawning, stream consumption,
+  trusted component overlays, and strict input.
+- `@anarchitecture/summon/engine` for advanced protocol, validation, prompt
+  contract, stream diagnostic, and hardening APIs.
 - `@anarchitecture/summon/host` for adapter authors who need the full host
   runtime surface.
 
@@ -25,13 +35,12 @@ import { createCapabilityRegistry, defineAction } from '@anarchitecture/summon';
 import { tokensSource } from '@anarchitecture/summon/assets';
 ```
 
-`SummonSurface` accepts an envelope or direct `html` / `protocolLines`. Pass a
-host-owned `capabilityRegistry`; artifact-declared grants are advisory and are
-never executable permission.
-React component islands require the host app to provide `react-dom` as a peer
-dependency.
+`SummonSurface` accepts a replay envelope or direct `html` / `protocolLines`.
+Pass a host-owned `capabilityRegistry`; generated declarations are advisory and
+are never executable permission. Trusted host component overlays require the
+host app to provide `react-dom` as a peer dependency.
 
-React hosts can register component islands with host-owned React components:
+React hosts can register trusted host components:
 
 ```tsx
 import { z } from 'zod';
@@ -58,10 +67,10 @@ const componentRegistry = createComponentRegistry([
 ```
 
 Pass `componentRegistry.toContract().pack` to generation when requesting the
-surface. The React component renders in host DOM as an overlay island, not
-inside the sandbox iframe.
+surface. The React component renders in host DOM as an overlay, not inside the
+sandbox iframe.
 
-When a React component needs to call a host-granted intent, map the runtime
+When a React component needs to request a host-owned action, map the runtime
 context into explicit component props:
 
 ```tsx
@@ -82,6 +91,8 @@ defineReactComponent({
 ```ts
 import {
   compileSurfacePolicy,
+  createComponentRegistry,
+  defineComponent,
 } from '@anarchitecture/summon';
 import {
   consumeSurfaceStream,
@@ -89,10 +100,6 @@ import {
   spawnSandbox,
   type SandboxHandle,
 } from '@anarchitecture/summon/browser';
-import {
-  createComponentRegistry,
-  defineComponent,
-} from '@anarchitecture/summon';
 import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
   bootstrapSource,
@@ -101,18 +108,15 @@ import {
 ```
 
 Use `consumeSurfaceStream()` to decode streamed chunks, parse accepted protocol
-lines, maintain section HTML and stream graph health, and render through the
-sandbox handle. Spawn the iframe with `grantedIntents` and
-`grantedCapabilities` from host-owned contracts.
-`compileSurfacePolicy(surfacePolicy, ceilings)` gives the client the stream
+lines, maintain generated HTML, update stream diagnostics, and render through
+the sandbox handle. Spawn the iframe with allowed host tools from host-owned
+contracts.
+
+`compileSurfacePolicy(surfacePolicy, catalogs)` gives the client the stream
 mode and narrowed contracts that the server will enforce. Generation authority
-comes from the explicit `surfacePolicy` the host submits.
+comes from the explicit surface config the host submits.
 
 ```ts
-const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
-  capabilities: capabilityContract.pack,
-  components: componentContract.pack,
-});
 const componentRegistry = createComponentRegistry([
   defineComponent({
     name: 'MetricCard',
@@ -123,7 +127,13 @@ const componentRegistry = createComponentRegistry([
     },
   }),
 ]);
+
 const componentContract = componentRegistry.toContract();
+const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
+  capabilities: capabilityContract.pack,
+  components: componentContract.pack,
+});
+const grantedCapabilities = capabilityContract.validationCapabilities;
 
 let handle: SandboxHandle | null = null;
 const islands = createComponentIslandRegistry({
@@ -184,10 +194,9 @@ import {
 ```
 
 `runSurfaceGeneration()` is provider-neutral. The provider receives compiled
-prompt blocks and returns text chunks. The runner compiles contracts, emits
-host-owned meta lines such as `/surface-policy` and `/surface-plan`, validates JSONL, optionally runs
-targeted repair, emits accepted Summon lines and diagnostics, and returns a
-replay summary.
+prompt blocks and returns text chunks. The runner applies the surface config,
+validates streamed JSONL, optionally runs targeted validation retries, emits
+accepted Summon lines and diagnostics, and returns a replay summary.
 
 `generateSurfaceStream()` remains available for existing integrations that
 consume an async generator, but new servers should prefer

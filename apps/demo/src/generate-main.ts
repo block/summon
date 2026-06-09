@@ -243,7 +243,7 @@ function describeScenario(scenario: ShowcaseScenario): ScenarioPresentation {
   if (scenario.id.startsWith('ghost-')) {
     return {
       category: 'Ghost',
-      description: 'Environment-specific Ghost memory root with host-granted controls.',
+      description: 'Environment-specific Ghost memory root with host-allowed controls.',
     };
   }
   switch (scenario.id) {
@@ -300,23 +300,41 @@ function describeScenario(scenario: ShowcaseScenario): ScenarioPresentation {
     case 'sibling-summon':
       return {
         category: 'Composition',
-        description: 'Parent surface can summon a sibling sandbox with narrowed grants.',
+        description: 'Parent surface can summon a sibling sandbox with narrowed host tools.',
       };
     case 'repair-diagnostics':
       return {
         category: 'Diagnostics',
-        description: 'Repair-enabled generation with validation and retry diagnostics.',
+        description: 'Validation retry generation with diagnostics.',
       };
     default:
       return {
         category: 'Showcase',
-        description: 'Contract-accurate Summon generation scenario.',
+        description: 'Surface-configured Summon generation scenario.',
       };
   }
 }
 
 function compactPlanText(plan: SurfacePlan): string {
-  return `${plan.purpose} · ${plan.runtime} · ${plan.data} · ${plan.authority}`;
+  return [
+    displayPlanPart(plan.purpose),
+    displayPlanPart(plan.runtime),
+    displayPlanPart(plan.data),
+    displayPlanPart(plan.authority),
+  ].join(' · ');
+}
+
+function displayPlanPart(value: string): string {
+  switch (value) {
+    case 'host-resource':
+      return 'host data';
+    case 'host-action':
+      return 'host action';
+    case 'approval-gated':
+      return 'approval required';
+    default:
+      return value.replace(/-/g, ' ');
+  }
 }
 
 function paintStatus() {
@@ -431,7 +449,7 @@ function renderScenarioLibrary() {
       desc.textContent = presentation.description;
       const meta = document.createElement('span');
       meta.className = 'scenario-card-meta';
-      meta.textContent = `${compactPlanText(scenario.surfacePlan)} · ${scenario.capabilityNames.length} grants`;
+      meta.textContent = `${compactPlanText(scenario.surfacePlan)} · ${scenario.capabilityNames.length} host tools`;
       card.append(title, desc, meta);
       card.addEventListener('click', () => selectScenario(scenario.id));
       group.append(card);
@@ -457,7 +475,7 @@ function updateScenarioPresentation(scenario: ShowcaseScenario) {
   scenarioActiveFingerprintEl.textContent = compactPlanText(scenario.surfacePlan);
   const componentCount = scenario.componentNames?.length ?? 0;
   scenarioActiveGrantsEl.textContent =
-    `${scenario.capabilityNames.length} grants${componentCount ? ` · ${componentCount} components` : ''}`;
+    `${scenario.capabilityNames.length} host tools${componentCount ? ` · ${componentCount} trusted components` : ''}`;
   welcomeTextEl.textContent = `${scenario.label} awaits generated UI.`;
   updateSelectedScenarioCard();
 }
@@ -566,14 +584,20 @@ function hasDirectionOption(value: string): boolean {
   return Array.from(directionSel.options).some((opt) => opt.value === value);
 }
 
-function planText(plan: SurfacePlan): string {
-  return `${plan.purpose}/${plan.runtime}/${plan.data}/${plan.authority}/${plan.persistence}`;
+function planText(plan: { purpose: string; runtime: string; data: string; authority: string; persistence: string }): string {
+  return [
+    displayPlanPart(plan.purpose),
+    displayPlanPart(plan.runtime),
+    displayPlanPart(plan.data),
+    displayPlanPart(plan.authority),
+    displayPlanPart(plan.persistence),
+  ].join(' · ');
 }
 
 function renderContractSummary() {
   const active = readActiveContract();
   const requested = active.surfacePlan;
-  const grants = active.capabilityNames.length ? active.capabilityNames.join(', ') : 'none';
+  const hostTools = active.capabilityNames.length ? active.capabilityNames.join(', ') : 'none';
   const components = active.componentNames?.length ? active.componentNames.join(', ') : 'none';
   const validation = currentValidationSummary ?? 'pending';
   const stream = currentStreamHealth ?? 'pending';
@@ -581,14 +605,14 @@ function renderContractSummary() {
   inspectorStatusEl.textContent = currentEffectiveSurfacePlan ? 'effective' : 'pending';
   contractSummaryEl.innerHTML = '';
   const rows = [
-    ['requested', 'Requested Plan', planText(requested), 'neutral'],
-    ['effective', 'Effective Plan', effective, currentEffectiveSurfacePlan ? 'good' : 'pending'],
-    ['grants', 'Grants', `${active.capabilityNames.length}: ${grants}`, active.capabilityNames.length ? 'neutral' : 'pending'],
-    ['components', 'Components', `${active.componentNames?.length ?? 0}: ${components}`, active.componentNames?.length ? 'good' : 'pending'],
+    ['requested', 'Requested surface config', planText(requested), 'neutral'],
+    ['effective', 'Effective safety plan', effective, currentEffectiveSurfacePlan ? 'good' : 'pending'],
+    ['grants', 'Allowed host tools', `${active.capabilityNames.length}: ${hostTools}`, active.capabilityNames.length ? 'neutral' : 'pending'],
+    ['components', 'Trusted components', `${active.componentNames?.length ?? 0}: ${components}`, active.componentNames?.length ? 'good' : 'pending'],
     ['runtime', 'Runtime', `${active.mode} · scripts ${active.scriptPolicy}`, active.scriptPolicy === 'allow' ? 'warn' : 'neutral'],
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
-    ['stream', 'StreamGraph', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
-    ['repair', 'Repair', active.repair?.enabled ? (currentRepairSummary ?? 'on') : 'off', active.repair?.enabled ? 'warn' : 'pending'],
+    ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
+    ['repair', 'Validation retry', active.repair?.enabled ? (currentRepairSummary ?? 'on') : 'off', active.repair?.enabled ? 'warn' : 'pending'],
     ['tokens', 'Tokens', active.tokenOverrides ? 'override' : 'base', active.tokenOverrides ? 'good' : 'pending'],
     ['shape', 'Shape', currentShape ?? 'pending', currentShape ? 'neutral' : 'pending'],
   ] as const;
@@ -641,7 +665,7 @@ function summarizeStreamGraphMeta(value: unknown): string {
   const missing = Array.isArray(summary?.health?.missingDeclared) ? summary.health.missingDeclared.length : 0;
   const blocked = typeof summary?.health?.blockedCount === 'number' ? summary.health.blockedCount : 0;
   const repaired = typeof summary?.health?.repairedCount === 'number' ? summary.health.repairedCount : 0;
-  return `${complete ? 'complete' : 'open'} m=${missing} b=${blocked} r=${repaired}`;
+  return `${complete ? 'complete' : 'open'} · missing=${missing} blocked=${blocked} retried=${repaired}`;
 }
 
 function applyTokenOverrideCss(baseCss: string, applied: Array<{ token: string; value: string }>): string {
@@ -713,7 +737,7 @@ async function loadDirections(): Promise<void> {
     }
     if (ghostRoots.length > 0) {
       const group = document.createElement('optgroup');
-      group.label = 'Ghost intent';
+      group.label = 'Ghost steering';
       for (const root of ghostRoots) {
         const opt = document.createElement('option');
         opt.value = ghostSelectionValue(root.id);
@@ -791,9 +815,9 @@ function tokensFor(directionId: string | null): string {
 }
 
 /**
- * Respawn the sandbox with the right tokens and the right intent policy for
+ * Respawn the sandbox with the right tokens and the right host tool policy for
  * the current mode. Interactive mode binds a fresh PolicyEngine with the 3
- * canned handlers; static mode has no intents.
+ * canned handlers; static mode has no host tools.
  */
 function respawn(
   directionId: string | null,
@@ -855,7 +879,7 @@ function respawn(
         if (handle) handle.pushState(state);
       },
       onHandlerError: (intent, err) => {
-        logLine('op-error', `handler error (${intent}): ${err.message}`);
+        logLine('op-error', `host handler error (${intent}): ${err.message}`);
       },
       events,
     });
@@ -1132,12 +1156,12 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
   }
   if (line.op === 'meta' && line.path === '/repair-summary') {
     target.onRepairSummary?.(line.value);
-    target.onLog('op-meta', `repair → ${JSON.stringify(line.value)}`);
+    target.onLog('op-meta', `validation retry → ${JSON.stringify(line.value)}`);
     return;
   }
   if (line.op === 'meta' && line.path === '/stream-graph-summary') {
     target.onStreamGraphSummary?.(line.value);
-    target.onLog('op-meta', `stream graph → ${JSON.stringify(line.value)}`);
+    target.onLog('op-meta', `stream diagnostics → ${JSON.stringify(line.value)}`);
     return;
   }
   if (line.op === 'meta' && line.path === '/status') {
@@ -1490,8 +1514,8 @@ function renderSavedSurfaces() {
     const validation = item.validationIssues.length;
     const complete = item.streamGraph?.health.complete ? 'complete' : 'open';
     meta.textContent =
-      `${plan.purpose}/${plan.runtime}/${plan.data}/${plan.authority}` +
-      ` · grants=${item.grants.intents.length}` +
+      `${compactPlanText(plan)}` +
+      ` · hostTools=${item.grants.intents.length}` +
       ` · validation=${validation}` +
       ` · ${complete}` +
       ` · ${new Date(item.createdAt).toLocaleTimeString()}`;
@@ -1517,7 +1541,7 @@ function replaySurface(envelope: SurfaceEnvelope) {
   currentShape = envelope.metadata.shape ?? null;
   currentValidationSummary = `${envelope.validationIssues.filter((issue) => issue.severity === 'block').length}/${envelope.validationIssues.filter((issue) => issue.severity === 'warn').length}`;
   currentStreamHealth = envelope.streamGraph
-    ? `${envelope.streamGraph.health.complete ? 'complete' : 'open'} m=${envelope.streamGraph.health.missingDeclared.length} b=${envelope.streamGraph.health.blockedCount} r=${envelope.streamGraph.health.repairedCount}`
+    ? `${envelope.streamGraph.health.complete ? 'complete' : 'open'} · missing=${envelope.streamGraph.health.missingDeclared.length} blocked=${envelope.streamGraph.health.blockedCount} retried=${envelope.streamGraph.health.repairedCount}`
     : null;
   acc.reset();
   for (const line of envelope.protocolLines) {
@@ -1585,7 +1609,7 @@ async function generate(prompt: string) {
     if (!currentRepairSummary) currentRepairSummary = active.repair?.enabled ? '0/0' : 'off';
     if (!currentStreamHealth) {
       currentStreamHealth =
-        `${result.streamGraph.health.complete ? 'complete' : 'open'} m=${result.streamGraph.health.missingDeclared.length} b=${result.streamGraph.health.blockedCount} r=${result.streamGraph.health.repairedCount}`;
+        `${result.streamGraph.health.complete ? 'complete' : 'open'} · missing=${result.streamGraph.health.missingDeclared.length} blocked=${result.streamGraph.health.blockedCount} retried=${result.streamGraph.health.repairedCount}`;
     }
     renderContractSummary();
     saveSurfaceEnvelope(prompt, result);
@@ -1643,7 +1667,7 @@ async function editArtifact(instruction: string) {
     });
     if (!currentStreamHealth) {
       currentStreamHealth =
-        `${result.streamGraph.health.complete ? 'complete' : 'open'} m=${result.streamGraph.health.missingDeclared.length} b=${result.streamGraph.health.blockedCount} r=${result.streamGraph.health.repairedCount}`;
+        `${result.streamGraph.health.complete ? 'complete' : 'open'} · missing=${result.streamGraph.health.missingDeclared.length} blocked=${result.streamGraph.health.blockedCount} retried=${result.streamGraph.health.repairedCount}`;
     }
     renderContractSummary();
     currentStatus = 'done';
@@ -1674,7 +1698,7 @@ async function editArtifact(instruction: string) {
  *   - its own AbortController (close = abort + dispose)
  *
  * Depth cap of 1: children get every demo intent EXCEPT `summon`, so a
- * grandchild generation can't cascade. Easy to relax (counter on grants),
+ * grandchild generation can't cascade. Easy to relax (counter on allowed tools),
  * but avoids accidental fan-out for the demo.
  */
 function summonChild(childPrompt: string, title?: string) {
@@ -1710,7 +1734,7 @@ function summonChild(childPrompt: string, title?: string) {
   let childHandle: SandboxHandle | null = null;
   let childTokensSourceOverride: string | null = activeTokensSourceOverride;
 
-  // Grants are narrowed: every demo intent EXCEPT summon. This is the
+  // Allowed tools are narrowed: every demo intent EXCEPT summon. This is the
   // depth-cap mechanism — the trust boundary is the bridge allowlist, not
   // the LLM's word.
   const childCapabilityNames = baseCapabilityPack.intents
@@ -1733,7 +1757,7 @@ function summonChild(childPrompt: string, title?: string) {
       if (childHandle) childHandle.pushState(state);
     },
     onHandlerError: (intent, err) => {
-      statusEl.textContent = `handler error (${intent}): ${err.message.slice(0, 40)}`;
+      statusEl.textContent = `host handler error (${intent}): ${err.message.slice(0, 40)}`;
     },
     events,
   });
@@ -1838,20 +1862,20 @@ updateEditControls();
 function summarize(ev: DevtoolsEvent): string {
   switch (ev.kind) {
     case 'sandbox-spawned':
-      return `${ev.sandboxId.slice(0, 8)}… grants=[${ev.grantedIntents.join(',') || '—'}]`;
+      return `${ev.sandboxId.slice(0, 8)}… allowed=[${ev.grantedIntents.join(',') || '—'}]`;
     case 'sandbox-ready':
     case 'sandbox-disposed':
       return `${ev.sandboxId.slice(0, 8)}…`;
     case 'sandbox-fatal':
       return `${ev.sandboxId.slice(0, 8)}… ${ev.reason}`;
     case 'intent-emitted':
-      return `${ev.intent} ${JSON.stringify(ev.args).slice(0, 80)}`;
+      return `host tool ${ev.intent} ${JSON.stringify(ev.args).slice(0, 80)}`;
     case 'intent-rejected':
       return `${ev.reason}`;
     case 'intent-dispatched':
-      return `${ev.intent} #${ev.id.slice(-6)}`;
+      return `host dispatch ${ev.intent} #${ev.id.slice(-6)}`;
     case 'intent-settled':
-      return `${ev.intent} #${ev.id.slice(-6)} ${ev.ok ? 'ok' : `fail: ${ev.error ?? ''}`} (${ev.durationMs}ms)`;
+      return `host settled ${ev.intent} #${ev.id.slice(-6)} ${ev.ok ? 'ok' : `fail: ${ev.error ?? ''}`} (${ev.durationMs}ms)`;
     case 'state-pushed':
       return Object.keys(ev.patch).join(', ') || '∅';
     case 'protocol-line':
@@ -1861,13 +1885,13 @@ function summarize(ev: DevtoolsEvent): string {
     case 'stream-lifecycle':
       return ev.phase === 'start' ? 'start' : `end ok=${ev.ok}`;
     case 'stream-graph':
-      return `sections=${ev.sections.length} missing=${ev.health.missingDeclared.length} skipped=${ev.health.skippedCount} repaired=${ev.health.repairedCount}`;
+      return `sections=${ev.sections.length} missing=${ev.health.missingDeclared.length} skipped=${ev.health.skippedCount} retried=${ev.health.repairedCount}`;
     case 'surface-plan':
-      return `${ev.plan.purpose}/${ev.plan.runtime}/${ev.plan.data}/${ev.plan.authority}/${ev.plan.persistence}`;
+      return planText(ev.plan);
     case 'render':
       return `${ev.bytes.toLocaleString()} B`;
     case 'component-sync':
-      return `${ev.components.length} island${ev.components.length === 1 ? '' : 's'}`;
+      return `${ev.components.length} trusted component${ev.components.length === 1 ? '' : 's'}`;
     case 'component-error':
       return `${ev.componentName ?? ev.componentId ?? 'component'} ${ev.code ?? 'error'}: ${ev.reason}`;
   }
@@ -1891,7 +1915,7 @@ function paintDevtools() {
   for (const ev of snap) counts[ev.kind] = (counts[ev.kind] ?? 0) + 1;
   const tally = Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => `${k.replace(/^(intent|sandbox|protocol|stream)-/, '')} ${v}`)
+    .map(([k, v]) => `${displayEventKind(k)} ${v}`)
     .join(' · ');
   devtoolsTally.textContent = tally;
 
@@ -1914,6 +1938,23 @@ function paintDevtools() {
   }
   devtoolsLog.replaceChildren(frag);
   devtoolsLog.scrollTop = devtoolsLog.scrollHeight;
+}
+
+function displayEventKind(kind: string): string {
+  switch (kind) {
+    case 'intent-emitted':
+      return 'host tool';
+    case 'intent-rejected':
+      return 'request rejected';
+    case 'intent-dispatched':
+      return 'host dispatch';
+    case 'intent-settled':
+      return 'host settled';
+    case 'stream-graph':
+      return 'stream diagnostics';
+    default:
+      return kind.replace(/^(sandbox|protocol|stream)-/, '').replace(/-/g, ' ');
+  }
 }
 
 events.subscribe(() => {

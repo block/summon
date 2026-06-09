@@ -173,7 +173,7 @@ policy = new PolicyEngine({
     handle.pushState(state);
   },
   onHandlerError: (intent, err) => {
-    line('fail', `✗ handler error (${intent}): ${err.message}`);
+    line('fail', `✗ host handler error (${intent}): ${err.message}`);
   },
 });
 
@@ -192,11 +192,11 @@ handle = spawnSandbox({
   },
   onIntentRejected: (reason, raw) => {
     const intent = (raw as { intent?: string }).intent ?? '?';
-    line('fail', `✗ bridge rejected intent "${intent}": ${reason}`);
+    line('fail', `✗ request rejected "${intent}": ${reason}`);
   },
 });
 
 line(
   'info',
-  `Sandbox spawned (${handle.sandboxId.slice(0, 8)}…). Granted: ${policy.intents.join(', ')}`,
+  `Sandbox spawned (${handle.sandboxId.slice(0, 8)}…). Allowed host tools: ${policy.intents.join(', ')}`,
 );

@@ -147,7 +147,7 @@ function respawnSandbox(): void {
         handle?.pushState(state);
       },
       onHandlerError: (intent, error) => {
-        pushHostMessage(`handler ${intent}: ${error.message}`);
+        pushHostMessage(`host handler ${intent}: ${error.message}`);
       },
     });
   }
@@ -291,20 +291,20 @@ function renderContract(): void {
   const components = policyComponents(selectedPreset.surfacePolicy).length
     ? policyComponents(selectedPreset.surfacePolicy).join(', ')
     : 'none';
-  const grants = policyGrants(selectedPreset.surfacePolicy).length
+  const allowedHostTools = policyGrants(selectedPreset.surfacePolicy).length
     ? policyGrants(selectedPreset.surfacePolicy).join(', ')
     : 'none';
   contractSummary.innerHTML = '';
-  const rows: Array<[string, string]> = [
-    ['Policy', policyText(selectedPreset.surfacePolicy)],
-    ['Tier', selectedPreset.surfacePolicy.tier],
-    ['Grants', grants],
-    ['Components', components],
+  const rows: Array<[string, string, string]> = [
+    ['policy', 'Surface config', policyText(selectedPreset.surfacePolicy)],
+    ['tier', 'Surface type', selectedPreset.surfacePolicy.tier],
+    ['grants', 'Allowed host tools', allowedHostTools],
+    ['components', 'Trusted components', components],
   ];
-  for (const [label, value] of rows) {
+  for (const [key, label, value] of rows) {
     const row = document.createElement('div');
     row.className = 'contract-row';
-    row.dataset.contractRow = label.toLowerCase();
+    row.dataset.contractRow = key;
     row.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
     contractSummary.append(row);
   }
@@ -341,11 +341,11 @@ function describeEvent(event: DevtoolsEvent): string {
     case 'protocol-line':
       return `protocol ${event.line.op} ${event.line.path}`;
     case 'intent-emitted':
-      return `intent ${event.intent}`;
+      return `host tool ${event.intent}`;
     case 'intent-dispatched':
-      return `dispatch ${event.intent}`;
+      return `host dispatch ${event.intent}`;
     case 'intent-settled':
-      return `settled ${event.intent} ${event.ok ? 'ok' : 'error'}`;
+      return `host settled ${event.intent} ${event.ok ? 'ok' : 'error'}`;
     case 'state-pushed':
       return `state ${Object.keys(event.patch).join(', ') || 'updated'}`;
     case 'component-error':

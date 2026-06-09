@@ -197,7 +197,7 @@ function makeTile(prompt: string, tokensCss: string, interactivity: Interactivit
         if (handleRef.current) handleRef.current.pushState(state);
       },
       onHandlerError: (intent, error) => {
-        markIntent(`handler error (${intent}): ${error.message}`, true);
+        markIntent(`host handler error (${intent}): ${error.message}`, true);
       },
     });
   }
@@ -223,7 +223,7 @@ function makeTile(prompt: string, tokensCss: string, interactivity: Interactivit
       void policy?.dispatch(intent, args);
     },
     onIntentRejected: (reason) => {
-      intentEl.textContent = `rejected: ${reason}`;
+      intentEl.textContent = `request rejected: ${reason}`;
       intentEl.classList.add('on', 'err');
     },
   });

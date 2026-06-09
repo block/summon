@@ -47,7 +47,7 @@ export interface ActiveContract {
 export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   {
     id: 'host-resource-search',
-    label: 'Host-resource search',
+    label: 'Host Data Search',
     prompt:
       'help me build a weeknight dinner finder where i can search for recipes and see loading, error, and real host data states clearly',
     mode: 'interactive',
@@ -92,7 +92,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   },
   {
     id: 'component-islands',
-    label: 'Component islands',
+    label: 'Trusted Components',
     prompt:
       'build a compact launch-readiness dashboard that uses host-rendered component islands for the key metrics, a sparkline, and the approval gate while writing the surrounding analysis and actions yourself',
     mode: 'interactive',
@@ -152,7 +152,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   },
   {
     id: 'approval-publish',
-    label: 'Approval-gated publish',
+    label: 'Approval Publish',
     prompt:
       'build a publish approval panel where i can review a titled summary, request host approval, and show pending, approved, denied, and error states',
     mode: 'interactive',
@@ -234,9 +234,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   },
   {
     id: 'repair-diagnostics',
-    label: 'Repair diagnostics',
+    label: 'Validation Retry Diagnostics',
     prompt:
-      'build a compact onboarding checklist with validated submit controls and clear section structure; if a section is rejected, repair it within the same section',
+      'build a compact onboarding checklist with validated submit controls and clear section structure; if a section is rejected, retry it within the same section',
     mode: 'interactive',
     capabilityNames: ['submit'],
     repair: { enabled: true, maxAttempts: 1, maxTargets: 2 },
@@ -255,7 +255,7 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
     id: `ghost-${rootId}`,
     label: `Ghost steer: ${rootId}`,
     prompt:
-      'generate a compact review surface that follows this Ghost memory root and keeps all controls host-granted',
+      'generate a compact review surface that follows this Ghost memory root and keeps all controls host-allowed',
     mode: 'interactive',
     capabilityNames: ['choose', 'log'],
     surfacePlan: {
