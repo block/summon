@@ -33,7 +33,7 @@ The public package boundary is:
 ```sh
 pnpm install
 cp apps/server/.env.example apps/server/.env
-# edit apps/server/.env and set ANTHROPIC_API_KEY
+# edit apps/server/.env and set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY
 pnpm dev:gallery
 ```
 
@@ -114,8 +114,8 @@ registered host tools.
   `packages/sandbox-runtime`, `packages/server`, `packages/react` - private
   implementation workspaces published only through the public facades.
 - `examples/surface-gallery` - first-run live example app for OSS adopters.
-- `apps/server` - Anthropic-backed demo server, direction loading, validation
-  retry feedback, and demo backing routes.
+- `apps/server` - multi-provider demo server for Anthropic, OpenAI, and Gemini,
+  direction loading, validation retry feedback, and demo backing routes.
 - `apps/demo` - Vite maintainer workbench for generation, batch runs,
   adversarial checks, strict input, Ghost steering, diagnostics, and fatal
   sandbox testing.
@@ -169,4 +169,4 @@ pnpm eval-directions [--prompts N] [--directions id,id] [--seed N] [--dry]
 `pnpm test:safety` runs the Playwright Chromium and WebKit smoke suite for
 sandbox containment, bootstrap fatal checks, strict input, and generate-page
 boot. It starts only the Vite demo app and does not require
-`ANTHROPIC_API_KEY`.
+a model-provider API key.
