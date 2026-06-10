@@ -1,5 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
 import type { CapabilityPack } from '@anarchitecture/summon';
+import type { TextCompletionClient } from './model-providers.js';
 
 export interface InferenceResult {
   /** Narrowed pack — never wider than the ceiling. Null when mode is static. */
@@ -8,7 +8,7 @@ export interface InferenceResult {
 }
 
 /**
- * Use Claude Haiku to decide whether a prompt needs interactivity, and if so
+ * Use a utility model to decide whether a prompt needs interactivity, and if so
  * which subset of the ceiling pack's intents it actually requires. Returns
  * null on timeout or error so the caller can fall through to the regex.
  *
@@ -16,13 +16,11 @@ export interface InferenceResult {
  * add intents the host didn't declare. This preserves the strict-tier
  * contract — a host that locked its pack to a single intent stays locked.
  *
- * The system prompt is cache-controlled per pack, so the typical request
- * hits the prompt cache. Even cached, observed Haiku latency is ~700ms p50
- * and ~1.5s p90, so the default timeout is generous; set lower if you'd
- * rather trade classification accuracy for TTFT under contention.
+ * The default timeout is intentionally small: callers should trade uncertain
+ * classification for a regex fallback rather than delay the main stream.
  */
 export async function inferPack(
-  client: Anthropic,
+  client: TextCompletionClient,
   prompt: string,
   ceiling: CapabilityPack,
   timeoutMs = 2000
@@ -50,17 +48,10 @@ Use "static" when the prompt asks for content (cards, articles, recommendations,
 When interactive, include ONLY the names the prompt actually needs. A picker prompt usually needs the "choose" action alone, not "submit". A search prompt needs the "search" data resource. Never include names that aren't in the available list above.`;
 
   try {
-    const callPromise = client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 200,
-      system: [
-        {
-          type: 'text',
-          text: systemText,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages: [{ role: 'user', content: prompt }],
+    const callPromise = client.completeText({
+      system: systemText,
+      prompt,
+      maxTokens: 200,
     });
 
     const result = await Promise.race([
@@ -70,8 +61,7 @@ When interactive, include ONLY the names the prompt actually needs. A picker pro
 
     if (!result) return null;
 
-    const block = result.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
-    const raw = (block?.text ?? '').trim();
+    const raw = result.trim();
 
     // Tolerate fenced JSON or leading prose.
     const cleaned = raw
@@ -99,7 +89,7 @@ When interactive, include ONLY the names the prompt actually needs. A picker pro
     const narrowed = ceiling.intents.filter((i) => requested.has(i.name));
 
     if (narrowed.length === 0) {
-      // Haiku said interactive but produced no usable intents — treat as
+      // The classifier said interactive but produced no usable intents — treat as
       // ambiguous and let the caller fall through to the regex.
       return null;
     }

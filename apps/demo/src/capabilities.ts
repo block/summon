@@ -56,9 +56,14 @@ const summonArgsSchema = z.object({
 type SearchResult = z.infer<typeof searchResultSchema>;
 type SummonArgs = z.infer<typeof summonArgsSchema>;
 
+function providerPayload(modelProvider: string | null | undefined): { modelProvider?: string } {
+  return modelProvider ? { modelProvider } : {};
+}
+
 export interface DemoHandlerOptions {
   onLog?: (message: string) => void;
   onError?: (message: string) => void;
+  modelProvider?: () => string | null;
   /**
    * Optional because only the single-prompt generate page owns the DOM and
    * streaming machinery needed to spawn sibling sandboxes.
@@ -220,7 +225,10 @@ export function createDemoCapabilityRegistry(
         const res = await fetch('/api/mock-search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query }),
+          body: JSON.stringify({
+            query,
+            ...providerPayload(opts.modelProvider?.()),
+          }),
           signal,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -265,7 +273,10 @@ export function createDemoCapabilityRegistry(
         const res = await fetch('/api/ai-call', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify({
+            prompt,
+            ...providerPayload(opts.modelProvider?.()),
+          }),
           signal,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

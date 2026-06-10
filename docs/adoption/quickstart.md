@@ -8,23 +8,25 @@ allows. Use the maintainer workbench only when you want to inspect diagnostics.
 
 - Node 18 or newer.
 - pnpm 10 or newer.
-- An Anthropic API key for `apps/server`.
+- An Anthropic, OpenAI, or Gemini API key for `apps/server`.
 
 ## Run The Gallery
 
 ```sh
 pnpm install
 cp apps/server/.env.example apps/server/.env
-# edit apps/server/.env and set ANTHROPIC_API_KEY
+# edit apps/server/.env and set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY
 pnpm dev:gallery
 ```
 
 Open `http://localhost:5174`.
 
-The gallery is live-first. It requires `apps/server` and `ANTHROPIC_API_KEY`;
-it does not silently fall back to replay. Use the preset cards to generate
-read-only surfaces, host-backed search, host-owned actions, approval flows,
-trusted host components, and background host work.
+The gallery is live-first. It requires `apps/server` and one configured model
+provider key; it does not silently fall back to replay. Set
+`SUMMON_MODEL_PROVIDER` to choose the default provider when more than one key is
+configured. Use the preset cards to generate read-only surfaces,
+host-backed search, host-owned actions, approval flows, trusted host
+components, and background host work.
 
 Each preset chooses a surface config and a short list of allowed host tools.
 The server turns that into the stricter validation details Summon uses during
@@ -152,8 +154,8 @@ real input and pushes only safe state back.
 
 ## Troubleshooting
 
-- If generation fails immediately, check `apps/server/.env` for
-  `ANTHROPIC_API_KEY` and confirm the server is listening on `:3001`.
+- If generation fails immediately, check `apps/server/.env` for the selected
+  provider key and confirm the server is listening on `:3001`.
 - If generated controls do nothing, confirm the run is interactive. Static
   surfaces intentionally have no allowed host tools.
 - If the model emits unsafe HTML, inspect the Stream drawer for validation

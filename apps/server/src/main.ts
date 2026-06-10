@@ -1,11 +1,9 @@
 import express from 'express';
 import cors from 'cors';
-import Anthropic from '@anthropic-ai/sdk';
 import {
   compileSurfacePolicy,
   parseTokenValues,
   type CapabilityPack,
-  type ContractPromptBlock,
   type ProtocolLine,
   type ScriptPolicy,
   type SummonLayout,
@@ -19,7 +17,6 @@ import {
   type GenerateEditInput,
   type RepairOptions as SurfaceRepairOptions,
   type SurfaceGenerationSummary,
-  type SummonModelChunk,
 } from '@anarchitecture/summon-server';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -45,6 +42,10 @@ import { inferPack } from './infer-capabilities.js';
 import { inferShape, type ResponseShape } from './infer-shape.js';
 import { parseCapabilityPack } from './capability-pack.js';
 import { parseComponentPack } from './component-pack.js';
+import {
+  createModelProviderRegistry,
+  type ProviderUsageSnapshot,
+} from './model-providers.js';
 
 // Minimal .env loader — picks up apps/server/.env without pulling in dotenv.
 try {
@@ -65,9 +66,19 @@ try {
 
 const PORT = Number(process.env.PORT) || 3001;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+const modelProviders = createModelProviderRegistry(process.env);
+const defaultModelProvider = modelProviders.defaultProvider;
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error('[summon-server] ANTHROPIC_API_KEY is not set. Copy apps/server/.env.example to .env and set it.');
+if (!defaultModelProvider) {
+  console.error(
+    '[summon-server] no model provider is configured. Copy apps/server/.env.example to .env and set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY.'
+  );
+  process.exit(1);
+}
+if (!defaultModelProvider.configured) {
+  console.error(
+    `[summon-server] SUMMON_MODEL_PROVIDER=${defaultModelProvider.id} is selected but not configured. Set ${defaultModelProvider.missingEnv}.`
+  );
   process.exit(1);
 }
 
@@ -82,12 +93,13 @@ console.log(
 console.log(
   `[summon-server] loaded ${ghostRoots.size} Ghost root(s): ${[...ghostRoots.keys()].join(', ') || '(none)'}`
 );
+console.log(
+  `[summon-server] model providers: ${modelProviders.info().map((provider) => `${provider.id}${provider.configured ? '*' : ''}=${provider.model}`).join(', ')}; default=${defaultModelProvider.id}`
+);
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
 app.use(cors({ origin: ALLOWED_ORIGIN }));
-
-const anthropic = new Anthropic();
 
 /**
  * Validates a host's token-override payload against the direction's
@@ -280,85 +292,6 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
   return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
-function anthropicSystemBlock(block: ContractPromptBlock): Anthropic.TextBlockParam {
-  if (block.cache === 'ephemeral') {
-    return {
-      type: 'text',
-      text: block.text,
-      cache_control: { type: 'ephemeral' },
-    };
-  }
-  return {
-    type: 'text',
-    text: block.text,
-  };
-}
-
-interface AnthropicUsageSnapshot {
-  input_tokens: number;
-  output_tokens: number;
-  cache_read_input_tokens?: number | null;
-  cache_creation_input_tokens?: number | null;
-}
-
-async function* streamAnthropicGeneration(
-  request: { prompt: string; promptBlocks: ContractPromptBlock[] },
-  onUsage: (usage: AnthropicUsageSnapshot) => void,
-): AsyncGenerator<SummonModelChunk, void, void> {
-  const stream = anthropic.messages.stream({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 64000,
-    thinking: { type: 'adaptive' },
-    output_config: { effort: 'medium' },
-    system: request.promptBlocks.map(anthropicSystemBlock),
-    messages: [{ role: 'user', content: request.prompt }],
-  });
-
-  for await (const event of stream) {
-    if (event.type === 'content_block_start') {
-      if (event.content_block.type === 'thinking') {
-        yield { type: 'meta', path: '/status', value: 'thinking' };
-      } else if (event.content_block.type === 'text') {
-        yield { type: 'meta', path: '/status', value: 'writing' };
-      }
-      continue;
-    }
-    if (event.type === 'content_block_delta') {
-      if (event.delta.type === 'text_delta') {
-        yield { type: 'text', text: event.delta.text };
-      } else if (event.delta.type === 'thinking_delta') {
-        yield { type: 'meta', path: '/thinking', value: event.delta.thinking };
-      }
-    }
-  }
-
-  const final = await stream.finalMessage();
-  onUsage(final.usage);
-}
-
-async function repairAnthropicSection(request: {
-  prompt: string;
-  promptBlocks: ContractPromptBlock[];
-}): Promise<string> {
-  const repairMessage = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 12000,
-    system: [
-      ...request.promptBlocks.map(anthropicSystemBlock),
-      {
-        type: 'text',
-        text: '## Repair mode\n\nYou are repairing one blocked Summon section. Return exactly one safe replacement `add /section/<same-id>` JSONL line and nothing else.',
-        cache_control: { type: 'ephemeral' },
-      },
-    ],
-    messages: [{ role: 'user', content: request.prompt }],
-  });
-  return repairMessage.content
-    .map((block) => (block.type === 'text' ? block.text : ''))
-    .join('\n')
-    .trim();
-}
-
 /**
  * Conservative two-signal heuristic for "this static-mode prompt actually wants
  * interactivity". Requires BOTH an interactive verb AND user-action framing,
@@ -377,7 +310,7 @@ function detectsInteractiveIntent(prompt: string): boolean {
 }
 
 // Simple concurrency cap for /api/generate — protects against a runaway batch
-// page firing too many parallel streams at the Anthropic API.
+// page firing too many parallel streams at the selected model API.
 const MAX_CONCURRENT_GENERATIONS = 12;
 let inFlight = 0;
 const waitingQueue: Array<() => void> = [];
@@ -399,11 +332,20 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     directions: directions.map((d) => d.id),
+    defaultModelProvider: defaultModelProvider.id,
+    modelProviders: modelProviders.info(),
     generationApi: typeof runSurfaceGeneration === 'function',
   });
 });
 
-registerDemoRoutes(app, anthropic);
+registerDemoRoutes(app, modelProviders);
+
+app.get('/api/model-providers', (_req, res) => {
+  res.json({
+    defaultProvider: defaultModelProvider.id,
+    providers: modelProviders.info(),
+  });
+});
 
 /**
  * Exposes the list of directions to the client. Tokens and exemplars are
@@ -445,6 +387,12 @@ app.post('/api/generate', async (req, res) => {
     res.status(400).json({ error: 'prompt required' });
     return;
   }
+  const resolvedProvider = modelProviders.resolve(req.body?.modelProvider ?? req.body?.provider);
+  if (!resolvedProvider.ok) {
+    res.status(400).json({ error: resolvedProvider.error });
+    return;
+  }
+  const modelProvider = resolvedProvider.provider;
 
   const parsedGhost = parseGhostRequest(req.body?.ghost, ghostRoots);
   if (!parsedGhost.ok) {
@@ -539,7 +487,7 @@ app.post('/api/generate', async (req, res) => {
   // the layout is the composition anchor, and exemplars become visual-only.
   let shape: ResponseShape | null = null;
   if (!layout && direction && process.env.SUMMON_INFER_SHAPE !== '0') {
-    shape = await inferShape(anthropic, prompt);
+    shape = await inferShape(modelProvider, prompt);
   }
 
   if (hasSurfacePolicy) {
@@ -552,16 +500,16 @@ app.post('/api/generate', async (req, res) => {
     pack = compiledPolicy.capabilities;
     surfacePlan = compiledPolicy.surfacePlan;
   } else {
-    // Layer 3: Haiku-based capability inference. Decides mode + narrows the
+    // Layer 3: utility-model capability inference. Decides mode + narrows the
     // pack to the minimal subset of intents the prompt actually needs. The
     // pack is treated as a ceiling — inference can only narrow, never expand.
     // Falls through to the Layer 2 regex on timeout or error.
     if (process.env.SUMMON_INFER_CAPABILITIES === '1' && capabilityCeiling) {
-      const inferred = await inferPack(anthropic, prompt, capabilityCeiling);
+      const inferred = await inferPack(modelProvider, prompt, capabilityCeiling);
       if (inferred) {
         inferenceUsed = true;
         if (requestedMode === 'interactive') {
-          // Respect the user's explicit interactive choice. Haiku may narrow
+          // Respect the user's explicit interactive choice. Inference may narrow
           // the pack, but won't downgrade to static.
           mode = 'interactive';
           pack = inferred.pack ?? capabilityCeiling;
@@ -574,7 +522,7 @@ app.post('/api/generate', async (req, res) => {
     }
 
     // Layer 2 regex fallback — runs when inference is disabled, ceiling is
-    // missing, or Haiku returned null (timeout/parse failure). Only upgrades
+    // missing, or inference returned null (timeout/parse failure). Only upgrades
     // when a ceiling exists; without one there's no Capabilities block to emit.
     if (!inferenceUsed) {
       if (requestedMode === 'static' && capabilityCeiling && detectsInteractiveIntent(prompt)) {
@@ -659,9 +607,9 @@ app.post('/api/generate', async (req, res) => {
 
   await withConcurrencyCap(async () => {
     try {
-      let usage: AnthropicUsageSnapshot | null = null;
+      let usage: ProviderUsageSnapshot | null = null;
       const repair: SurfaceRepairOptions = repairOptions.enabled
-        ? { ...repairOptions, provider: repairAnthropicSection }
+        ? { ...repairOptions, provider: (request) => modelProvider.repairSurfaceSection(request) }
         : { enabled: false };
       const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
         prompt,
@@ -689,7 +637,7 @@ app.post('/api/generate', async (req, res) => {
         activeTokensCss: ghostContext?.tokenSource.css ?? direction?.tokensCss ?? null,
         preludeLines,
         repair,
-        modelProvider: (request) => streamAnthropicGeneration(request, (nextUsage) => {
+        modelProvider: (request) => modelProvider.streamSurfaceGeneration(request, (nextUsage) => {
           usage = nextUsage;
         }),
       }, (line) => {
@@ -720,7 +668,7 @@ app.post('/api/generate', async (req, res) => {
       const stats = summary.repairStats ?? { queued: 0, cancelled: 0, repaired: 0, failed: 0 };
       const upgradeTag = modeUpgraded ? ` (upgraded ${inferenceUsed ? 'via inference' : 'via regex'})` : '';
       console.log(
-        `[generate] dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
+        `[generate] provider=${modelProvider.id}/${modelProvider.model} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
           ` shape=${shape ?? 'all'}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` edit=${edit ? 'yes' : 'no'}` +

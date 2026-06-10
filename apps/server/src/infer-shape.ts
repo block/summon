@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import type { TextCompletionClient } from './model-providers.js';
 
 /**
  * The fixed enum of response shapes a generation can be classified into. Maps
@@ -13,7 +13,7 @@ import Anthropic from '@anthropic-ai/sdk';
 export type ResponseShape = 'article' | 'card' | 'comparison' | 'tracker';
 
 /**
- * Use Claude Haiku to pick the response shape that best fits a prompt. The
+ * Use a utility model to pick the response shape that best fits a prompt. The
  * caller passes the result into buildDirectionBlock so only the matching
  * shape exemplar ships in the per-direction prompt — saving cache write +
  * sharpening the model's anchor.
@@ -22,7 +22,7 @@ export type ResponseShape = 'article' | 'card' | 'comparison' | 'tracker';
  * caller should treat null as "ship all shapes" (legacy behavior).
  */
 export async function inferShape(
-  client: Anthropic,
+  client: TextCompletionClient,
   prompt: string,
   timeoutMs = 1500
 ): Promise<ResponseShape | null> {
@@ -40,17 +40,10 @@ Respond with ONLY a single JSON object on one line. No markdown fences, no prose
 Use null ONLY when the prompt genuinely fits none of the above OR when two shapes are equally plausible. When in doubt between two shapes, pick the more specific one (comparison > article, tracker > card).`;
 
   try {
-    const callPromise = client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 100,
-      system: [
-        {
-          type: 'text',
-          text: systemText,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages: [{ role: 'user', content: prompt }],
+    const callPromise = client.completeText({
+      system: systemText,
+      prompt,
+      maxTokens: 100,
     });
 
     const result = await Promise.race([
@@ -60,8 +53,7 @@ Use null ONLY when the prompt genuinely fits none of the above OR when two shape
 
     if (!result) return null;
 
-    const block = result.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
-    const raw = (block?.text ?? '').trim();
+    const raw = result.trim();
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return null;
 
