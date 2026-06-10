@@ -25,6 +25,8 @@ export type {
   ActionDefinition,
   ApprovalActionDefinition,
   ApprovalDecision,
+  ApprovalPrepared,
+  ApprovalRequest,
   ApprovalStateKeys,
   CapabilityDefinition,
   CapabilityRegistry,

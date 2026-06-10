@@ -11,6 +11,8 @@ import {
   defineDataResource,
   defineWorkerAction,
   defineWorkerResource,
+  type ApprovalDecision,
+  type ApprovalRequest,
   type CapabilityDefinition,
   type CapabilityRegistry,
 } from '@anarchitecture/summon';
@@ -55,6 +57,12 @@ const summonArgsSchema = z.object({
 
 type SearchResult = z.infer<typeof searchResultSchema>;
 type SummonArgs = z.infer<typeof summonArgsSchema>;
+type PublishArgs = z.infer<typeof publishArgsSchema>;
+
+interface PublishSummaryPlan {
+  title: string;
+  channel: string;
+}
 
 export interface DemoModelSelectionPayload {
   modelProvider?: string | null;
@@ -87,6 +95,13 @@ export interface DemoHandlerOptions {
    * streaming machinery needed to spawn sibling sandboxes.
    */
   onSummon?: IntentHandler<SummonArgs>;
+  /**
+   * Optional because batch/demo surfaces may run without a visible host
+   * approval panel. Browser hosts should render their own approve/deny UI here.
+   */
+  onApprovalRequest?: (
+    request: ApprovalRequest<PublishArgs, PublishSummaryPlan>,
+  ) => Promise<ApprovalDecision> | ApprovalDecision;
 }
 
 export function createDemoCapabilityRegistry(
@@ -467,16 +482,31 @@ export function createDemoCapabilityRegistry(
         'Ask the host for approval, then publish a titled summary only if approved. Use when the user explicitly asks to approve, confirm, publish, commit, send, update, or operate.',
       argsSchema: publishArgsSchema,
       stateShape:
-        '{published: boolean, publishedTitle: string | null, publishApprovalPending: boolean, publishApprovalApproved: boolean, publishApprovalDenied: boolean, publishApprovalError: string | null}',
+        '{published: boolean, publishedTitle: string | null, publishApprovalRequestId: string | null, publishApprovalPending: boolean, publishApprovalApproved: boolean, publishApprovalDenied: boolean, publishApprovalError: string | null}',
       approval: {
-        request: ({ title }) => {
-          const approved = window.confirm(`Approve publishing "${title}"?`);
-          return approved ? 'approved' : { status: 'denied', reason: 'Demo approval denied' };
+        stateKeys: {
+          requestId: 'publishApprovalRequestId',
+          pending: 'publishApprovalPending',
+          approved: 'publishApprovalApproved',
+          denied: 'publishApprovalDenied',
+          error: 'publishApprovalError',
+        },
+        prepare: ({ title }) => ({
+          summary: `Publish "${title}"`,
+          details: { title, channel: 'demo-updates' },
+          plan: { title, channel: 'demo-updates' },
+        }),
+        request: ({ title }, request) => {
+          log(`-> approval requested "${title}"`);
+          if (request && opts.onApprovalRequest) return opts.onApprovalRequest(request);
+          return 'approved';
         },
       },
-      handler: ({ args, push }) => {
-        log(`-> publish_summary "${args.title}"`);
-        push({ published: true, publishedTitle: args.title });
+      handler: ({ args, approval, push }) => {
+        const plan = approval?.plan as PublishSummaryPlan | undefined;
+        const title = plan?.title ?? args.title;
+        log(`-> publish_summary "${title}"`);
+        push({ published: true, publishedTitle: title });
       },
     }),
   ];

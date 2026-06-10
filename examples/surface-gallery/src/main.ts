@@ -1,6 +1,8 @@
 import {
   compileSurfacePolicy,
   PolicyEngine,
+  type ApprovalDecision,
+  type ApprovalRequest,
   type ComponentPack,
   type CompiledSurfacePolicy,
 } from '@anarchitecture/summon';
@@ -129,6 +131,8 @@ let surfaceRenderedDuringRun = false;
 let acceptedStructuralLines = 0;
 let skippedLines = 0;
 let blockedLines = 0;
+let approvalStack: HTMLElement | null = null;
+const pendingApprovalCards = new Map<string, () => void>();
 
 events.subscribe(renderEvents);
 
@@ -198,6 +202,7 @@ function selectPreset(id: string): void {
 }
 
 function respawnSandbox(initialHtml = ''): void {
+  clearApprovalCards('Approval request was replaced');
   islands?.destroy();
   islands = null;
   handle?.dispose();
@@ -208,6 +213,7 @@ function respawnSandbox(initialHtml = ''): void {
   const capabilityRegistry = createGalleryCapabilityRegistry(compiledPolicy.policy.grants, {
     onLog: pushHostMessage,
     modelSelection: readModelSelection,
+    onApprovalRequest: requestHostApproval,
   });
   const capabilityContract = capabilityRegistry.toContract();
   const componentRegistry = compiledPolicy.policy.components.length
@@ -735,6 +741,99 @@ function pushHostMessage(message: string, opts: { attention?: boolean } = {}): v
   if (hostMessages.length > 30) hostMessages.splice(0, hostMessages.length - 30);
   if (opts.attention) selectInspectorTab('stream');
   renderEvents();
+}
+
+function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision> {
+  pushHostMessage(`approval pending: ${request.summary}`, { attention: true });
+  return new Promise((resolve) => {
+    const card = document.createElement('section');
+    card.className = 'approval-card';
+    card.dataset.approvalId = request.id;
+
+    const eyebrow = document.createElement('span');
+    eyebrow.textContent = request.capability;
+
+    const title = document.createElement('strong');
+    title.textContent = request.summary;
+
+    const meta = document.createElement('p');
+    meta.textContent = `Request ${request.id}`;
+
+    card.append(eyebrow, title, meta);
+
+    const details = formatApprovalDetails(request.details);
+    if (details) {
+      const detailsEl = document.createElement('pre');
+      detailsEl.textContent = details;
+      card.appendChild(detailsEl);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'approval-actions';
+    const approve = document.createElement('button');
+    approve.type = 'button';
+    approve.className = 'approval-approve';
+    approve.textContent = 'Approve';
+    const deny = document.createElement('button');
+    deny.type = 'button';
+    deny.textContent = 'Deny';
+    actions.append(deny, approve);
+    card.appendChild(actions);
+
+    let settled = false;
+    const finish = (decision: ApprovalDecision) => {
+      if (settled) return;
+      settled = true;
+      pendingApprovalCards.delete(request.id);
+      card.remove();
+      if (approvalStack && approvalStack.childElementCount === 0) {
+        approvalStack.remove();
+        approvalStack = null;
+      }
+      resolve(decision);
+    };
+
+    approve.addEventListener('click', () => {
+      pushHostMessage(`approval approved: ${request.id}`);
+      finish('approved');
+    });
+    deny.addEventListener('click', () => {
+      pushHostMessage(`approval denied: ${request.id}`, { attention: true });
+      finish({ status: 'denied', reason: 'Host denied approval' });
+    });
+
+    pendingApprovalCards.set(request.id, () => finish({ status: 'denied', reason: 'Approval request was replaced' }));
+    ensureApprovalStack().prepend(card);
+  });
+}
+
+function ensureApprovalStack(): HTMLElement {
+  if (approvalStack) return approvalStack;
+  approvalStack = document.createElement('div');
+  approvalStack.className = 'approval-stack';
+  document.body.appendChild(approvalStack);
+  return approvalStack;
+}
+
+function clearApprovalCards(reason: string): void {
+  const settleCards = [...pendingApprovalCards.values()];
+  pendingApprovalCards.clear();
+  for (const settle of settleCards) settle();
+  if (approvalStack) {
+    approvalStack.remove();
+    approvalStack = null;
+  }
+  if (settleCards.length > 0) pushHostMessage(reason, { attention: true });
+}
+
+function formatApprovalDetails(details: unknown): string {
+  if (details === undefined || details === null) return '';
+  if (typeof details === 'string') return details;
+  try {
+    return JSON.stringify(details, null, 2);
+  } catch {
+    return String(details);
+  }
 }
 
 function resetCounters(): void {

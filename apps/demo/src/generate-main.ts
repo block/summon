@@ -34,6 +34,8 @@ import {
 } from '@anarchitecture/summon/engine';
 import {
   PolicyEngine,
+  type ApprovalDecision,
+  type ApprovalRequest,
   type SurfacePolicy,
 } from '@anarchitecture/summon';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
@@ -272,10 +274,105 @@ function logLine(cls: string, text: string) {
   log.scrollTop = log.scrollHeight;
 }
 
+function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision> {
+  logLine('op-meta', `approval pending: ${request.summary}`);
+  return new Promise((resolve) => {
+    const card = document.createElement('section');
+    card.className = 'approval-card';
+    card.dataset.approvalId = request.id;
+
+    const eyebrow = document.createElement('span');
+    eyebrow.textContent = request.capability;
+
+    const title = document.createElement('strong');
+    title.textContent = request.summary;
+
+    const meta = document.createElement('p');
+    meta.textContent = `Request ${request.id}`;
+
+    card.append(eyebrow, title, meta);
+
+    const details = formatApprovalDetails(request.details);
+    if (details) {
+      const detailsEl = document.createElement('pre');
+      detailsEl.textContent = details;
+      card.appendChild(detailsEl);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'approval-actions';
+    const deny = document.createElement('button');
+    deny.type = 'button';
+    deny.textContent = 'Deny';
+    const approve = document.createElement('button');
+    approve.type = 'button';
+    approve.className = 'approval-approve';
+    approve.textContent = 'Approve';
+    actions.append(deny, approve);
+    card.appendChild(actions);
+
+    let settled = false;
+    const finish = (decision: ApprovalDecision) => {
+      if (settled) return;
+      settled = true;
+      pendingApprovalCards.delete(request.id);
+      card.remove();
+      if (approvalStack && approvalStack.childElementCount === 0) {
+        approvalStack.remove();
+        approvalStack = null;
+      }
+      resolve(decision);
+    };
+
+    approve.addEventListener('click', () => {
+      logLine('op-add', `approval approved: ${request.id}`);
+      finish('approved');
+    });
+    deny.addEventListener('click', () => {
+      logLine('op-error', `approval denied: ${request.id}`);
+      finish({ status: 'denied', reason: 'Demo approval denied' });
+    });
+
+    pendingApprovalCards.set(request.id, () => finish({ status: 'denied', reason: 'Approval request was replaced' }));
+    ensureApprovalStack().prepend(card);
+  });
+}
+
+function ensureApprovalStack(): HTMLElement {
+  if (approvalStack) return approvalStack;
+  approvalStack = document.createElement('div');
+  approvalStack.className = 'approval-stack';
+  document.body.appendChild(approvalStack);
+  return approvalStack;
+}
+
+function clearApprovalCards(reason: string): void {
+  const settleCards = [...pendingApprovalCards.values()];
+  pendingApprovalCards.clear();
+  for (const settle of settleCards) settle();
+  if (approvalStack) {
+    approvalStack.remove();
+    approvalStack = null;
+  }
+  if (settleCards.length > 0) logLine('op-error', reason);
+}
+
+function formatApprovalDetails(details: unknown): string {
+  if (details === undefined || details === null) return '';
+  if (typeof details === 'string') return details;
+  try {
+    return JSON.stringify(details, null, 2);
+  } catch {
+    return String(details);
+  }
+}
+
 let directions: DirectionInfo[] = [];
 let ghostRoots: GhostRootInfo[] = [];
 let modelProviders: ModelProviderInfo[] = [];
 let defaultModelProviderId: string | null = null;
+let approvalStack: HTMLElement | null = null;
+const pendingApprovalCards = new Map<string, () => void>();
 let showcaseScenarios: ShowcaseScenario[] = [...SHOWCASE_SCENARIOS];
 let currentEffectiveSurfacePlan: SurfacePlan | null = null;
 let currentShape: string | null = null;
@@ -1248,6 +1345,7 @@ function respawn(
   active: ActiveContract = readActiveContract(),
   initialHtml = '',
 ): SandboxHandle {
+  clearApprovalCards('Approval request was replaced');
   if (componentIslands) {
     componentIslands.destroy();
     componentIslands = null;
@@ -1281,6 +1379,7 @@ function respawn(
       modelSelection: readModelSelection,
       onLog: (m) => logLine('op-add', m),
       onError: (m) => logLine('op-error', m),
+      onApprovalRequest: requestHostApproval,
       // summon needs DOM access (spawns a sibling iframe) and the streaming
       // pipeline, so this page supplies the handler while the registry owns
       // its prompt contract and schema validation.

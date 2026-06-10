@@ -5,6 +5,8 @@ import {
   defineDataResource,
   defineWorkerAction,
   defineWorkerResource,
+  type ApprovalDecision,
+  type ApprovalRequest,
   type CapabilityDefinition,
   type CapabilityRegistry,
 } from '@anarchitecture/summon';
@@ -14,6 +16,9 @@ export interface GalleryCapabilityOptions {
   onLog?: (message: string) => void;
   onStatePreview?: (state: Record<string, unknown>) => void;
   modelSelection?: () => object;
+  onApprovalRequest?: (
+    request: ApprovalRequest<PublishArgs, PublishSummaryPlan>,
+  ) => Promise<ApprovalDecision> | ApprovalDecision;
 }
 
 const chooseArgsSchema = z.object({ option: z.string().trim().min(1) });
@@ -35,6 +40,12 @@ const analysisResultSchema = z.object({
 });
 
 type SearchResult = z.infer<typeof searchResultSchema>;
+type PublishArgs = z.infer<typeof publishArgsSchema>;
+
+interface PublishSummaryPlan {
+  title: string;
+  channel: string;
+}
 
 export function createGalleryCapabilityRegistry(
   capabilityNames?: readonly string[],
@@ -135,18 +146,31 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
         'Request host approval, then publish a titled summary only if the host approves. Use for publish, send, update, commit, or operate flows.',
       argsSchema: publishArgsSchema,
       stateShape:
-        '{published: boolean, publishedTitle: string | null, publishApprovalPending: boolean, publishApprovalApproved: boolean, publishApprovalDenied: boolean, publishApprovalError: string | null}',
+        '{published: boolean, publishedTitle: string | null, publishApprovalRequestId: string | null, publishApprovalPending: boolean, publishApprovalApproved: boolean, publishApprovalDenied: boolean, publishApprovalError: string | null}',
       approval: {
-        request: ({ title }) => {
+        stateKeys: {
+          requestId: 'publishApprovalRequestId',
+          pending: 'publishApprovalPending',
+          approved: 'publishApprovalApproved',
+          denied: 'publishApprovalDenied',
+          error: 'publishApprovalError',
+        },
+        prepare: ({ title }) => ({
+          summary: `Publish "${title}"`,
+          details: { title, channel: 'gallery-updates' },
+          plan: { title, channel: 'gallery-updates' },
+        }),
+        request: ({ title }, request) => {
           log(`approval requested: ${title}`);
-          return window.confirm(`Approve publishing "${title}"?`)
-            ? 'approved'
-            : { status: 'denied', reason: 'Host denied approval' };
+          if (request && opts.onApprovalRequest) return opts.onApprovalRequest(request);
+          return 'approved';
         },
       },
-      handler: ({ args, push }) => {
-        log(`published: ${args.title}`);
-        push({ published: true, publishedTitle: args.title });
+      handler: ({ args, approval, push }) => {
+        const plan = approval?.plan as PublishSummaryPlan | undefined;
+        const title = plan?.title ?? args.title;
+        log(`published: ${title}`);
+        push({ published: true, publishedTitle: title });
       },
     }),
     defineWorkerResource({

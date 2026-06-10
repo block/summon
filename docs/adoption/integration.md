@@ -24,6 +24,7 @@ import { z } from 'zod';
 import {
   createCapabilityRegistry,
   defineAction,
+  defineApprovalAction,
   defineDataResource,
 } from '@anarchitecture/summon';
 
@@ -68,6 +69,45 @@ const capabilityContract = registry.toContract();
 
 `capabilityContract.pack` is model-facing. `capabilityContract.validationCapabilities`
 and `capabilityContract.initialState` are runtime-facing.
+
+Approval actions are still host tools. The difference is that the host can
+prepare the exact operation before asking for a decision. The generated surface
+gets only small status state such as pending, approved, denied, failed, and a
+request id; approve and deny controls stay in trusted host UI.
+
+```ts
+defineApprovalAction({
+  name: 'publish_summary',
+  description: 'Publish a prepared summary only after host approval.',
+  argsSchema: z.object({ draftId: z.string(), title: z.string() }),
+  stateShape: {
+    published: 'boolean',
+    publishedDraftId: 'string | null',
+    publishApprovalRequestId: 'string | null',
+    publishApprovalPending: 'boolean',
+    publishApprovalApproved: 'boolean',
+    publishApprovalDenied: 'boolean',
+    publishApprovalError: 'string | null',
+  },
+  approval: {
+    prepare: ({ draftId, title }) => ({
+      summary: `Publish "${title}"`,
+      details: { draftId },
+      plan: { draftId, endpoint: `/api/drafts/${draftId}/publish` },
+    }),
+    request: (_args, request) => approvalPanel.open(request),
+  },
+  handler: async ({ approval, push }) => {
+    const plan = approval!.plan as { draftId: string; endpoint: string };
+    await fetch(plan.endpoint, { method: 'POST' });
+    push({ published: true, publishedDraftId: plan.draftId });
+  },
+});
+```
+
+Existing `approval.request(args)` callbacks remain valid. Hosts that need
+durable approvals should persist the `ApprovalRequest` they receive in
+`request`; Summon core intentionally does not add a workflow store.
 
 ## 2. Register Trusted Host Components
 
