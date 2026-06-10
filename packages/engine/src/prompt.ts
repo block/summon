@@ -117,6 +117,16 @@ Emit ONLY JSON objects, one per line. No markdown fences, no prose, no headings,
 {"op":"add","path":"/section/budget","html":"..."}
 \`\`\`
 
+**Progressive rendering contract**: make the surface visible early. Emit the
+\`set /screen\` line as soon as you know the stable section ids, then emit one
+cheap placeholder \`add /section/<id>\` line for each planned section before
+writing detailed content. Replace those placeholders by emitting another
+\`add /section/<id>\` line with the final HTML for the same stable section id.
+Hosts treat later accepted \`add\` lines for the same section as replacements.
+Do not rename, reorder, or remove section ids once you have emitted them. This
+is how Summon creates json-render-like perceived streaming while still only
+rendering complete, validated JSONL protocol lines.
+
 A host block may require one or more \`meta\` prelude lines before the first structural line, for example to declare a host-owned mode, template, or policy choice. If so, emit those complete \`meta\` JSONL lines first, exactly as the host block specifies. Otherwise, start with the \`set /screen\` line. Meta lines are host-owned annotations; they do not replace \`/screen\` unless a host layout block explicitly says so.
 
 **Section naming**: lowercase, kebab-case, 1–20 chars. Pick names that describe what each section IS, not generic placeholders. Good: \`overview\`, \`timeline\`, \`option-a\`, \`verdict\`, \`tl-dr\`, \`breakdown\`, \`progress\`, \`next-steps\`. Avoid generic \`header\`/\`body\`/\`footer\` unless the intent really does call for that shape.

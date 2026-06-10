@@ -1,70 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Summon Surface Gallery</title>
-</head>
-<body>
-  <main id="app" class="gallery-shell">
-    <aside class="preset-rail" aria-label="Surface presets">
-      <a class="wordmark" href="/">summon</a>
-      <div class="rail-intro">
-        <p class="eyebrow">Surface Gallery</p>
-        <h1>Sandboxed mini-apps with host-owned authority.</h1>
-      </div>
-      <div id="preset-list" class="preset-list"></div>
-    </aside>
-
-    <section class="surface-stage" aria-label="Generated surface">
-      <header class="stage-header">
-        <div>
-          <p class="eyebrow" id="preset-category">Gallery</p>
-          <h2 id="preset-title">Static Brief</h2>
-          <p id="preset-description">Choose a preset to see a focused Summon surface.</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Summon Surface Gallery</title>
+  </head>
+  <body class="gallery-page">
+    <main id="app" class="gallery-shell">
+      <header class="gallery-masthead" aria-label="Gallery masthead">
+        <a class="wordmark" href="/">Summon</a>
+        <div class="masthead-meta" aria-label="Environment status">
+          <span id="provider-summary">Provider pending</span>
+          <span id="topbar-run-status">Idle</span>
         </div>
-        <button id="run" type="button">Generate</button>
+        <div class="gallery-model-controls" aria-label="Model selection">
+          <label>
+            <span>Provider</span>
+            <select id="model-provider"></select>
+          </label>
+          <label>
+            <span>Model</span>
+            <select id="generation-model"></select>
+          </label>
+          <label id="custom-model-field" hidden>
+            <span>Custom</span>
+            <input id="custom-model" type="text" placeholder="provider-model-id" />
+          </label>
+          <label>
+            <span>Utility</span>
+            <select id="utility-model"></select>
+          </label>
+        </div>
       </header>
 
-      <label class="prompt-label" for="prompt">Prompt</label>
-      <textarea id="prompt" class="prompt-box" spellcheck="false"></textarea>
-
-      <div class="sandbox-frame">
-        <iframe id="sandbox" title="Summon surface gallery sandbox"></iframe>
-        <div id="welcome" class="welcome">
-          <strong>Choose a preset, then generate.</strong>
-          <span>Live generation streams into a null-origin iframe.</span>
+      <aside class="preset-rail" aria-label="Surface presets">
+        <div class="rail-heading">
+          <span>Presets</span>
+          <strong id="preset-count">0</strong>
         </div>
-      </div>
+        <div id="preset-list" class="preset-list"></div>
+      </aside>
 
-      <details id="event-strip" class="event-strip">
-        <summary>Events <span id="event-count">0</span></summary>
-        <div id="event-log" class="event-log"></div>
-      </details>
-    </section>
+      <section class="surface-stage" aria-label="Generated surface">
+        <header class="stage-header">
+          <div>
+            <p class="eyebrow" id="preset-category">Gallery</p>
+            <h2 id="preset-title">Static Brief</h2>
+            <p id="preset-description">
+              Choose a preset to see a focused Summon surface.
+            </p>
+          </div>
+        </header>
 
-    <aside class="contract-panel" aria-label="Host contract">
-      <div class="panel-block">
-        <p class="eyebrow">Host contract</p>
-        <div id="contract-summary" class="contract-summary"></div>
-      </div>
-      <div class="panel-block">
-        <p class="eyebrow">Stream health</p>
-        <div class="health-grid">
-          <div><span>Status</span><strong id="status">idle</strong></div>
-          <div><span>Accepted</span><strong id="accepted-count">0</strong></div>
-          <div><span>Skipped</span><strong id="skipped-count">0</strong></div>
-          <div><span>Blocked</span><strong id="blocked-count">0</strong></div>
+        <div class="surface-meta" aria-label="Selected surface contract">
+          <span id="surface-policy-pill">policy pending</span>
+          <span id="surface-tools-pill">0 host tools</span>
+          <span id="surface-components-pill">0 components</span>
         </div>
-      </div>
-      <div class="panel-block">
-        <p class="eyebrow">Host state</p>
-        <pre id="state-preview">{}</pre>
-      </div>
-      <div id="setup-note" class="setup-note" hidden></div>
-    </aside>
-  </main>
 
-  <script type="module" src="/src/main.ts"></script>
-</body>
+        <section class="prompt-panel" aria-label="Prompt">
+          <div class="prompt-panel-header">
+            <label class="prompt-label" for="prompt">Prompt</label>
+            <span id="prompt-length">0 chars</span>
+          </div>
+          <div class="prompt-composer">
+            <textarea
+              id="prompt"
+              class="prompt-box"
+              spellcheck="false"
+            ></textarea>
+            <button id="run" type="button">Run</button>
+          </div>
+        </section>
+
+        <div class="sandbox-frame">
+          <div class="sandbox-toolbar" aria-label="Sandbox status">
+            <span>Sandbox</span>
+            <strong id="sandbox-mode">isolated</strong>
+          </div>
+          <div class="iframe-shell">
+            <iframe
+              id="sandbox"
+              title="Summon surface gallery sandbox"
+            ></iframe>
+            <div id="welcome" class="welcome">
+              <div class="welcome-panel">
+                <span class="welcome-kicker">Ready to run</span>
+                <strong id="welcome-title">Static Brief</strong>
+                <span id="welcome-detail">Surface stream standing by.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="setup-note" class="setup-note" hidden></div>
+      </section>
+
+      <aside class="contract-panel" aria-label="Surface inspector">
+        <div class="inspector-header">
+          <span>Inspector</span>
+          <strong id="inspector-status">Contract</strong>
+        </div>
+
+        <div class="inspector-tabs" role="tablist" aria-label="Inspector views">
+          <button
+            id="tab-contract"
+            class="active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-contract"
+            data-inspector-tab="contract"
+          >
+            Contract
+          </button>
+          <button
+            id="tab-stream"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-stream"
+            data-inspector-tab="stream"
+          >
+            Stream
+          </button>
+          <button
+            id="tab-state"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-state"
+            data-inspector-tab="state"
+          >
+            State
+          </button>
+        </div>
+
+        <section
+          id="panel-contract"
+          class="inspector-panel active"
+          role="tabpanel"
+          aria-labelledby="tab-contract"
+          data-inspector-panel="contract"
+        >
+          <div id="contract-summary" class="contract-summary"></div>
+        </section>
+
+        <section
+          id="panel-stream"
+          class="inspector-panel"
+          role="tabpanel"
+          aria-labelledby="tab-stream"
+          data-inspector-panel="stream"
+          hidden
+        >
+          <div class="health-grid" aria-label="Stream counters">
+            <div>
+              <span>Status</span>
+              <strong id="status">idle</strong>
+            </div>
+            <div>
+              <span>Accepted</span>
+              <strong id="accepted-count">0</strong>
+            </div>
+            <div>
+              <span>Skipped</span>
+              <strong id="skipped-count">0</strong>
+            </div>
+            <div>
+              <span>Blocked</span>
+              <strong id="blocked-count">0</strong>
+            </div>
+          </div>
+
+          <div class="event-panel">
+            <div class="event-heading">
+              <span>Latest events</span>
+              <strong id="event-count">0</strong>
+            </div>
+            <div id="event-log" class="event-log"></div>
+          </div>
+        </section>
+
+        <section
+          id="panel-state"
+          class="inspector-panel"
+          role="tabpanel"
+          aria-labelledby="tab-state"
+          data-inspector-panel="state"
+          hidden
+        >
+          <pre id="state-preview">{}</pre>
+        </section>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>

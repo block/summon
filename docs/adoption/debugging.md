@@ -153,6 +153,16 @@ These names are useful when maintaining Summon or writing a deeper adapter:
 | `/mode-upgraded` | The server upgraded static generation to interactive mode. |
 | `/error` | Server-side generation error or blocked-generation message. |
 
+## Progressive Rendering
+
+Summon streams at complete JSONL protocol-line granularity. It does not render
+raw model tokens or partial HTML. For json-render-like perceived streaming, the
+model should emit `set /screen` early, then cheap placeholder
+`add /section/:id` lines, then later `add /section/:id` lines with final HTML
+for the same stable ids. The client treats later accepted section lines as
+replacements, so hosts that want progressive interactive rendering can pass
+`renderMode: "live"` to `consumeSurfaceStream`.
+
 ## Devtools Events
 
 The generate demo records a per-run `EventStore`. Open the **Devtools** drawer

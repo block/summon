@@ -28,28 +28,98 @@ export interface TextCompletionClient {
   completeText(request: TextCompletionRequest): Promise<string>;
 }
 
+export type ModelCatalogStatus = 'stable' | 'preview' | 'latest' | 'legacy';
+export type ModelCatalogTier = 'fast' | 'balanced' | 'frontier';
+export type AnthropicThinkingMode = 'adaptive' | 'off';
+export type ModelEffort = 'low' | 'medium' | 'high';
+
+export interface ModelCatalogEntry {
+  id: string;
+  label: string;
+  status: ModelCatalogStatus;
+  tier: ModelCatalogTier;
+  maxOutputTokens: number;
+  description?: string;
+  anthropicThinking?: 'optional' | 'always';
+}
+
+export interface ModelProviderControls {
+  customModels: boolean;
+  maxOutputTokens: {
+    min: number;
+    max: number;
+    default: number;
+    presets: number[];
+  };
+  repairMaxOutputTokens: {
+    min: number;
+    max: number;
+    default: number;
+    presets: number[];
+  };
+  anthropicThinking?: {
+    default: AnthropicThinkingMode;
+    options: AnthropicThinkingMode[];
+  };
+  effort?: {
+    default: ModelEffort;
+    options: ModelEffort[];
+  };
+}
+
+export interface ModelProviderDefaults {
+  generationModel: string;
+  utilityModel: string;
+  modelOptions: NormalizedModelOptions;
+}
+
 export interface ModelProviderInfo {
   id: ModelProviderId;
   name: string;
   configured: boolean;
   model: string;
   utilityModel: string;
+  models: ModelCatalogEntry[];
+  utilityModels: ModelCatalogEntry[];
+  defaults: ModelProviderDefaults;
+  controls: ModelProviderControls;
   missingEnv?: string;
+}
+
+export interface NormalizedModelOptions {
+  maxOutputTokens: number;
+  repairMaxOutputTokens: number;
+  anthropicThinking?: AnthropicThinkingMode;
+  effort?: ModelEffort;
+}
+
+export interface ModelSelection {
+  generationModel: string;
+  utilityModel: string;
+  customModel: boolean;
+  options: NormalizedModelOptions;
 }
 
 export interface ModelProviderAdapter extends ModelProviderInfo, TextCompletionClient {
   streamSurfaceGeneration(
     request: SummonModelRequest,
     onUsage: (usage: ProviderUsageSnapshot) => void,
+    selection?: ModelSelection,
   ): AsyncGenerator<SummonModelChunk, void, void>;
-  repairSurfaceSection(request: SummonRepairRequest): Promise<string>;
+  repairSurfaceSection(request: SummonRepairRequest, selection?: ModelSelection): Promise<string>;
+  completeText(request: TextCompletionRequest, selection?: ModelSelection): Promise<string>;
+  resolveSelection(raw: unknown): { ok: true; selection: ModelSelection } | { ok: false; error: string };
 }
 
 export interface ModelProviderRegistry {
   defaultProvider: ModelProviderAdapter | null;
   get(id: ModelProviderId): ModelProviderAdapter;
   info(): ModelProviderInfo[];
-  resolve(raw: unknown): { ok: true; provider: ModelProviderAdapter } | { ok: false; error: string };
+  resolve(raw: unknown, selectionRaw?: unknown): {
+    ok: true;
+    provider: ModelProviderAdapter;
+    selection: ModelSelection;
+  } | { ok: false; error: string };
 }
 
 const PROVIDER_IDS: ModelProviderId[] = ['anthropic', 'openai', 'gemini'];
@@ -57,6 +127,66 @@ const DEFAULT_OPENAI_MODEL = 'gpt-5';
 const DEFAULT_OPENAI_UTILITY_MODEL = 'gpt-5-mini';
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
 const DEFAULT_GEMINI_UTILITY_MODEL = 'gemini-2.5-flash';
+const DEFAULT_GENERATION_MAX_TOKENS = 64000;
+const DEFAULT_REPAIR_MAX_TOKENS = 12000;
+const MIN_OUTPUT_TOKENS = 1000;
+const MAX_OUTPUT_TOKENS = 128000;
+const MODEL_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
+const EFFORT_OPTIONS: ModelEffort[] = ['low', 'medium', 'high'];
+const THINKING_OPTIONS: AnthropicThinkingMode[] = ['adaptive', 'off'];
+
+const ANTHROPIC_MODELS: ModelCatalogEntry[] = [
+  {
+    id: 'claude-fable-5',
+    label: 'Claude Fable 5',
+    status: 'latest',
+    tier: 'frontier',
+    maxOutputTokens: 128000,
+    anthropicThinking: 'always',
+    description: 'Most capable widely released Claude model.',
+  },
+  {
+    id: 'claude-opus-4-8',
+    label: 'Claude Opus 4.8',
+    status: 'stable',
+    tier: 'frontier',
+    maxOutputTokens: 128000,
+  },
+  {
+    id: 'claude-sonnet-4-6',
+    label: 'Claude Sonnet 4.6',
+    status: 'stable',
+    tier: 'balanced',
+    maxOutputTokens: 64000,
+    anthropicThinking: 'optional',
+  },
+  {
+    id: 'claude-haiku-4-5',
+    label: 'Claude Haiku 4.5',
+    status: 'stable',
+    tier: 'fast',
+    maxOutputTokens: 64000,
+    anthropicThinking: 'optional',
+  },
+];
+
+const OPENAI_MODELS: ModelCatalogEntry[] = [
+  { id: 'gpt-5.5', label: 'GPT-5.5', status: 'latest', tier: 'frontier', maxOutputTokens: 128000 },
+  { id: 'gpt-5.4', label: 'GPT-5.4', status: 'stable', tier: 'balanced', maxOutputTokens: 128000 },
+  { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini', status: 'stable', tier: 'fast', maxOutputTokens: 128000 },
+  { id: 'gpt-5.4-nano', label: 'GPT-5.4 nano', status: 'stable', tier: 'fast', maxOutputTokens: 128000 },
+  { id: 'gpt-5', label: 'GPT-5', status: 'legacy', tier: 'balanced', maxOutputTokens: 64000 },
+  { id: 'gpt-5-mini', label: 'GPT-5 mini', status: 'legacy', tier: 'fast', maxOutputTokens: 64000 },
+];
+
+const GEMINI_MODELS: ModelCatalogEntry[] = [
+  { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', status: 'latest', tier: 'fast', maxOutputTokens: 64000 },
+  { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', status: 'stable', tier: 'fast', maxOutputTokens: 64000 },
+  { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', status: 'preview', tier: 'frontier', maxOutputTokens: 64000 },
+  { id: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview', status: 'preview', tier: 'fast', maxOutputTokens: 64000 },
+  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', status: 'legacy', tier: 'balanced', maxOutputTokens: 64000 },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', status: 'legacy', tier: 'fast', maxOutputTokens: 64000 },
+];
 
 export function createModelProviderRegistry(env: NodeJS.ProcessEnv): ModelProviderRegistry {
   const providers = new Map<ModelProviderId, ModelProviderAdapter>([
@@ -80,7 +210,7 @@ export function createModelProviderRegistry(env: NodeJS.ProcessEnv): ModelProvid
     info() {
       return PROVIDER_IDS.map((id) => providers.get(id)!).map(providerInfo);
     },
-    resolve(raw) {
+    resolve(raw, selectionRaw) {
       const providerId = raw === undefined || raw === null || raw === ''
         ? defaultProvider?.id
         : parseProviderId(raw);
@@ -104,7 +234,9 @@ export function createModelProviderRegistry(env: NodeJS.ProcessEnv): ModelProvid
           error: `${provider.name} is not configured; set ${provider.missingEnv}`,
         };
       }
-      return { ok: true, provider };
+      const resolvedSelection = provider.resolveSelection(selectionRaw);
+      if (!resolvedSelection.ok) return resolvedSelection;
+      return { ok: true, provider, selection: resolvedSelection.selection };
     },
   };
 }
@@ -124,14 +256,228 @@ function providerInfo(provider: ModelProviderAdapter): ModelProviderInfo {
     configured: provider.configured,
     model: provider.model,
     utilityModel: provider.utilityModel,
+    models: provider.models,
+    utilityModels: provider.utilityModels,
+    defaults: provider.defaults,
+    controls: provider.controls,
     ...(!provider.configured && provider.missingEnv ? { missingEnv: provider.missingEnv } : {}),
   };
+}
+
+function createProviderDefaults(args: {
+  env: NodeJS.ProcessEnv;
+  generationModel: string;
+  utilityModel: string;
+  catalog: ModelCatalogEntry[];
+  anthropic?: boolean;
+}): ModelProviderDefaults {
+  const generationModel = args.generationModel;
+  const modelMax = maxOutputTokensForModel(args.catalog, generationModel);
+  const maxOutputTokens = clampInt(
+    Number(args.env.SUMMON_GENERATION_MAX_TOKENS),
+    MIN_OUTPUT_TOKENS,
+    Math.min(MAX_OUTPUT_TOKENS, modelMax),
+    Math.min(DEFAULT_GENERATION_MAX_TOKENS, modelMax),
+  );
+  const repairMaxOutputTokens = clampInt(
+    Number(args.env.SUMMON_REPAIR_MAX_TOKENS),
+    MIN_OUTPUT_TOKENS,
+    Math.min(MAX_OUTPUT_TOKENS, modelMax),
+    Math.min(DEFAULT_REPAIR_MAX_TOKENS, modelMax),
+  );
+  const options: NormalizedModelOptions = {
+    maxOutputTokens,
+    repairMaxOutputTokens,
+  };
+  if (args.anthropic) {
+    const thinking = parseThinkingMode(
+      args.env.SUMMON_ANTHROPIC_THINKING ?? args.env.ANTHROPIC_THINKING,
+      'adaptive',
+    );
+    options.anthropicThinking = forceThinkingForModel(args.catalog, generationModel, thinking);
+    options.effort = parseEffort(
+      args.env.SUMMON_ANTHROPIC_EFFORT ?? args.env.ANTHROPIC_EFFORT,
+      'medium',
+    );
+  }
+  return {
+    generationModel,
+    utilityModel: args.utilityModel,
+    modelOptions: options,
+  };
+}
+
+function createProviderControls(defaults: ModelProviderDefaults, anthropic = false): ModelProviderControls {
+  return {
+    customModels: true,
+    maxOutputTokens: {
+      min: MIN_OUTPUT_TOKENS,
+      max: MAX_OUTPUT_TOKENS,
+      default: defaults.modelOptions.maxOutputTokens,
+      presets: [8000, 12000, 16000, 32000, 64000],
+    },
+    repairMaxOutputTokens: {
+      min: MIN_OUTPUT_TOKENS,
+      max: MAX_OUTPUT_TOKENS,
+      default: defaults.modelOptions.repairMaxOutputTokens,
+      presets: [4000, 8000, 12000, 16000],
+    },
+    ...(anthropic
+      ? {
+          anthropicThinking: {
+            default: defaults.modelOptions.anthropicThinking ?? 'adaptive',
+            options: THINKING_OPTIONS,
+          },
+          effort: {
+            default: defaults.modelOptions.effort ?? 'medium',
+            options: EFFORT_OPTIONS,
+          },
+        }
+      : {}),
+  };
+}
+
+function createSelectionResolver(args: {
+  providerName: string;
+  models: ModelCatalogEntry[];
+  utilityModels: ModelCatalogEntry[];
+  defaults: ModelProviderDefaults;
+  anthropic?: boolean;
+}): (raw: unknown) => { ok: true; selection: ModelSelection } | { ok: false; error: string } {
+  return (raw) => {
+    const obj = raw && typeof raw === 'object'
+      ? raw as Record<string, unknown>
+      : {};
+    const customModel = obj.customModel === true;
+    const generationModel = resolveModelId({
+      providerName: args.providerName,
+      role: 'generation',
+      raw: obj.generationModel,
+      fallback: args.defaults.generationModel,
+      catalog: args.models,
+      customModel,
+    });
+    if (!generationModel.ok) return generationModel;
+
+    const utilityModel = resolveModelId({
+      providerName: args.providerName,
+      role: 'utility',
+      raw: obj.utilityModel,
+      fallback: args.defaults.utilityModel,
+      catalog: args.utilityModels,
+      customModel,
+    });
+    if (!utilityModel.ok) return utilityModel;
+
+    const modelMax = maxOutputTokensForModel(args.models, generationModel.model);
+    const rawOptions = obj.modelOptions && typeof obj.modelOptions === 'object'
+      ? obj.modelOptions as Record<string, unknown>
+      : {};
+    const options: NormalizedModelOptions = {
+      maxOutputTokens: clampInt(
+        rawOptions.maxOutputTokens,
+        MIN_OUTPUT_TOKENS,
+        Math.min(MAX_OUTPUT_TOKENS, modelMax),
+        Math.min(args.defaults.modelOptions.maxOutputTokens, modelMax),
+      ),
+      repairMaxOutputTokens: clampInt(
+        rawOptions.repairMaxOutputTokens,
+        MIN_OUTPUT_TOKENS,
+        Math.min(MAX_OUTPUT_TOKENS, modelMax),
+        Math.min(args.defaults.modelOptions.repairMaxOutputTokens, modelMax),
+      ),
+    };
+    if (args.anthropic) {
+      const requestedThinking = parseThinkingMode(
+        rawOptions.anthropicThinking,
+        args.defaults.modelOptions.anthropicThinking ?? 'adaptive',
+      );
+      options.anthropicThinking = forceThinkingForModel(args.models, generationModel.model, requestedThinking);
+      options.effort = parseEffort(rawOptions.effort, args.defaults.modelOptions.effort ?? 'medium');
+    }
+
+    return {
+      ok: true,
+      selection: {
+        generationModel: generationModel.model,
+        utilityModel: utilityModel.model,
+        customModel: customModel || generationModel.custom || utilityModel.custom,
+        options,
+      },
+    };
+  };
+}
+
+function resolveModelId(args: {
+  providerName: string;
+  role: string;
+  raw: unknown;
+  fallback: string;
+  catalog: ModelCatalogEntry[];
+  customModel: boolean;
+}): { ok: true; model: string; custom: boolean } | { ok: false; error: string } {
+  if (args.raw === undefined || args.raw === null || args.raw === '') {
+    return { ok: true, model: args.fallback, custom: false };
+  }
+  if (typeof args.raw !== 'string') {
+    return { ok: false, error: `${args.role} model must be a string` };
+  }
+  const model = args.raw.trim();
+  if (!MODEL_ID_RE.test(model)) {
+    return { ok: false, error: `${args.role} model id is invalid` };
+  }
+  if (args.catalog.some((entry) => entry.id === model)) {
+    return { ok: true, model, custom: false };
+  }
+  if (!args.customModel) {
+    return {
+      ok: false,
+      error: `${args.providerName} ${args.role} model "${model}" is not in the catalog; choose Custom model to use it`,
+    };
+  }
+  return { ok: true, model, custom: true };
+}
+
+function maxOutputTokensForModel(catalog: ModelCatalogEntry[], model: string): number {
+  return catalog.find((entry) => entry.id === model)?.maxOutputTokens ?? DEFAULT_GENERATION_MAX_TOKENS;
+}
+
+function forceThinkingForModel(
+  catalog: ModelCatalogEntry[],
+  model: string,
+  thinking: AnthropicThinkingMode,
+): AnthropicThinkingMode {
+  const entry = catalog.find((item) => item.id === model);
+  return entry?.anthropicThinking === 'always' ? 'adaptive' : thinking;
+}
+
+function parseThinkingMode(raw: unknown, fallback: AnthropicThinkingMode): AnthropicThinkingMode {
+  return raw === 'adaptive' || raw === 'off' ? raw : fallback;
+}
+
+function parseEffort(raw: unknown, fallback: ModelEffort): ModelEffort {
+  return raw === 'low' || raw === 'medium' || raw === 'high' ? raw : fallback;
 }
 
 function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
   const apiKey = env.ANTHROPIC_API_KEY?.trim();
   const model = env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6';
   const utilityModel = env.ANTHROPIC_SMALL_MODEL ?? 'claude-haiku-4-5';
+  const defaults = createProviderDefaults({
+    env,
+    generationModel: model,
+    utilityModel,
+    catalog: ANTHROPIC_MODELS,
+    anthropic: true,
+  });
+  const controls = createProviderControls(defaults, true);
+  const resolveSelection = createSelectionResolver({
+    providerName: 'Anthropic',
+    models: ANTHROPIC_MODELS,
+    utilityModels: ANTHROPIC_MODELS,
+    defaults,
+    anthropic: true,
+  });
   const client = apiKey
     ? new Anthropic({
         apiKey,
@@ -150,13 +496,22 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     configured: Boolean(client),
     model,
     utilityModel,
+    models: ANTHROPIC_MODELS,
+    utilityModels: ANTHROPIC_MODELS,
+    defaults,
+    controls,
     missingEnv: 'ANTHROPIC_API_KEY',
-    async *streamSurfaceGeneration(request, onUsage) {
+    resolveSelection,
+    async *streamSurfaceGeneration(request, onUsage, selection = defaultsToSelection(defaults)) {
       const stream = ensureClient().messages.stream({
-        model,
-        max_tokens: 64000,
-        thinking: { type: 'adaptive' },
-        output_config: { effort: 'medium' },
+        model: selection.generationModel,
+        max_tokens: selection.options.maxOutputTokens,
+        ...(selection.options.anthropicThinking === 'adaptive'
+          ? { thinking: { type: 'adaptive' as const } }
+          : {}),
+        ...(selection.options.effort
+          ? { output_config: { effort: selection.options.effort } }
+          : {}),
         system: request.promptBlocks.map(anthropicSystemBlock),
         messages: [{ role: 'user', content: request.prompt }],
       });
@@ -182,10 +537,10 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       const final = await stream.finalMessage();
       onUsage(normalizeAnthropicUsage(final.usage));
     },
-    async repairSurfaceSection(request) {
+    async repairSurfaceSection(request, selection = defaultsToSelection(defaults)) {
       const repairMessage = await ensureClient().messages.create({
-        model,
-        max_tokens: 12000,
+        model: selection.generationModel,
+        max_tokens: selection.options.repairMaxOutputTokens,
         system: [
           ...request.promptBlocks.map(anthropicSystemBlock),
           {
@@ -198,9 +553,9 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       });
       return extractAnthropicText(repairMessage.content);
     },
-    async completeText(request) {
+    async completeText(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
-        model: utilityModel,
+        model: selection.utilityModel,
         max_tokens: request.maxTokens,
         ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
         system: [
@@ -222,6 +577,19 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
   const baseUrl = trimTrailingSlash(env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1');
   const model = env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL;
   const utilityModel = env.OPENAI_SMALL_MODEL ?? DEFAULT_OPENAI_UTILITY_MODEL;
+  const defaults = createProviderDefaults({
+    env,
+    generationModel: model,
+    utilityModel,
+    catalog: OPENAI_MODELS,
+  });
+  const controls = createProviderControls(defaults);
+  const resolveSelection = createSelectionResolver({
+    providerName: 'OpenAI',
+    models: OPENAI_MODELS,
+    utilityModels: OPENAI_MODELS,
+    defaults,
+  });
 
   const post = async (path: string, body: unknown, signal?: AbortSignal): Promise<Response> => {
     if (!apiKey) throw new Error('OpenAI is not configured; set OPENAI_API_KEY');
@@ -262,15 +630,20 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     configured: Boolean(apiKey),
     model,
     utilityModel,
+    models: OPENAI_MODELS,
+    utilityModels: OPENAI_MODELS,
+    defaults,
+    controls,
     missingEnv: 'OPENAI_API_KEY',
-    async *streamSurfaceGeneration(request, onUsage) {
+    resolveSelection,
+    async *streamSurfaceGeneration(request, onUsage, selection = defaultsToSelection(defaults)) {
       const response = await post(
         '/responses',
         responsesBody(
-          model,
+          selection.generationModel,
           promptBlocksToText(request.promptBlocks),
           request.prompt,
-          64000,
+          selection.options.maxOutputTokens,
           true,
         ),
         request.signal,
@@ -304,25 +677,25 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         if (usage) onUsage(usage);
       }
     },
-    async repairSurfaceSection(request) {
+    async repairSurfaceSection(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         '/responses',
         responsesBody(
-          model,
+          selection.generationModel,
           `${promptBlocksToText(request.promptBlocks)}\n\n${repairModeSystemText()}`,
           request.prompt,
-          12000,
+          selection.options.repairMaxOutputTokens,
           false,
         ),
         request.signal,
       );
       return extractOpenAIText(await response.json());
     },
-    async completeText(request) {
+    async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         '/responses',
         responsesBody(
-          utilityModel,
+          selection.utilityModel,
           request.system,
           request.prompt,
           request.maxTokens,
@@ -341,6 +714,19 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
   const baseUrl = trimTrailingSlash(env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com');
   const model = env.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL;
   const utilityModel = env.GEMINI_SMALL_MODEL ?? DEFAULT_GEMINI_UTILITY_MODEL;
+  const defaults = createProviderDefaults({
+    env,
+    generationModel: model,
+    utilityModel,
+    catalog: GEMINI_MODELS,
+  });
+  const controls = createProviderControls(defaults);
+  const resolveSelection = createSelectionResolver({
+    providerName: 'Gemini',
+    models: GEMINI_MODELS,
+    utilityModels: GEMINI_MODELS,
+    defaults,
+  });
 
   const post = async (
     selectedModel: string,
@@ -370,12 +756,17 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     configured: Boolean(apiKey),
     model,
     utilityModel,
+    models: GEMINI_MODELS,
+    utilityModels: GEMINI_MODELS,
+    defaults,
+    controls,
     missingEnv: 'GEMINI_API_KEY',
-    async *streamSurfaceGeneration(request, onUsage) {
+    resolveSelection,
+    async *streamSurfaceGeneration(request, onUsage, selection = defaultsToSelection(defaults)) {
       const response = await post(
-        model,
+        selection.generationModel,
         'streamGenerateContent',
-        geminiBody(promptBlocksToText(request.promptBlocks), request.prompt, 64000),
+        geminiBody(promptBlocksToText(request.promptBlocks), request.prompt, selection.options.maxOutputTokens),
         request.signal,
       );
 
@@ -396,22 +787,22 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         if (usage) onUsage(usage);
       }
     },
-    async repairSurfaceSection(request) {
+    async repairSurfaceSection(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
-        model,
+        selection.generationModel,
         'generateContent',
         geminiBody(
           `${promptBlocksToText(request.promptBlocks)}\n\n${repairModeSystemText()}`,
           request.prompt,
-          12000,
+          selection.options.repairMaxOutputTokens,
         ),
         request.signal,
       );
       return extractGeminiText(await response.json()).trim();
     },
-    async completeText(request) {
+    async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
-        utilityModel,
+        selection.utilityModel,
         'generateContent',
         geminiBody(request.system, request.prompt, request.maxTokens, request.temperature),
         request.signal,
@@ -654,8 +1045,27 @@ function geminiUsage(payload: Record<string, unknown>): ProviderUsageSnapshot | 
   };
 }
 
+function defaultsToSelection(defaults: ModelProviderDefaults): ModelSelection {
+  return {
+    generationModel: defaults.generationModel,
+    utilityModel: defaults.utilityModel,
+    customModel: false,
+    options: defaults.modelOptions,
+  };
+}
+
 function numberValue(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const parsed = typeof value === 'number'
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Number(value)
+      : Number.NaN;
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
 }
 
 function trimTrailingSlash(value: string): string {

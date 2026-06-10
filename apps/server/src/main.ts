@@ -30,10 +30,12 @@ import {
 import { registerDemoRoutes } from './demo-routes.js';
 import {
   buildGhostReviewPacket,
+  ghostCapsuleMeta,
   ghostContextMeta,
   ghostTokenSourceMeta,
   parseGhostRequest,
   parseGhostRoots,
+  prepareGhostSurfacePrompt,
   publicGhostRoots,
   resolveGhostGenerationContext,
   type ResolvedGhostSteer,
@@ -387,12 +389,13 @@ app.post('/api/generate', async (req, res) => {
     res.status(400).json({ error: 'prompt required' });
     return;
   }
-  const resolvedProvider = modelProviders.resolve(req.body?.modelProvider ?? req.body?.provider);
+  const resolvedProvider = modelProviders.resolve(req.body?.modelProvider ?? req.body?.provider, req.body);
   if (!resolvedProvider.ok) {
     res.status(400).json({ error: resolvedProvider.error });
     return;
   }
   const modelProvider = resolvedProvider.provider;
+  const modelSelection = resolvedProvider.selection;
 
   const parsedGhost = parseGhostRequest(req.body?.ghost, ghostRoots);
   if (!parsedGhost.ok) {
@@ -487,7 +490,9 @@ app.post('/api/generate', async (req, res) => {
   // the layout is the composition anchor, and exemplars become visual-only.
   let shape: ResponseShape | null = null;
   if (!layout && direction && process.env.SUMMON_INFER_SHAPE !== '0') {
-    shape = await inferShape(modelProvider, prompt);
+    shape = await inferShape({
+      completeText: (request) => modelProvider.completeText(request, modelSelection),
+    }, prompt);
   }
 
   if (hasSurfacePolicy) {
@@ -505,7 +510,9 @@ app.post('/api/generate', async (req, res) => {
     // pack is treated as a ceiling — inference can only narrow, never expand.
     // Falls through to the Layer 2 regex on timeout or error.
     if (process.env.SUMMON_INFER_CAPABILITIES === '1' && capabilityCeiling) {
-      const inferred = await inferPack(modelProvider, prompt, capabilityCeiling);
+      const inferred = await inferPack({
+        completeText: (request) => modelProvider.completeText(request, modelSelection),
+      }, prompt, capabilityCeiling);
       if (inferred) {
         inferenceUsed = true;
         if (requestedMode === 'interactive') {
@@ -549,6 +556,17 @@ app.post('/api/generate', async (req, res) => {
     surfacePlan = resolvedSurface.surfacePlan;
   }
 
+  if (ghostContext) {
+    ghostContext = prepareGhostSurfacePrompt(ghostContext, {
+      userPrompt: prompt,
+      mode,
+      surfacePlan,
+      shape,
+      capabilities: hasSurfacePolicy ? capabilityCeiling : pack,
+      components: componentPack,
+    });
+  }
+
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('X-Accel-Buffering', 'no');
@@ -566,6 +584,13 @@ app.post('/api/generate', async (req, res) => {
       path: '/ghost-token-source',
       value: ghostTokenSourceMeta(ghostContext.tokenSource),
     });
+    if (ghostContext.source === 'root' && ghostContext.capsule) {
+      preludeLines.push({
+        op: 'meta',
+        path: '/ghost-capsule',
+        value: ghostCapsuleMeta(ghostContext.capsule),
+      });
+    }
   }
 
   // Emit the mode-upgrade signal as the first byte the client sees, before
@@ -609,7 +634,7 @@ app.post('/api/generate', async (req, res) => {
     try {
       let usage: ProviderUsageSnapshot | null = null;
       const repair: SurfaceRepairOptions = repairOptions.enabled
-        ? { ...repairOptions, provider: (request) => modelProvider.repairSurfaceSection(request) }
+        ? { ...repairOptions, provider: (request) => modelProvider.repairSurfaceSection(request, modelSelection) }
         : { enabled: false };
       const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
         prompt,
@@ -639,7 +664,7 @@ app.post('/api/generate', async (req, res) => {
         repair,
         modelProvider: (request) => modelProvider.streamSurfaceGeneration(request, (nextUsage) => {
           usage = nextUsage;
-        }),
+        }, modelSelection),
       }, (line) => {
         res.write(`${JSON.stringify(line)}\n`);
       });
@@ -668,7 +693,7 @@ app.post('/api/generate', async (req, res) => {
       const stats = summary.repairStats ?? { queued: 0, cancelled: 0, repaired: 0, failed: 0 };
       const upgradeTag = modeUpgraded ? ` (upgraded ${inferenceUsed ? 'via inference' : 'via regex'})` : '';
       console.log(
-        `[generate] provider=${modelProvider.id}/${modelProvider.model} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
+        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
           ` shape=${shape ?? 'all'}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` edit=${edit ? 'yes' : 'no'}` +
@@ -678,6 +703,10 @@ app.post('/api/generate', async (req, res) => {
           ` scripts=${scriptPolicy}` +
           ` overrides=${overrides.applied.length}` +
           ` repair=${repairOptions.enabled ? `${stats.repaired}/${stats.queued}` : 'off'}` +
+          ` options=max:${modelSelection.options.maxOutputTokens}/repair:${modelSelection.options.repairMaxOutputTokens}` +
+          (modelSelection.options.anthropicThinking ? ` thinking=${modelSelection.options.anthropicThinking}` : '') +
+          (modelSelection.options.effort ? ` effort=${modelSelection.options.effort}` : '') +
+          (modelSelection.customModel ? ' customModel=yes' : '') +
           ` validation=${summary.validationIssues.length}${summary.blocked ? '(blocked)' : ''}` +
           (overrides.rejected.length > 0 ? `(rejected ${overrides.rejected.length})` : '') +
           ` usage in=${finalUsage.input_tokens} out=${finalUsage.output_tokens}` +

@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const galleryPort = Number(process.env.SUMMON_GALLERY_PORT ?? 5174);
 const galleryBaseUrl = `http://127.0.0.1:${galleryPort}`;
+const galleryApiPort = Number(process.env.SUMMON_GALLERY_API_PORT ?? 3015);
 
 export default defineConfig({
   testDir: './tests',
@@ -27,6 +28,7 @@ export default defineConfig({
     env: {
       ...process.env,
       SUMMON_GALLERY_PORT: String(galleryPort),
+      SUMMON_GALLERY_API_TARGET: `http://127.0.0.1:${galleryApiPort}`,
     },
     reuseExistingServer: false,
     timeout: 120_000,

@@ -9,6 +9,7 @@ import {
   inferSurfacePlan,
   normalizeSurfacePlan,
   suggestSurfacePlan,
+  SUMMON_FIXED_INSTRUCTIONS,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_PERSISTENCE_VALUES,
@@ -24,6 +25,13 @@ const defaultTokens = readFileSync(
   new URL('../../sandbox-runtime/src/tokens.css', import.meta.url),
   'utf-8',
 );
+
+test('fixed prompt describes skeleton-first progressive rendering', () => {
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Progressive rendering contract/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /placeholder `add \/section\/<id>`/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /later accepted `add` lines for the same section as replacements/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /complete, validated JSONL protocol lines/);
+});
 
 test('token compiler emits prompt vocabulary and validates from the token contract', () => {
   const ok = compileTokenContract({ css: defaultTokens });

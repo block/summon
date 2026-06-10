@@ -45,6 +45,15 @@ export interface ActiveContract {
   repair?: RepairOptions;
   directionId?: string | null;
   modelProvider?: string | null;
+  generationModel?: string;
+  utilityModel?: string;
+  customModel?: boolean;
+  modelOptions?: {
+    maxOutputTokens?: number;
+    repairMaxOutputTokens?: number;
+    anthropicThinking?: 'adaptive' | 'off';
+    effort?: 'low' | 'medium' | 'high';
+  };
 }
 
 export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [

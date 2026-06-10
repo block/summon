@@ -73,7 +73,50 @@ interface ModelProviderInfo {
   configured: boolean;
   model: string;
   utilityModel: string;
+  models: ModelCatalogEntry[];
+  utilityModels: ModelCatalogEntry[];
+  defaults?: ModelProviderDefaults;
+  controls?: ModelProviderControls;
   missingEnv?: string;
+}
+
+interface ModelCatalogEntry {
+  id: string;
+  label: string;
+  status: 'stable' | 'preview' | 'latest' | 'legacy';
+  tier: 'fast' | 'balanced' | 'frontier';
+  maxOutputTokens: number;
+  description?: string;
+  anthropicThinking?: 'optional' | 'always';
+}
+
+interface ModelProviderControls {
+  customModels: boolean;
+  maxOutputTokens: { default: number; presets: number[] };
+  repairMaxOutputTokens: { default: number; presets: number[] };
+  anthropicThinking?: { default: 'adaptive' | 'off'; options: Array<'adaptive' | 'off'> };
+  effort?: { default: 'low' | 'medium' | 'high'; options: Array<'low' | 'medium' | 'high'> };
+}
+
+interface ModelProviderDefaults {
+  generationModel: string;
+  utilityModel: string;
+  modelOptions: ModelOptions;
+}
+
+interface ModelOptions {
+  maxOutputTokens?: number;
+  repairMaxOutputTokens?: number;
+  anthropicThinking?: 'adaptive' | 'off';
+  effort?: 'low' | 'medium' | 'high';
+}
+
+interface ModelSelectionPayload {
+  modelProvider?: string;
+  generationModel?: string;
+  utilityModel?: string;
+  customModel?: boolean;
+  modelOptions?: ModelOptions;
 }
 
 const layoutPresets = new Map<string, SummonLayout>([
@@ -102,6 +145,16 @@ const scenarioActiveDescEl = document.getElementById('scenario-active-desc')!;
 const scenarioActiveFingerprintEl = document.getElementById('scenario-active-fingerprint')!;
 const scenarioActiveGrantsEl = document.getElementById('scenario-active-grants')!;
 const modelProviderSel = document.getElementById('model-provider') as HTMLSelectElement;
+const generationModelSel = document.getElementById('generation-model') as HTMLSelectElement;
+const utilityModelSel = document.getElementById('utility-model') as HTMLSelectElement;
+const customModelFieldEl = document.getElementById('custom-model-field')!;
+const customModelEl = document.getElementById('custom-model') as HTMLInputElement;
+const maxOutputTokensSel = document.getElementById('max-output-tokens') as HTMLSelectElement;
+const repairMaxOutputTokensSel = document.getElementById('repair-max-output-tokens') as HTMLSelectElement;
+const anthropicThinkingFieldEl = document.getElementById('anthropic-thinking-field')!;
+const anthropicThinkingSel = document.getElementById('anthropic-thinking') as HTMLSelectElement;
+const modelEffortFieldEl = document.getElementById('model-effort-field')!;
+const modelEffortSel = document.getElementById('model-effort') as HTMLSelectElement;
 const directionSel = document.getElementById('direction') as HTMLSelectElement;
 const ghostTargetEl = document.getElementById('ghost-target') as HTMLInputElement;
 const ghostBaseDirectionSel = document.getElementById('ghost-base-direction') as HTMLSelectElement;
@@ -159,6 +212,45 @@ function readMode(): Mode {
 }
 function readModelProviderId(): string | null {
   return modelProviderSel.value || defaultModelProviderId;
+}
+function selectedModelProvider(): ModelProviderInfo | null {
+  const id = readModelProviderId();
+  return id ? modelProviders.find((provider) => provider.id === id) ?? null : null;
+}
+function readModelSelection(): ModelSelectionPayload {
+  const provider = selectedModelProvider();
+  const selection: ModelSelectionPayload = {};
+  const providerId = readModelProviderId();
+  if (providerId) selection.modelProvider = providerId;
+
+  if (generationModelSel.value === '__custom__') {
+    const custom = customModelEl.value.trim();
+    if (custom) {
+      selection.generationModel = custom;
+      selection.customModel = true;
+    }
+  } else if (generationModelSel.value) {
+    selection.generationModel = generationModelSel.value;
+  }
+  if (utilityModelSel.value) {
+    selection.utilityModel = utilityModelSel.value;
+  }
+
+  const options: ModelOptions = {};
+  const maxOutputTokens = Number(maxOutputTokensSel.value);
+  if (Number.isFinite(maxOutputTokens)) options.maxOutputTokens = maxOutputTokens;
+  const repairMaxOutputTokens = Number(repairMaxOutputTokensSel.value);
+  if (Number.isFinite(repairMaxOutputTokens)) options.repairMaxOutputTokens = repairMaxOutputTokens;
+  if (provider?.id === 'anthropic') {
+    if (anthropicThinkingSel.value === 'adaptive' || anthropicThinkingSel.value === 'off') {
+      options.anthropicThinking = anthropicThinkingSel.value;
+    }
+    if (modelEffortSel.value === 'low' || modelEffortSel.value === 'medium' || modelEffortSel.value === 'high') {
+      options.effort = modelEffortSel.value;
+    }
+  }
+  if (Object.keys(options).length > 0) selection.modelOptions = options;
+  return selection;
 }
 function readLayout(): SummonLayout | null {
   const layout = layoutPresets.get(layoutSel.value);
@@ -541,6 +633,7 @@ function readRepairOptions(): ActiveContract['repair'] {
 function readActiveContract(): ActiveContract {
   const scenario = selectedScenario();
   const surfacePlan = readSurfacePlan();
+  const modelSelection = readModelSelection();
   return {
     scenarioId: scenario.id,
     prompt: promptEl.value.trim() || scenario.prompt,
@@ -554,7 +647,11 @@ function readActiveContract(): ActiveContract {
     ...(readTokenOverrides() ? { tokenOverrides: readTokenOverrides() } : {}),
     ...(readRepairOptions() ? { repair: readRepairOptions() } : {}),
     directionId: currentDirectionId,
-    modelProvider: readModelProviderId(),
+    modelProvider: modelSelection.modelProvider ?? null,
+    ...(modelSelection.generationModel ? { generationModel: modelSelection.generationModel } : {}),
+    ...(modelSelection.utilityModel ? { utilityModel: modelSelection.utilityModel } : {}),
+    ...(modelSelection.customModel ? { customModel: true } : {}),
+    ...(modelSelection.modelOptions ? { modelOptions: modelSelection.modelOptions } : {}),
   };
 }
 
@@ -621,10 +718,19 @@ function renderContractSummary() {
   const stream = currentStreamHealth ?? 'pending';
   const effective = currentEffectiveSurfacePlan ? planText(currentEffectiveSurfacePlan) : 'pending';
   const provider = modelProviders.find((item) => item.id === active.modelProvider);
+  const selectedModel = active.generationModel
+    ?? provider?.defaults?.generationModel
+    ?? provider?.model
+    ?? 'server default';
+  const selectedUtility = active.utilityModel
+    ?? provider?.defaults?.utilityModel
+    ?? provider?.utilityModel
+    ?? 'server default';
   inspectorStatusEl.textContent = currentEffectiveSurfacePlan ? 'effective' : 'pending';
   contractSummaryEl.innerHTML = '';
   const rows = [
-    ['provider', 'Model provider', provider ? `${provider.name} · ${provider.model}` : 'server default', provider ? 'neutral' : 'pending'],
+    ['provider', 'Model provider', provider ? `${provider.name} · ${selectedModel}` : 'server default', provider ? 'neutral' : 'pending'],
+    ['utility', 'Utility model', selectedUtility, provider ? 'neutral' : 'pending'],
     ['requested', 'Requested surface config', planText(requested), 'neutral'],
     ['effective', 'Effective safety plan', effective, currentEffectiveSurfacePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${active.capabilityNames.length}: ${hostTools}`, active.capabilityNames.length ? 'neutral' : 'pending'],
@@ -660,6 +766,101 @@ function clearEffectiveContractSummary() {
   currentRepairSummary = null;
   currentStreamHealth = null;
   renderContractSummary();
+}
+
+function parseModelCatalog(raw: unknown): ModelCatalogEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry): ModelCatalogEntry[] => {
+    if (!entry || typeof entry !== 'object') return [];
+    const item = entry as Record<string, unknown>;
+    if (
+      typeof item.id !== 'string' ||
+      typeof item.label !== 'string' ||
+      typeof item.maxOutputTokens !== 'number'
+    ) {
+      return [];
+    }
+    return [{
+      id: item.id,
+      label: item.label,
+      status: item.status === 'preview' || item.status === 'latest' || item.status === 'legacy'
+        ? item.status
+        : 'stable',
+      tier: item.tier === 'frontier' || item.tier === 'balanced' ? item.tier : 'fast',
+      maxOutputTokens: item.maxOutputTokens,
+      description: typeof item.description === 'string' ? item.description : undefined,
+      anthropicThinking: item.anthropicThinking === 'always' || item.anthropicThinking === 'optional'
+        ? item.anthropicThinking
+        : undefined,
+    }];
+  });
+}
+
+function parseProviderDefaults(raw: unknown): ModelProviderDefaults | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const item = raw as Record<string, unknown>;
+  if (typeof item.generationModel !== 'string' || typeof item.utilityModel !== 'string') return undefined;
+  const modelOptions = item.modelOptions && typeof item.modelOptions === 'object'
+    ? item.modelOptions as ModelOptions
+    : {};
+  return {
+    generationModel: item.generationModel,
+    utilityModel: item.utilityModel,
+    modelOptions,
+  };
+}
+
+function parseProviderControls(raw: unknown): ModelProviderControls | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const item = raw as Record<string, unknown>;
+  const maxOutputTokens = parseTokenControl(item.maxOutputTokens);
+  const repairMaxOutputTokens = parseTokenControl(item.repairMaxOutputTokens);
+  if (!maxOutputTokens || !repairMaxOutputTokens) return undefined;
+  return {
+    customModels: item.customModels !== false,
+    maxOutputTokens,
+    repairMaxOutputTokens,
+    anthropicThinking: parseThinkingControl(item.anthropicThinking),
+    effort: parseEffortControl(item.effort),
+  };
+}
+
+function parseTokenControl(raw: unknown): { default: number; presets: number[] } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const item = raw as Record<string, unknown>;
+  if (typeof item.default !== 'number') return null;
+  return {
+    default: item.default,
+    presets: Array.isArray(item.presets)
+      ? item.presets.filter((value): value is number => typeof value === 'number')
+      : [item.default],
+  };
+}
+
+function parseThinkingControl(raw: unknown): ModelProviderControls['anthropicThinking'] {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const item = raw as Record<string, unknown>;
+  const options = Array.isArray(item.options)
+    ? item.options.filter((value): value is 'adaptive' | 'off' => value === 'adaptive' || value === 'off')
+    : [];
+  const fallback = options[0] ?? 'adaptive';
+  return {
+    default: item.default === 'off' || item.default === 'adaptive' ? item.default : fallback,
+    options: options.length ? options : ['adaptive', 'off'],
+  };
+}
+
+function parseEffortControl(raw: unknown): ModelProviderControls['effort'] {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const item = raw as Record<string, unknown>;
+  const options = Array.isArray(item.options)
+    ? item.options.filter((value): value is 'low' | 'medium' | 'high' => value === 'low' || value === 'medium' || value === 'high')
+    : [];
+  const fallback = options[0] ?? 'medium';
+  return {
+    default: item.default === 'low' || item.default === 'medium' || item.default === 'high' ? item.default : fallback,
+    options: options.length ? options : ['low', 'medium', 'high'],
+  };
 }
 
 function summarizeValidationMeta(value: unknown): string {
@@ -738,6 +939,10 @@ async function loadDirections(): Promise<void> {
             configured: item.configured === true,
             model: item.model,
             utilityModel: item.utilityModel,
+            models: parseModelCatalog(item.models),
+            utilityModels: parseModelCatalog(item.utilityModels),
+            defaults: parseProviderDefaults(item.defaults),
+            controls: parseProviderControls(item.controls),
             missingEnv: typeof item.missingEnv === 'string' ? item.missingEnv : undefined,
           }];
         })
@@ -813,6 +1018,7 @@ function populateModelProviderSelect() {
     opt.textContent = 'Server default';
     modelProviderSel.appendChild(opt);
     modelProviderSel.disabled = true;
+    populateModelSelectionControls();
     return;
   }
 
@@ -835,6 +1041,138 @@ function populateModelProviderSelect() {
     : null;
   const firstConfigured = modelProviders.find((provider) => provider.configured);
   modelProviderSel.value = defaultProvider?.id ?? firstConfigured?.id ?? '';
+  populateModelSelectionControls();
+}
+
+function populateModelSelectionControls() {
+  const provider = selectedModelProvider();
+  const generationModels = provider?.models.length
+    ? provider.models
+    : provider
+      ? fallbackCatalog(provider.model, provider.model)
+      : [];
+  const utilityModels = provider?.utilityModels.length
+    ? provider.utilityModels
+    : provider
+      ? fallbackCatalog(provider.utilityModel, provider.utilityModel)
+      : [];
+  const generationDefault = provider?.defaults?.generationModel ?? provider?.model ?? '';
+  const utilityDefault = provider?.defaults?.utilityModel ?? provider?.utilityModel ?? '';
+
+  populateCatalogSelect(generationModelSel, generationModels, generationDefault, provider?.controls?.customModels !== false);
+  populateCatalogSelect(utilityModelSel, utilityModels, utilityDefault, false);
+  generationModelSel.disabled = !provider || generationModels.length === 0;
+  utilityModelSel.disabled = !provider || utilityModels.length === 0;
+  customModelFieldEl.hidden = generationModelSel.value !== '__custom__';
+
+  populateNumberSelect(
+    maxOutputTokensSel,
+    provider?.controls?.maxOutputTokens?.presets,
+    provider?.controls?.maxOutputTokens?.default ?? provider?.defaults?.modelOptions.maxOutputTokens ?? 64000,
+  );
+  populateNumberSelect(
+    repairMaxOutputTokensSel,
+    provider?.controls?.repairMaxOutputTokens?.presets,
+    provider?.controls?.repairMaxOutputTokens?.default ?? provider?.defaults?.modelOptions.repairMaxOutputTokens ?? 12000,
+  );
+
+  const showAnthropic = provider?.id === 'anthropic';
+  anthropicThinkingFieldEl.hidden = !showAnthropic;
+  modelEffortFieldEl.hidden = !showAnthropic;
+  if (showAnthropic) {
+    populateStringSelect(
+      anthropicThinkingSel,
+      provider.controls?.anthropicThinking?.options ?? ['adaptive', 'off'],
+      provider.controls?.anthropicThinking?.default ?? 'adaptive',
+      formatThinkingOption,
+    );
+    populateStringSelect(
+      modelEffortSel,
+      provider.controls?.effort?.options ?? ['low', 'medium', 'high'],
+      provider.controls?.effort?.default ?? 'medium',
+      (value) => value,
+    );
+    syncAnthropicThinkingAvailability();
+  } else {
+    anthropicThinkingSel.innerHTML = '';
+    modelEffortSel.innerHTML = '';
+  }
+  renderContractSummary();
+}
+
+function populateCatalogSelect(
+  select: HTMLSelectElement,
+  models: ModelCatalogEntry[],
+  selected: string,
+  customModels: boolean,
+): void {
+  select.innerHTML = '';
+  for (const model of models) {
+    const opt = document.createElement('option');
+    opt.value = model.id;
+    opt.textContent = `${model.label} · ${model.tier}${model.status === 'stable' ? '' : ` · ${model.status}`}`;
+    opt.title = model.description ?? model.id;
+    select.appendChild(opt);
+  }
+  if (customModels) {
+    const opt = document.createElement('option');
+    opt.value = '__custom__';
+    opt.textContent = 'Custom model...';
+    select.appendChild(opt);
+  }
+  select.value = models.some((model) => model.id === selected) ? selected : models[0]?.id ?? '';
+}
+
+function populateNumberSelect(select: HTMLSelectElement, presets: number[] | undefined, selected: number): void {
+  const values = Array.from(new Set([...(presets ?? []), selected]))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+  select.innerHTML = '';
+  for (const value of values) {
+    const opt = document.createElement('option');
+    opt.value = String(value);
+    opt.textContent = value.toLocaleString();
+    select.appendChild(opt);
+  }
+  select.value = String(selected);
+}
+
+function populateStringSelect<T extends string>(
+  select: HTMLSelectElement,
+  values: T[],
+  selected: T,
+  label: (value: T) => string,
+): void {
+  select.innerHTML = '';
+  for (const value of values) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label(value);
+    select.appendChild(opt);
+  }
+  select.value = values.includes(selected) ? selected : values[0] ?? '';
+}
+
+function fallbackCatalog(id: string, label: string): ModelCatalogEntry[] {
+  return [{
+    id,
+    label,
+    status: 'stable',
+    tier: 'balanced',
+    maxOutputTokens: 64000,
+  }];
+}
+
+function formatThinkingOption(value: 'adaptive' | 'off'): string {
+  return value === 'adaptive' ? 'Adaptive' : 'Off';
+}
+
+function syncAnthropicThinkingAvailability(): void {
+  const provider = selectedModelProvider();
+  const model = provider?.models.find((entry) => entry.id === generationModelSel.value);
+  const alwaysAdaptive = model?.anthropicThinking === 'always';
+  anthropicThinkingSel.disabled = alwaysAdaptive;
+  if (alwaysAdaptive) anthropicThinkingSel.value = 'adaptive';
 }
 
 function ghostSelectionValue(rootId: string): string {
@@ -940,6 +1278,7 @@ function respawn(
   if (mode === 'interactive') {
     const registry = createScopedDemoRegistry({
       modelProvider: readModelProviderId,
+      modelSelection: readModelSelection,
       onLog: (m) => logLine('op-add', m),
       onError: (m) => logLine('op-error', m),
       // summon needs DOM access (spawns a sibling iframe) and the streaming
@@ -1025,9 +1364,33 @@ directionSel.addEventListener('change', () => {
 });
 
 modelProviderSel.addEventListener('change', () => {
+  customModelEl.value = '';
+  populateModelSelectionControls();
   clearEffectiveContractSummary();
   logLine('op-meta', `provider → ${readModelProviderId() ?? 'server default'}`);
 });
+
+generationModelSel.addEventListener('change', () => {
+  customModelFieldEl.hidden = generationModelSel.value !== '__custom__';
+  syncAnthropicThinkingAvailability();
+  clearEffectiveContractSummary();
+  logLine('op-meta', `model → ${readModelSelection().generationModel ?? generationModelSel.value}`);
+});
+
+utilityModelSel.addEventListener('change', () => {
+  clearEffectiveContractSummary();
+  logLine('op-meta', `utility model → ${utilityModelSel.value}`);
+});
+
+customModelEl.addEventListener('input', () => {
+  clearEffectiveContractSummary();
+});
+
+for (const control of [maxOutputTokensSel, repairMaxOutputTokensSel, anthropicThinkingSel, modelEffortSel]) {
+  control.addEventListener('change', () => {
+    clearEffectiveContractSummary();
+  });
+}
 
 ghostTargetEl.addEventListener('change', () => {
   const root = ghostRootFromSelection(currentDirectionId);
@@ -1311,6 +1674,10 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
 interface StreamOptions {
   prompt: string;
   modelProvider?: string | null;
+  generationModel?: string;
+  utilityModel?: string;
+  customModel?: boolean;
+  modelOptions?: ModelOptions;
   directionId: string | null;
   layout?: SummonLayout | null;
   scriptPolicy?: ScriptPolicy;
@@ -1349,6 +1716,10 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
     body: JSON.stringify({
       prompt: opts.prompt,
       ...(opts.modelProvider ? { modelProvider: opts.modelProvider } : {}),
+      ...(opts.generationModel ? { generationModel: opts.generationModel } : {}),
+      ...(opts.utilityModel ? { utilityModel: opts.utilityModel } : {}),
+      ...(opts.customModel ? { customModel: true } : {}),
+      ...(opts.modelOptions ? { modelOptions: opts.modelOptions } : {}),
       ...(ghostRootId
         ? {
             ghost: {
@@ -1701,6 +2072,10 @@ async function generate(prompt: string) {
     const result = await streamGenerationInto(target, {
       prompt,
       modelProvider: active.modelProvider,
+      generationModel: active.generationModel,
+      utilityModel: active.utilityModel,
+      customModel: active.customModel,
+      modelOptions: active.modelOptions,
       directionId: currentDirectionId,
       layout: readLayout(),
       scriptPolicy: active.scriptPolicy,
@@ -1761,6 +2136,10 @@ async function editArtifact(instruction: string) {
     const result = await streamGenerationInto(createParentTarget(active), {
       prompt: instruction,
       modelProvider: active.modelProvider,
+      generationModel: active.generationModel,
+      utilityModel: active.utilityModel,
+      customModel: active.customModel,
+      modelOptions: active.modelOptions,
       directionId: currentDirectionId,
       layout: readLayout(),
       scriptPolicy: active.scriptPolicy,
@@ -1847,6 +2226,7 @@ function summonChild(childPrompt: string, title?: string) {
     .filter((name) => name !== 'summon');
   const childRegistry = createScopedDemoRegistry({
     modelProvider: readModelProviderId,
+    modelSelection: readModelSelection,
     onLog: () => {},
     onError: (m) => {
       statusEl.textContent = `error: ${m.slice(0, 40)}`;
@@ -1929,6 +2309,7 @@ function summonChild(childPrompt: string, title?: string) {
   void streamGenerationInto(childTarget, {
     prompt: childPrompt,
     modelProvider: readModelProviderId(),
+    ...readModelSelection(),
     directionId: currentDirectionId,
     signal: abort.signal,
   })

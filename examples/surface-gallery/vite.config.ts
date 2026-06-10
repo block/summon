@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
 const port = Number(process.env.SUMMON_GALLERY_PORT ?? 5174);
+const apiTarget = process.env.SUMMON_GALLERY_API_TARGET ?? 'http://localhost:3001';
 
 export default defineConfig({
   server: {
@@ -9,7 +10,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: apiTarget,
         changeOrigin: true,
       },
     },

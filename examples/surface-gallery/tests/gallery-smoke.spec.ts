@@ -1,7 +1,123 @@
+import { createServer, type Server, type ServerResponse } from 'node:http';
 import { expect, test } from '@playwright/test';
+
+const galleryApiPort = Number(process.env.SUMMON_GALLERY_API_PORT ?? 3015);
 
 function streamBody(lines: unknown[]): string {
   return `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`;
+}
+
+function modelProviderPayload(): object {
+  return {
+    defaultProvider: 'anthropic',
+    providers: [{
+      id: 'anthropic',
+      name: 'Anthropic',
+      configured: true,
+      model: 'claude-sonnet-4-6',
+      utilityModel: 'claude-haiku-4-5',
+      models: [
+        { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', status: 'stable', tier: 'balanced', maxOutputTokens: 64000 },
+        { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', status: 'stable', tier: 'fast', maxOutputTokens: 64000 },
+      ],
+      utilityModels: [
+        { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', status: 'stable', tier: 'fast', maxOutputTokens: 64000 },
+      ],
+      defaults: {
+        generationModel: 'claude-sonnet-4-6',
+        utilityModel: 'claude-haiku-4-5',
+        modelOptions: { maxOutputTokens: 64000, repairMaxOutputTokens: 12000 },
+      },
+      controls: {
+        customModels: true,
+        maxOutputTokens: { default: 64000, presets: [12000, 64000] },
+        repairMaxOutputTokens: { default: 12000, presets: [4000, 12000] },
+      },
+    }],
+  };
+}
+
+function writeProtocolLine(res: ServerResponse, line: unknown): void {
+  res.write(`${JSON.stringify(line)}\n`);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function closeServer(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  });
+}
+
+async function startProgressiveApiServer(): Promise<Server> {
+  const server = createServer(async (req, res) => {
+    if (req.method === 'GET' && req.url === '/api/model-providers') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(modelProviderPayload()));
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/api/ghost-roots') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('[]');
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/api/generate') {
+      for await (const _chunk of req) {
+        // Drain request body before streaming a response.
+      }
+      res.writeHead(200, {
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+      });
+      await delay(180);
+      writeProtocolLine(res, { op: 'meta', path: '/status', value: 'writing' });
+      await delay(250);
+      writeProtocolLine(res, { op: 'set', path: '/screen', value: { sections: ['main'] } });
+      writeProtocolLine(res, {
+        op: 'add',
+        path: '/section/main',
+        html: '<article style="padding:24px;font-family:system-ui;"><h1>Drafting surface</h1><p>Gathering the shape.</p></article>',
+      });
+      await delay(900);
+      writeProtocolLine(res, {
+        op: 'add',
+        path: '/section/main',
+        html: '<article style="padding:24px;font-family:system-ui;"><h1>Final answer</h1><p>Ready to inspect.</p></article>',
+      });
+      writeProtocolLine(res, {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: true,
+            missingDeclared: [],
+            blockedCount: 0,
+            skippedCount: 0,
+            repairedCount: 0,
+          },
+          sections: [],
+        },
+      });
+      res.end();
+      return;
+    }
+
+    res.writeHead(404);
+    res.end('not found');
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(galleryApiPort, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+  return server;
 }
 
 test('gallery boots and preset selection updates the contract panel', async ({ page }) => {
@@ -21,8 +137,44 @@ test('gallery boots and preset selection updates the contract panel', async ({ p
   await expect(page.locator('[data-contract-row="grants"]')).toContainText('search');
 });
 
+test('gallery shows progressive placeholder before final stream replacement', async ({ page }) => {
+  const server = await startProgressiveApiServer();
+  try {
+    await page.goto('/');
+    await page.locator('#run').click();
+
+    await expect(page.locator('.welcome-kicker')).toHaveText(/Streaming|Writing/);
+    await expect(page.locator('#welcome-detail')).toContainText('Waiting for validated surface lines');
+
+    const frame = page.frameLocator('#sandbox');
+    await expect(frame.locator('h1')).toContainText('Drafting surface');
+    await expect(page.locator('#accepted-count')).toContainText('2');
+    await expect(frame.locator('h1')).toContainText('Final answer');
+    await expect(frame.locator('text=Drafting surface')).toHaveCount(0);
+    await expect(page.locator('#accepted-count')).toContainText('3');
+    await expect(page.locator('#status')).toContainText('done');
+    await expect(page.locator('#tab-contract')).toHaveAttribute('aria-selected', 'true');
+  } finally {
+    await closeServer(server);
+  }
+});
+
 test('mocked generation renders and generated host tool requests update host state', async ({ page }) => {
   let captured: any = null;
+  await page.route('**/api/model-providers', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(modelProviderPayload()),
+    });
+  });
+  await page.route('**/api/ghost-roots', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    });
+  });
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
     await route.fulfill({
@@ -72,10 +224,14 @@ test('mocked generation renders and generated host tool requests update host sta
   });
 
   await page.goto('/');
+  await page.locator('#generation-model').selectOption('claude-haiku-4-5');
   await page.locator('[data-preset-id="decision-picker"]').click();
   await page.locator('#run').click();
   await expect(page.locator('#status')).toContainText('done');
 
+  expect(captured.modelProvider).toBe('anthropic');
+  expect(captured.generationModel).toBe('claude-haiku-4-5');
+  expect(captured.utilityModel).toBe('claude-haiku-4-5');
   expect(captured.surfacePolicy).toEqual({
     tier: 'declarative',
     purpose: 'compare',

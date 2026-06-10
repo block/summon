@@ -433,6 +433,56 @@ test('runSurfaceGeneration passes provider meta chunks through in order', async 
   assert.equal(lines[2]?.path, '/section/hero');
 });
 
+test('runSurfaceGeneration emits progressive section replacements in order', async () => {
+  const lines: ProtocolLine[] = [];
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'progressive',
+    mode: 'interactive',
+    modelProvider: async function* () {
+      yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
+      yield '{"op":"add","path":"/section/hero","html":"<div aria-busy=\\"true\\">Drafting...</div>"}\n';
+      yield '{"op":"add","path":"/section/hero","html":"<article><h1>Final answer</h1></article>"}\n';
+    },
+  }, (line) => {
+    lines.push(line);
+  });
+
+  const heroLines = lines.filter((line) => line.path === '/section/hero');
+  assert.equal(heroLines.length, 2);
+  assert.match(JSON.stringify(heroLines[0]), /Drafting/);
+  assert.match(JSON.stringify(heroLines[1]), /Final answer/);
+  assert.deepEqual(summary.acceptedLines.map((line) => line.path), [
+    '/screen',
+    '/section/hero',
+    '/section/hero',
+  ]);
+  assert.equal(summary.blocked, false);
+});
+
+test('runSurfaceGeneration validates progressive section replacements independently', async () => {
+  const lines: ProtocolLine[] = [];
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'unsafe replacement',
+    mode: 'static',
+    modelProvider: async function* () {
+      yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
+      yield '{"op":"add","path":"/section/hero","html":"<p>Safe placeholder</p>"}\n';
+      yield '{"op":"add","path":"/section/hero","html":"<script>alert(1)</script>"}\n';
+    },
+  }, (line) => {
+    lines.push(line);
+  });
+
+  const heroLines = lines.filter((line) => line.path === '/section/hero');
+  assert.equal(heroLines.length, 1);
+  assert.match(JSON.stringify(heroLines[0]), /Safe placeholder/);
+  assert.equal(summary.blocked, true);
+  assert.equal(summary.acceptedLines.filter((line) => line.path === '/section/hero').length, 1);
+  assert.ok(lines.some((line) => line.path === '/validation-blocked'));
+});
+
 test('runSurfaceGeneration processes final buffered text without trailing newline', async () => {
   const lines: ProtocolLine[] = [];
 

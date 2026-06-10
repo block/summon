@@ -56,14 +56,32 @@ const summonArgsSchema = z.object({
 type SearchResult = z.infer<typeof searchResultSchema>;
 type SummonArgs = z.infer<typeof summonArgsSchema>;
 
-function providerPayload(modelProvider: string | null | undefined): { modelProvider?: string } {
-  return modelProvider ? { modelProvider } : {};
+export interface DemoModelSelectionPayload {
+  modelProvider?: string | null;
+  generationModel?: string;
+  utilityModel?: string;
+  customModel?: boolean;
+  modelOptions?: object;
+}
+
+function providerPayload(
+  modelProvider: string | null | undefined,
+  selection: DemoModelSelectionPayload | undefined,
+): DemoModelSelectionPayload {
+  return {
+    ...(modelProvider ? { modelProvider } : {}),
+    ...(selection?.generationModel ? { generationModel: selection.generationModel } : {}),
+    ...(selection?.utilityModel ? { utilityModel: selection.utilityModel } : {}),
+    ...(selection?.customModel ? { customModel: true } : {}),
+    ...(selection?.modelOptions ? { modelOptions: selection.modelOptions } : {}),
+  };
 }
 
 export interface DemoHandlerOptions {
   onLog?: (message: string) => void;
   onError?: (message: string) => void;
   modelProvider?: () => string | null;
+  modelSelection?: () => DemoModelSelectionPayload;
   /**
    * Optional because only the single-prompt generate page owns the DOM and
    * streaming machinery needed to spawn sibling sandboxes.
@@ -227,7 +245,7 @@ export function createDemoCapabilityRegistry(
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             query,
-            ...providerPayload(opts.modelProvider?.()),
+            ...providerPayload(opts.modelProvider?.(), opts.modelSelection?.()),
           }),
           signal,
         });
@@ -275,7 +293,7 @@ export function createDemoCapabilityRegistry(
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt,
-            ...providerPayload(opts.modelProvider?.()),
+            ...providerPayload(opts.modelProvider?.(), opts.modelSelection?.()),
           }),
           signal,
         });

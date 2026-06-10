@@ -158,6 +158,25 @@ test('consumeSurfaceStream renders interactive streams only at completion', asyn
   assert.match(result.html, /Done/);
 });
 
+test('consumeSurfaceStream live render mode renders interactive section replacements', async () => {
+  const renders: string[] = [];
+  const result = await consumeSurfaceStream([
+    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+    '{"op":"add","path":"/section/hero","html":"<div aria-busy=\\"true\\">Drafting...</div>"}\n',
+    '{"op":"add","path":"/section/hero","html":"<article><h1>Final answer</h1></article>"}\n',
+  ], {
+    mode: 'interactive',
+    renderMode: 'live',
+    onRenderHtml: (html) => renders.push(html),
+  });
+
+  assert.equal(renders.length, 2);
+  assert.match(renders[0]!, /Drafting/);
+  assert.doesNotMatch(renders[1]!, /Drafting/);
+  assert.match(renders[1]!, /Final answer/);
+  assert.equal(renders[1], result.html);
+});
+
 test('consumeSurfaceStream manual render mode does not call render callback', async () => {
   let renderCount = 0;
   const result = await consumeSurfaceStream([

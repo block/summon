@@ -153,11 +153,12 @@ async function loadSplitPackageRoot(
 ): Promise<ResolvedGhostRootCompat> {
   const ghostRoot = join(packageRoot, memoryDir);
   const fingerprintRoot = join(ghostRoot, 'fingerprint');
-  const [manifestRaw, proseRaw, inventoryRaw, compositionRaw, intent] = await Promise.all([
+  const [manifestRaw, proseRaw, inventoryRaw, compositionRaw, checksRaw, intent] = await Promise.all([
     readRequired(join(fingerprintRoot, 'manifest.yml')),
     readOptional(join(fingerprintRoot, 'prose.yml')),
     readOptional(join(fingerprintRoot, 'inventory.yml')),
     readOptional(join(fingerprintRoot, 'composition.yml')),
+    readOptional(join(fingerprintRoot, 'enforcement', 'checks.yml')),
     readOptional(join(fingerprintRoot, 'memory', 'intent.md')),
   ]);
   const manifest = parseYaml(manifestRaw) as Record<string, any>;
@@ -179,6 +180,7 @@ async function loadSplitPackageRoot(
     prose,
     inventory,
     composition,
+    checksRaw,
     intent,
   };
   return {

@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage } from 'node:http';
-import { dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import type {
@@ -153,8 +155,9 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(response.status, 200, body);
 
   assert.equal(anthropicRequests.length, 1);
-  const request = anthropicRequests[0] as { system?: Array<{ text?: string }>; stream?: boolean };
+  const request = anthropicRequests[0] as { model?: string; system?: Array<{ text?: string }>; stream?: boolean };
   assert.equal(request.stream, true);
+  assert.equal(request.model, 'claude-sonnet-4-6');
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(systemText, /Search host-owned dinner data/);
   assert.match(systemText, /host-resource/);
@@ -289,6 +292,321 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(anthropicRequests.length, 3);
 });
 
+test('api generate emits compact Ghost capsule for root contexts', async (t) => {
+  const root = await makeRouteGhostFixture();
+  t.after(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const anthropicRequests: unknown[] = [];
+  const anthropic = createServer(async (req, res) => {
+    if (req.method !== 'POST' || req.url !== '/v1/messages') {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    anthropicRequests.push(JSON.parse(await readBody(req)));
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    });
+    res.end([
+      sse('message_start', {
+        type: 'message_start',
+        message: {
+          id: 'msg_ghost',
+          type: 'message',
+          role: 'assistant',
+          model: 'claude-sonnet-4-6',
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 12, output_tokens: 0 },
+        },
+      }),
+      sse('content_block_start', {
+        type: 'content_block_start',
+        index: 0,
+        content_block: { type: 'text', text: '' },
+      }),
+      sse('content_block_delta', {
+        type: 'content_block_delta',
+        index: 0,
+        delta: {
+          type: 'text_delta',
+          text: '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n{"op":"add","path":"/section/hero","html":"<section><h1>Checkout queue</h1></section>"}\n',
+        },
+      }),
+      sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
+      sse('message_delta', {
+        type: 'message_delta',
+        delta: { stop_reason: 'end_turn', stop_sequence: null },
+        usage: { input_tokens: 12, output_tokens: 24 },
+      }),
+      sse('message_stop', { type: 'message_stop' }),
+    ].join(''));
+  });
+  await listen(anthropic);
+  t.after(async () => {
+    await closeServer(anthropic);
+  });
+
+  const anthropicPort = addressPort(anthropic);
+  const appPort = await reservePort();
+  const app = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(appPort),
+      SUMMON_MODEL_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'test-key',
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${anthropicPort}`,
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+      SUMMON_GHOST_ROOTS: `checkout=${root}`,
+      SUMMON_GHOST_CONTEXT_MODE: '',
+      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_INFER_SHAPE: '0',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = captureOutput(app);
+  t.after(async () => {
+    await stopChild(app);
+  });
+  await waitForHealth(appPort, app, output);
+
+  const response = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build checkout queue status',
+      mode: 'static',
+      ghost: {
+        rootId: 'checkout',
+        targetPath: '.',
+      },
+    }),
+  });
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+
+  assert.equal(anthropicRequests.length, 1);
+  const request = anthropicRequests[0] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(request.stream, true);
+  const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(systemText, /Ghost Capsule/);
+  assert.match(systemText, /Status surfaces must foreground current state/);
+  assert.match(systemText, /Surfaces are compact/);
+  assert.doesNotMatch(systemText, /## Manifest/);
+  assert.doesNotMatch(systemText, /```yaml/);
+
+  const lines = body
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+    'meta /ghost-context',
+    'meta /ghost-token-source',
+    'meta /ghost-capsule',
+    'meta /surface-plan',
+    'meta /status',
+  ]);
+
+  const capsuleLine = lines.find((line) => line.path === '/ghost-capsule') as Extract<ProtocolLine, { op: 'meta' }>;
+  const capsule = capsuleLine.value as {
+    mode?: unknown;
+    prompt?: unknown;
+    promptChars?: number;
+    budgetChars?: number;
+    selectedRefs?: {
+      principles?: string[];
+      experienceContracts?: string[];
+      patterns?: string[];
+    };
+  };
+  assert.equal(capsule.mode, 'capsule');
+  assert.equal(capsule.prompt, undefined);
+  assert.ok((capsule.promptChars ?? 0) > 0);
+  assert.ok((capsule.promptChars ?? 0) <= (capsule.budgetChars ?? 0));
+  assert.deepEqual(capsule.selectedRefs?.principles, ['calm-density']);
+  assert.deepEqual(capsule.selectedRefs?.experienceContracts, ['queue-trust']);
+  assert.deepEqual(capsule.selectedRefs?.patterns, ['measured-surfaces']);
+
+  const ghostReviewPacket = lines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
+  const reviewPacket = ghostReviewPacket.value as {
+    source?: unknown;
+    memoryProvenance?: { merge?: unknown };
+    sections?: Array<{ id?: unknown; html?: unknown }>;
+  };
+  assert.equal(reviewPacket.source, 'root');
+  assert.equal(reviewPacket.memoryProvenance?.merge, 'child-wins-by-id');
+  assert.deepEqual(reviewPacket.sections, [
+    { id: 'hero', html: '<section><h1>Checkout queue</h1></section>' },
+  ]);
+});
+
+test('api generate forwards Anthropic model overrides and speed options', async (t) => {
+  const anthropicRequests: unknown[] = [];
+  const anthropic = createServer(async (req, res) => {
+    if (req.method !== 'POST' || req.url !== '/v1/messages') {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    const request = JSON.parse(await readBody(req)) as { stream?: unknown; model?: string };
+    anthropicRequests.push(request);
+    if (request.stream !== true) {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({
+        id: 'msg_shape',
+        type: 'message',
+        role: 'assistant',
+        model: request.model,
+        content: [{ type: 'text', text: '{"shape":"card"}' }],
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        usage: { input_tokens: 3, output_tokens: 2 },
+      }));
+      return;
+    }
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    });
+    res.end([
+      sse('message_start', {
+        type: 'message_start',
+        message: {
+          id: 'msg_test',
+          type: 'message',
+          role: 'assistant',
+          model: request.model,
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 12, output_tokens: 0 },
+        },
+      }),
+      sse('content_block_start', {
+        type: 'content_block_start',
+        index: 0,
+        content_block: { type: 'text', text: '' },
+      }),
+      sse('content_block_delta', {
+        type: 'content_block_delta',
+        index: 0,
+        delta: {
+          type: 'text_delta',
+          text: '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n{"op":"add","path":"/section/hero","html":"<section><h1>Fast model</h1></section>"}\n',
+        },
+      }),
+      sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
+      sse('message_delta', {
+        type: 'message_delta',
+        delta: { stop_reason: 'end_turn', stop_sequence: null },
+        usage: { input_tokens: 12, output_tokens: 24 },
+      }),
+      sse('message_stop', { type: 'message_stop' }),
+    ].join(''));
+  });
+  await listen(anthropic);
+  t.after(async () => {
+    await closeServer(anthropic);
+  });
+
+  const anthropicPort = addressPort(anthropic);
+  const appPort = await reservePort();
+  const app = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(appPort),
+      SUMMON_MODEL_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'test-key',
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${anthropicPort}`,
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+      SUMMON_INFER_CAPABILITIES: '0',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = captureOutput(app);
+  t.after(async () => {
+    await stopChild(app);
+  });
+  await waitForHealth(appPort, app, output);
+
+  const response = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a compact project status card',
+      modelProvider: 'anthropic',
+      generationModel: 'claude-haiku-4-5',
+      utilityModel: 'claude-haiku-4-5',
+      modelOptions: {
+        maxOutputTokens: 12000,
+        repairMaxOutputTokens: 4000,
+        anthropicThinking: 'off',
+        effort: 'low',
+      },
+      mode: 'static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'static',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'replayable',
+      },
+      surfaceCeiling: {
+        runtimes: ['static'],
+        data: ['embedded'],
+        authorities: ['none'],
+        persistences: ['replayable'],
+      },
+    }),
+  });
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+
+  assert.equal(anthropicRequests.length, 2);
+  const shapeRequest = anthropicRequests[0] as { model?: string; max_tokens?: number; stream?: boolean };
+  assert.equal(shapeRequest.model, 'claude-haiku-4-5');
+  assert.equal(shapeRequest.max_tokens, 100);
+  assert.notEqual(shapeRequest.stream, true);
+
+  const streamRequest = anthropicRequests[1] as {
+    model?: string;
+    max_tokens?: number;
+    thinking?: unknown;
+    output_config?: { effort?: string };
+    stream?: boolean;
+  };
+  assert.equal(streamRequest.model, 'claude-haiku-4-5');
+  assert.equal(streamRequest.max_tokens, 12000);
+  assert.equal(streamRequest.thinking, undefined);
+  assert.equal(streamRequest.output_config?.effort, 'low');
+  assert.equal(streamRequest.stream, true);
+
+  const invalidResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build anything',
+      modelProvider: 'anthropic',
+      generationModel: 'claude-brand-new',
+    }),
+  });
+  assert.equal(invalidResponse.status, 400);
+  assert.match(await invalidResponse.text(), /not in the catalog/);
+});
+
 test('api generate can stream with OpenAI provider', async (t) => {
   const openAIRequests: unknown[] = [];
   const openai = createServer(async (req, res) => {
@@ -350,8 +668,19 @@ test('api generate can stream with OpenAI provider', async (t) => {
   await waitForHealth(appPort, app, output);
 
   const providersResponse = await fetch(`http://127.0.0.1:${appPort}/api/model-providers`);
-  const providers = await providersResponse.json() as { defaultProvider?: unknown };
+  const providers = await providersResponse.json() as {
+    defaultProvider?: unknown;
+    providers?: Array<{
+      id?: unknown;
+      models?: Array<{ id?: unknown }>;
+      controls?: { maxOutputTokens?: unknown };
+    }>;
+  };
   assert.equal(providers.defaultProvider, 'openai');
+  const openAIProvider = providers.providers?.find((provider) => provider.id === 'openai');
+  assert.ok(openAIProvider?.models?.some((model) => model.id === 'gpt-5.5'));
+  assert.ok(openAIProvider?.models?.some((model) => model.id === 'gpt-5.4-mini'));
+  assert.ok(openAIProvider?.controls?.maxOutputTokens);
 
   const response = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
@@ -359,6 +688,9 @@ test('api generate can stream with OpenAI provider', async (t) => {
     body: JSON.stringify({
       prompt: 'build a compact launch status card',
       modelProvider: 'openai',
+      generationModel: 'gpt-5.4-mini',
+      utilityModel: 'gpt-5.4-nano',
+      modelOptions: { maxOutputTokens: 12000 },
       mode: 'static',
       surfacePlan: {
         purpose: 'inform',
@@ -379,9 +711,10 @@ test('api generate can stream with OpenAI provider', async (t) => {
   assert.equal(response.status, 200, body);
 
   assert.equal(openAIRequests.length, 1);
-  const request = openAIRequests[0] as { model?: string; instructions?: string; stream?: boolean };
-  assert.equal(request.model, 'gpt-5');
+  const request = openAIRequests[0] as { model?: string; instructions?: string; stream?: boolean; max_output_tokens?: number };
+  assert.equal(request.model, 'gpt-5.4-mini');
   assert.equal(request.stream, true);
+  assert.equal(request.max_output_tokens, 12000);
   assert.match(request.instructions ?? '', /Surface plan/);
 
   const lines = body
@@ -404,7 +737,7 @@ test('api generate can stream with Gemini provider', async (t) => {
   const gemini = createServer(async (req, res) => {
     if (
       req.method !== 'POST' ||
-      !req.url?.startsWith('/v1beta/models/gemini-2.5-pro:streamGenerateContent')
+      !req.url?.startsWith('/v1beta/models/gemini-3.5-flash:streamGenerateContent')
     ) {
       res.writeHead(404);
       res.end();
@@ -477,6 +810,9 @@ test('api generate can stream with Gemini provider', async (t) => {
     body: JSON.stringify({
       prompt: 'build a compact support triage card',
       modelProvider: 'gemini',
+      generationModel: 'gemini-3.5-flash',
+      utilityModel: 'gemini-3.1-flash-lite',
+      modelOptions: { maxOutputTokens: 12000 },
       mode: 'static',
       surfacePlan: {
         purpose: 'inform',
@@ -501,7 +837,7 @@ test('api generate can stream with Gemini provider', async (t) => {
     systemInstruction?: { parts?: Array<{ text?: string }> };
     generationConfig?: { maxOutputTokens?: number };
   };
-  assert.equal(request.generationConfig?.maxOutputTokens, 64000);
+  assert.equal(request.generationConfig?.maxOutputTokens, 12000);
   assert.match(request.systemInstruction?.parts?.[0]?.text ?? '', /Surface plan/);
 
   const lines = body
@@ -518,6 +854,100 @@ test('api generate can stream with Gemini provider', async (t) => {
   assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
   assert.equal(lines.some((line) => line.path === '/error'), false);
 });
+
+async function makeRouteGhostFixture(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'summon-ghost-route-'));
+  await mkdir(join(root, '.ghost', 'fingerprint', 'enforcement'), { recursive: true });
+  await mkdir(join(root, '.ghost', 'fingerprint', 'memory'), { recursive: true });
+  await writeFile(
+    join(root, '.ghost', 'fingerprint', 'manifest.yml'),
+    `schema: ghost.fingerprint-package/v1
+id: checkout
+`,
+  );
+  await writeFile(
+    join(root, '.ghost', 'fingerprint', 'prose.yml'),
+    `schema: ghost.fingerprint-prose/v1
+summary:
+  product: Checkout
+  tone: [quiet, exacting workflows]
+situations:
+  - id: queue-status
+    title: Queue status
+    user_intent: Show the current checkout queue state.
+    product_obligation: Keep operator status legible before secondary detail.
+    surface_type: dashboard
+    paths: [.]
+    principles: [principle:calm-density]
+    experience_contracts: [experience_contract:queue-trust]
+    patterns: [pattern:measured-surfaces]
+principles:
+  - id: calm-density
+    status: accepted
+    principle: Preserve quiet density and clear hierarchy.
+    applies_to:
+      paths: [.]
+      surface_types: [dashboard]
+    guidance:
+      - Favor compact hierarchy over decorative chrome.
+    check_refs: [check:no-rainbow]
+experience_contracts:
+  - id: queue-trust
+    status: accepted
+    contract: Status surfaces must foreground current state.
+    obligations:
+      - Show current queue state before secondary context.
+    check_refs: [check:no-rainbow]
+`,
+  );
+  await writeFile(
+    join(root, '.ghost', 'fingerprint', 'inventory.yml'),
+    `schema: ghost.fingerprint-inventory/v1
+topology:
+  scopes:
+    - id: app
+      paths: [.]
+      surface_types: [dashboard]
+building_blocks:
+  tokens: [--color-bg, --color-text, --space-2]
+  components: [QueueCard]
+`,
+  );
+  await writeFile(
+    join(root, '.ghost', 'fingerprint', 'composition.yml'),
+    `schema: ghost.fingerprint-composition/v1
+patterns:
+  - id: measured-surfaces
+    kind: composition
+    status: accepted
+    pattern: Surfaces are compact, rectangular, and information-first.
+    guidance:
+      - Use one clear status block before supporting details.
+    anti_patterns:
+      - Avoid marketing-style hero copy.
+    check_refs: [check:no-rainbow]
+`,
+  );
+  await writeFile(
+    join(root, '.ghost', 'fingerprint', 'enforcement', 'checks.yml'),
+    `schema: ghost.checks/v1
+id: checkout
+checks:
+  - id: no-rainbow
+    active: true
+    summary: Avoid rainbow decorative color.
+    pattern: rainbow
+`,
+  );
+  await writeFile(
+    join(root, '.ghost', 'config.yml'),
+    `schema: ghost.config/v1
+targets: []
+libraries: []
+`,
+  );
+  return root;
+}
 
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;

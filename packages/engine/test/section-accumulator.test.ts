@@ -32,3 +32,37 @@ test('snapshots, hydrates, and reports detailed section changes', () => {
   assert.equal(replacement.orderChanged, false);
   assert.match(restored.compose(), /Updated/);
 });
+
+test('repeated section add replaces existing html without changing order', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['hero'] } });
+
+  const placeholder = acc.applyDetailed({
+    op: 'add',
+    path: '/section/hero',
+    html: '<div aria-busy="true">Drafting...</div>',
+  });
+  assert.deepEqual(placeholder, {
+    changed: true,
+    kind: 'section',
+    sectionId: 'hero',
+    orderChanged: false,
+    htmlChanged: true,
+  });
+
+  const final = acc.applyDetailed({
+    op: 'add',
+    path: '/section/hero',
+    html: '<article><h1>Final answer</h1></article>',
+  });
+  assert.deepEqual(final, {
+    changed: true,
+    kind: 'section',
+    sectionId: 'hero',
+    orderChanged: false,
+    htmlChanged: true,
+  });
+  assert.doesNotMatch(acc.compose(), /Drafting/);
+  assert.match(acc.compose(), /Final answer/);
+  assert.deepEqual(acc.snapshot().sections.map((section) => section.id), ['hero']);
+});

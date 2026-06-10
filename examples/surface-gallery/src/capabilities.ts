@@ -13,6 +13,7 @@ import { z } from 'zod';
 export interface GalleryCapabilityOptions {
   onLog?: (message: string) => void;
   onStatePreview?: (state: Record<string, unknown>) => void;
+  modelSelection?: () => object;
 }
 
 const chooseArgsSchema = z.object({ option: z.string().trim().min(1) });
@@ -99,7 +100,7 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
         const response = await fetch('/api/mock-search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query }),
+          body: JSON.stringify({ query, ...(opts.modelSelection?.() ?? {}) }),
           signal,
         });
         if (!response.ok) throw new Error(`Search service unavailable (${response.status})`);

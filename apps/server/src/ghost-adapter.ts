@@ -1,4 +1,10 @@
-import { compileTokenContract, type ProtocolLine } from '@anarchitecture/summon/engine';
+import {
+  compileTokenContract,
+  type CapabilityPack,
+  type ComponentPack,
+  type ProtocolLine,
+  type SurfacePlan,
+} from '@anarchitecture/summon/engine';
 import type { GhostGenerationContext } from '@anarchitecture/summon-server';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import {
@@ -16,6 +22,14 @@ import {
   type GhostStackLayerCompat,
   type GhostContextCompat,
 } from './ghost-scan-compat.js';
+import {
+  buildSummonGhostCapsule,
+  ghostCapsuleMeta,
+  ghostContextMode,
+  type SummonGhostCapsule,
+} from './ghost-capsule.js';
+
+export { ghostCapsuleMeta };
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
@@ -84,6 +98,7 @@ export interface ResolvedRootGhostSteer extends GhostGenerationContext {
   tokenSource: GhostTokenSource;
   baseDirectionId: string | null;
   product: string;
+  capsule?: SummonGhostCapsule;
 }
 
 export interface ResolvedContextGhostSteer extends GhostGenerationContext {
@@ -102,6 +117,15 @@ export interface ResolvedContextGhostSteer extends GhostGenerationContext {
 export type ResolvedGhostSteer = ResolvedRootGhostSteer | ResolvedContextGhostSteer;
 
 export type ResolvedGhostContext = ResolvedGhostSteer;
+
+export interface GhostSurfacePromptOptions {
+  userPrompt: string;
+  mode: 'static' | 'interactive';
+  surfacePlan: SurfacePlan;
+  shape?: string | null;
+  capabilities?: CapabilityPack | null;
+  components?: ComponentPack | null;
+}
 
 export interface GhostReviewPacket {
   schema: 'summon.ghost-generation/v1';
@@ -316,8 +340,12 @@ async function resolveRootGhostGenerationContext(
   if (resolve(stack.repoRoot) !== resolve(root)) {
     throw new Error('configured Ghost root must resolve to the fingerprint stack repo root');
   }
-  const [prompt, tokenSource] = await Promise.all([
-    buildPromptFromContext(context),
+  const product = stack.product ?? context.name;
+  const [promptContext, tokenSource] = await Promise.all([
+    buildPromptFromContext(context, {
+      product,
+      targetPath: stack.targetPath,
+    }),
     resolveGhostTokenSource(stack, baseDirection),
   ]);
   return {
@@ -326,10 +354,34 @@ async function resolveRootGhostGenerationContext(
     root,
     stack,
     context,
-    prompt,
-    product: stack.product ?? context.name,
+    prompt: promptContext.prompt,
+    ...(promptContext.capsule ? { capsule: promptContext.capsule } : {}),
+    product,
     tokenSource,
     baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
+  };
+}
+
+export function prepareGhostSurfacePrompt(
+  context: ResolvedGhostSteer,
+  options: GhostSurfacePromptOptions,
+): ResolvedGhostSteer {
+  if (context.source !== 'root' || ghostContextMode() === 'raw') return context;
+  const capsule = buildSummonGhostCapsule({
+    raw: context.context.raw,
+    product: context.product,
+    targetPath: context.stack.targetPath,
+    userPrompt: options.userPrompt,
+    mode: options.mode,
+    surfacePlan: options.surfacePlan,
+    shape: options.shape,
+    capabilities: options.capabilities,
+    components: options.components,
+  });
+  return {
+    ...context,
+    prompt: capsule.prompt,
+    capsule,
   };
 }
 
@@ -438,8 +490,22 @@ export function buildGhostReviewPacket(input: {
   };
 }
 
-async function buildPromptFromContext(context: GhostContextCompat): Promise<string> {
-  return context.writePrompt();
+async function buildPromptFromContext(
+  context: GhostContextCompat,
+  input: {
+    product: string;
+    targetPath: string;
+  },
+): Promise<{ prompt: string; capsule?: SummonGhostCapsule }> {
+  if (ghostContextMode() === 'raw') {
+    return { prompt: await context.writePrompt() };
+  }
+  const capsule = buildSummonGhostCapsule({
+    raw: context.raw,
+    product: input.product,
+    targetPath: input.targetPath,
+  });
+  return { prompt: capsule.prompt, capsule };
 }
 
 async function resolveGhostTokenSource(

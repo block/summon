@@ -8,6 +8,7 @@ import {
   buildGhostReviewPacket,
   parseGhostRequest,
   parseGhostRoots,
+  prepareGhostSurfacePrompt,
   resolveGhostContext,
   resolveGhostSteer,
 } from './ghost-adapter.js';
@@ -91,10 +92,50 @@ describe('Ghost adapter', () => {
     assert.equal(ctx.tokenSource.source, 'tokens.css');
     assert.equal(ctx.tokenSource.css, await readDefaultTokensCss());
     assert.equal(ctx.product, 'Test Product');
+    assert.ok(ctx.capsule);
+    assert.equal(ctx.capsule.prompt, ctx.prompt);
+    assert.equal(ctx.capsule.mode, 'capsule');
+    assert.ok(ctx.prompt.length <= 4000);
     assert.match(ctx.prompt, /Test Product/);
-    assert.match(ctx.prompt, /quiet/);
+    assert.match(ctx.prompt, /Ghost Capsule/);
+    assert.match(ctx.prompt, /Preserve quiet density/);
+    assert.match(ctx.prompt, /Status surfaces must foreground current state/);
+    assert.match(ctx.prompt, /Surfaces are compact/);
     assert.match(ctx.prompt, /exacting workflows/);
     assert.match(ctx.prompt, /Human-approved test intent/);
+    assert.doesNotMatch(ctx.prompt, /## Manifest/);
+    assert.doesNotMatch(ctx.prompt, /```yaml/);
+    assert.deepEqual(ctx.capsule.selectedRefs.principles, ['calm-density']);
+    assert.deepEqual(ctx.capsule.selectedRefs.experienceContracts, ['queue-trust']);
+    assert.deepEqual(ctx.capsule.selectedRefs.patterns, ['measured-surfaces']);
+    assert.deepEqual(ctx.capsule.selectedRefs.checks, ['no-rainbow']);
+  });
+
+  it('preserves raw Ghost prompt behavior when requested', async () => {
+    const previousMode = process.env.SUMMON_GHOST_CONTEXT_MODE;
+    process.env.SUMMON_GHOST_CONTEXT_MODE = 'raw';
+    try {
+      const root = await makeGhostFixture();
+      const roots = parseGhostRoots(`checkout=${root}`);
+      const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
+      assert.equal(parsed.ok, true);
+      if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+
+      const ctx = await resolveGhostContext(parsed.request, roots);
+
+      assert.equal(ctx.source, 'root');
+      if (ctx.source !== 'root') assert.fail('expected root context');
+      assert.equal(ctx.capsule, undefined);
+      assert.match(ctx.prompt, /## Manifest/);
+      assert.match(ctx.prompt, /```yaml/);
+      assert.match(ctx.prompt, /fingerprint-prose/);
+    } finally {
+      if (previousMode === undefined) {
+        delete process.env.SUMMON_GHOST_CONTEXT_MODE;
+      } else {
+        process.env.SUMMON_GHOST_CONTEXT_MODE = previousMode;
+      }
+    }
   });
 
   it('bridges legacy fingerprint.yml roots', async () => {
@@ -109,7 +150,41 @@ describe('Ghost adapter', () => {
     assert.equal(ctx.source, 'root');
     if (ctx.source !== 'root') assert.fail('expected root context');
     assert.equal(ctx.product, 'Test Product');
+    assert.ok(ctx.capsule);
+    assert.match(ctx.prompt, /Ghost Capsule/);
     assert.match(ctx.prompt, /Preserve quiet density/);
+    assert.doesNotMatch(ctx.prompt, /```yaml/);
+  });
+
+  it('keeps large Ghost capsules under the hard static budget', async () => {
+    const root = await makeGhostFixture({ large: true });
+    const roots = parseGhostRoots(`checkout=${root}`);
+    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+
+    const ctx = await resolveGhostContext(parsed.request, roots);
+
+    assert.equal(ctx.source, 'root');
+    if (ctx.source !== 'root') assert.fail('expected root context');
+    const prepared = prepareGhostSurfacePrompt(ctx, {
+      userPrompt: 'show checkout queue status',
+      mode: 'static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'static',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'replayable',
+      },
+      shape: 'card',
+    });
+    assert.equal(prepared.source, 'root');
+    if (prepared.source !== 'root') assert.fail('expected root context');
+    assert.ok(prepared.capsule);
+    assert.equal(prepared.capsule.budgetChars, 4000);
+    assert.ok(prepared.prompt.length <= prepared.capsule.budgetChars);
+    assert.doesNotMatch(prepared.prompt, /```yaml/);
   });
 
   it('falls back to Summon default tokens when Ghost token CSS is missing or invalid', async () => {
@@ -274,11 +349,28 @@ describe('Ghost adapter', () => {
   });
 });
 
-async function makeGhostFixture(options: { tokenCss?: string } = {}): Promise<string> {
+async function makeGhostFixture(options: { tokenCss?: string; large?: boolean } = {}): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-'));
   fixtureRoots.push(root);
   await mkdir(join(root, '.ghost', 'fingerprint', 'enforcement'), { recursive: true });
   await mkdir(join(root, '.ghost', 'fingerprint', 'memory'), { recursive: true });
+  const extraPrinciples = options.large
+    ? Array.from({ length: 30 }, (_, index) => `  - id: extra-principle-${index}
+    status: accepted
+    principle: Extra accepted principle ${index} ${'keeps operational hierarchy clear '.repeat(12)}
+    guidance:
+      - Extra guidance ${index} ${'keeps the surface compact and legible '.repeat(10)}
+`)
+    : [];
+  const extraPatterns = options.large
+    ? Array.from({ length: 30 }, (_, index) => `  - id: extra-pattern-${index}
+    kind: composition
+    status: accepted
+    pattern: Extra composition pattern ${index} ${'uses restrained blocks and clear state '.repeat(12)}
+    guidance:
+      - Extra pattern guidance ${index} ${'prevents ornamental layout from hiding work '.repeat(10)}
+`)
+    : [];
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'manifest.yml'),
     `schema: ghost.fingerprint-package/v1
@@ -293,11 +385,40 @@ summary:
   audience: [operators]
   goals: [keep work legible]
   tone: [quiet, exacting workflows]
-situations: []
+situations:
+  - id: queue-status
+    title: Queue status
+    user_intent: Show the current checkout queue state.
+    product_obligation: Keep operator status legible before secondary detail.
+    surface_type: dashboard
+    paths: [.]
+    principles: [principle:calm-density]
+    experience_contracts: [experience_contract:queue-trust]
+    patterns: [pattern:measured-surfaces]
+    refuses:
+      - Decorative chrome that hides operational state.
 principles:
   - id: calm-density
+    status: accepted
     principle: Preserve quiet density and clear hierarchy.
-experience_contracts: []
+    applies_to:
+      paths: [.]
+      surface_types: [dashboard]
+    guidance:
+      - Favor compact hierarchy over decorative chrome.
+    counterexamples:
+      - Hero-style decoration before operational state.
+    check_refs: [check:no-rainbow]
+${extraPrinciples.join('')}experience_contracts:
+  - id: queue-trust
+    status: accepted
+    contract: Status surfaces must foreground current state.
+    applies_to:
+      paths: [.]
+      surface_types: [dashboard]
+    obligations:
+      - Show current queue state before secondary context.
+    check_refs: [check:no-rainbow]
 `,
   );
   await writeFile(
@@ -310,8 +431,9 @@ topology:
       surface_types: [dashboard]
   surface_types: [dashboard]
 building_blocks:
-  tokens: [--color-bg, --color-text]
-  components: []
+  tokens: [--color-bg, --color-text, --space-2]
+  components: [QueueCard]
+  libraries: [market]
 `,
   );
   await writeFile(
@@ -319,15 +441,29 @@ building_blocks:
     `schema: ghost.fingerprint-composition/v1
 patterns:
   - id: measured-surfaces
-    kind: visual
+    kind: composition
+    status: accepted
     pattern: Surfaces are compact, rectangular, and information-first.
+    applies_to:
+      paths: [.]
+      surface_types: [dashboard]
+    guidance:
+      - Use one clear status block before supporting details.
+    anti_patterns:
+      - Avoid marketing-style hero copy.
+    check_refs: [check:no-rainbow]
+${extraPatterns.join('')}
 `,
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'enforcement', 'checks.yml'),
     `schema: ghost.checks/v1
 id: test-product
-checks: []
+checks:
+  - id: no-rainbow
+    active: true
+    summary: Avoid rainbow decorative color.
+    pattern: rainbow
 `,
   );
   await writeFile(

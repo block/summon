@@ -22,7 +22,7 @@ export function registerDemoRoutes(app: Express, modelProviders: ModelProviderRe
       res.status(400).json({ error: 'query required' });
       return;
     }
-    const modelProvider = resolveRouteProvider(modelProviders, req.body?.modelProvider ?? req.body?.provider, res);
+    const modelProvider = resolveRouteProvider(modelProviders, req.body?.modelProvider ?? req.body?.provider, req.body, res);
     if (!modelProvider) return;
     try {
       const raw = await modelProvider.completeText({
@@ -64,7 +64,7 @@ export function registerDemoRoutes(app: Express, modelProviders: ModelProviderRe
       res.status(400).json({ error: 'prompt required' });
       return;
     }
-    const modelProvider = resolveRouteProvider(modelProviders, req.body?.modelProvider ?? req.body?.provider, res);
+    const modelProvider = resolveRouteProvider(modelProviders, req.body?.modelProvider ?? req.body?.provider, req.body, res);
     if (!modelProvider) return;
     try {
       const response = await modelProvider.completeText({
@@ -85,7 +85,7 @@ export function registerDemoRoutes(app: Express, modelProviders: ModelProviderRe
    * Generates a fresh sample ask for the Generate page's "Random" button.
    */
   app.post('/api/random-prompt', async (_req, res) => {
-    const modelProvider = resolveRouteProvider(modelProviders, _req.body?.modelProvider ?? _req.body?.provider, res);
+    const modelProvider = resolveRouteProvider(modelProviders, _req.body?.modelProvider ?? _req.body?.provider, _req.body, res);
     if (!modelProvider) return;
     try {
       const raw = await modelProvider.completeText({
@@ -121,12 +121,15 @@ export function registerDemoRoutes(app: Express, modelProviders: ModelProviderRe
 function resolveRouteProvider(
   modelProviders: ModelProviderRegistry,
   raw: unknown,
+  selectionRaw: unknown,
   res: Response,
 ): TextCompletionClient | null {
-  const resolved = modelProviders.resolve(raw);
+  const resolved = modelProviders.resolve(raw, selectionRaw);
   if (!resolved.ok) {
     res.status(400).json({ error: resolved.error });
     return null;
   }
-  return resolved.provider;
+  return {
+    completeText: (request) => resolved.provider.completeText(request, resolved.selection),
+  };
 }
