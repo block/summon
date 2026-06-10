@@ -10,6 +10,7 @@ const expectedRootExports = [
   'SURFACE_PERSISTENCE_VALUES',
   'SURFACE_PURPOSE_VALUES',
   'SURFACE_TIER_VALUES',
+  'compileSurfaceContractView',
   'compileSurfacePolicy',
   'createCapabilityRegistry',
   'createComponentRegistry',
@@ -22,6 +23,7 @@ const expectedRootExports = [
   'defineWorkerAction',
   'defineWorkerResource',
   'normalizeSurfacePolicy',
+  'surfaceContractViewFromCompiledPolicy',
 ].sort();
 
 const expectedServerExports = [
@@ -90,10 +92,13 @@ assertHas('@anarchitecture/summon/browser', await importDist('summon', 'browser.
 ]);
 assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js'), [
   'buildCapabilitiesBlock',
+  'buildSurfaceContractBlock',
+  'compileSurfaceContractView',
   'compileSystemContracts',
   'createProtocolHardener',
   'parseProtocolLine',
   'SectionAccumulator',
+  'surfaceContractViewFromCompiledPolicy',
   'StreamGraph',
 ]);
 assertHas('@anarchitecture/summon/host', await importDist('summon', 'host.js'), [

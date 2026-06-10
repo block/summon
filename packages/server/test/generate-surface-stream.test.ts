@@ -202,9 +202,10 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
     lines.push(line);
   });
 
-  assert.deepEqual(lines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
     'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'set /screen',
     'add /section/hero',
   ]);
@@ -224,8 +225,17 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
     authority: 'host-action',
     persistence: 'replayable',
   });
+  assert.equal(lines[2]?.op, 'meta');
+  const surfaceContract = (lines[2] as Extract<ProtocolLine, { op: 'meta' }>).value as {
+    tools?: Array<{ name: string }>;
+    components?: Array<{ name: string }>;
+    surface?: { plan?: unknown };
+  };
+  assert.deepEqual(surfaceContract.tools?.map((tool) => tool.name), ['choose']);
+  assert.deepEqual(surfaceContract.components?.map((component) => component.name), ['MetricCard']);
   assert.match(systemText, /Save a choice/);
   assert.match(systemText, /MetricCard/);
+  assert.match(systemText, /Surface contract/);
   assert.doesNotMatch(systemText, /Search host data/);
   assert.doesNotMatch(systemText, /SecretWidget/);
   assert.equal(summary.blocked, false);
@@ -262,9 +272,10 @@ test('runSurfaceGeneration blocks invalid surface policy before provider invocat
   assert.equal(called, false);
   assert.equal(summary.blocked, true);
   assert.ok(summary.validationIssues.some((issue) => issue.code === 'surface-policy-tier-exceeded'));
-  assert.deepEqual(lines.slice(0, 3).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
     'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'meta /validation-blocked',
   ]);
 });

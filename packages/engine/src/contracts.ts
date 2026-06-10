@@ -7,6 +7,7 @@ import {
   buildLayoutBlock,
   buildOverrideBlock,
   buildPosturesBlock,
+  buildSurfaceContractBlock,
   type CapabilityPack,
   type ComponentPack,
   type DirectionInput,
@@ -25,6 +26,7 @@ import {
   hasCompleteResourceStateKeys,
 } from './capability-contract.js';
 import { formatTokenContract } from './token-contract.js';
+import type { SurfaceContractView } from './surface-contract.js';
 import {
   buildSurfacePlanBlock,
   surfacePlanScriptPolicy,
@@ -143,6 +145,7 @@ export interface SystemContractInput {
   tokenOverrides?: TokenOverride[];
   postures?: PostureRegistry | null;
   surfacePlan?: SurfacePlan | null;
+  surfaceContract?: SurfaceContractView | null;
   activeTokensCss?: string | null;
 }
 
@@ -150,6 +153,7 @@ export interface CompiledSystemContracts {
   promptBlocks: ContractPromptBlock[];
   validationContext: ValidationContext;
   startupLines: ProtocolLine[];
+  surfaceContract?: SurfaceContractView;
   issues: ContractIssue[];
 }
 
@@ -196,7 +200,7 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'bad-attr-binding-placement':
       return ['Use only safe data-summon-attr-* bindings on supported elements.'];
     case 'host-owned-meta':
-      return ['Remove host-owned meta lines; the host emits /surface-policy and /surface-plan before model output.'];
+      return ['Remove host-owned meta lines; the host emits /surface-policy, /surface-plan, and /surface-contract before model output.'];
     case 'surface-policy-invalid':
     case 'surface-policy-unknown-grant':
     case 'surface-policy-unknown-component':
@@ -280,11 +284,18 @@ export function compileCapabilityContract(
         : defaultTriggersForKind(intent.kind ?? 'action'),
     };
     if (intent.stateKeys) capability.stateKeys = intent.stateKeys;
+    if (intent.actionStateKeys) capability.actionStateKeys = intent.actionStateKeys;
     if (intent.surface) capability.surface = intent.surface;
     if (intent.kind === 'resource' && hasCompleteResourceStateKeys(intent.stateKeys)) {
       initialState[intent.stateKeys.loading] = false;
       initialState[intent.stateKeys.data] = intent.defaultData ?? null;
       initialState[intent.stateKeys.error] = null;
+      if (intent.stateKeys.empty) initialState[intent.stateKeys.empty] = false;
+    }
+    if ((intent.kind ?? 'action') === 'action' && intent.actionStateKeys) {
+      initialState[intent.actionStateKeys.pending] = false;
+      initialState[intent.actionStateKeys.done] = false;
+      initialState[intent.actionStateKeys.error] = null;
     }
     return capability;
   });
@@ -381,19 +392,26 @@ export function compileSystemContracts(
     });
   }
 
-  if (input.surfacePlan) {
+  const activeSurfacePlan = input.surfaceContract?.surface.plan ?? input.surfacePlan ?? null;
+  if (input.surfaceContract) {
+    promptBlocks.push({
+      id: 'surface-contract',
+      text: buildSurfaceContractBlock(input.surfaceContract),
+      cache: 'ephemeral',
+    });
+  } else if (activeSurfacePlan) {
     promptBlocks.push({
       id: 'surface-plan',
-      text: buildSurfacePlanBlock(input.surfacePlan),
+      text: buildSurfacePlanBlock(activeSurfacePlan),
       cache: 'ephemeral',
     });
   }
 
   const requestedScriptPolicy = input.scriptPolicy ??
-    (input.surfacePlan
-      ? surfacePlanScriptPolicy(input.surfacePlan)
+    (activeSurfacePlan
+      ? surfacePlanScriptPolicy(activeSurfacePlan)
       : 'forbid');
-  const hasScriptedPlan = input.surfacePlan?.runtime === 'scripted';
+  const hasScriptedPlan = activeSurfacePlan?.runtime === 'scripted';
   if (hasScriptedPlan && requestedScriptPolicy !== 'allow') {
     issues.push(contractIssue({
       source: 'system',
@@ -441,13 +459,14 @@ export function compileSystemContracts(
     promptBlocks,
     issues,
     startupLines,
+    surfaceContract: input.surfaceContract ?? undefined,
     validationContext: {
       mode: input.mode,
       allowedIntents: capability.intentNames,
       capabilities: capability.validationCapabilities,
       components: component.validationComponents,
       scriptPolicy,
-      surfacePlan: input.surfacePlan ?? undefined,
+      surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
     },
   };

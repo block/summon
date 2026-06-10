@@ -7,7 +7,7 @@ import type { ContractIssue } from '../contracts.js';
 
 const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
 const META_PATH_RE = /^\/[a-z][a-z0-9-/]{0,119}$/;
-const HOST_OWNED_META_PATHS = new Set(['/surface-policy', '/surface-plan']);
+const HOST_OWNED_META_PATHS = new Set(['/surface-policy', '/surface-plan', '/surface-contract']);
 
 export function validateProtocolLine(
   line: ProtocolLine,

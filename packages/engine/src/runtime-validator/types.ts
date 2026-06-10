@@ -1,4 +1,5 @@
 import type {
+  ActionStateKeys,
   CapabilityKind,
   CapabilityStateKeys,
   CapabilityTrigger,
@@ -23,6 +24,7 @@ export interface ValidationCapability {
   kind?: CapabilityKind;
   triggers?: CapabilityTrigger[];
   stateKeys?: CapabilityStateKeys;
+  actionStateKeys?: ActionStateKeys;
   surface?: CapabilitySurface;
 }
 
@@ -36,6 +38,7 @@ export interface RuntimeCapability {
   kind: CapabilityKind;
   triggers: Set<CapabilityTrigger>;
   stateKeys?: CapabilityStateKeys;
+  actionStateKeys?: ActionStateKeys;
   surface?: CapabilitySurface;
 }
 
@@ -46,6 +49,8 @@ export interface ResourceUsage {
   hasLoadingBinding: boolean;
   hasErrorBinding: boolean;
   hasDataBinding: boolean;
+  hasEmptyState: boolean;
+  hasEmptyBinding: boolean;
 }
 
 export interface ResourceScope {

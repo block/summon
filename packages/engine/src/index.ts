@@ -41,6 +41,7 @@ export {
   buildComponentsBlock,
   buildOverrideBlock,
   buildPosturesBlock,
+  buildSurfaceContractBlock,
 } from './prompt.js';
 export type {
   Exemplar,
@@ -182,6 +183,18 @@ export type {
   SurfacePolicy,
   SurfaceTier,
 } from './surface-policy.js';
+export {
+  compileSurfaceContractView,
+  surfaceContractViewFromCompiledPolicy,
+} from './surface-contract.js';
+export type {
+  CompileSurfaceContractViewOptions,
+  SurfaceContractComponent,
+  SurfaceContractLayout,
+  SurfaceContractSurface,
+  SurfaceContractTool,
+  SurfaceContractView,
+} from './surface-contract.js';
 export { createProtocolHardener } from './protocol-hardener.js';
 export type {
   ProtocolHardener,

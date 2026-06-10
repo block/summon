@@ -206,9 +206,9 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(policyRequest.stream, true);
   const policySystemText = policyRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(policySystemText, /Search host-owned dinner data/);
-  assert.match(policySystemText, /Surface plan/);
-  assert.match(policySystemText, /Runtime: `declarative`/);
-  assert.match(policySystemText, /Data: `host-resource`/);
+  assert.match(policySystemText, /Surface contract/);
+  assert.match(policySystemText, /runtime=`declarative`/);
+  assert.match(policySystemText, /data=`host-resource`/);
   assert.doesNotMatch(policySystemText, /Rules for scripts/);
 
   const policyLines = policyBody
@@ -216,9 +216,10 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(policyLines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(policyLines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
     'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'meta /status',
     'set /screen',
   ]);
@@ -231,6 +232,12 @@ test('api generate sends narrowed contract and stream meta shape through package
     persistence: 'replayable',
   });
   assert.deepEqual((policyLines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, surfacePlan);
+  const policyContract = (policyLines[2] as Extract<ProtocolLine, { op: 'meta' }>).value as {
+    tools?: Array<{ name: string }>;
+    components?: Array<{ name: string }>;
+  };
+  assert.deepEqual(policyContract.tools?.map((tool) => tool.name), ['search']);
+  assert.deepEqual(policyContract.components, []);
 
   const ghostResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',

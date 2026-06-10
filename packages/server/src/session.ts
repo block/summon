@@ -1,6 +1,7 @@
 import {
   StreamGraph,
   compileSurfacePolicy,
+  surfaceContractViewFromCompiledPolicy,
   compileSystemContracts,
   createProtocolHardener,
   type CompiledSurfacePolicy,
@@ -10,6 +11,7 @@ import {
   type ProtocolHardenerResult,
   type ProtocolLine,
   type RepairFeedbackMetaValue,
+  type SurfaceContractView,
 } from '@summon-internal/engine';
 import { buildEditBlock } from './edit.js';
 import {
@@ -28,6 +30,7 @@ import type {
 export class SurfaceGenerationSession {
   private readonly systemContracts: CompiledSystemContracts;
   private readonly surfacePolicy: CompiledSurfacePolicy | null;
+  private readonly surfaceContract: SurfaceContractView | null;
   private readonly hardener: ProtocolHardener;
   private readonly acceptedLines: ProtocolLine[] = [];
   private readonly emittedLines: ProtocolLine[] = [];
@@ -54,6 +57,9 @@ export class SurfaceGenerationSession {
           components: input.components ?? null,
         })
       : null;
+    this.surfaceContract = this.surfacePolicy
+      ? surfaceContractViewFromCompiledPolicy(this.surfacePolicy, input.layout ?? null)
+      : null;
     this.systemContracts = compileSystemContracts({
       mode: this.surfacePolicy?.mode ?? input.mode ?? 'static',
       direction: input.direction ?? null,
@@ -65,6 +71,7 @@ export class SurfaceGenerationSession {
       components: this.surfacePolicy?.components ?? input.components ?? null,
       scriptPolicy: this.surfacePolicy?.scriptPolicy ?? input.scriptPolicy,
       surfacePlan: this.surfacePolicy?.surfacePlan ?? input.surfacePlan ?? null,
+      surfaceContract: this.surfaceContract,
       tokenOverrides: input.tokenOverrides,
       activeTokensCss: input.activeTokensCss ?? null,
     });
@@ -93,6 +100,9 @@ export class SurfaceGenerationSession {
     const surfacePlan = this.surfacePolicy?.surfacePlan ?? this.input.surfacePlan;
     if (surfacePlan) {
       await this.writeProtocolLine({ op: 'meta', path: '/surface-plan', value: surfacePlan });
+    }
+    if (this.surfaceContract) {
+      await this.writeProtocolLine({ op: 'meta', path: '/surface-contract', value: this.surfaceContract });
     }
     for (const line of this.systemContracts.startupLines) {
       this.acceptedLines.push(line);

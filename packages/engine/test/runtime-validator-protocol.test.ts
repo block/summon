@@ -50,6 +50,13 @@ test('blocks generated host-owned surface meta paths', () => {
     )),
     ['host-owned-meta'],
   );
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      { op: 'meta', path: '/surface-contract', value: {} },
+      baseContext,
+    )),
+    ['host-owned-meta'],
+  );
 });
 
 test('allows safe static markup', () => {

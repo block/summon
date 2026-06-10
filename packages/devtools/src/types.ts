@@ -137,6 +137,17 @@ export interface SurfacePlanEvent extends BaseEvent {
   };
 }
 
+export interface SurfaceContractEvent extends BaseEvent {
+  kind: 'surface-contract';
+  contract: {
+    surface?: unknown;
+    tools?: unknown[];
+    components?: unknown[];
+    layout?: unknown;
+    issues?: unknown[];
+  };
+}
+
 /** Host pushed full HTML into the sandbox via SUMMON_RENDER. */
 export interface RenderEvent extends BaseEvent {
   kind: 'render';
@@ -180,6 +191,7 @@ export type DevtoolsEvent =
   | StreamLifecycleEvent
   | StreamGraphEvent
   | SurfacePlanEvent
+  | SurfaceContractEvent
   | RenderEvent
   | ComponentSyncEvent
   | ComponentErrorEvent;

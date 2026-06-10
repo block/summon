@@ -15,7 +15,7 @@ import {
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import { SectionAccumulator, type ProtocolLine } from '@anarchitecture/summon/engine';
+import { SectionAccumulator, type ProtocolLine, type SurfaceContractView } from '@anarchitecture/summon/engine';
 import { bootstrapSource, tokensSource } from '@anarchitecture/summon/assets';
 import { createGalleryCapabilityRegistry } from './capabilities.js';
 import {
@@ -131,6 +131,7 @@ let surfaceRenderedDuringRun = false;
 let acceptedStructuralLines = 0;
 let skippedLines = 0;
 let blockedLines = 0;
+let currentSurfaceContractView: SurfaceContractView | null = null;
 let approvalStack: HTMLElement | null = null;
 const pendingApprovalCards = new Map<string, () => void>();
 
@@ -184,6 +185,7 @@ function renderPresetCards(): void {
 function selectPreset(id: string): void {
   selectedPreset = galleryPresets.find((preset) => preset.id === id) ?? findPreset(id);
   activeTokensSourceOverride = null;
+  currentSurfaceContractView = null;
   for (const card of presetList.querySelectorAll<HTMLButtonElement>('.preset-card')) {
     card.classList.toggle('active', card.dataset.presetId === selectedPreset.id);
   }
@@ -290,6 +292,7 @@ async function generateSelectedSurface(): Promise<void> {
   accumulator.reset();
   events.clear();
   hostMessages.length = 0;
+  currentSurfaceContractView = null;
   resetCounters();
   respawnSandbox();
   generationInFlight = true;
@@ -398,6 +401,14 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
   if (line.path === '/protocol-skip') {
     skippedLines += 1;
   }
+  if (line.path === '/surface-contract') {
+    const contract = parseSurfaceContractView(line.value);
+    if (contract) {
+      currentSurfaceContractView = contract;
+      events.push({ kind: 'surface-contract', at: Date.now(), contract });
+      renderContract();
+    }
+  }
   if (line.path === '/validation-blocked') {
     blockedLines += 1;
     selectInspectorTab('stream');
@@ -421,12 +432,17 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
 }
 
 function renderContract(): void {
+  const contract = currentSurfaceContractView;
   const componentNames = policyComponents(selectedPreset.surfacePolicy);
   const grantNames = policyGrants(selectedPreset.surfacePolicy);
-  const components = componentNames.length
+  const components = contract
+    ? contract.components.map((component) => component.name).join(', ') || 'none'
+    : componentNames.length
     ? componentNames.join(', ')
     : 'none';
-  const allowedHostTools = grantNames.length
+  const allowedHostTools = contract
+    ? contract.tools.map((tool) => tool.name).join(', ') || 'none'
+    : grantNames.length
     ? grantNames.join(', ')
     : 'none';
   const policy = policyText(selectedPreset.surfacePolicy);
@@ -442,8 +458,10 @@ function renderContract(): void {
     ?? 'server default';
   providerSummaryEl.textContent = provider ? `${provider.name} - ${generationModel}` : modelProviderLabel;
   surfacePolicyPill.textContent = centerPolicyText(selectedPreset);
-  surfaceToolsPill.textContent = `${grantNames.length} host tool${grantNames.length === 1 ? '' : 's'}`;
-  surfaceComponentsPill.textContent = `${componentNames.length} component${componentNames.length === 1 ? '' : 's'}`;
+  const toolCount = contract?.tools.length ?? grantNames.length;
+  const componentCount = contract?.components.length ?? componentNames.length;
+  surfaceToolsPill.textContent = `${toolCount} host tool${toolCount === 1 ? '' : 's'}`;
+  surfaceComponentsPill.textContent = `${componentCount} component${componentCount === 1 ? '' : 's'}`;
   welcomeTitle.textContent = selectedPreset.title;
   welcomeDetail.textContent = selectedPreset.description;
   contractSummary.innerHTML = '';
@@ -451,7 +469,10 @@ function renderContract(): void {
     ['provider', 'Model provider', provider ? `${provider.name} - ${generationModel}` : modelProviderLabel],
     ['utility', 'Utility model', utilityModel],
     ['policy', 'Surface config', policy],
-    ['tier', 'Surface type', selectedPreset.surfacePolicy.tier],
+    ['tier', 'Surface type', contract?.surface.policy.tier ?? selectedPreset.surfacePolicy.tier],
+    ...(contract
+      ? [['runtime', 'Runtime', `${contract.surface.mode} - scripts ${contract.surface.scriptPolicy}`] as [string, string, string]]
+      : []),
     ['grants', 'Allowed host tools', allowedHostTools],
     ['components', 'Trusted components', components],
     ...(selectedPreset.ghost
@@ -715,6 +736,15 @@ function centerPolicyText(preset: GalleryPreset): string {
   return `${preset.surfacePolicy.tier} / ${preset.surfacePolicy.purpose ?? 'surface'}`;
 }
 
+function parseSurfaceContractView(value: unknown): SurfaceContractView | null {
+  if (!value || typeof value !== 'object') return null;
+  const contract = value as Partial<SurfaceContractView>;
+  if (!contract.surface || typeof contract.surface !== 'object') return null;
+  if (!Array.isArray(contract.tools) || !Array.isArray(contract.components)) return null;
+  if (!Array.isArray(contract.issues)) return null;
+  return contract as SurfaceContractView;
+}
+
 function describeEvent(event: DevtoolsEvent): string {
   switch (event.kind) {
     case 'protocol-line':
@@ -731,6 +761,8 @@ function describeEvent(event: DevtoolsEvent): string {
       return `component ${event.code}: ${event.reason}`;
     case 'stream-lifecycle':
       return `stream ${event.phase}${event.ok === undefined ? '' : event.ok ? ' ok' : ' error'}`;
+    case 'surface-contract':
+      return `contract ${(event.contract.tools?.length ?? 0)} tools / ${(event.contract.components?.length ?? 0)} components`;
     default:
       return event.kind;
   }
