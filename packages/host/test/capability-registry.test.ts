@@ -548,6 +548,7 @@ test('approval action runs approved handler only after approval', async () => {
 
   const contract = registry.toContract();
   assert.equal(contract.validationCapabilities[0]?.surface?.authority, 'approval-gated');
+  assert.match(contract.pack.intents[0]?.stateShape ?? '', /publishApprovalRequestId: string \| null/);
 
   const policy = new PolicyEngine({
     handlers: registry.toPolicyHandlers(),
@@ -560,6 +561,8 @@ test('approval action runs approved handler only after approval', async () => {
   assert.equal(approvedCalls, 0);
   assert.equal(states.at(-1)?.publishApprovalDenied, true);
   assert.equal(states.at(-1)?.publishApprovalError, 'Not this one');
+  assert.equal(states.at(-2)?.publishApprovalPending, true);
+  assert.equal(typeof states.at(-2)?.publishApprovalRequestId, 'string');
 
   await policy.dispatch('publish', { title: 'ok' });
   assert.equal(approvedCalls, 1);
@@ -568,6 +571,7 @@ test('approval action runs approved handler only after approval', async () => {
 });
 
 test('approval action rejects invalid args before requesting approval', async () => {
+  let prepareCalls = 0;
   let approvalCalls = 0;
   let approvedCalls = 0;
   const registry = createCapabilityRegistry([
@@ -577,6 +581,10 @@ test('approval action rejects invalid args before requesting approval', async ()
       argsSchema: z.object({ title: z.string() }),
       stateShape: '{published: boolean}',
       approval: {
+        prepare: ({ title }) => {
+          prepareCalls += 1;
+          return { summary: `Publish ${title}`, plan: { title } };
+        },
         request: () => {
           approvalCalls += 1;
           return 'approved';
@@ -596,9 +604,77 @@ test('approval action rejects invalid args before requesting approval', async ()
   });
 
   await policy.dispatch('publish', { title: 42 });
+  assert.equal(prepareCalls, 0);
   assert.equal(approvalCalls, 0);
   assert.equal(approvedCalls, 0);
   assert.ok(errors[0] instanceof IntentArgsError);
+});
+
+test('approval action prepares a frozen request for host approval and approved handler', async () => {
+  let prepareCalls = 0;
+  let seenRequest:
+    | {
+        id: string;
+        capability: string;
+        summary: string;
+        details?: unknown;
+        plan: unknown;
+        status: string;
+        expiresAt?: string;
+      }
+    | undefined;
+  let handlerPlan: unknown;
+  const states: Record<string, unknown>[] = [];
+  const registry = createCapabilityRegistry([
+    defineApprovalAction({
+      name: 'publish',
+      description: 'Publish after approval.',
+      argsSchema: z.object({ title: z.string() }),
+      stateShape: '{publishedTitle: string | null}',
+      approval: {
+        prepare: ({ title }) => {
+          prepareCalls += 1;
+          return {
+            summary: `Publish "${title}"`,
+            details: { channel: 'demo-updates' },
+            plan: { operation: 'publish', title: title.toUpperCase() },
+            expiresAt: '2026-06-10T12:00:00.000Z',
+          };
+        },
+        request: (_args, request) => {
+          seenRequest = request;
+          return 'approved';
+        },
+      },
+      handler: ({ approval, push }) => {
+        handlerPlan = approval?.plan;
+        const plan = approval?.plan as { title: string };
+        push({ publishedTitle: plan.title });
+      },
+    }),
+  ]);
+
+  const policy = new PolicyEngine({
+    handlers: registry.toPolicyHandlers(),
+    onStateChange: (state) => {
+      states.push(state);
+    },
+  });
+
+  await policy.dispatch('publish', { title: 'launch note' });
+
+  assert.equal(prepareCalls, 1);
+  assert.ok(seenRequest);
+  assert.equal(seenRequest.capability, 'publish');
+  assert.equal(seenRequest.summary, 'Publish "launch note"');
+  assert.deepEqual(seenRequest.details, { channel: 'demo-updates' });
+  assert.deepEqual(seenRequest.plan, { operation: 'publish', title: 'LAUNCH NOTE' });
+  assert.equal(seenRequest.status, 'pending');
+  assert.equal(seenRequest.expiresAt, '2026-06-10T12:00:00.000Z');
+  assert.equal(states[0]?.publishApprovalPending, true);
+  assert.equal(states[0]?.publishApprovalRequestId, seenRequest.id);
+  assert.deepEqual(handlerPlan, { operation: 'publish', title: 'LAUNCH NOTE' });
+  assert.equal(states.at(-1)?.publishedTitle, 'LAUNCH NOTE');
 });
 
 test('surface envelope serializes replay metadata', () => {

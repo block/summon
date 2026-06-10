@@ -71,16 +71,39 @@ export type ApprovalDecision =
       reason?: string;
     };
 
+export interface ApprovalPrepared<Plan = unknown> {
+  summary: string;
+  details?: unknown;
+  plan: Plan;
+  expiresAt?: string;
+}
+
+export interface ApprovalRequest<TArgs = unknown, Plan = unknown> {
+  id: string;
+  capability: string;
+  args: TArgs;
+  summary: string;
+  details?: unknown;
+  plan: Plan;
+  status: 'pending';
+  expiresAt?: string;
+}
+
 export interface ApprovalStateKeys {
+  requestId: string;
   pending: string;
   approved: string;
   denied: string;
   error: string;
 }
 
-export interface ApprovalActionDefinition<T = unknown> extends ActionDefinition<T> {
+export interface ApprovalActionDefinition<T = unknown, Plan = unknown> extends ActionDefinition<T> {
   approval: {
-    request: (args: T) => Promise<ApprovalDecision> | ApprovalDecision;
+    prepare?: (args: T) => Promise<ApprovalPrepared<Plan>> | ApprovalPrepared<Plan>;
+    request: (
+      args: T,
+      request?: ApprovalRequest<T, Plan>,
+    ) => Promise<ApprovalDecision> | ApprovalDecision;
     summary?: string | ((args: T) => string);
     stateKeys?: Partial<ApprovalStateKeys>;
   };
@@ -124,8 +147,8 @@ export function defineWorkerAction<T>(definition: ActionDefinition<T>): Capabili
   });
 }
 
-export function defineApprovalAction<T>(
-  definition: ApprovalActionDefinition<T>,
+export function defineApprovalAction<T, Plan = T>(
+  definition: ApprovalActionDefinition<T, Plan>,
 ): CapabilityDefinition<T> {
   const stateKeys = approvalStateKeys(definition.name, definition.approval.stateKeys);
   const approvedHandler = definition.handler;
@@ -135,18 +158,23 @@ export function defineApprovalAction<T>(
       ...definition.surface,
       authority: 'approval-gated',
     },
-    stateShape: `${formatStateShape(definition.stateShape)} & {${stateKeys.pending}: boolean, ${stateKeys.approved}: boolean, ${stateKeys.denied}: boolean, ${stateKeys.error}: string | null}`,
+    stateShape: `${formatStateShape(definition.stateShape)} & {${stateKeys.requestId}: string | null, ${stateKeys.pending}: boolean, ${stateKeys.approved}: boolean, ${stateKeys.denied}: boolean, ${stateKeys.error}: string | null}`,
     handler: async (ctx) => {
-      ctx.push({
-        [stateKeys.pending]: true,
-        [stateKeys.approved]: false,
-        [stateKeys.denied]: false,
-        [stateKeys.error]: null,
-      });
+      const requestId = nextApprovalRequestId(definition.name);
       try {
-        const decision = normalizeApprovalDecision(await definition.approval.request(ctx.args));
+        const prepared = await prepareApprovalRequest(definition, ctx.args);
+        const request = createApprovalRequest(definition.name, ctx.args, requestId, prepared);
+        ctx.push({
+          [stateKeys.requestId]: request.id,
+          [stateKeys.pending]: true,
+          [stateKeys.approved]: false,
+          [stateKeys.denied]: false,
+          [stateKeys.error]: null,
+        });
+        const decision = normalizeApprovalDecision(await definition.approval.request(ctx.args, request));
         if (decision.status !== 'approved') {
           ctx.push({
+            [stateKeys.requestId]: request.id,
             [stateKeys.pending]: false,
             [stateKeys.approved]: false,
             [stateKeys.denied]: true,
@@ -155,15 +183,17 @@ export function defineApprovalAction<T>(
           return;
         }
         ctx.push({
+          [stateKeys.requestId]: request.id,
           [stateKeys.pending]: false,
           [stateKeys.approved]: true,
           [stateKeys.denied]: false,
           [stateKeys.error]: null,
         });
-        await approvedHandler(ctx);
+        await approvedHandler({ ...ctx, approval: request });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         ctx.push({
+          [stateKeys.requestId]: requestId,
           [stateKeys.pending]: false,
           [stateKeys.approved]: false,
           [stateKeys.denied]: false,
@@ -415,11 +445,60 @@ function normalizeSurfaceForKind(
 
 function approvalStateKeys(name: string, partial: Partial<ApprovalStateKeys> | undefined): ApprovalStateKeys {
   return {
+    requestId: partial?.requestId ?? `${name}ApprovalRequestId`,
     pending: partial?.pending ?? `${name}ApprovalPending`,
     approved: partial?.approved ?? `${name}ApprovalApproved`,
     denied: partial?.denied ?? `${name}ApprovalDenied`,
     error: partial?.error ?? `${name}ApprovalError`,
   };
+}
+
+let approvalRequestSeq = 0;
+
+function nextApprovalRequestId(name: string): string {
+  approvalRequestSeq += 1;
+  const safeName = name.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'approval';
+  return `${safeName}-${Date.now().toString(36)}-${approvalRequestSeq.toString(36)}`;
+}
+
+async function prepareApprovalRequest<T, Plan>(
+  definition: ApprovalActionDefinition<T, Plan>,
+  args: T,
+): Promise<ApprovalPrepared<Plan>> {
+  if (definition.approval.prepare) return definition.approval.prepare(args);
+  return {
+    summary: approvalSummary(definition.approval.summary, args, definition.name),
+    plan: args as unknown as Plan,
+  };
+}
+
+function approvalSummary<T>(
+  summary: ApprovalActionDefinition<T>['approval']['summary'],
+  args: T,
+  name: string,
+): string {
+  if (typeof summary === 'function') return summary(args);
+  if (summary) return summary;
+  return `Approve ${name}`;
+}
+
+function createApprovalRequest<T, Plan>(
+  capability: string,
+  args: T,
+  id: string,
+  prepared: ApprovalPrepared<Plan>,
+): ApprovalRequest<T, Plan> {
+  const request: ApprovalRequest<T, Plan> = {
+    id,
+    capability,
+    args,
+    summary: prepared.summary,
+    plan: prepared.plan,
+    status: 'pending',
+  };
+  if (prepared.details !== undefined) request.details = prepared.details;
+  if (prepared.expiresAt !== undefined) request.expiresAt = prepared.expiresAt;
+  return request;
 }
 
 function normalizeApprovalDecision(decision: ApprovalDecision): { status: 'approved' | 'denied'; reason?: string } {

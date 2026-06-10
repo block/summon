@@ -90,6 +90,12 @@ requires a compatible host registry for the same reason.
 - Use `defineWorkerAction` / `defineWorkerResource` for host-owned background
   work and `defineApprovalAction` for operations that require a host approval
   adapter before the handler runs.
+- Treat approval as a workflow owned by the host, not a generated modal. For
+  approval actions, the host may `prepare` the exact operation into an
+  `ApprovalRequest`; the user approves or denies that request in host UI; the
+  approved handler executes from `ctx.approval.plan`. Summon core does not
+  persist approval requests, and generated surfaces should render only waiting,
+  approved, denied, or failed state.
 - Proxy external data and assets through host handlers. The sandbox should see
   validated state and data URLs, not credentials or network endpoints.
 - Treat component definitions as trusted host code. Register only components

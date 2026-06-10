@@ -6,6 +6,7 @@
 
 import type { EventStore } from '@summon-internal/devtools';
 import type { ZodType } from 'zod';
+import type { ApprovalRequest } from './capability-registry.js';
 
 export interface IntentContext<T = Record<string, unknown>> {
   /**
@@ -17,6 +18,12 @@ export interface IntentContext<T = Record<string, unknown>> {
   args: T;
   /** Merge a patch into the current state. The full merged state is pushed to the sandbox. */
   push: (patch: Record<string, unknown>) => void;
+  /**
+   * Present only for approved approval-gated actions. The host prepared this
+   * request before the user approved it, so handlers can execute the frozen
+   * plan instead of recomputing from generated args.
+   */
+  approval?: ApprovalRequest<T, unknown>;
 }
 
 export type IntentHandler<T = Record<string, unknown>> = (

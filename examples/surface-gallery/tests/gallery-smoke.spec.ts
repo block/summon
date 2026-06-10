@@ -252,6 +252,106 @@ test('mocked generation renders and generated host tool requests update host sta
   await expect(page.locator('#event-log')).toContainText('host tool choose');
 });
 
+test('approval publish uses host-owned approval card for approve and deny decisions', async ({ page }) => {
+  let captured: any = null;
+  await page.route('**/api/model-providers', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(modelProviderPayload()),
+    });
+  });
+  await page.route('**/api/ghost-roots', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    });
+  });
+  await page.route('**/api/generate', async (route) => {
+    captured = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/plain',
+      body: streamBody([
+        { op: 'meta', path: '/surface-policy', value: captured.surfacePolicy },
+        {
+          op: 'meta',
+          path: '/surface-plan',
+          value: {
+            purpose: 'operate',
+            runtime: 'declarative',
+            data: 'embedded',
+            authority: 'approval-gated',
+            persistence: 'ephemeral',
+          },
+        },
+        { op: 'set', path: '/screen', value: { sections: ['main'] } },
+        {
+          op: 'add',
+          path: '/section/main',
+          html: `
+            <article style="padding:24px;font-family:system-ui;">
+              <h1>Publish review</h1>
+              <button data-summon-on-click="publish_summary" data-summon-args='{"title":"Approval smoke"}'>Publish</button>
+              <p data-testid="waiting" data-summon-show="publishApprovalPending">Waiting for host approval</p>
+              <p data-testid="approved" data-summon-show="publishApprovalApproved">Approved</p>
+              <p data-testid="denied" data-summon-show="publishApprovalDenied">Denied</p>
+              <p data-testid="failed" data-summon-show="publishApprovalError" data-summon-bind="publishApprovalError"></p>
+              <p data-testid="published" data-summon-show="published">Published <span data-summon-bind="publishedTitle"></span></p>
+            </article>`,
+        },
+        {
+          op: 'meta',
+          path: '/stream-graph-summary',
+          value: {
+            health: {
+              complete: true,
+              missingDeclared: [],
+              blockedCount: 0,
+              skippedCount: 0,
+              repairedCount: 0,
+            },
+            sections: [],
+          },
+        },
+      ]),
+    });
+  });
+
+  await page.goto('/');
+  await page.locator('[data-preset-id="approval-publish"]').click();
+  await page.locator('#run').click();
+  await expect(page.locator('#status')).toContainText('done');
+
+  expect(captured.surfacePolicy).toEqual({
+    tier: 'approval',
+    purpose: 'operate',
+    grants: ['publish_summary'],
+  });
+
+  const frame = page.frameLocator('#sandbox');
+  await frame.getByRole('button', { name: 'Publish' }).click();
+  await expect(page.locator('.approval-card')).toContainText('Publish "Approval smoke"');
+  await expect(page.locator('.approval-card')).toContainText('gallery-updates');
+  await expect(frame.getByTestId('waiting')).toBeVisible();
+  await expect(page.locator('#state-preview')).toContainText('publish_summary');
+
+  await page.locator('.approval-card').getByRole('button', { name: 'Approve' }).click();
+  await expect(page.locator('.approval-card')).toHaveCount(0);
+  await expect(frame.getByTestId('approved')).toBeVisible();
+  await expect(frame.getByTestId('published')).toContainText('Approval smoke');
+
+  await page.locator('#run').click();
+  await expect(page.locator('#status')).toContainText('done');
+  await frame.getByRole('button', { name: 'Publish' }).click();
+  await expect(page.locator('.approval-card')).toContainText('Publish "Approval smoke"');
+  await page.locator('.approval-card').getByRole('button', { name: 'Deny' }).click();
+  await expect(page.locator('.approval-card')).toHaveCount(0);
+  await expect(frame.getByTestId('denied')).toBeVisible();
+  await expect(frame.getByTestId('published')).toBeHidden();
+});
+
 test('component island preset renders host overlays and reports invalid props', async ({ page }) => {
   let invalid = false;
   const requests: any[] = [];
