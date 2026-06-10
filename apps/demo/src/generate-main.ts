@@ -67,6 +67,15 @@ interface GhostRootInfo {
   defaultBaseDirectionId?: string | null;
 }
 
+interface ModelProviderInfo {
+  id: string;
+  name: string;
+  configured: boolean;
+  model: string;
+  utilityModel: string;
+  missingEnv?: string;
+}
+
 const layoutPresets = new Map<string, SummonLayout>([
   [
     'card-structured',
@@ -92,6 +101,7 @@ const scenarioActiveTitleEl = document.getElementById('scenario-active-title')!;
 const scenarioActiveDescEl = document.getElementById('scenario-active-desc')!;
 const scenarioActiveFingerprintEl = document.getElementById('scenario-active-fingerprint')!;
 const scenarioActiveGrantsEl = document.getElementById('scenario-active-grants')!;
+const modelProviderSel = document.getElementById('model-provider') as HTMLSelectElement;
 const directionSel = document.getElementById('direction') as HTMLSelectElement;
 const ghostTargetEl = document.getElementById('ghost-target') as HTMLInputElement;
 const ghostBaseDirectionSel = document.getElementById('ghost-base-direction') as HTMLSelectElement;
@@ -147,6 +157,9 @@ function readMode(): Mode {
   const checked = document.querySelector<HTMLInputElement>('input[name=mode]:checked');
   return (checked?.value as Mode) ?? 'static';
 }
+function readModelProviderId(): string | null {
+  return modelProviderSel.value || defaultModelProviderId;
+}
 function readLayout(): SummonLayout | null {
   const layout = layoutPresets.get(layoutSel.value);
   return layout ? { id: layout.id, slots: layout.slots.map((slot) => ({ ...slot })) } : null;
@@ -169,6 +182,8 @@ function logLine(cls: string, text: string) {
 
 let directions: DirectionInfo[] = [];
 let ghostRoots: GhostRootInfo[] = [];
+let modelProviders: ModelProviderInfo[] = [];
+let defaultModelProviderId: string | null = null;
 let showcaseScenarios: ShowcaseScenario[] = [...SHOWCASE_SCENARIOS];
 let currentEffectiveSurfacePlan: SurfacePlan | null = null;
 let currentShape: string | null = null;
@@ -539,6 +554,7 @@ function readActiveContract(): ActiveContract {
     ...(readTokenOverrides() ? { tokenOverrides: readTokenOverrides() } : {}),
     ...(readRepairOptions() ? { repair: readRepairOptions() } : {}),
     directionId: currentDirectionId,
+    modelProvider: readModelProviderId(),
   };
 }
 
@@ -604,9 +620,11 @@ function renderContractSummary() {
   const validation = currentValidationSummary ?? 'pending';
   const stream = currentStreamHealth ?? 'pending';
   const effective = currentEffectiveSurfacePlan ? planText(currentEffectiveSurfacePlan) : 'pending';
+  const provider = modelProviders.find((item) => item.id === active.modelProvider);
   inspectorStatusEl.textContent = currentEffectiveSurfacePlan ? 'effective' : 'pending';
   contractSummaryEl.innerHTML = '';
   const rows = [
+    ['provider', 'Model provider', provider ? `${provider.name} · ${provider.model}` : 'server default', provider ? 'neutral' : 'pending'],
     ['requested', 'Requested surface config', planText(requested), 'neutral'],
     ['effective', 'Effective safety plan', effective, currentEffectiveSurfacePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${active.capabilityNames.length}: ${hostTools}`, active.capabilityNames.length ? 'neutral' : 'pending'],
@@ -698,6 +716,38 @@ function parseAppliedTokenOverrides(value: unknown): Array<{ token: string; valu
 
 async function loadDirections(): Promise<void> {
   try {
+    const res = await fetch('/api/model-providers');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = (await res.json()) as { defaultProvider?: unknown; providers?: unknown };
+    defaultModelProviderId = typeof payload.defaultProvider === 'string' ? payload.defaultProvider : null;
+    modelProviders = Array.isArray(payload.providers)
+      ? payload.providers.flatMap((provider): ModelProviderInfo[] => {
+          if (!provider || typeof provider !== 'object') return [];
+          const item = provider as Record<string, unknown>;
+          if (
+            typeof item.id !== 'string' ||
+            typeof item.name !== 'string' ||
+            typeof item.model !== 'string' ||
+            typeof item.utilityModel !== 'string'
+          ) {
+            return [];
+          }
+          return [{
+            id: item.id,
+            name: item.name,
+            configured: item.configured === true,
+            model: item.model,
+            utilityModel: item.utilityModel,
+            missingEnv: typeof item.missingEnv === 'string' ? item.missingEnv : undefined,
+          }];
+        })
+      : [];
+  } catch {
+    modelProviders = [];
+    defaultModelProviderId = null;
+  }
+
+  try {
     const res = await fetch('/api/directions');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     directions = (await res.json()) as DirectionInfo[];
@@ -711,6 +761,7 @@ async function loadDirections(): Promise<void> {
   } catch {
     ghostRoots = [];
   }
+  populateModelProviderSelect();
   ghostBaseDirectionSel.innerHTML = '';
   for (const d of directions) {
     const opt = document.createElement('option');
@@ -752,6 +803,38 @@ async function loadDirections(): Promise<void> {
   }
   currentDirectionId = directionSel.value || null;
   updateGhostControls();
+}
+
+function populateModelProviderSelect() {
+  modelProviderSel.innerHTML = '';
+  if (modelProviders.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'Server default';
+    modelProviderSel.appendChild(opt);
+    modelProviderSel.disabled = true;
+    return;
+  }
+
+  modelProviderSel.disabled = false;
+  for (const provider of modelProviders) {
+    const opt = document.createElement('option');
+    opt.value = provider.id;
+    opt.textContent = provider.configured
+      ? `${provider.name}`
+      : `${provider.name} (missing key)`;
+    opt.title = provider.configured
+      ? `${provider.model} for generation; ${provider.utilityModel} for utility calls`
+      : `Set ${provider.missingEnv ?? 'the provider API key'}`;
+    opt.disabled = !provider.configured;
+    modelProviderSel.appendChild(opt);
+  }
+
+  const defaultProvider = defaultModelProviderId
+    ? modelProviders.find((provider) => provider.id === defaultModelProviderId && provider.configured)
+    : null;
+  const firstConfigured = modelProviders.find((provider) => provider.configured);
+  modelProviderSel.value = defaultProvider?.id ?? firstConfigured?.id ?? '';
 }
 
 function ghostSelectionValue(rootId: string): string {
@@ -856,6 +939,7 @@ function respawn(
 
   if (mode === 'interactive') {
     const registry = createScopedDemoRegistry({
+      modelProvider: readModelProviderId,
       onLog: (m) => logLine('op-add', m),
       onError: (m) => logLine('op-error', m),
       // summon needs DOM access (spawns a sibling iframe) and the streaming
@@ -938,6 +1022,11 @@ directionSel.addEventListener('change', () => {
   showWelcome();
   updateEditControls();
   logLine('op-meta', `direction → ${currentDirectionId ?? 'default'}`);
+});
+
+modelProviderSel.addEventListener('change', () => {
+  clearEffectiveContractSummary();
+  logLine('op-meta', `provider → ${readModelProviderId() ?? 'server default'}`);
 });
 
 ghostTargetEl.addEventListener('change', () => {
@@ -1221,6 +1310,7 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
 
 interface StreamOptions {
   prompt: string;
+  modelProvider?: string | null;
   directionId: string | null;
   layout?: SummonLayout | null;
   scriptPolicy?: ScriptPolicy;
@@ -1258,6 +1348,7 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       prompt: opts.prompt,
+      ...(opts.modelProvider ? { modelProvider: opts.modelProvider } : {}),
       ...(ghostRootId
         ? {
             ghost: {
@@ -1609,6 +1700,7 @@ async function generate(prompt: string) {
   try {
     const result = await streamGenerationInto(target, {
       prompt,
+      modelProvider: active.modelProvider,
       directionId: currentDirectionId,
       layout: readLayout(),
       scriptPolicy: active.scriptPolicy,
@@ -1668,6 +1760,7 @@ async function editArtifact(instruction: string) {
   try {
     const result = await streamGenerationInto(createParentTarget(active), {
       prompt: instruction,
+      modelProvider: active.modelProvider,
       directionId: currentDirectionId,
       layout: readLayout(),
       scriptPolicy: active.scriptPolicy,
@@ -1753,6 +1846,7 @@ function summonChild(childPrompt: string, title?: string) {
     .map((intent) => intent.name)
     .filter((name) => name !== 'summon');
   const childRegistry = createScopedDemoRegistry({
+    modelProvider: readModelProviderId,
     onLog: () => {},
     onError: (m) => {
       statusEl.textContent = `error: ${m.slice(0, 40)}`;
@@ -1834,6 +1928,7 @@ function summonChild(childPrompt: string, title?: string) {
 
   void streamGenerationInto(childTarget, {
     prompt: childPrompt,
+    modelProvider: readModelProviderId(),
     directionId: currentDirectionId,
     signal: abort.signal,
   })

@@ -120,8 +120,12 @@ test('api generate sends narrowed contract and stream meta shape through package
     env: {
       ...process.env,
       PORT: String(appPort),
+      SUMMON_MODEL_PROVIDER: 'anthropic',
       ANTHROPIC_API_KEY: 'test-key',
       ANTHROPIC_BASE_URL: `http://127.0.0.1:${anthropicPort}`,
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
       SUMMON_INFER_CAPABILITIES: '0',
       SUMMON_INFER_SHAPE: '0',
     },
@@ -283,6 +287,236 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(ghostOverrideResponse.status, 400);
   assert.match(ghostOverrideBody, /tokenOverrides are not supported with Ghost product memory/);
   assert.equal(anthropicRequests.length, 3);
+});
+
+test('api generate can stream with OpenAI provider', async (t) => {
+  const openAIRequests: unknown[] = [];
+  const openai = createServer(async (req, res) => {
+    if (req.method !== 'POST' || req.url !== '/v1/responses') {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    openAIRequests.push(JSON.parse(await readBody(req)));
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    });
+    res.end([
+      sse('response.output_text.delta', {
+        type: 'response.output_text.delta',
+        delta: '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+      }),
+      sse('response.output_text.delta', {
+        type: 'response.output_text.delta',
+        delta: '{"op":"add","path":"/section/hero","html":"<section><h1>OpenAI surface</h1></section>"}\n',
+      }),
+      sse('response.completed', {
+        type: 'response.completed',
+        response: {
+          usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
+        },
+      }),
+    ].join(''));
+  });
+  await listen(openai);
+  t.after(async () => {
+    await closeServer(openai);
+  });
+
+  const openAIPort = addressPort(openai);
+  const appPort = await reservePort();
+  const app = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(appPort),
+      SUMMON_MODEL_PROVIDER: 'openai',
+      ANTHROPIC_API_KEY: '',
+      OPENAI_API_KEY: 'test-openai-key',
+      OPENAI_BASE_URL: `http://127.0.0.1:${openAIPort}/v1`,
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_INFER_SHAPE: '0',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = captureOutput(app);
+  t.after(async () => {
+    await stopChild(app);
+  });
+  await waitForHealth(appPort, app, output);
+
+  const providersResponse = await fetch(`http://127.0.0.1:${appPort}/api/model-providers`);
+  const providers = await providersResponse.json() as { defaultProvider?: unknown };
+  assert.equal(providers.defaultProvider, 'openai');
+
+  const response = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a compact launch status card',
+      modelProvider: 'openai',
+      mode: 'static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'static',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'replayable',
+      },
+      surfaceCeiling: {
+        runtimes: ['static'],
+        data: ['embedded'],
+        authorities: ['none'],
+        persistences: ['replayable'],
+      },
+    }),
+  });
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+
+  assert.equal(openAIRequests.length, 1);
+  const request = openAIRequests[0] as { model?: string; instructions?: string; stream?: boolean };
+  assert.equal(request.model, 'gpt-5');
+  assert.equal(request.stream, true);
+  assert.match(request.instructions ?? '', /Surface plan/);
+
+  const lines = body
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.deepEqual(lines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
+    'meta /surface-plan',
+    'meta /status',
+    'set /screen',
+    'add /section/hero',
+  ]);
+  assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
+  assert.equal(lines.some((line) => line.path === '/error'), false);
+});
+
+test('api generate can stream with Gemini provider', async (t) => {
+  const geminiRequests: unknown[] = [];
+  const gemini = createServer(async (req, res) => {
+    if (
+      req.method !== 'POST' ||
+      !req.url?.startsWith('/v1beta/models/gemini-2.5-pro:streamGenerateContent')
+    ) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    geminiRequests.push(JSON.parse(await readBody(req)));
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    });
+    res.end([
+      sse('message', {
+        candidates: [{
+          content: {
+            parts: [{
+              text: '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+            }],
+          },
+        }],
+      }),
+      sse('message', {
+        candidates: [{
+          content: {
+            parts: [{
+              text: '{"op":"add","path":"/section/hero","html":"<section><h1>Gemini surface</h1></section>"}\n',
+            }],
+          },
+        }],
+        usageMetadata: {
+          promptTokenCount: 11,
+          candidatesTokenCount: 21,
+          totalTokenCount: 32,
+        },
+      }),
+    ].join(''));
+  });
+  await listen(gemini);
+  t.after(async () => {
+    await closeServer(gemini);
+  });
+
+  const geminiPort = addressPort(gemini);
+  const appPort = await reservePort();
+  const app = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(appPort),
+      SUMMON_MODEL_PROVIDER: 'gemini',
+      ANTHROPIC_API_KEY: '',
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: 'test-gemini-key',
+      GOOGLE_API_KEY: '',
+      GEMINI_BASE_URL: `http://127.0.0.1:${geminiPort}`,
+      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_INFER_SHAPE: '0',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = captureOutput(app);
+  t.after(async () => {
+    await stopChild(app);
+  });
+  await waitForHealth(appPort, app, output);
+
+  const response = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a compact support triage card',
+      modelProvider: 'gemini',
+      mode: 'static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'static',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'replayable',
+      },
+      surfaceCeiling: {
+        runtimes: ['static'],
+        data: ['embedded'],
+        authorities: ['none'],
+        persistences: ['replayable'],
+      },
+    }),
+  });
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+
+  assert.equal(geminiRequests.length, 1);
+  const request = geminiRequests[0] as {
+    systemInstruction?: { parts?: Array<{ text?: string }> };
+    generationConfig?: { maxOutputTokens?: number };
+  };
+  assert.equal(request.generationConfig?.maxOutputTokens, 64000);
+  assert.match(request.systemInstruction?.parts?.[0]?.text ?? '', /Surface plan/);
+
+  const lines = body
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.deepEqual(lines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
+    'meta /surface-plan',
+    'meta /status',
+    'set /screen',
+    'add /section/hero',
+  ]);
+  assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
+  assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 
 function sse(event: string, data: unknown): string {

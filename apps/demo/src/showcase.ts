@@ -44,6 +44,7 @@ export interface ActiveContract {
   tokenOverrides?: Record<string, string>;
   repair?: RepairOptions;
   directionId?: string | null;
+  modelProvider?: string | null;
 }
 
 export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [

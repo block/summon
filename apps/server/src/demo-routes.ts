@@ -1,5 +1,5 @@
-import type Anthropic from '@anthropic-ai/sdk';
-import type { Express } from 'express';
+import type { Express, Response } from 'express';
+import type { ModelProviderRegistry, TextCompletionClient } from './model-providers.js';
 
 /**
  * Backing services for the demo capability pack.
@@ -9,9 +9,9 @@ import type { Express } from 'express';
  * Summon host would define its own backing services next to its own capability
  * pack rather than reuse these.
  */
-export function registerDemoRoutes(app: Express, anthropic: Anthropic): void {
+export function registerDemoRoutes(app: Express, modelProviders: ModelProviderRegistry): void {
   /**
-   * Mock search — generates plausible-but-fictional results via Claude Haiku.
+   * Mock search — generates plausible-but-fictional results via the utility model.
    * Not a real search index; this demonstrates "sandbox emits intent -> host
    * calls a backing service" without letting the sandbox reach the network.
    */
@@ -22,17 +22,16 @@ export function registerDemoRoutes(app: Express, anthropic: Anthropic): void {
       res.status(400).json({ error: 'query required' });
       return;
     }
+    const modelProvider = resolveRouteProvider(modelProviders, req.body?.modelProvider ?? req.body?.provider, res);
+    if (!modelProvider) return;
     try {
-      const result = await anthropic.messages.create({
-        model: 'claude-haiku-4-5',
-        max_tokens: 800,
+      const raw = await modelProvider.completeText({
+        maxTokens: 800,
         system:
           'Generate 4-5 realistic-but-fictional search results for the given query. Return ONLY a JSON array, no markdown fences, no prose. Shape: [{"title": "...", "snippet": "...", "source": "..."}]. Titles: 4-10 words, specific and plausible. Snippets: 1-2 sentences, 20-40 words, useful-sounding. Sources: realistic domain names like "nytimes.com", "seriouseats.com", "theverge.com". Vary the tone across results.',
-        messages: [{ role: 'user', content: query }],
+        prompt: query,
       });
-      const block = result.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
-      const raw = block?.text ?? '[]';
-      // Haiku often wraps JSON in ```json fences. Strip them, plus any leading prose.
+      // Utility models often wrap JSON in ```json fences. Strip them, plus any leading prose.
       const cleaned = raw
         .replace(/^[\s\S]*?```(?:json)?\s*/i, '')
         .replace(/\s*```[\s\S]*$/, '')
@@ -65,16 +64,16 @@ export function registerDemoRoutes(app: Express, anthropic: Anthropic): void {
       res.status(400).json({ error: 'prompt required' });
       return;
     }
+    const modelProvider = resolveRouteProvider(modelProviders, req.body?.modelProvider ?? req.body?.provider, res);
+    if (!modelProvider) return;
     try {
-      const result = await anthropic.messages.create({
-        model: 'claude-haiku-4-5',
-        max_tokens: 1000,
+      const response = await modelProvider.completeText({
+        maxTokens: 1000,
         system:
           'Respond directly to the user. No preambles ("Here is..."), no sign-offs. Keep output tight - the UI will display it. If the user asked for a list, return a numbered list. If they asked for a single answer, give one. Match the format to the ask.',
-        messages: [{ role: 'user', content: prompt }],
+        prompt,
       });
-      const block = result.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
-      res.json({ prompt, response: block?.text ?? '' });
+      res.json({ prompt, response });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[ai-call] error:', msg);
@@ -86,11 +85,12 @@ export function registerDemoRoutes(app: Express, anthropic: Anthropic): void {
    * Generates a fresh sample ask for the Generate page's "Random" button.
    */
   app.post('/api/random-prompt', async (_req, res) => {
+    const modelProvider = resolveRouteProvider(modelProviders, _req.body?.modelProvider ?? _req.body?.provider, res);
+    if (!modelProvider) return;
     try {
-      const result = await anthropic.messages.create({
-        model: 'claude-haiku-4-5',
-        max_tokens: 200,
-        // Nudges variety run-to-run; Haiku at temp 0 produces near-identical text.
+      const raw = await modelProvider.completeText({
+        maxTokens: 200,
+        // Nudges variety run-to-run; temperature 0 produces near-identical text.
         temperature: 1,
         system:
           'You generate ONE realistic user request for a demo of an AI that builds little UIs from natural language.\n\n' +
@@ -102,10 +102,9 @@ export function registerDemoRoutes(app: Express, anthropic: Anthropic): void {
           '- Be specific. Concrete numbers, names, contexts. Not "help me plan a trip" but "help me plan a 4-day Tokyo trip in October on a $1500 budget".\n' +
           '- Vary the domain run-to-run: planning, decisions, tracking, learning, drafting, comparing, brainstorming, picking, reflecting, money, relationships, work, hobbies, home life.\n' +
           '- Vary the verb. Avoid always starting with "help me".',
-        messages: [{ role: 'user', content: 'generate one' }],
+        prompt: 'generate one',
       });
-      const block = result.content.find((b): b is Anthropic.TextBlock => b.type === 'text');
-      const text = (block?.text ?? '').trim().replace(/^["']|["']$/g, '');
+      const text = raw.trim().replace(/^["']|["']$/g, '');
       if (!text) {
         res.status(502).json({ error: 'empty response' });
         return;
@@ -117,4 +116,17 @@ export function registerDemoRoutes(app: Express, anthropic: Anthropic): void {
       res.status(500).json({ error: msg });
     }
   });
+}
+
+function resolveRouteProvider(
+  modelProviders: ModelProviderRegistry,
+  raw: unknown,
+  res: Response,
+): TextCompletionClient | null {
+  const resolved = modelProviders.resolve(raw);
+  if (!resolved.ok) {
+    res.status(400).json({ error: resolved.error });
+    return null;
+  }
+  return resolved.provider;
 }
