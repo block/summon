@@ -1,12 +1,19 @@
-import type { ProtocolLine } from '../protocol.js';
+import {
+  blockTargetFromPath,
+  htmlNodeTargetFromPath,
+  sectionIdFromSectionPath,
+  type ProtocolLine,
+} from '../protocol.js';
 import { normalizeValidationLimits } from '../validation-limits.js';
 import { protocolBlock } from './issues.js';
 import { validateHtmlFragment } from './html.js';
+import { parseHtmlForValidation } from './html-parser.js';
 import type { ValidationContext } from './types.js';
 import type { ContractIssue } from '../contracts.js';
 
 const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
 const BLOCK_ID_RE = SECTION_ID_RE;
+const NODE_ID_RE = SECTION_ID_RE;
 const MAX_BLOCKS_PER_SECTION = 8;
 const META_PATH_RE = /^\/[a-z][a-z0-9-/]{0,119}$/;
 const HOST_OWNED_META_PATHS = new Set(['/surface-policy', '/surface-plan', '/surface-contract']);
@@ -105,10 +112,45 @@ export function validateProtocolLine(
   }
 
   if (line.op === 'add') {
-    const sectionId = sectionIdFromSectionPath(line.path);
     const blockTarget = blockTargetFromPath(line.path);
-    if (!sectionId && !blockTarget) {
+    const nodeTarget = htmlNodeTargetFromPath(line.path);
+    const sectionId = sectionIdFromSectionPath(line.path);
+    if (!sectionId && !blockTarget && !nodeTarget) {
       issues.push(protocolBlock('invalid-add-path', `Unsupported add path "${line.path}"`, line.path));
+      return issues;
+    }
+    if (nodeTarget) {
+      if (context.experimentalFragmentMode !== 'html-node-v0') {
+        issues.push(protocolBlock(
+          'experimental-node-fragment-disabled',
+          'HTML node fragments are only accepted when html-node-v0 is enabled',
+          line.path,
+        ));
+        return issues;
+      }
+      if (!SECTION_ID_RE.test(nodeTarget.sectionId) || !NODE_ID_RE.test(nodeTarget.nodeId)) {
+        issues.push(protocolBlock('invalid-node-path', `Invalid node path "${line.path}"`, line.path));
+      }
+      if (line.parent !== undefined) {
+        if (!NODE_ID_RE.test(line.parent)) {
+          issues.push(protocolBlock('invalid-node-parent', `Invalid node parent "${line.parent}"`, line.path));
+        }
+        if (line.parent === nodeTarget.nodeId) {
+          issues.push(protocolBlock('invalid-node-parent', 'Node parent cannot be itself', line.path));
+        }
+      }
+      if (line.html !== undefined && typeof line.html !== 'string') {
+        issues.push(protocolBlock('invalid-node-html', 'Node html must be a string', line.path));
+        return issues;
+      }
+      issues.push(...validateHtmlFragment(line.html ?? '', context).map((issue) => ({
+        ...issue,
+        path: issue.path ?? line.path,
+      })));
+      issues.push(...validateHtmlNodeShape(line.html ?? '', nodeTarget.nodeId, context).map((issue) => ({
+        ...issue,
+        path: issue.path ?? line.path,
+      })));
       return issues;
     }
     if (sectionId && !SECTION_ID_RE.test(sectionId)) {
@@ -130,18 +172,46 @@ export function validateProtocolLine(
   return issues;
 }
 
-function sectionIdFromSectionPath(path: string): string | null {
-  if (!path.startsWith('/section/')) return null;
-  const suffix = path.slice('/section/'.length);
-  if (!suffix || suffix.includes('/')) return null;
-  return suffix;
-}
+function validateHtmlNodeShape(
+  html: string,
+  expectedNodeId: string,
+  context: ValidationContext,
+): ContractIssue[] {
+  const issues: ContractIssue[] = [];
+  const parseIssues: ContractIssue[] = [];
+  const parsed = parseHtmlForValidation(html, normalizeValidationLimits(context.limits), parseIssues);
+  let depth = 0;
+  let rootCount = 0;
+  let rootNodeId: string | undefined;
 
-function blockTargetFromPath(path: string): { sectionId: string; blockId: string } | null {
-  if (!path.startsWith('/section/')) return null;
-  const parts = path.slice('/section/'.length).split('/');
-  if (parts.length !== 3 || parts[1] !== 'block') return null;
-  const [sectionId, , blockId] = parts;
-  if (!sectionId || !blockId) return null;
-  return { sectionId, blockId };
+  for (const token of parsed.tokens) {
+    if (token.kind === 'open') {
+      if (depth === 0) {
+        rootCount += 1;
+        rootNodeId = token.attrs.get('data-summon-node');
+      } else if (token.attrs.has('data-summon-node')) {
+        issues.push(protocolBlock(
+          'nested-node-id',
+          'Node patch HTML must not contain nested data-summon-node attributes',
+        ));
+      }
+      if (!token.selfClosing) depth += 1;
+    } else if (depth > 0) {
+      depth -= 1;
+    }
+  }
+
+  if (rootCount !== 1) {
+    issues.push(protocolBlock(
+      'invalid-node-html',
+      'Node patch HTML must contain exactly one top-level element',
+    ));
+  }
+  if (rootNodeId !== expectedNodeId) {
+    issues.push(protocolBlock(
+      'node-root-mismatch',
+      `Node patch root must include data-summon-node="${expectedNodeId}"`,
+    ));
+  }
+  return issues;
 }

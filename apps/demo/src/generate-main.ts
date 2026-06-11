@@ -114,7 +114,7 @@ interface ModelOptions {
   effort?: 'low' | 'medium' | 'high';
 }
 
-type FragmentMode = 'section' | 'block-v0';
+type FragmentMode = 'section' | 'block-v0' | 'html-node-v0';
 
 interface ModelSelectionPayload {
   modelProvider?: string;
@@ -263,7 +263,9 @@ function readLayout(): SummonLayout | null {
   return layout ? { id: layout.id, slots: layout.slots.map((slot) => ({ ...slot })) } : null;
 }
 function readFragmentMode(): FragmentMode {
-  return fragmentUnitSel.value === 'block-v0' ? 'block-v0' : 'section';
+  if (fragmentUnitSel.value === 'block-v0') return 'block-v0';
+  if (fragmentUnitSel.value === 'html-node-v0') return 'html-node-v0';
+  return 'section';
 }
 function setMode(m: Mode) {
   const radio = document.querySelector<HTMLInputElement>(`input[name=mode][value="${m}"]`);
@@ -1887,7 +1889,7 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
       ...(target.components ? { components: target.components } : {}),
       surfaceCeiling: demoSurfaceCeiling,
       ...(opts.scriptPolicy ? { scriptPolicy: opts.scriptPolicy } : {}),
-      ...(opts.fragmentMode === 'block-v0' && !opts.edit ? { fragmentMode: opts.fragmentMode } : {}),
+      ...(opts.fragmentMode !== 'section' && !opts.edit ? { fragmentMode: opts.fragmentMode } : {}),
       ...(opts.surfacePolicy ? { surfacePolicy: opts.surfacePolicy } : {}),
       ...(opts.surfacePlan ? { surfacePlan: opts.surfacePlan } : {}),
       ...(opts.tokenOverrides ? { tokenOverrides: opts.tokenOverrides } : {}),
@@ -1994,6 +1996,9 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
     onGraph: (_snapshot, context) => pushGraphEvent(context),
     onRenderHtml: (html) => {
       target.getHandle()?.render(html);
+    },
+    onNodePatch: (patch) => {
+      target.getHandle()?.patchNode(patch);
     },
   });
 

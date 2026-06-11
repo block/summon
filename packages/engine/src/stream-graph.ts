@@ -1,5 +1,10 @@
 import type { ContractIssue } from './contracts.js';
-import type { ProtocolLine } from './protocol.js';
+import {
+  blockTargetFromPath as parseBlockTargetFromPath,
+  htmlNodeTargetFromPath as parseHtmlNodeTargetFromPath,
+  sectionIdFromSectionPath,
+  type ProtocolLine,
+} from './protocol.js';
 import type { RepairFeedbackMetaValue } from './protocol-hardener.js';
 
 export interface StreamGraphBlock {
@@ -9,6 +14,17 @@ export interface StreamGraphBlock {
   revision: number;
   bytes: number;
   firstDeclaredLine?: number;
+  firstSeenLine?: number;
+  lastUpdatedLine?: number;
+  lastIssue?: ContractIssue;
+}
+
+export interface StreamGraphNode {
+  id: string;
+  parentId?: string;
+  present: boolean;
+  revision: number;
+  bytes: number;
   firstSeenLine?: number;
   lastUpdatedLine?: number;
   lastIssue?: ContractIssue;
@@ -28,6 +44,9 @@ export interface StreamGraphSection {
   declaredBlockCount?: number;
   presentBlockCount?: number;
   lastBlockIssue?: ContractIssue;
+  nodes?: StreamGraphNode[];
+  presentNodeCount?: number;
+  lastNodeIssue?: ContractIssue;
 }
 
 export interface StreamGraphEdge {
@@ -69,6 +88,10 @@ const SKIPPED_ISSUE_CODES = new Set([
   'invalid-block-id',
   'duplicate-block-id',
   'invalid-block-path',
+  'experimental-node-fragment-disabled',
+  'invalid-node-path',
+  'invalid-node-parent',
+  'undeclared-node-parent',
   'undeclared-block',
   'layout-disallowed',
   'section-not-targeted',
@@ -104,6 +127,11 @@ export class StreamGraph {
     }
 
     if (line.op === 'add' && line.path.startsWith(SECTION_PREFIX)) {
+      const nodeTarget = htmlNodeTargetFromPath(line.path);
+      if (nodeTarget) {
+        this.applyNode(nodeTarget.sectionId, nodeTarget.nodeId, line.parent, line.html ?? '');
+        return;
+      }
       const blockTarget = blockTargetFromPath(line.path);
       if (blockTarget) {
         this.applyBlock(blockTarget.sectionId, blockTarget.blockId, line.html ?? '');
@@ -135,6 +163,15 @@ export class StreamGraph {
       return;
     }
 
+    const nodeTarget = htmlNodeTargetFromPath(issue.path);
+    if (nodeTarget) {
+      const section = this.ensureSection(nodeTarget.sectionId);
+      section.lastIssue = issue;
+      section.lastNodeIssue = issue;
+      ensureNode(section, nodeTarget.nodeId).lastIssue = issue;
+      return;
+    }
+
     const sectionId = sectionIdFromPath(issue.path);
     if (sectionId) {
       this.ensureSection(sectionId).lastIssue = issue;
@@ -153,6 +190,15 @@ export class StreamGraph {
       section.lastIssue = issue;
       section.lastBlockIssue = issue;
       ensureBlock(section, blockTarget.blockId).lastIssue = issue;
+      return;
+    }
+
+    const nodeTarget = htmlNodeTargetFromPath(feedback.target);
+    if (nodeTarget && issue) {
+      const section = this.ensureSection(nodeTarget.sectionId);
+      section.lastIssue = issue;
+      section.lastNodeIssue = issue;
+      ensureNode(section, nodeTarget.nodeId).lastIssue = issue;
       return;
     }
 
@@ -185,6 +231,10 @@ export class StreamGraph {
           block.firstDeclaredLine ?? 0,
           block.firstSeenLine ?? 0,
           block.lastUpdatedLine ?? 0,
+        ]),
+        ...(section.nodes ?? []).flatMap((node) => [
+          node.firstSeenLine ?? 0,
+          node.lastUpdatedLine ?? 0,
         ]),
       );
     }
@@ -236,6 +286,9 @@ export class StreamGraph {
     section.declaredBlockCount = undefined;
     section.presentBlockCount = undefined;
     section.lastBlockIssue = undefined;
+    section.nodes = undefined;
+    section.presentNodeCount = undefined;
+    section.lastNodeIssue = undefined;
     if (section.firstSeenLine === undefined) {
       section.firstSeenLine = this.lineCount;
     }
@@ -274,7 +327,37 @@ export class StreamGraph {
       block.firstSeenLine = this.lineCount;
     }
     block.lastUpdatedLine = this.lineCount;
+    section.nodes = undefined;
+    section.presentNodeCount = undefined;
+    section.lastNodeIssue = undefined;
     section.bytes = (section.blocks ?? [])
+      .filter((candidate) => candidate.present)
+      .reduce((sum, candidate) => sum + candidate.bytes, 0);
+  }
+
+  private applyNode(sectionId: string, nodeId: string, parentId: string | undefined, html: string): void {
+    const section = this.ensureSection(sectionId);
+    const node = ensureNode(section, nodeId);
+    section.present = true;
+    section.revision += 1;
+    section.lastUpdatedLine = this.lineCount;
+    if (section.firstSeenLine === undefined) {
+      section.firstSeenLine = this.lineCount;
+    }
+    if (parentId) node.parentId = parentId;
+    else delete node.parentId;
+    node.present = true;
+    node.revision += 1;
+    node.bytes = html.length;
+    if (node.firstSeenLine === undefined) {
+      node.firstSeenLine = this.lineCount;
+    }
+    node.lastUpdatedLine = this.lineCount;
+    section.blocks = undefined;
+    section.declaredBlockCount = undefined;
+    section.presentBlockCount = undefined;
+    section.lastBlockIssue = undefined;
+    section.bytes = (section.nodes ?? [])
       .filter((candidate) => candidate.present)
       .reduce((sum, candidate) => sum + candidate.bytes, 0);
   }
@@ -297,6 +380,14 @@ export class StreamGraph {
         section.lastIssue = issue;
         section.lastBlockIssue = issue;
         ensureBlock(section, blockTarget.blockId).lastIssue = issue;
+        return;
+      }
+      const nodeTarget = htmlNodeTargetFromPath(path);
+      if (nodeTarget) {
+        const section = this.ensureSection(nodeTarget.sectionId);
+        section.lastIssue = issue;
+        section.lastNodeIssue = issue;
+        ensureNode(section, nodeTarget.nodeId).lastIssue = issue;
         return;
       }
       const sectionId = sectionIdFromPath(path);
@@ -413,19 +504,15 @@ function sectionBlocks(value: unknown): string[] {
 }
 
 function sectionIdFromPath(path: unknown): string | null {
-  if (typeof path !== 'string' || !path.startsWith(SECTION_PREFIX)) return null;
-  const id = path.slice(SECTION_PREFIX.length);
-  if (!id || id.includes('/')) return null;
-  return id || null;
+  return typeof path === 'string' ? sectionIdFromSectionPath(path) : null;
 }
 
 function blockTargetFromPath(path: unknown): { sectionId: string; blockId: string } | null {
-  if (typeof path !== 'string' || !path.startsWith(SECTION_PREFIX)) return null;
-  const parts = path.slice(SECTION_PREFIX.length).split('/');
-  if (parts.length !== 3 || parts[1] !== 'block') return null;
-  const [sectionId, , blockId] = parts;
-  if (!sectionId || !blockId) return null;
-  return { sectionId, blockId };
+  return typeof path === 'string' ? parseBlockTargetFromPath(path) : null;
+}
+
+function htmlNodeTargetFromPath(path: unknown): { sectionId: string; nodeId: string } | null {
+  return typeof path === 'string' ? parseHtmlNodeTargetFromPath(path) : null;
 }
 
 function ensureBlock(section: StreamGraphSection, id: string): StreamGraphBlock {
@@ -443,11 +530,28 @@ function ensureBlock(section: StreamGraphSection, id: string): StreamGraphBlock 
   return block;
 }
 
+function ensureNode(section: StreamGraphSection, id: string): StreamGraphNode {
+  section.nodes ??= [];
+  const existing = section.nodes.find((node) => node.id === id);
+  if (existing) return existing;
+  const node: StreamGraphNode = {
+    id,
+    present: false,
+    revision: 0,
+    bytes: 0,
+  };
+  section.nodes.push(node);
+  return node;
+}
+
 function cloneSection(section: StreamGraphSection): StreamGraphSection {
   const blocks = section.blocks?.map(cloneBlock);
   const declaredBlockCount = blocks?.filter((block) => block.declared).length;
   const presentBlockCount = blocks?.filter((block) => block.present).length;
   const lastBlockIssue = section.lastBlockIssue ?? lastIssueFromBlocks(blocks);
+  const nodes = section.nodes?.map(cloneNode);
+  const presentNodeCount = nodes?.filter((node) => node.present).length;
+  const lastNodeIssue = section.lastNodeIssue ?? lastIssueFromNodes(nodes);
   return {
     ...section,
     ...(section.lastIssue ? { lastIssue: { ...section.lastIssue } } : {}),
@@ -455,6 +559,9 @@ function cloneSection(section: StreamGraphSection): StreamGraphSection {
     ...(blocks ? { declaredBlockCount: declaredBlockCount ?? 0 } : {}),
     ...(blocks ? { presentBlockCount: presentBlockCount ?? 0 } : {}),
     ...(lastBlockIssue ? { lastBlockIssue: { ...lastBlockIssue } } : {}),
+    ...(nodes ? { nodes } : {}),
+    ...(nodes ? { presentNodeCount: presentNodeCount ?? 0 } : {}),
+    ...(lastNodeIssue ? { lastNodeIssue: { ...lastNodeIssue } } : {}),
   };
 }
 
@@ -465,10 +572,26 @@ function cloneBlock(block: StreamGraphBlock): StreamGraphBlock {
   };
 }
 
+function cloneNode(node: StreamGraphNode): StreamGraphNode {
+  return {
+    ...node,
+    ...(node.lastIssue ? { lastIssue: { ...node.lastIssue } } : {}),
+  };
+}
+
 function lastIssueFromBlocks(blocks: StreamGraphBlock[] | undefined): ContractIssue | undefined {
   if (!blocks) return undefined;
   for (let i = blocks.length - 1; i >= 0; i--) {
     const issue = blocks[i]?.lastIssue;
+    if (issue) return issue;
+  }
+  return undefined;
+}
+
+function lastIssueFromNodes(nodes: StreamGraphNode[] | undefined): ContractIssue | undefined {
+  if (!nodes) return undefined;
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const issue = nodes[i]?.lastIssue;
     if (issue) return issue;
   }
   return undefined;

@@ -3,6 +3,7 @@ import { hasCompleteResourceStateKeys, type ValidationCapability } from '@summon
 import type {
   Artifact,
   ComponentIslandDescriptor,
+  HtmlNodePatch,
   SandboxHandle,
   SandboxInboundMessage,
 } from './types.js';
@@ -216,7 +217,10 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
 
   let ready = false;
   const pendingStates: Record<string, unknown>[] = [];
-  const pendingRenders: string[] = [];
+  const pendingDomOps: Array<
+    | { kind: 'render'; html: string }
+    | { kind: 'node-patch'; patch: HtmlNodePatch }
+  > = [];
   // Chrome attributes are merged before flush so a flurry of setChrome calls
   // pre-ready collapses into a single postMessage. Post-ready, each setChrome
   // call dispatches immediately.
@@ -237,9 +241,13 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       const state = pendingStates.shift()!;
       opts.iframe.contentWindow.postMessage({ type: 'SUMMON_STATE', state }, '*');
     }
-    while (pendingRenders.length > 0) {
-      const html = pendingRenders.shift()!;
-      opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', html }, '*');
+    while (pendingDomOps.length > 0) {
+      const op = pendingDomOps.shift()!;
+      if (op.kind === 'render') {
+        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', html: op.html }, '*');
+      } else {
+        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_NODE_PATCH', patch: op.patch }, '*');
+      }
     }
   }
 
@@ -384,12 +392,22 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       flushPending();
     },
     render(html) {
-      pendingRenders.push(html);
+      pendingDomOps.push({ kind: 'render', html });
       opts.events?.push({
         kind: 'render',
         at: Date.now(),
         sandboxId,
         bytes: html.length,
+      });
+      flushPending();
+    },
+    patchNode(patch) {
+      pendingDomOps.push({ kind: 'node-patch', patch });
+      opts.events?.push({
+        kind: 'render',
+        at: Date.now(),
+        sandboxId,
+        bytes: patch.html.length,
       });
       flushPending();
     },

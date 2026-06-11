@@ -121,3 +121,85 @@ test('block replacement updates one block and whole-section add clears block sta
     '<section data-summon-section="summary">\n<article>Opaque</article>\n</section>',
   );
 });
+
+test('html node patches compose into nested section HTML', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/root',
+    html: '<div data-summon-node="root" class="dashboard"></div>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/headline',
+    parent: 'root',
+    html: '<header data-summon-node="headline"><h1>Closeout</h1></header>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/metric',
+    parent: 'root',
+    html: '<article data-summon-node="metric"><strong>42</strong></article>',
+  });
+
+  assert.equal(acc.compose(), [
+    '<section data-summon-section="main">',
+    '<div data-summon-node="root" class="dashboard">',
+    '<header data-summon-node="headline"><h1>Closeout</h1></header>',
+    '<article data-summon-node="metric"><strong>42</strong></article>',
+    '</div>',
+    '</section>',
+  ].join('\n'));
+});
+
+test('html node replacement updates only that node in composed HTML', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/root',
+    html: '<div data-summon-node="root"></div>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/a',
+    parent: 'root',
+    html: '<p data-summon-node="a">A</p>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/b',
+    parent: 'root',
+    html: '<p data-summon-node="b">Draft</p>',
+  });
+
+  const replacement = acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/b',
+    parent: 'root',
+    html: '<p data-summon-node="b">Final</p>',
+  });
+  assert.equal(replacement.changed, true);
+  assert.equal(replacement.nodeId, 'b');
+  assert.equal(replacement.nodePatch?.parentId, 'root');
+  assert.match(acc.compose(), /data-summon-node="a">A/);
+  assert.match(acc.compose(), /data-summon-node="b">Final/);
+  assert.doesNotMatch(acc.compose(), /Draft/);
+});
+
+test('whole-section add clears html node state', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/root',
+    html: '<div data-summon-node="root"></div>',
+  });
+
+  acc.applyDetailed({ op: 'add', path: '/section/main', html: '<article>Opaque</article>' });
+  assert.equal(
+    acc.compose(),
+    '<section data-summon-section="main">\n<article>Opaque</article>\n</section>',
+  );
+});

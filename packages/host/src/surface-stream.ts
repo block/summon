@@ -3,6 +3,7 @@ import {
   SectionAccumulator,
   StreamGraph,
   type ContractIssue,
+  type HtmlNodePatch,
   type MetaLine,
   type ProtocolLine,
   type SectionApplyResult,
@@ -65,6 +66,10 @@ export interface SurfaceStreamOptions {
   ) => void | Promise<void>;
   onRenderHtml?: (
     html: string,
+    context: SurfaceStreamContext,
+  ) => void | Promise<void>;
+  onNodePatch?: (
+    patch: HtmlNodePatch,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
   onError?: (
@@ -173,6 +178,10 @@ export async function consumeSurfaceStream(
 
     await emitGraph(ctx);
     if (renderMode() === 'live' && applyResult?.changed) {
+      if (applyResult.nodePatch && options.onNodePatch) {
+        await options.onNodePatch(applyResult.nodePatch, ctx);
+        return;
+      }
       await emitRender(ctx);
     }
   };

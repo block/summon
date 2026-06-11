@@ -4,6 +4,7 @@ import {
   type SandboxHandle,
 } from '@anarchitecture/summon/browser';
 import type {
+  HtmlNodePatch,
   ProtocolLine,
   StreamGraphSnapshot,
   SurfaceCeiling,
@@ -12,7 +13,17 @@ import type {
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
 import tokensSource from '@anarchitecture/summon/tokens.css?raw';
 
-type FragmentSide = 'section' | 'block-v0';
+type FragmentSide = 'section' | 'html-node-v0';
+type PromptComplexity = 'simple' | 'medium' | 'complex';
+type PromptUseCase = 'status' | 'decision' | 'operations' | 'customer';
+
+interface PromptPreset {
+  id: string;
+  useCase: PromptUseCase;
+  complexity: PromptComplexity;
+  title: string;
+  prompt: string;
+}
 
 interface CompareTarget {
   side: FragmentSide;
@@ -23,14 +34,134 @@ interface CompareTarget {
   handle: SandboxHandle | null;
   lines: number;
   bytes: number;
+  nodeCommits: number;
+  firstNodeAt: number | null;
+  latestGraph: StreamGraphSnapshot | null;
   startedAt: number;
 }
 
 const form = document.getElementById('compare-form') as HTMLFormElement;
 const promptEl = document.getElementById('prompt') as HTMLTextAreaElement;
+const presetMatrixEl = document.getElementById('prompt-preset-matrix')!;
 const runBtn = document.getElementById('run') as HTMLButtonElement;
 const stopBtn = document.getElementById('stop') as HTMLButtonElement;
 const summaryEl = document.getElementById('summary')!;
+
+const promptComplexities: Array<{ id: PromptComplexity; label: string }> = [
+  { id: 'simple', label: 'Simple' },
+  { id: 'medium', label: 'Medium' },
+  { id: 'complex', label: 'Complex' },
+];
+
+const promptUseCases: Array<{ id: PromptUseCase; label: string; description: string }> = [
+  {
+    id: 'status',
+    label: 'Status surfaces',
+    description: 'Dashboards, recaps, health checks',
+  },
+  {
+    id: 'decision',
+    label: 'Decision briefs',
+    description: 'Tradeoffs, comparisons, recommendations',
+  },
+  {
+    id: 'operations',
+    label: 'Operational workflows',
+    description: 'Triage, control rooms, execution plans',
+  },
+  {
+    id: 'customer',
+    label: 'Customer follow-up',
+    description: 'Merchant notes, outreach, account plans',
+  },
+];
+
+const promptPresets: PromptPreset[] = [
+  {
+    id: 'status-simple-launch-pulse',
+    useCase: 'status',
+    complexity: 'simple',
+    title: 'Launch Pulse',
+    prompt: 'Show me a clean end-of-day sales snapshot for a coffee shop.',
+  },
+  {
+    id: 'status-medium-shift-recap',
+    useCase: 'status',
+    complexity: 'medium',
+    title: 'Shift Recap',
+    prompt: 'Show me a weekly cafe performance recap with sales, staffing, inventory, customer sentiment, and next actions.',
+  },
+  {
+    id: 'status-complex-portfolio-review',
+    useCase: 'status',
+    complexity: 'complex',
+    title: 'Portfolio Review',
+    prompt: 'Show me a quarterly portfolio review across five product initiatives, including progress, spend, adoption, dependencies, risks, staffing pressure, decisions needed, and an executive verdict.',
+  },
+  {
+    id: 'decision-simple-vendor-pick',
+    useCase: 'decision',
+    complexity: 'simple',
+    title: 'Vendor Pick',
+    prompt: 'Compare two weekend promo ideas for a coffee shop and recommend one.',
+  },
+  {
+    id: 'decision-medium-roadmap-tradeoff',
+    useCase: 'decision',
+    complexity: 'medium',
+    title: 'Roadmap Tradeoff',
+    prompt: 'Compare three checkout roadmap bets with customer impact, engineering effort, risk, confidence, and a recommendation.',
+  },
+  {
+    id: 'decision-complex-pricing-strategy',
+    useCase: 'decision',
+    complexity: 'complex',
+    title: 'Pricing Strategy',
+    prompt: 'Show me a pricing strategy decision room for a SaaS billing change, with rollout options, revenue forecast, churn risk, merchant segments, support impact, confidence, and an executive recommendation.',
+  },
+  {
+    id: 'operations-simple-support-snapshot',
+    useCase: 'operations',
+    complexity: 'simple',
+    title: 'Support Snapshot',
+    prompt: 'Make a packing checklist for a Saturday pop-up booth.',
+  },
+  {
+    id: 'operations-medium-incident-command',
+    useCase: 'operations',
+    complexity: 'medium',
+    title: 'Incident Command',
+    prompt: 'Show me a triage board for today\'s support queue, with priority groups, aging tickets, escalations, owners, and next actions.',
+  },
+  {
+    id: 'operations-complex-migration-control',
+    useCase: 'operations',
+    complexity: 'complex',
+    title: 'Migration Control',
+    prompt: 'Show me a migration control room for moving 42 merchants from a legacy invoicing workflow to a new billing platform, including cohorts, blockers, data quality checks, support load, rollback criteria, comms, and day-by-day execution plan.',
+  },
+  {
+    id: 'customer-simple-sales-note',
+    useCase: 'customer',
+    complexity: 'simple',
+    title: 'Sales Note',
+    prompt: 'Draft a follow-up note after a restaurant POS demo.',
+  },
+  {
+    id: 'customer-medium-renewal-prep',
+    useCase: 'customer',
+    complexity: 'medium',
+    title: 'Renewal Prep',
+    prompt: 'Prepare a renewal prep brief for a neighborhood grocer, with usage wins, adoption gaps, billing concerns, stakeholders, risks, and meeting goals.',
+  },
+  {
+    id: 'customer-complex-save-plan',
+    useCase: 'customer',
+    complexity: 'complex',
+    title: 'Account Save Plan',
+    prompt: 'Show me a 30-day save plan for an at-risk enterprise merchant, with account health, executive relationships, product pain, support history, commercial exposure, competitive threat, negotiation plan, and timeline.',
+  },
+];
 
 const targets: CompareTarget[] = [
   {
@@ -42,10 +173,13 @@ const targets: CompareTarget[] = [
     handle: null,
     lines: 0,
     bytes: 0,
+    nodeCommits: 0,
+    firstNodeAt: null,
+    latestGraph: null,
     startedAt: 0,
   },
   {
-    side: 'block-v0',
+    side: 'html-node-v0',
     frame: document.getElementById('block-frame') as HTMLIFrameElement,
     statusEl: document.getElementById('block-status')!,
     metricsEl: document.getElementById('block-metrics')!,
@@ -53,6 +187,9 @@ const targets: CompareTarget[] = [
     handle: null,
     lines: 0,
     bytes: 0,
+    nodeCommits: 0,
+    firstNodeAt: null,
+    latestGraph: null,
     startedAt: 0,
   },
 ];
@@ -73,7 +210,84 @@ const surfaceCeiling: SurfaceCeiling = {
   persistences: ['replayable'],
 };
 
+const modelOptions = {
+  maxOutputTokens: 16000,
+  repairMaxOutputTokens: 4000,
+  anthropicThinking: 'off',
+  effort: 'low',
+} as const;
+
 let activeAbort: AbortController | null = null;
+let activePresetId: string | null = null;
+
+function renderPromptMatrix(): void {
+  presetMatrixEl.textContent = '';
+
+  const corner = document.createElement('div');
+  corner.className = 'compare-preset-corner';
+  corner.textContent = 'Use case';
+  presetMatrixEl.appendChild(corner);
+
+  for (const complexity of promptComplexities) {
+    const column = document.createElement('div');
+    column.className = 'compare-preset-column';
+    column.textContent = complexity.label;
+    presetMatrixEl.appendChild(column);
+  }
+
+  for (const useCase of promptUseCases) {
+    const label = document.createElement('div');
+    label.className = 'compare-preset-usecase';
+
+    const title = document.createElement('span');
+    title.className = 'compare-preset-usecase-label';
+    title.textContent = useCase.label;
+
+    const description = document.createElement('span');
+    description.className = 'compare-preset-usecase-desc';
+    description.textContent = useCase.description;
+
+    label.append(title, description);
+    presetMatrixEl.appendChild(label);
+
+    for (const complexity of promptComplexities) {
+      const preset = promptPresets.find(
+        (candidate) => candidate.useCase === useCase.id && candidate.complexity === complexity.id,
+      );
+      if (!preset) continue;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'compare-preset-button';
+      button.dataset.presetId = preset.id;
+      button.dataset.complexity = complexity.id;
+      button.setAttribute('aria-label', `${useCase.label}, ${complexity.label}: ${preset.title}`);
+      if (preset.id === activePresetId) button.dataset.active = 'true';
+
+      const presetTitle = document.createElement('span');
+      presetTitle.className = 'compare-preset-title';
+      presetTitle.textContent = preset.title;
+      const preview = document.createElement('span');
+      preview.className = 'compare-preset-preview';
+      preview.textContent = preset.prompt;
+      button.append(presetTitle, preview);
+
+      button.addEventListener('click', () => {
+        activePresetId = preset.id;
+        promptEl.value = preset.prompt;
+        renderPromptMatrix();
+        promptEl.focus();
+      });
+      presetMatrixEl.appendChild(button);
+    }
+  }
+}
+
+function syncActivePresetFromPrompt(): void {
+  const match = promptPresets.find((preset) => preset.prompt === promptEl.value);
+  activePresetId = match?.id ?? null;
+  renderPromptMatrix();
+}
 
 function resetTarget(target: CompareTarget): void {
   target.handle?.dispose();
@@ -86,6 +300,9 @@ function resetTarget(target: CompareTarget): void {
   });
   target.lines = 0;
   target.bytes = 0;
+  target.nodeCommits = 0;
+  target.firstNodeAt = null;
+  target.latestGraph = null;
   target.startedAt = performance.now();
   target.logEl.innerHTML = '';
   setStatus(target, 'idle');
@@ -109,20 +326,43 @@ function logLine(target: CompareTarget, cls: string, text: string): void {
 }
 
 function updateMetrics(target: CompareTarget, graph?: StreamGraphSnapshot): void {
-  const sections = graph?.sections ?? [];
+  if (graph) target.latestGraph = graph;
+  const sections = (graph ?? target.latestGraph)?.sections ?? [];
   const presentSections = sections.filter((section) => section.present).length;
-  const declaredBlocks = sections.reduce((sum, section) => sum + (section.declaredBlockCount ?? 0), 0);
-  const presentBlocks = sections.reduce((sum, section) => sum + (section.presentBlockCount ?? 0), 0);
-  const blockPart = target.side === 'block-v0'
-    ? ` · ${presentBlocks}/${declaredBlocks} blocks`
+  const presentNodes = sections.reduce((sum, section) => sum + (section.presentNodeCount ?? 0), 0);
+  const nodePart = target.side === 'html-node-v0'
+    ? ` · ${presentNodes} nodes · ${target.nodeCommits} patches${target.firstNodeAt === null ? '' : ` · first ${(target.firstNodeAt / 1000).toFixed(1)}s`}`
     : '';
-  target.metricsEl.textContent = `${target.lines} lines · ${target.bytes.toLocaleString()} B · ${presentSections} sections${blockPart}`;
+  target.metricsEl.textContent = `${target.lines} lines · ${target.bytes.toLocaleString()} B · ${presentSections} sections${nodePart}`;
 }
 
 function lineClass(line: ProtocolLine): string {
   if (line.op === 'add') return 'op-add';
   if (line.op === 'set') return 'op-set';
   return 'op-meta';
+}
+
+function lineLabel(line: ProtocolLine): string {
+  if (line.op === 'meta' && line.path === '/status') {
+    return `meta /status ${String(line.value)}`;
+  }
+  if (line.op === 'meta' && line.path === '/thinking') {
+    return 'meta /thinking ...';
+  }
+  if (line.op === 'add' && line.path.includes('/node/')) {
+    return `${line.op} ${line.path}${line.parent ? ` parent=${line.parent}` : ''}`;
+  }
+  return `${line.op} ${line.path}`;
+}
+
+function applyNodePatch(target: CompareTarget, patch: HtmlNodePatch): void {
+  if (target.firstNodeAt === null) {
+    target.firstNodeAt = performance.now() - target.startedAt;
+  }
+  target.nodeCommits += 1;
+  target.handle?.patchNode(patch);
+  logLine(target, 'op-add', `patch node ${patch.sectionId}/${patch.nodeId}${patch.parentId ? ` parent=${patch.parentId}` : ''}`);
+  updateMetrics(target);
 }
 
 async function* countedStream(
@@ -148,7 +388,7 @@ async function* countedStream(
 async function runTarget(target: CompareTarget, prompt: string, signal: AbortSignal): Promise<void> {
   resetTarget(target);
   setStatus(target, 'starting');
-  logLine(target, 'info', target.side === 'block-v0' ? 'POST /api/generate fragmentMode=block-v0' : 'POST /api/generate fragmentMode=section');
+  logLine(target, 'info', target.side === 'html-node-v0' ? 'POST /api/generate fragmentMode=html-node-v0' : 'POST /api/generate fragmentMode=section');
 
   try {
     const res = await fetch('/api/generate', {
@@ -156,11 +396,13 @@ async function runTarget(target: CompareTarget, prompt: string, signal: AbortSig
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt,
+        directionId: '',
         mode: 'static',
+        modelOptions,
         surfacePlan,
         surfaceCeiling,
         scriptPolicy: 'forbid',
-        ...(target.side === 'block-v0' ? { fragmentMode: 'block-v0' } : {}),
+        ...(target.side === 'html-node-v0' ? { fragmentMode: 'html-node-v0' } : {}),
       }),
       signal,
     });
@@ -174,7 +416,7 @@ async function runTarget(target: CompareTarget, prompt: string, signal: AbortSig
       onLine: (line, context) => {
         target.lines += 1;
         updateMetrics(target, context.graph.snapshot());
-        logLine(target, lineClass(line), `${line.op} ${line.path}`);
+        logLine(target, lineClass(line), lineLabel(line));
       },
       onMeta: (line) => {
         if (line.path === '/experimental-fragments') {
@@ -189,6 +431,9 @@ async function runTarget(target: CompareTarget, prompt: string, signal: AbortSig
       },
       onRenderHtml: (html) => {
         target.handle?.render(html);
+      },
+      onNodePatch: (patch) => {
+        applyNodePatch(target, patch);
       },
       onParseError: (raw) => {
         logLine(target, 'op-error', `parse ${raw.slice(0, 120)}`);
@@ -241,6 +486,14 @@ form.addEventListener('submit', (event) => {
 stopBtn.addEventListener('click', () => {
   activeAbort?.abort();
 });
+
+promptEl.addEventListener('input', () => {
+  const match = promptPresets.find((preset) => preset.prompt === promptEl.value);
+  activePresetId = match?.id ?? null;
+  renderPromptMatrix();
+});
+
+syncActivePresetFromPrompt();
 
 for (const target of targets) {
   resetTarget(target);

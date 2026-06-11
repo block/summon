@@ -750,6 +750,66 @@
     return out;
   }
 
+  function patchHtmlNode(patch) {
+    if (!patch || typeof patch !== 'object') return;
+    var sectionId = typeof patch.sectionId === 'string' ? patch.sectionId : '';
+    var nodeId = typeof patch.nodeId === 'string' ? patch.nodeId : '';
+    var parentId = typeof patch.parentId === 'string' ? patch.parentId : '';
+    var html = typeof patch.html === 'string' ? patch.html : '';
+    if (!sectionId || !nodeId) return;
+
+    var root = document.getElementById('summon-root');
+    if (!root) return;
+    indexExistingSections(root);
+
+    var section = sectionEls.get(sectionId);
+    if (!section) {
+      section = document.createElement('section');
+      section.setAttribute('data-summon-section', sectionId);
+      root.appendChild(section);
+      sectionEls.set(sectionId, section);
+    }
+
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    var incoming = tmp.firstElementChild;
+    if (!incoming || incoming.getAttribute('data-summon-node') !== nodeId) return;
+
+    var parent = parentId ? findSummonNode(section, parentId) : section;
+    if (!parent) return;
+
+    var existing = findSummonNode(section, nodeId);
+    if (existing) {
+      var preservedChildren = directNodeChildren(existing);
+      for (var i = 0; i < preservedChildren.length; i++) {
+        incoming.appendChild(preservedChildren[i]);
+      }
+      existing.replaceWith(incoming);
+    } else {
+      parent.appendChild(incoming);
+    }
+
+    applyBindings();
+    applyMountIntents();
+  }
+
+  function findSummonNode(section, nodeId) {
+    var nodes = section.querySelectorAll('[data-summon-node]');
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute('data-summon-node') === nodeId) return nodes[i];
+    }
+    return null;
+  }
+
+  function directNodeChildren(parent) {
+    var out = [];
+    for (var i = 0; i < parent.children.length; i++) {
+      var child = parent.children[i];
+      if (child.hasAttribute('data-summon-node')) out.push(child);
+    }
+    return out;
+  }
+
   function rerunScripts(scope) {
     const scripts = scope.querySelectorAll('script');
     for (const old of scripts) {
@@ -784,6 +844,11 @@
       // replace clears them, but a section-by-section diff leaves alive
       // sections (and their onState subscribers) in place.
       renderRoot(data.html);
+      return;
+    }
+
+    if (data.type === 'SUMMON_NODE_PATCH') {
+      patchHtmlNode(data.patch);
       return;
     }
 

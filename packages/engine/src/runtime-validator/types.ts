@@ -11,6 +11,7 @@ import type { ValidationLimits } from '../validation-limits.js';
 export interface ValidationContext {
   mode: 'static' | 'interactive';
   scriptPolicy?: ScriptPolicy;
+  experimentalFragmentMode?: 'section' | 'block-v0' | 'html-node-v0';
   allowedIntents?: Iterable<string>;
   capabilities?: Iterable<ValidationCapability>;
   components?: Iterable<ValidationComponent>;

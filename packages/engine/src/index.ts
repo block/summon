@@ -4,12 +4,19 @@ export {
   isProtocolLine,
   parseProtocolLine,
   parseProtocolLineStrict,
+  blockTargetFromPath,
+  htmlNodePatchFromLine,
+  htmlNodeTargetFromPath,
+  sectionIdFromSectionPath,
 } from './protocol.js';
 export type {
   ProtocolLine,
   AddLine,
   SetLine,
   MetaLine,
+  BlockTarget,
+  HtmlNodePatch,
+  HtmlNodeTarget,
   ProtocolParseErrorCode,
   ProtocolParseOptions,
 } from './protocol.js';
@@ -30,6 +37,7 @@ export type {
   StreamGraphBlock,
   StreamGraphEdge,
   StreamGraphHealth,
+  StreamGraphNode,
   StreamGraphSection,
   StreamGraphSnapshot,
 } from './stream-graph.js';

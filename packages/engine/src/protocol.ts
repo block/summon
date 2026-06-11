@@ -15,6 +15,7 @@ export interface AddLine {
   op: 'add';
   path: string;
   html?: string;
+  parent?: string;
 }
 
 export interface SetLine {
@@ -33,13 +34,31 @@ export type ProtocolLine = AddLine | SetLine | MetaLine;
 
 export const SUMMON_PROTOCOL_VERSION = 1;
 
+export interface BlockTarget {
+  sectionId: string;
+  blockId: string;
+}
+
+export interface HtmlNodeTarget {
+  sectionId: string;
+  nodeId: string;
+}
+
+export interface HtmlNodePatch {
+  sectionId: string;
+  nodeId: string;
+  parentId?: string;
+  html: string;
+}
+
 export type ProtocolParseErrorCode =
   | 'empty'
   | 'oversized-line'
   | 'malformed-json'
   | 'invalid-shape'
   | 'invalid-op'
-  | 'invalid-add-html';
+  | 'invalid-add-html'
+  | 'invalid-add-parent';
 
 export class ProtocolParseError extends Error {
   readonly code: ProtocolParseErrorCode;
@@ -94,6 +113,9 @@ export function parseProtocolLineStrict(
     if (p.html !== undefined && typeof p.html !== 'string') {
       throw new ProtocolParseError('invalid-add-html', 'Add line html must be a string');
     }
+    if (p.parent !== undefined && typeof p.parent !== 'string') {
+      throw new ProtocolParseError('invalid-add-parent', 'Add line parent must be a string');
+    }
     return p as unknown as AddLine;
   }
   if (p.op === 'set') return p as unknown as SetLine;
@@ -113,10 +135,52 @@ export function isProtocolLine(value: unknown): value is ProtocolLine {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const p = value as Record<string, unknown>;
   if (typeof p.op !== 'string' || typeof p.path !== 'string') return false;
-  if (p.op === 'add') return p.html === undefined || typeof p.html === 'string';
+  if (p.op === 'add') {
+    return (
+      (p.html === undefined || typeof p.html === 'string') &&
+      (p.parent === undefined || typeof p.parent === 'string')
+    );
+  }
   return p.op === 'set' || p.op === 'meta';
 }
 
 function byteLength(value: string): number {
   return new TextEncoder().encode(value).length;
+}
+
+export function sectionIdFromSectionPath(path: string): string | null {
+  if (!path.startsWith('/section/')) return null;
+  const suffix = path.slice('/section/'.length);
+  if (!suffix || suffix.includes('/')) return null;
+  return suffix;
+}
+
+export function blockTargetFromPath(path: string): BlockTarget | null {
+  if (!path.startsWith('/section/')) return null;
+  const parts = path.slice('/section/'.length).split('/');
+  if (parts.length !== 3 || parts[1] !== 'block') return null;
+  const [sectionId, , blockId] = parts;
+  if (!sectionId || !blockId) return null;
+  return { sectionId, blockId };
+}
+
+export function htmlNodeTargetFromPath(path: string): HtmlNodeTarget | null {
+  if (!path.startsWith('/section/')) return null;
+  const parts = path.slice('/section/'.length).split('/');
+  if (parts.length !== 3 || parts[1] !== 'node') return null;
+  const [sectionId, , nodeId] = parts;
+  if (!sectionId || !nodeId) return null;
+  return { sectionId, nodeId };
+}
+
+export function htmlNodePatchFromLine(line: ProtocolLine): HtmlNodePatch | null {
+  if (line.op !== 'add') return null;
+  const target = htmlNodeTargetFromPath(line.path);
+  if (!target) return null;
+  return {
+    sectionId: target.sectionId,
+    nodeId: target.nodeId,
+    ...(line.parent ? { parentId: line.parent } : {}),
+    html: line.html ?? '',
+  };
 }

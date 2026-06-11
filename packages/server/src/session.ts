@@ -78,7 +78,10 @@ export class SurfaceGenerationSession {
     });
 
     this.hardener = createProtocolHardener({
-      validationContext: this.systemContracts.validationContext,
+      validationContext: {
+        ...this.systemContracts.validationContext,
+        experimentalFragmentMode: input.experimentalFragmentMode ?? 'section',
+      },
       layout: input.layout ?? null,
       initialScreenSections: input.initialScreenSections ?? input.edit?.sections.map((section) => section.id),
       allowedSectionIds: input.allowedSectionIds ?? input.edit?.targetSections,

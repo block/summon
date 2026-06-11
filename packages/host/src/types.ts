@@ -1,9 +1,20 @@
-import type { ValidationCapability, ValidationComponent } from '@summon-internal/engine';
+import type {
+  HtmlNodePatch,
+  ValidationCapability,
+  ValidationComponent,
+} from '@summon-internal/engine';
+
+export type { HtmlNodePatch } from '@summon-internal/engine';
 
 /** Messages from host into the sandbox iframe. */
 export interface StateMessage {
   type: 'SUMMON_STATE';
   state: Record<string, unknown>;
+}
+
+export interface NodePatchMessage {
+  type: 'SUMMON_NODE_PATCH';
+  patch: HtmlNodePatch;
 }
 
 /**
@@ -80,6 +91,8 @@ export interface SandboxHandle {
   pushState(state: Record<string, unknown>): void;
   /** Replace the HTML inside #summon-root. Scripts in the new HTML will execute. */
   render(html: string): void;
+  /** Patch one validated data-summon-node subtree in place. Experimental. */
+  patchNode(patch: HtmlNodePatch): void;
   /**
    * Declare chrome attributes that should appear on the sandbox document's
    * `<html>` element. Each entry becomes `data-summon-<key>="<value>"` and is

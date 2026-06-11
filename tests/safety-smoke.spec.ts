@@ -1,4 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+
+const bootstrapSource = readFileSync(
+  new URL('../packages/sandbox-runtime/src/bootstrap.js', import.meta.url),
+  'utf8',
+).replace(/<\/script/gi, '<\\/script');
 
 function collectPageErrors(page: Page): Error[] {
   const errors: Error[] = [];
@@ -99,6 +105,78 @@ test('generate page boots without server credentials', async ({ page }) => {
   expect(pageErrors.map((error) => error.message)).toEqual([]);
 });
 
+test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => {
+  const sandboxId = 'node-patch-test';
+  await page.setContent(`
+    <script>
+      window.__summonMessages = [];
+      window.addEventListener('message', (event) => window.__summonMessages.push(event.data));
+    </script>
+    <iframe id="sandbox" sandbox="allow-scripts"></iframe>
+  `);
+  const srcdoc = `<!doctype html>
+    <html>
+      <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'; child-src 'none'; media-src 'none'; object-src 'none'; worker-src 'none'">
+        <meta charset="utf-8">
+        <script>window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+        <script>${bootstrapSource}</script>
+      </head>
+      <body><div id="summon-root"></div></body>
+    </html>`;
+  await page.locator('#sandbox').evaluate((iframe, html) => {
+    (iframe as HTMLIFrameElement).srcdoc = html;
+  }, srcdoc);
+  await expect.poll(async () => page.evaluate(() => {
+    const messages = (window as any).__summonMessages as any[];
+    return messages.some((message) => message?.type === 'SUMMON_READY');
+  })).toBe(true);
+
+  async function patchNode(patch: any) {
+    await page.locator('#sandbox').evaluate((iframe, nextPatch) => {
+      (iframe as HTMLIFrameElement).contentWindow?.postMessage({
+        type: 'SUMMON_NODE_PATCH',
+        patch: nextPatch,
+      }, '*');
+    }, patch);
+  }
+
+  await patchNode({
+    sectionId: 'main',
+    nodeId: 'root',
+    html: '<div data-summon-node="root"></div>',
+  });
+  await patchNode({
+    sectionId: 'main',
+    nodeId: 'a',
+    parentId: 'root',
+    html: '<label data-summon-node="a">Name <input value=""></label>',
+  });
+  await patchNode({
+    sectionId: 'main',
+    nodeId: 'b',
+    parentId: 'root',
+    html: '<p data-summon-node="b">Draft</p>',
+  });
+
+  const sandbox = page.frameLocator('#sandbox');
+  const input = sandbox.locator('[data-summon-node="a"] input');
+  await expect(input).toBeVisible();
+  await input.fill('sticky value');
+  await expect(input).toBeFocused();
+
+  await patchNode({
+    sectionId: 'main',
+    nodeId: 'b',
+    parentId: 'root',
+    html: '<p data-summon-node="b">Final</p>',
+  });
+
+  await expect(sandbox.locator('[data-summon-node="b"]')).toContainText('Final');
+  await expect(input).toHaveValue('sticky value');
+  await expect(input).toBeFocused();
+});
+
 test('generate showcase sends SurfacePolicy by default', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {
@@ -146,7 +224,7 @@ test('generate showcase sends SurfacePolicy by default', async ({ page }) => {
   expect(captured.scriptPolicy).toBe('forbid');
 });
 
-test('fragment compare launches section and block streams from the same prompt', async ({ page }) => {
+test('fragment compare launches section and html node streams from the same prompt', async ({ page }) => {
   const captured: any[] = [];
   let releaseBoth!: () => void;
   const bothArrived = new Promise<void>((resolve) => {
@@ -159,13 +237,13 @@ test('fragment compare launches section and block streams from the same prompt',
     if (captured.length === 2) releaseBoth();
     await bothArrived;
 
-    const body = request.fragmentMode === 'block-v0'
+    const body = request.fragmentMode === 'html-node-v0'
       ? jsonl([
-          { op: 'meta', path: '/experimental-fragments', value: { mode: 'block-v0' } },
+          { op: 'meta', path: '/experimental-fragments', value: { mode: 'html-node-v0' } },
           { op: 'set', path: '/screen', value: { sections: ['main'] } },
-          { op: 'set', path: '/section/main', value: { blocks: ['headline', 'body'] } },
-          { op: 'add', path: '/section/main/block/headline', html: '<h1>Block stream</h1>' },
-          { op: 'add', path: '/section/main/block/body', html: '<p>Rendered as block fragments.</p>' },
+          { op: 'add', path: '/section/main/node/root', html: '<div data-summon-node="root"></div>' },
+          { op: 'add', path: '/section/main/node/headline', parent: 'root', html: '<h1 data-summon-node="headline">Node stream</h1>' },
+          { op: 'add', path: '/section/main/node/body', parent: 'root', html: '<p data-summon-node="body">Rendered as HTML node patches.</p>' },
         ])
       : jsonl([
           { op: 'set', path: '/screen', value: { sections: ['main'] } },
@@ -175,23 +253,31 @@ test('fragment compare launches section and block streams from the same prompt',
   });
 
   await page.goto('/fragment-compare.html');
-  const prompt = 'compare a launch readiness dashboard in both fragment modes';
-  await page.locator('#prompt').fill(prompt);
+  await expect(page.locator('#prompt-preset-matrix')).toContainText('Operational workflows');
+  await expect(page.locator('#prompt-preset-matrix')).toContainText('Complex');
+  await page.getByRole('button', { name: /Operational workflows, Complex: Migration Control/ }).click();
+  const prompt = await page.locator('#prompt').inputValue();
+  expect(prompt).toContain('migration control room');
   await page.locator('#run').click();
 
   await expect.poll(() => captured.length).toBe(2);
-  const sectionRequest = captured.find((request) => request.fragmentMode !== 'block-v0');
-  const blockRequest = captured.find((request) => request.fragmentMode === 'block-v0');
+  const sectionRequest = captured.find((request) => request.fragmentMode !== 'html-node-v0');
+  const nodeRequest = captured.find((request) => request.fragmentMode === 'html-node-v0');
   expect(sectionRequest?.prompt).toBe(prompt);
-  expect(blockRequest?.prompt).toBe(prompt);
-  expect(sectionRequest?.surfacePlan).toEqual(blockRequest?.surfacePlan);
+  expect(nodeRequest?.prompt).toBe(prompt);
+  expect(sectionRequest?.surfacePlan).toEqual(nodeRequest?.surfacePlan);
+  expect(sectionRequest?.directionId).toBe('');
+  expect(nodeRequest?.directionId).toBe('');
+  expect(sectionRequest?.modelOptions).toEqual(nodeRequest?.modelOptions);
+  expect(sectionRequest?.modelOptions?.anthropicThinking).toBe('off');
   expect(sectionRequest?.fragmentMode).toBeUndefined();
-  expect(blockRequest?.fragmentMode).toBe('block-v0');
+  expect(nodeRequest?.fragmentMode).toBe('html-node-v0');
 
   await expect(page.locator('#section-status')).toContainText('done');
   await expect(page.locator('#block-status')).toContainText('done');
   await expect(page.frameLocator('#section-frame').locator('body')).toContainText('Section stream');
-  await expect(page.frameLocator('#block-frame').locator('body')).toContainText('Block stream');
+  await expect(page.frameLocator('#block-frame').locator('body')).toContainText('Node stream');
+  await expect(page.locator('#block-metrics')).toContainText('patches');
 });
 
 test('generate showcase sends raw SurfacePlan from the advanced override', async ({ page }) => {

@@ -87,6 +87,21 @@ Rules:
 - For perceived streaming, emit cheap block placeholders first, then final replacement \`add\` lines for the same block ids.
 - Do not emit whole-section \`add /section/<section-id>\` lines unless you cannot satisfy the block contract.`;
 
+const EXPERIMENTAL_HTML_NODE_PROMPT = `## Experimental HTML node patches
+
+This run is using Summon's experimental html-node-v0 protocol. Keep sections as the outer structure, but stream small complete raw-HTML DOM nodes inside each section.
+
+Rules:
+
+- Emit \`set /screen\` first with stable section ids.
+- Then emit \`add /section/<section-id>/node/<node-id>\` lines. Each node line must include one complete raw HTML element with \`data-summon-node="<node-id>"\` on that root element.
+- Use lowercase kebab-case ids for sections and nodes.
+- Omit \`parent\` to append a node directly under the section wrapper. Set \`parent\` to an earlier node id to append inside that parent node.
+- Emit a root visual container first, then useful child nodes such as headers, metric cards, rows, list items, action groups, chart shells, status panels, and notes.
+- Each node patch should usually be 500-2000 bytes and visually meaningful immediately. Prefer many small useful patches over one large section.
+- Do not put \`data-summon-node\` on nested elements inside a node patch. Child nodes must arrive as their own later protocol lines.
+- Do not emit scripts, inline event handlers, external URLs, or whole-section \`add /section/<section-id>\` lines unless you cannot satisfy the node-patch contract.`;
+
 if (!defaultModelProvider) {
   console.error(
     '[summon-server] no model provider is configured. Copy apps/server/.env.example to .env and set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY.'
@@ -481,7 +496,12 @@ app.post('/api/generate', async (req, res) => {
     return;
   }
   const edit = parsedEdit.edit;
-  const fragmentMode = req.body?.fragmentMode === 'block-v0' ? 'block-v0' : 'section';
+  const fragmentMode =
+    req.body?.fragmentMode === 'block-v0'
+      ? 'block-v0'
+      : req.body?.fragmentMode === 'html-node-v0'
+        ? 'html-node-v0'
+        : 'section';
   const repairOptions = parseRepairOptions(req.body?.repair);
   const rawAgentOptions = req.body?.agent;
   const agentOptions = rawAgentOptions && typeof rawAgentOptions === 'object'
@@ -667,11 +687,11 @@ app.post('/api/generate', async (req, res) => {
   if (layout) {
     preludeLines.push({ op: 'meta', path: '/layout', value: layout.id });
   }
-  if (fragmentMode === 'block-v0' && !edit) {
+  if (fragmentMode !== 'section' && !edit) {
     preludeLines.push({
       op: 'meta',
       path: '/experimental-fragments',
-      value: { mode: 'block-v0' },
+      value: { mode: fragmentMode },
     });
   }
   if (edit) {
@@ -722,13 +742,16 @@ app.post('/api/generate', async (req, res) => {
         ghost: ghostContext ?? null,
         layout,
         edit,
-        experimentalPromptBlock: fragmentMode === 'block-v0' && !edit
+        experimentalPromptBlock: fragmentMode !== 'section' && !edit
           ? {
-              id: 'experimental-fragments:block-v0',
-              text: EXPERIMENTAL_BLOCK_FRAGMENT_PROMPT,
+              id: `experimental-fragments:${fragmentMode}`,
+              text: fragmentMode === 'html-node-v0'
+                ? EXPERIMENTAL_HTML_NODE_PROMPT
+                : EXPERIMENTAL_BLOCK_FRAGMENT_PROMPT,
               cache: 'ephemeral',
             }
           : null,
+        experimentalFragmentMode: !edit ? fragmentMode : 'section',
         capabilities: hasSurfacePolicy || agentPlan ? capabilityCeiling : pack,
         components: componentPack,
         surfacePolicy: hasSurfacePolicy

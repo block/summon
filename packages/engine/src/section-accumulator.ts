@@ -1,4 +1,10 @@
-import type { ProtocolLine } from './protocol.js';
+import {
+  blockTargetFromPath,
+  htmlNodePatchFromLine,
+  sectionIdFromSectionPath,
+  type HtmlNodePatch,
+  type ProtocolLine,
+} from './protocol.js';
 
 export interface SectionSnapshotEntry {
   id: string;
@@ -16,9 +22,12 @@ export interface SectionApplyResult {
   kind: SectionApplyKind;
   sectionId?: string;
   blockId?: string;
+  nodeId?: string;
+  nodePatch?: HtmlNodePatch;
   orderChanged?: boolean;
   htmlChanged?: boolean;
   blockChanged?: boolean;
+  nodeChanged?: boolean;
 }
 
 type OpaqueSectionState = {
@@ -32,7 +41,18 @@ type BlockSectionState = {
   blockMap: Map<string, string>;
 };
 
-type SectionState = OpaqueSectionState | BlockSectionState;
+type HtmlNodeEntry = {
+  html: string;
+  parentId?: string;
+};
+
+type HtmlNodeSectionState = {
+  kind: 'nodes';
+  nodeOrder: string[];
+  nodeMap: Map<string, HtmlNodeEntry>;
+};
+
+type SectionState = OpaqueSectionState | BlockSectionState | HtmlNodeSectionState;
 
 /**
  * Applies streaming protocol lines into a mutable section map. Call compose()
@@ -91,6 +111,38 @@ export class SectionAccumulator {
     }
 
     if (line.op === 'add' && line.path.startsWith('/section/')) {
+      const nodePatch = htmlNodePatchFromLine(line);
+      if (nodePatch) {
+        const state = this.ensureNodeSection(nodePatch.sectionId);
+        const prev = state.nodeMap.get(nodePatch.nodeId);
+        const orderChanged = !state.nodeOrder.includes(nodePatch.nodeId);
+        if (orderChanged) state.nodeOrder.push(nodePatch.nodeId);
+        const parentChanged = prev?.parentId !== nodePatch.parentId;
+        if (prev?.html === nodePatch.html && !orderChanged && !parentChanged) {
+          return {
+            changed: false,
+            kind: 'section',
+            sectionId: nodePatch.sectionId,
+            nodeId: nodePatch.nodeId,
+            nodePatch,
+          };
+        }
+        state.nodeMap.set(nodePatch.nodeId, {
+          html: nodePatch.html,
+          ...(nodePatch.parentId ? { parentId: nodePatch.parentId } : {}),
+        });
+        return {
+          changed: true,
+          kind: 'section',
+          sectionId: nodePatch.sectionId,
+          nodeId: nodePatch.nodeId,
+          nodePatch,
+          orderChanged: orderChanged || parentChanged,
+          htmlChanged: prev?.html !== nodePatch.html,
+          nodeChanged: prev?.html !== nodePatch.html || parentChanged,
+        };
+      }
+
       const blockTarget = blockTargetFromPath(line.path);
       if (blockTarget) {
         const html = typeof line.html === 'string' ? line.html : '';
@@ -207,6 +259,21 @@ export class SectionAccumulator {
     }
     return state;
   }
+
+  private ensureNodeSection(id: string): HtmlNodeSectionState {
+    const existing = this.sectionMap.get(id);
+    if (existing?.kind === 'nodes') return existing;
+    const state: HtmlNodeSectionState = {
+      kind: 'nodes',
+      nodeOrder: [],
+      nodeMap: new Map(),
+    };
+    this.sectionMap.set(id, state);
+    if (!this.sectionOrder.includes(id)) {
+      this.sectionOrder.push(id);
+    }
+    return state;
+  }
 }
 
 function sameOrder(a: string[], b: string[]): boolean {
@@ -221,24 +288,9 @@ function escapeAttr(s: string): string {
   return s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
 }
 
-function sectionIdFromSectionPath(path: string): string | null {
-  if (!path.startsWith('/section/')) return null;
-  const suffix = path.slice('/section/'.length);
-  if (!suffix || suffix.includes('/')) return null;
-  return suffix;
-}
-
-function blockTargetFromPath(path: string): { sectionId: string; blockId: string } | null {
-  if (!path.startsWith('/section/')) return null;
-  const parts = path.slice('/section/'.length).split('/');
-  if (parts.length !== 3 || parts[1] !== 'block') return null;
-  const [sectionId, , blockId] = parts;
-  if (!sectionId || !blockId) return null;
-  return { sectionId, blockId };
-}
-
 function composeSectionInner(state: SectionState): string {
   if (state.kind === 'opaque') return state.html;
+  if (state.kind === 'nodes') return composeNodeSectionInner(state);
   const parts: string[] = [];
   const seen = new Set<string>();
   for (const id of state.blockOrder) {
@@ -252,4 +304,56 @@ function composeSectionInner(state: SectionState): string {
     parts.push(`<div data-summon-block="${escapeAttr(id)}">\n${html}\n</div>`);
   }
   return parts.join('\n');
+}
+
+function composeNodeSectionInner(state: HtmlNodeSectionState): string {
+  const parts: string[] = [];
+  const visited = new Set<string>();
+  for (const id of state.nodeOrder) {
+    const entry = state.nodeMap.get(id);
+    if (!entry || entry.parentId) continue;
+    parts.push(composeNode(id, state, visited));
+  }
+  for (const id of state.nodeOrder) {
+    if (visited.has(id)) continue;
+    parts.push(composeNode(id, state, visited));
+  }
+  return parts.join('\n');
+}
+
+function composeNode(
+  id: string,
+  state: HtmlNodeSectionState,
+  visited: Set<string>,
+): string {
+  if (visited.has(id)) return '';
+  visited.add(id);
+  const entry = state.nodeMap.get(id);
+  if (!entry) return '';
+  const children = childIdsFor(id, state)
+    .map((childId) => composeNode(childId, state, visited))
+    .filter(Boolean)
+    .join('\n');
+  return children ? injectChildren(entry.html, children) : entry.html;
+}
+
+function childIdsFor(parentId: string, state: HtmlNodeSectionState): string[] {
+  return state.nodeOrder.filter((id) => state.nodeMap.get(id)?.parentId === parentId);
+}
+
+function injectChildren(html: string, children: string): string {
+  const tagName = rootTagName(html);
+  if (!tagName) return `${html}\n${children}`;
+  const closeRe = new RegExp(`</${escapeRegExp(tagName)}\\s*>\\s*$`, 'i');
+  const match = html.match(closeRe);
+  if (!match || match.index === undefined) return `${html}\n${children}`;
+  return `${html.slice(0, match.index)}\n${children}\n${html.slice(match.index)}`;
+}
+
+function rootTagName(html: string): string | null {
+  return html.trim().match(/^<\s*([a-zA-Z][\w:-]*)\b/)?.[1]?.toLowerCase() ?? null;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -17,15 +17,22 @@
 <header class="compare-header">
   <div>
     <h1 class="page-title">Fragment compare</h1>
-    <p class="lede">Run the same prompt twice: section fragments on the left, experimental block fragments on the right.</p>
+    <p class="lede">Run the same prompt twice: section fragments on the left, experimental HTML node patches on the right.</p>
   </div>
   <div class="compare-summary" id="summary">Idle</div>
 </header>
 
 <form id="compare-form" class="compare-controls">
+  <section class="compare-presets" aria-labelledby="prompt-presets-label">
+    <div class="compare-presets-header">
+      <span id="prompt-presets-label" class="field-label">Sample prompt matrix</span>
+      <span class="compare-presets-note">Rows are Summon use cases. Columns are complexity.</span>
+    </div>
+    <div id="prompt-preset-matrix" class="compare-preset-matrix"></div>
+  </section>
   <label class="compare-prompt">
     <span class="field-label">Prompt</span>
-    <textarea id="prompt">build a compact product launch readiness dashboard with a crisp executive summary, three metric groups, risk callouts, and next actions. Stream a rough useful version first, then refine the details in place.</textarea>
+    <textarea id="prompt">Show me a clean end-of-day sales snapshot for a coffee shop.</textarea>
   </label>
   <div class="compare-actions">
     <button id="run" type="submit" class="btn btn-sm">Run both</button>
@@ -47,15 +54,15 @@
     <div class="log compare-log" id="section-log"></div>
   </section>
 
-  <section class="compare-pane" data-fragment-side="block-v0">
+  <section class="compare-pane" data-fragment-side="html-node-v0">
     <header>
       <div>
-        <span>Blocks</span>
-        <strong>experimental block-v0</strong>
+        <span>HTML Nodes</span>
+        <strong>experimental html-node-v0</strong>
       </div>
       <span id="block-status" class="status">idle</span>
     </header>
-    <iframe id="block-frame" title="Block fragment result"></iframe>
+    <iframe id="block-frame" title="HTML node patch result"></iframe>
     <div class="compare-metrics" id="block-metrics">0 lines · 0 B</div>
     <div class="log compare-log" id="block-log"></div>
   </section>

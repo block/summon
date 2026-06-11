@@ -107,6 +107,7 @@ export interface SurfaceGenerationInput {
   surfacePlan?: SurfacePlan | null;
   tokenOverrides?: TokenOverride[];
   activeTokensCss?: string | null;
+  experimentalFragmentMode?: 'section' | 'block-v0' | 'html-node-v0';
   preludeLines?: ProtocolLine[];
   repair?: RepairOptions | null;
   initialScreenSections?: string[];

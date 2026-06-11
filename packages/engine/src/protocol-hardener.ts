@@ -1,5 +1,8 @@
 import {
+  blockTargetFromPath,
+  htmlNodeTargetFromPath,
   parseProtocolLineStrict,
+  sectionIdFromSectionPath,
   type AddLine,
   type MetaLine,
   type ProtocolLine,
@@ -83,12 +86,26 @@ const STRUCTURAL_SKIP_CODES = new Set([
   'invalid-block-id',
   'duplicate-block-id',
   'invalid-block-path',
+  'experimental-node-fragment-disabled',
+  'invalid-node-path',
+  'invalid-node-parent',
+  'undeclared-node-parent',
   'undeclared-block',
 ]);
 
 interface BlockSectionState {
   blockOrder: string[];
   blockMap: Map<string, string>;
+}
+
+interface HtmlNodeEntry {
+  html: string;
+  parentId?: string;
+}
+
+interface HtmlNodeSectionState {
+  nodeOrder: string[];
+  nodeMap: Map<string, HtmlNodeEntry>;
 }
 
 export function createProtocolHardener(options: ProtocolHardenerOptions): ProtocolHardener {
@@ -103,6 +120,7 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
     : null;
   const syntheticSections: string[] = [];
   const blockSections = new Map<string, BlockSectionState>();
+  const nodeSections = new Map<string, HtmlNodeSectionState>();
 
   const processParsedLine = (line: ProtocolLine): ProtocolHardenerResult => {
     if (layout && line.op === 'set' && line.path === '/screen') {
@@ -199,6 +217,7 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       blockOrder: blocks,
       blockMap: nextMap,
     });
+    nodeSections.delete(sectionId);
     return {
       outboundLines: [line],
       acceptedLines: [line],
@@ -207,6 +226,11 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
   };
 
   const processAddLine = (line: AddLine, validationIssues: ContractIssue[]): ProtocolHardenerResult => {
+    const nodeTarget = htmlNodeTargetFromPath(line.path);
+    if (nodeTarget) {
+      return processAddNodeLine(line, nodeTarget, validationIssues);
+    }
+
     const blockTarget = blockTargetFromPath(line.path);
     if (blockTarget) {
       return processAddBlockLine(line, blockTarget, validationIssues);
@@ -259,10 +283,80 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
     }
 
     blockSections.delete(sectionId);
+    nodeSections.delete(sectionId);
     return {
       outboundLines: [line],
       acceptedLines: [line],
       issues: validationIssues,
+    };
+  };
+
+  const processAddNodeLine = (
+    line: AddLine,
+    target: { sectionId: string; nodeId: string },
+    validationIssues: ContractIssue[],
+  ): ProtocolHardenerResult => {
+    const targetIssue = issueForUntargetedSection(target.sectionId, line.path);
+    if (targetIssue) return skipLine(targetIssue, line, validationIssues);
+
+    const declarationIssue = issueForUndeclaredSection(target.sectionId, line.path, false);
+    if (declarationIssue) return skipLine(declarationIssue, line, validationIssues);
+
+    const state = nodeSections.get(target.sectionId) ?? {
+      nodeOrder: [],
+      nodeMap: new Map<string, HtmlNodeEntry>(),
+    };
+    const parentId = line.parent || undefined;
+    if (parentId && !state.nodeMap.has(parentId)) {
+      return skipLine(
+        contractIssue({
+          source: 'protocol',
+          severity: 'warn',
+          code: 'undeclared-node-parent',
+          message: `Node parent "${parentId}" was not emitted before "${target.nodeId}"`,
+          path: line.path,
+        }),
+        line,
+        validationIssues,
+      );
+    }
+
+    const candidate = cloneNodeState(state);
+    if (!candidate.nodeOrder.includes(target.nodeId)) {
+      candidate.nodeOrder.push(target.nodeId);
+    }
+    candidate.nodeMap.set(target.nodeId, {
+      html: line.html ?? '',
+      ...(parentId ? { parentId } : {}),
+    });
+
+    const composedHtml = composeNodeSectionHtml(candidate);
+    const composedIssues = validateProtocolLine({
+      op: 'add',
+      path: `/section/${target.sectionId}`,
+      html: composedHtml,
+    }, options.validationContext).map((issue) => ({
+      ...issue,
+      path: line.path,
+    }));
+    const composedBlocker = composedIssues.find(isBlockingIssue);
+    if (composedBlocker) {
+      return {
+        outboundLines: [],
+        acceptedLines: [],
+        issues: normalizeStructuralIssues([...validationIssues, ...composedIssues]),
+        blocked: composedBlocker,
+        repairFeedback: [repairFeedbackForIssue(composedBlocker, line, 'blocked')],
+        rejectedLine: line,
+      };
+    }
+
+    blockSections.delete(target.sectionId);
+    nodeSections.set(target.sectionId, candidate);
+    return {
+      outboundLines: [line],
+      acceptedLines: [line],
+      issues: [...validationIssues, ...composedIssues],
     };
   };
 
@@ -353,7 +447,7 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
         source: 'protocol',
         severity: 'warn',
         code: 'undeclared-section',
-        message: `Section "${sectionId}" requires a /screen declaration before block fragments`,
+        message: `Section "${sectionId}" requires a /screen declaration before section fragments`,
         path,
       });
     }
@@ -486,23 +580,16 @@ function sectionBlocks(line: SetLine): string[] {
 }
 
 function sectionIdFromPath(path: string): string | null {
-  if (!path.startsWith(SECTION_PREFIX)) return null;
-  const sectionId = path.slice(SECTION_PREFIX.length);
-  if (sectionId.includes('/')) return null;
-  return sectionId.length > 0 ? sectionId : null;
+  return sectionIdFromSectionPath(path);
 }
 
 function sectionIdFromAnyPath(path: string): string | null {
-  return sectionIdFromPath(path) ?? blockTargetFromPath(path)?.sectionId ?? null;
-}
-
-function blockTargetFromPath(path: string): { sectionId: string; blockId: string } | null {
-  if (!path.startsWith(SECTION_PREFIX)) return null;
-  const parts = path.slice(SECTION_PREFIX.length).split('/');
-  if (parts.length !== 3 || parts[1] !== 'block') return null;
-  const [sectionId, , blockId] = parts;
-  if (!sectionId || !blockId) return null;
-  return { sectionId, blockId };
+  return (
+    sectionIdFromPath(path) ??
+    blockTargetFromPath(path)?.sectionId ??
+    htmlNodeTargetFromPath(path)?.sectionId ??
+    null
+  );
 }
 
 function composeBlockSectionHtml(blockOrder: string[], blockMap: Map<string, string>): string {
@@ -513,6 +600,58 @@ function composeBlockSectionHtml(blockOrder: string[], blockMap: Map<string, str
     parts.push(`<div data-summon-block="${escapeAttr(blockId)}">\n${html}\n</div>`);
   }
   return parts.join('\n');
+}
+
+function cloneNodeState(state: HtmlNodeSectionState): HtmlNodeSectionState {
+  return {
+    nodeOrder: [...state.nodeOrder],
+    nodeMap: new Map(state.nodeMap),
+  };
+}
+
+function composeNodeSectionHtml(state: HtmlNodeSectionState): string {
+  const parts: string[] = [];
+  const visited = new Set<string>();
+  for (const id of state.nodeOrder) {
+    const entry = state.nodeMap.get(id);
+    if (!entry || entry.parentId) continue;
+    parts.push(composeNode(id, state, visited));
+  }
+  for (const id of state.nodeOrder) {
+    if (visited.has(id)) continue;
+    parts.push(composeNode(id, state, visited));
+  }
+  return parts.join('\n');
+}
+
+function composeNode(
+  id: string,
+  state: HtmlNodeSectionState,
+  visited: Set<string>,
+): string {
+  if (visited.has(id)) return '';
+  visited.add(id);
+  const entry = state.nodeMap.get(id);
+  if (!entry) return '';
+  const children = state.nodeOrder
+    .filter((childId) => state.nodeMap.get(childId)?.parentId === id)
+    .map((childId) => composeNode(childId, state, visited))
+    .filter(Boolean)
+    .join('\n');
+  return children ? injectChildren(entry.html, children) : entry.html;
+}
+
+function injectChildren(html: string, children: string): string {
+  const tagName = html.trim().match(/^<\s*([a-zA-Z][\w:-]*)\b/)?.[1]?.toLowerCase();
+  if (!tagName) return `${html}\n${children}`;
+  const closeRe = new RegExp(`</${escapeRegExp(tagName)}\\s*>\\s*$`, 'i');
+  const match = html.match(closeRe);
+  if (!match || match.index === undefined) return `${html}\n${children}`;
+  return `${html.slice(0, match.index)}\n${children}\n${html.slice(match.index)}`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function escapeAttr(s: string): string {

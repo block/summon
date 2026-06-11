@@ -60,16 +60,22 @@ test('api generate sends narrowed contract and stream meta shape through package
     const systemText = Array.isArray(request.system)
       ? request.system.map((block: { text?: unknown }) => typeof block.text === 'string' ? block.text : '').join('\n')
       : '';
-    const generatedText = systemText.includes('Experimental block fragments')
+    const generatedText = systemText.includes('Experimental HTML node patches')
       ? [
           '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
-          '{"op":"set","path":"/section/hero","value":{"blocks":["headline"]}}\n',
-          '{"op":"add","path":"/section/hero/block/headline","html":"<h1>Dinner finder</h1><p>Ready.</p>"}\n',
+          '{"op":"add","path":"/section/hero/node/root","html":"<div data-summon-node=\\"root\\"></div>"}\n',
+          '{"op":"add","path":"/section/hero/node/headline","parent":"root","html":"<h1 data-summon-node=\\"headline\\">Dinner finder</h1>"}\n',
         ]
-      : [
-          '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
-          '{"op":"add","path":"/section/hero","html":"<section><h1>Dinner finder</h1><p>Ready.</p></section>"}\n',
-        ];
+      : systemText.includes('Experimental block fragments')
+        ? [
+            '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+            '{"op":"set","path":"/section/hero","value":{"blocks":["headline"]}}\n',
+            '{"op":"add","path":"/section/hero/block/headline","html":"<h1>Dinner finder</h1><p>Ready.</p>"}\n',
+          ]
+        : [
+            '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+            '{"op":"add","path":"/section/hero","html":"<section><h1>Dinner finder</h1><p>Ready.</p></section>"}\n',
+          ];
     res.writeHead(200, {
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache',
@@ -333,6 +339,42 @@ test('api generate sends narrowed contract and stream meta shape through package
     | undefined;
   assert.match(JSON.stringify(blockSummary?.value), /declaredBlockCount/);
 
+  const nodeResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a dinner finder in html nodes',
+      mode: 'interactive',
+      capabilities: searchCapability,
+      surfacePlan,
+      surfaceCeiling,
+      scriptPolicy: 'forbid',
+      fragmentMode: 'html-node-v0',
+    }),
+  });
+  const nodeBody = await nodeResponse.text();
+  assert.equal(nodeResponse.status, 200, nodeBody);
+
+  assert.equal(anthropicRequests.length, 5);
+  const nodeRequest = anthropicRequests[4] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(nodeRequest.stream, true);
+  const nodeSystemText = nodeRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(nodeSystemText, /Experimental HTML node patches/);
+  assert.match(nodeSystemText, /add \/section\/<section-id>\/node\/<node-id>/);
+
+  const nodeLines = nodeBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.equal(nodeLines.some((line) => line.path === '/experimental-fragments'), true);
+  assert.equal(nodeLines.some((line) => line.path === '/section/hero/node/root'), true);
+  assert.equal(nodeLines.some((line) => line.path === '/section/hero/node/headline'), true);
+  const nodeSummary = nodeLines.find((line) => line.path === '/stream-graph-summary') as
+    | Extract<ProtocolLine, { op: 'meta' }>
+    | undefined;
+  assert.match(JSON.stringify(nodeSummary?.value), /presentNodeCount/);
+
   const ghostResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -351,8 +393,8 @@ test('api generate sends narrowed contract and stream meta shape through package
   const ghostBody = await ghostResponse.text();
   assert.equal(ghostResponse.status, 200, ghostBody);
 
-  assert.equal(anthropicRequests.length, 5);
-  const ghostRequest = anthropicRequests[4] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(anthropicRequests.length, 6);
+  const ghostRequest = anthropicRequests[5] as { system?: Array<{ text?: string }>; stream?: boolean };
   const ghostSystemText = ghostRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(ghostSystemText, /Checkout product experience/);
 
@@ -390,7 +432,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   const ghostOverrideBody = await ghostOverrideResponse.text();
   assert.equal(ghostOverrideResponse.status, 400);
   assert.match(ghostOverrideBody, /tokenOverrides are not supported with Ghost product memory/);
-  assert.equal(anthropicRequests.length, 4);
+  assert.equal(anthropicRequests.length, 6);
 });
 
 test('api generate emits compact Ghost capsule for root contexts', async (t) => {
