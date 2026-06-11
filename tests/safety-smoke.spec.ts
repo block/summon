@@ -175,6 +175,34 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
   await expect(sandbox.locator('[data-summon-node="b"]')).toContainText('Final');
   await expect(input).toHaveValue('sticky value');
   await expect(input).toBeFocused();
+
+  await patchNode({
+    sectionId: 'main',
+    nodeId: 'card',
+    parentId: 'root',
+    html: '<article data-summon-node="card"><h2>Sales</h2><div class="slot" data-summon-node-children></div></article>',
+  });
+  await patchNode({
+    sectionId: 'main',
+    nodeId: 'card-value',
+    parentId: 'card',
+    html: '<p data-summon-node="card-value">Inside card</p>',
+  });
+
+  const cardSlotChild = sandbox.locator(
+    '[data-summon-node="card"] [data-summon-node-children] > [data-summon-node="card-value"]',
+  );
+  await expect(cardSlotChild).toContainText('Inside card');
+
+  await patchNode({
+    sectionId: 'main',
+    nodeId: 'card',
+    parentId: 'root',
+    html: '<article data-summon-node="card"><h2>Sales updated</h2><div class="slot" data-summon-node-children></div></article>',
+  });
+
+  await expect(sandbox.locator('[data-summon-node="card"]')).toContainText('Sales updated');
+  await expect(cardSlotChild).toContainText('Inside card');
 });
 
 test('generate showcase sends SurfacePolicy by default', async ({ page }) => {

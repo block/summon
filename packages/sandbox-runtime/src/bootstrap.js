@@ -781,12 +781,13 @@
     var existing = findSummonNode(section, nodeId);
     if (existing) {
       var preservedChildren = directNodeChildren(existing);
+      var incomingChildHost = nodeChildrenHost(incoming);
       for (var i = 0; i < preservedChildren.length; i++) {
-        incoming.appendChild(preservedChildren[i]);
+        incomingChildHost.appendChild(preservedChildren[i]);
       }
       existing.replaceWith(incoming);
     } else {
-      parent.appendChild(incoming);
+      nodeChildrenHost(parent).appendChild(incoming);
     }
 
     applyBindings();
@@ -803,11 +804,17 @@
 
   function directNodeChildren(parent) {
     var out = [];
-    for (var i = 0; i < parent.children.length; i++) {
-      var child = parent.children[i];
+    var childHost = nodeChildrenHost(parent);
+    for (var i = 0; i < childHost.children.length; i++) {
+      var child = childHost.children[i];
       if (child.hasAttribute('data-summon-node')) out.push(child);
     }
     return out;
+  }
+
+  function nodeChildrenHost(parent) {
+    if (!parent || typeof parent.querySelector !== 'function') return parent;
+    return parent.querySelector('[data-summon-node-children]') || parent;
   }
 
   function rerunScripts(scope) {

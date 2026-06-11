@@ -342,12 +342,45 @@ function childIdsFor(parentId: string, state: HtmlNodeSectionState): string[] {
 }
 
 function injectChildren(html: string, children: string): string {
+  const slotIndex = nodeChildrenSlotInsertionIndex(html);
+  if (slotIndex !== null) {
+    return `${html.slice(0, slotIndex)}\n${children}\n${html.slice(slotIndex)}`;
+  }
   const tagName = rootTagName(html);
   if (!tagName) return `${html}\n${children}`;
   const closeRe = new RegExp(`</${escapeRegExp(tagName)}\\s*>\\s*$`, 'i');
   const match = html.match(closeRe);
   if (!match || match.index === undefined) return `${html}\n${children}`;
   return `${html.slice(0, match.index)}\n${children}\n${html.slice(match.index)}`;
+}
+
+function nodeChildrenSlotInsertionIndex(html: string): number | null {
+  const slotOpenRe = /<\s*([a-zA-Z][\w:-]*)\b(?=[^>]*\sdata-summon-node-children(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)[^>]*>/i;
+  const match = slotOpenRe.exec(html);
+  if (!match || match.index === undefined) return null;
+  const tagName = match[1]?.toLowerCase();
+  if (!tagName || /\/\s*>$/.test(match[0])) return null;
+  return matchingCloseTagIndex(html, tagName, match.index + match[0].length);
+}
+
+function matchingCloseTagIndex(
+  html: string,
+  tagName: string,
+  startIndex: number,
+): number | null {
+  const tagRe = new RegExp(`<\\s*(/?)\\s*${escapeRegExp(tagName)}\\b[^>]*>`, 'ig');
+  tagRe.lastIndex = startIndex;
+  let depth = 1;
+  let match: RegExpExecArray | null;
+  while ((match = tagRe.exec(html))) {
+    if (match[1] === '/') {
+      depth -= 1;
+      if (depth === 0) return match.index;
+      continue;
+    }
+    if (!/\/\s*>$/.test(match[0])) depth += 1;
+  }
+  return null;
 }
 
 function rootTagName(html: string): string | null {

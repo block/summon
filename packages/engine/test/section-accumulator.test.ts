@@ -153,6 +153,38 @@ test('html node patches compose into nested section HTML', () => {
   ].join('\n'));
 });
 
+test('html node patches compose children into explicit node slots', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/root',
+    html: '<div data-summon-node="root"></div>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/card',
+    parent: 'root',
+    html: '<article data-summon-node="card"><h2>Sales</h2><div class="card-body" data-summon-node-children></div></article>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/card-value',
+    parent: 'card',
+    html: '<p data-summon-node="card-value">$1,240</p>',
+  });
+
+  assert.equal(acc.compose(), [
+    '<section data-summon-section="main">',
+    '<div data-summon-node="root">',
+    '<article data-summon-node="card"><h2>Sales</h2><div class="card-body" data-summon-node-children>',
+    '<p data-summon-node="card-value">$1,240</p>',
+    '</div></article>',
+    '</div>',
+    '</section>',
+  ].join('\n'));
+});
+
 test('html node replacement updates only that node in composed HTML', () => {
   const acc = new SectionAccumulator();
   acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
