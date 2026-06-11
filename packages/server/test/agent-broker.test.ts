@@ -49,6 +49,44 @@ const capabilities: CapabilityPack = {
   ],
 };
 
+const multiToolCapabilities: CapabilityPack = {
+  intents: [
+    ...capabilities.intents,
+    {
+      name: 'delete_record',
+      description: 'Delete a selected record after host approval.',
+      argsSchema: '{}',
+      stateShape: '{}',
+      kind: 'action',
+      surface: { authority: 'approval-gated' },
+    },
+    {
+      name: 'github_lookup',
+      description: 'Look up GitHub profile data.',
+      argsSchema: '{}',
+      stateShape: '{}',
+      kind: 'resource',
+      surface: { data: 'host-resource', authority: 'read' },
+    },
+    {
+      name: 'compute_score',
+      description: 'Run background score computation.',
+      argsSchema: '{}',
+      stateShape: '{}',
+      kind: 'action',
+      surface: { data: 'worker', authority: 'host-action' },
+    },
+    {
+      name: 'counter',
+      description: 'Increment a local counter.',
+      argsSchema: '{}',
+      stateShape: '{}',
+      kind: 'action',
+      surface: { authority: 'host-action' },
+    },
+  ],
+};
+
 test('inferSurfaceIntent maps search prompts to host-resource intent', () => {
   const intent = inferSurfaceIntent(
     'build a dinner finder where i can search recipes and browse results',
@@ -114,6 +152,48 @@ test('planAgentSurface selects worker and approval tiers from catalog-backed int
   assert.equal(approval.surfacePolicy.tier, 'approval');
   assert.deepEqual(approval.surfacePolicy.grants, ['publish_summary']);
   assert.equal(approval.surfacePolicy.purpose, 'operate');
+});
+
+test('planAgentSurface keeps multi-tool class inference narrow', async () => {
+  const approval = await planAgentSurface({
+    prompt: 'publish the prepared summary',
+    capabilities: multiToolCapabilities,
+  });
+  assert.equal(approval.surfacePolicy.tier, 'approval');
+  assert.deepEqual(approval.surfacePolicy.grants, ['publish_summary']);
+
+  const search = await planAgentSurface({
+    prompt: 'search recipes for dinner',
+    capabilities: multiToolCapabilities,
+  });
+  assert.equal(search.surfacePolicy.tier, 'declarative');
+  assert.deepEqual(search.surfacePolicy.grants, ['search']);
+
+  const ambiguousSearch = await planAgentSurface({
+    prompt: 'search the host data',
+    capabilities: {
+      intents: [
+        {
+          name: 'recipe_lookup',
+          description: 'Look up recipe data.',
+          argsSchema: '{}',
+          stateShape: '{}',
+          kind: 'resource',
+          surface: { data: 'host-resource', authority: 'read' },
+        },
+        {
+          name: 'github_lookup',
+          description: 'Look up GitHub profile data.',
+          argsSchema: '{}',
+          stateShape: '{}',
+          kind: 'resource',
+          surface: { data: 'host-resource', authority: 'read' },
+        },
+      ],
+    },
+  });
+  assert.equal(ambiguousSearch.surfacePolicy.tier, 'static');
+  assert.equal(ambiguousSearch.surfacePolicy.grants, undefined);
 });
 
 test('planAgentSurface selects host actions only from explicit action phrasing', async () => {

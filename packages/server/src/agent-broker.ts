@@ -254,6 +254,7 @@ export function policyFromIntent(
   options: { persistence?: SurfacePersistence } = {},
 ): SurfacePolicy {
   const persistence = options.persistence ?? 'replayable';
+  const hasSurfaceAccess = intent.requestedCapabilities.length > 0 || intent.requestedComponents.length > 0;
   if (intent.sideEffect === 'approval-required' || intent.interaction === 'approval') {
     return {
       tier: 'approval',
@@ -273,10 +274,13 @@ export function policyFromIntent(
     };
   }
   if (
-    intent.interaction !== 'none' ||
-    intent.dataNeed === 'host-resource' ||
-    intent.sideEffect === 'local-state' ||
-    intent.sideEffect === 'external-action'
+    hasSurfaceAccess &&
+    (
+      intent.interaction !== 'none' ||
+      intent.dataNeed === 'host-resource' ||
+      intent.sideEffect === 'local-state' ||
+      intent.sideEffect === 'external-action'
+    )
   ) {
     return {
       tier: 'declarative',
@@ -587,44 +591,40 @@ function inferCapabilityNames(prompt: string, pack: CapabilityPack | null): stri
   const intents = pack?.intents ?? [];
   if (intents.length === 0) return [];
   const text = prompt.toLowerCase();
-  const matches = intents.filter((intent) => capabilityMatchesIntent(prompt, text, intent));
-  if (matches.length > 0) return matches.map((intent) => intent.name);
+  const directMatches = intents.filter((intent) => matchesCapabilityName(text, intent.name));
+  if (directMatches.length > 0) return directMatches.map((intent) => intent.name);
 
   const approval = APPROVAL_RE.test(prompt)
     ? intents.filter((intent) => intentAuthority(intent) === 'approval-gated')
     : [];
-  if (approval.length === 1) return [approval[0]!.name];
+  if (approval.length > 0) return singleCandidateNames(approval);
 
   const worker = BACKGROUND_RE.test(prompt)
     ? intents.filter((intent) => intentData(intent) === 'worker')
     : [];
-  if (worker.length > 0) return worker.map((intent) => intent.name);
+  if (worker.length > 0) return singleCandidateNames(worker);
 
   const resource = SEARCH_RE.test(prompt)
     ? intents.filter((intent) => intentData(intent) === 'host-resource')
     : [];
-  if (resource.length === 1) return [resource[0]!.name];
+  if (resource.length > 0) return singleCandidateNames(resource);
 
-  const actions = intents.filter((intent) => intentAuthority(intent) === 'host-action');
-  if ((FORM_RE.test(prompt) || SELECT_RE.test(prompt)) && actions.length === 1) {
-    return [actions[0]!.name];
+  const actions = intents.filter((intent) => capabilityMatchesActionClass(prompt, intent));
+  if (actions.length > 0) {
+    return singleCandidateNames(actions);
   }
   return [];
 }
 
-function capabilityMatchesIntent(prompt: string, text: string, intent: IntentSpec): boolean {
-  if (matchesCapabilityName(text, intent.name)) return true;
-
+function capabilityMatchesActionClass(prompt: string, intent: IntentSpec): boolean {
   const data = intentData(intent);
   const authority = intentAuthority(intent);
-  if (APPROVAL_RE.test(prompt)) return authority === 'approval-gated';
-  if (BACKGROUND_RE.test(prompt)) return data === 'worker';
-  if (SEARCH_RE.test(prompt)) return data === 'host-resource';
+  if (authority !== 'host-action' || data === 'worker') return false;
   if (FORM_RE.test(prompt)) {
-    return authority === 'host-action' && data !== 'worker' && capabilityClassMatches(intent, FORM_CAPABILITY_RE);
+    return capabilityClassMatches(intent, FORM_CAPABILITY_RE);
   }
   if (SELECT_RE.test(prompt)) {
-    return authority === 'host-action' && data !== 'worker' && capabilityClassMatches(intent, SELECT_CAPABILITY_RE);
+    return capabilityClassMatches(intent, SELECT_CAPABILITY_RE);
   }
   return false;
 }
@@ -637,6 +637,10 @@ function matchesCapabilityName(text: string, name: string): boolean {
     .filter((term) => term.length > 2);
   if (terms.length === 0) return false;
   return terms.every((term) => text.includes(term));
+}
+
+function singleCandidateNames(intents: IntentSpec[]): string[] {
+  return intents.length === 1 ? [intents[0]!.name] : [];
 }
 
 function capabilityClassMatches(intent: IntentSpec, pattern: RegExp): boolean {
