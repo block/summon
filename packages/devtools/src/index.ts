@@ -17,6 +17,7 @@ export type {
   ProtocolParseErrorEvent,
   StreamLifecycleEvent,
   StreamGraphEvent,
+  SurfaceContractEvent,
   SurfacePlanEvent,
   RenderEvent,
   ComponentSyncEvent,

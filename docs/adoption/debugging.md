@@ -141,6 +141,7 @@ These names are useful when maintaining Summon or writing a deeper adapter:
 | --- | --- |
 | `/surface-policy` | Host-owned public surface config selected for this run. |
 | `/surface-plan` | Host-owned compiled safety plan selected for this run. |
+| `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, trusted components, optional layout, and compile issues. |
 | `/shape` | Optional server-inferred response shape used to narrow direction exemplars. |
 | `/token-overrides` | Resolved direction token overrides, including applied and rejected entries. |
 | `/validation-summary` | Final grouped `ContractIssue` counts and examples. |
@@ -184,14 +185,16 @@ and look for:
   the name, props, bounds, or registry compatibility failed. The event includes
   a stable code such as `bounds-invalid`, `unknown-component`, `props-invalid`,
   or `registry-missing`.
+- `surface-contract` - host-owned compact contract view emitted by the server
+  for policy-backed generations.
 - `surface-plan` - host-owned compiled safety plan.
 - `stream-graph` - client-side stream diagnostics from `StreamGraph.snapshot()`.
 - `sandbox-fatal` - bootstrap detected an unsafe sandbox configuration.
 
-Healthy interactive runs usually show `surface-plan`, `protocol-line`, `render`,
-`component-sync`, `intent-emitted`, `intent-dispatched`, `state-pushed`, and
-`stream-graph` in that order after the user interacts with a component-backed
-UI.
+Healthy interactive policy-backed runs usually show `surface-plan`,
+`surface-contract`, `protocol-line`, `render`, `component-sync`,
+`intent-emitted`, `intent-dispatched`, `state-pushed`, and `stream-graph` in
+that order after the user interacts with a component-backed UI.
 
 ## Reading Contract Issues
 

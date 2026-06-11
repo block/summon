@@ -134,7 +134,12 @@ const SUMMON_BASE_CSS = `
 `;
 
 interface ResourceMapEntry {
-  stateKeys: Required<NonNullable<ValidationCapability['stateKeys']>>;
+  stateKeys: {
+    loading: string;
+    data: string;
+    error: string;
+    empty?: string;
+  };
 }
 
 type ResourceMap = Record<string, ResourceMapEntry>;
@@ -149,6 +154,7 @@ function resourceMapFromCapabilities(capabilities: ValidationCapability[] | unde
         loading: capability.stateKeys.loading,
         data: capability.stateKeys.data,
         error: capability.stateKeys.error,
+        ...(capability.stateKeys.empty ? { empty: capability.stateKeys.empty } : {}),
       },
     };
   }

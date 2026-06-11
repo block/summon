@@ -14,8 +14,10 @@ export {
 } from '@summon-internal/host';
 
 export {
+  compileSurfaceContractView,
   compileSurfacePolicy,
   normalizeSurfacePolicy,
+  surfaceContractViewFromCompiledPolicy,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   SURFACE_TIER_VALUES,
@@ -57,10 +59,15 @@ export type {
   ComponentPack,
   ComponentSpec,
   ComponentSurface,
+  CompileSurfaceContractViewOptions,
   CompiledSurfacePolicy,
   CompileSurfacePolicyOptions,
   IntentSpec,
   NormalizedSurfacePolicy,
+  SurfaceContractComponent,
+  SurfaceContractLayout,
+  SurfaceContractTool,
+  SurfaceContractView,
   SurfacePersistence,
   SurfacePolicy,
   SurfacePurpose,

@@ -5,6 +5,17 @@ export interface CapabilityStateKeys {
   loading?: string;
   data?: string;
   error?: string;
+  empty?: string;
+}
+
+export interface ResourceStateKeys extends Required<Pick<CapabilityStateKeys, 'loading' | 'data' | 'error'>> {
+  empty?: string;
+}
+
+export interface ActionStateKeys {
+  pending: string;
+  done: string;
+  error: string;
 }
 
 export interface CapabilityTriggerSpec {
@@ -56,7 +67,7 @@ export const CAPABILITY_BINDING_SPECS: CapabilityBindingSpec[] = [
     attribute: 'data-summon-resource',
     value: '<resource-name>',
     description:
-      'Declares a resource scope. Descendants may bind `$alias.loading`, `$alias.data`, and `$alias.error`.',
+      'Declares a resource scope. Descendants may bind `$alias.loading`, `$alias.data`, `$alias.error`, and optional `$alias.empty`.',
   },
   {
     attribute: 'data-summon-resource-as',
@@ -146,7 +157,7 @@ export function defaultTriggersForKind(kind: CapabilityKind = 'action'): Capabil
 
 export function hasCompleteResourceStateKeys(
   keys: CapabilityStateKeys | undefined,
-): keys is Required<Pick<CapabilityStateKeys, 'loading' | 'data' | 'error'>> {
+): keys is ResourceStateKeys {
   return Boolean(keys?.loading && keys.data && keys.error);
 }
 
@@ -174,7 +185,7 @@ ${bindingRows}
 
 #### Data resource scopes
 
-Data resources expose host-owned lifecycle state. Wrap a data resource UI in \`data-summon-resource="<name>"\`, optionally rename it with \`data-summon-resource-as="<alias>"\`, then bind \`$alias.loading\`, \`$alias.data\`, and \`$alias.error\`. A resource trigger always emits the resource's intent name; the PolicyEngine remains the execution boundary.
+Data resources expose host-owned lifecycle state. Wrap a data resource UI in \`data-summon-resource="<name>"\`, optionally rename it with \`data-summon-resource-as="<alias>"\`, then bind \`$alias.loading\`, \`$alias.data\`, \`$alias.error\`, and optional \`$alias.empty\`. A resource trigger always emits the resource's intent name; the PolicyEngine remains the execution boundary.
 
 Example:
 

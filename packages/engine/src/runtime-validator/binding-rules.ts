@@ -105,6 +105,8 @@ export function scanResourceAndAttributeBindings(
               hasLoadingBinding: false,
               hasErrorBinding: false,
               hasDataBinding: false,
+              hasEmptyState: Boolean(capability.stateKeys.empty),
+              hasEmptyBinding: false,
             }
           : undefined;
         if (usage) resourceUsages.push(usage);
@@ -259,6 +261,13 @@ function recordResourceUsage(
     if (isDataResultBinding(attr) && referencesResourceSlot(value, usage.alias, 'data')) {
       usage.hasDataBinding = true;
     }
+    if (
+      usage.hasEmptyState &&
+      isVisibleStateBinding(attr) &&
+      referencesResourceSlot(value, usage.alias, 'empty')
+    ) {
+      usage.hasEmptyBinding = true;
+    }
   }
 }
 
@@ -288,7 +297,7 @@ function isDataResultBinding(attr: string): boolean {
 function referencesResourceSlot(
   value: string,
   alias: string,
-  slot: 'loading' | 'data' | 'error',
+  slot: 'loading' | 'data' | 'error' | 'empty',
 ): boolean {
   const path = `$${alias}.${slot}`;
   return value.trim() === path || value.trim().startsWith(`${path}.`);

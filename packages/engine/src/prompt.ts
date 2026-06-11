@@ -10,12 +10,15 @@
 import { formatTokenContract, OPT_OUT_GROUPS } from './token-contract.js';
 import type { DirectionOpts } from './direction-validator.js';
 import {
+  type ActionStateKeys,
   defaultTriggersForKind,
   formatCapabilityProtocolContract,
   type CapabilityKind,
   type CapabilityStateKeys,
   type CapabilityTrigger,
+  type ResourceStateKeys,
 } from './capability-contract.js';
+import type { SurfaceContractView } from './surface-contract.js';
 import type { ComponentSurface, CapabilitySurface } from './surface-plan.js';
 
 export interface Exemplar {
@@ -305,6 +308,71 @@ export function buildOverrideBlock(overrides: TokenOverride[]): string {
   return lines.join('\n');
 }
 
+export function buildSurfaceContractBlock(contract: SurfaceContractView): string {
+  const { surface } = contract;
+  const toolLines = contract.tools.length
+    ? contract.tools.map((tool) => {
+        const stateKeys = tool.stateKeys
+          ? `; state keys ${formatStateKeys(tool.stateKeys)}`
+          : '';
+        const actionState = tool.actionStateKeys
+          ? `; action state ${formatActionStateKeys(tool.actionStateKeys)}`
+          : '';
+        const result = tool.resultSchema ? `; result \`${tool.resultSchema}\`` : '';
+        const defaultData = tool.defaultDataShape ? `; default \`${tool.defaultDataShape}\`` : '';
+        return `- \`${tool.name}\` (${tool.kind}) — ${tool.description} Triggers: ${tool.triggers.join(', ')}; args \`${tool.argsSchema}\`; state \`${tool.stateShape}\`${stateKeys}${actionState}${result}${defaultData}; surface data=${tool.surface.data}, authority=${tool.surface.authority}`;
+      }).join('\n')
+    : '- none';
+  const componentLines = contract.components.length
+    ? contract.components.map((component) => {
+        const sizing = component.sizing
+          ? `; sizing ${[
+              component.sizing.width ? `width=${component.sizing.width}` : '',
+              component.sizing.height ? `height=${component.sizing.height}` : '',
+              component.sizing.description ?? '',
+            ].filter(Boolean).join(', ')}`
+          : '';
+        return `- \`${component.name}\` — ${component.description} Props: \`${component.propsSchema}\`; surface data=${component.surface.data}, authority=${component.surface.authority}${sizing}`;
+      }).join('\n')
+    : '- none';
+  const layoutLines = contract.layout
+    ? contract.layout.slots
+        .map((slot) => `- \`${slot.id}\` — ${slot.purpose}`)
+        .join('\n')
+    : '- none';
+  const issueLine = contract.issues.length
+    ? `${contract.issues.length} host compile issue${contract.issues.length === 1 ? '' : 's'}; do not widen the surface to work around them.`
+    : 'none';
+
+  return `## Surface contract — host-owned boundaries
+
+This is a compact, read-only view of the host-selected \`SurfacePolicy\`. It tells you what this generated surface can do. It is not a JSON UI schema: you still generate rich freeform HTML/CSS inside these typed boundaries.
+
+Do not emit \`/surface-contract\`, \`/surface-policy\`, or \`/surface-plan\` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, sandbox grants, and component prop validation.
+
+### Surface
+
+- Policy: tier=\`${surface.policy.tier}\`, purpose=\`${surface.policy.purpose}\`, persistence=\`${surface.policy.persistence}\`
+- Plan: purpose=\`${surface.plan.purpose}\`, runtime=\`${surface.plan.runtime}\`, data=\`${surface.plan.data}\`, authority=\`${surface.plan.authority}\`, persistence=\`${surface.plan.persistence}\`
+- Mode: \`${surface.mode}\`; scripts \`${surface.scriptPolicy}\`
+
+### Tools
+
+${toolLines}
+
+### Trusted components
+
+${componentLines}
+
+### Host layout
+
+${layoutLines}
+
+### Compile issues
+
+${issueLine}`;
+}
+
 function buildDirectionAddendum(
   opts: DirectionOpts | undefined,
   liveOpportunistic: string[] | undefined
@@ -349,6 +417,7 @@ export interface IntentSpec {
   kind?: CapabilityKind;
   triggers?: CapabilityTrigger[];
   stateKeys?: CapabilityStateKeys;
+  actionStateKeys?: ActionStateKeys;
   surface?: CapabilitySurface;
   resultSchema?: string;
   defaultDataShape?: string;
@@ -357,7 +426,7 @@ export interface IntentSpec {
 
 export interface DataResourceSpec extends IntentSpec {
   kind: 'resource';
-  stateKeys: Required<Pick<CapabilityStateKeys, 'loading' | 'data' | 'error'>>;
+  stateKeys: ResourceStateKeys;
   resultSchema?: string;
   defaultDataShape?: string;
   defaultData?: unknown;
@@ -430,8 +499,11 @@ export function buildCapabilitiesBlock(
     const stateKeys = i.stateKeys
       ? `\n  State keys: ${formatStateKeys(i.stateKeys)}`
       : '';
+    const actionStateKeys = i.actionStateKeys
+      ? `\n  Action state: ${formatActionStateKeys(i.actionStateKeys)}`
+      : '';
     const surface = i.surface ? `\n  Surface: ${formatSurface(i.surface)}` : '';
-    return `- \`${i.name}(${i.argsSchema})\` — ${i.description}\n  Triggers: ${triggers}\n  State update: \`${i.stateShape}\`${stateKeys}${surface}`;
+    return `- \`${i.name}(${i.argsSchema})\` — ${i.description}\n  Triggers: ${triggers}\n  State update: \`${i.stateShape}\`${stateKeys}${actionStateKeys}${surface}`;
   };
 
   const actionsList = actions
@@ -553,13 +625,15 @@ Dead buttons are worse than no buttons. When in doubt, leave it out.
 
 Only the intents listed above exist. Any concept that isn't in the intent list does not exist — don't add controls that imply capabilities you don't have. When in doubt, route the user-visible action through the closest matching intent or drop the control.
 
-Data resources expose host-owned loading/data/error state. Use \`mount\` only for initial read-oriented loads granted by the resource; use \`submit\` for forms and \`click\` only when the resource grants a click trigger. Bind \`$alias.loading\` for busy UI, \`$alias.error\` for host errors, and \`$alias.data\` for validated result data.
+Data resources expose host-owned loading/data/error state and may expose \`$alias.empty\` when the host declares an empty-state key. Use \`mount\` only for initial read-oriented loads granted by the resource; use \`submit\` for forms and \`click\` only when the resource grants a click trigger. Bind \`$alias.loading\` for busy UI, \`$alias.error\` for host errors, \`$alias.data\` for validated result data, and \`$alias.empty\` only for real no-results copy after a successful host result.
 
-Default data is real host state. A data resource starts at \`{loading:false, data:defaultData ?? null, error:null}\`, and loading/error/invalid-result states keep the data value at \`defaultData ?? null\`. Never hallucinate fetched rows, profiles, images, or counts before a successful data resource result. Wrap result UI in \`data-summon-show="$alias.data"\`; for arrays, put \`data-summon-foreach="$alias.data"\` on the result list so no rows render until the host data exists.
+Default data is real host state. A data resource starts at \`{loading:false, data:defaultData ?? null, error:null, empty:false when declared}\`, and loading/error/invalid-result states keep the data value at \`defaultData ?? null\` with \`empty:false\`. Never hallucinate fetched rows, profiles, images, or counts before a successful data resource result. Wrap result UI in \`data-summon-show="$alias.data"\`; for arrays, put \`data-summon-foreach="$alias.data"\` on the result list so no rows render until the host data exists. Render "no results" from \`$alias.empty\`, not from missing or pre-load data.
+
+Controlled actions expose host-owned pending/done/error keys when listed under Action state. Use \`pending\` to disable or mark the triggering control busy, show \`error\` as host failure text, and show \`done\` only for useful success confirmation. Do not fake completed, approved, or failed states in local markup.
 
 ### Initial state
 
-Action-owned state starts empty until an action intent fires. Data-resource lifecycle keys start from the default state described above. Render defensively: show an empty-state message or a form before data exists, never placeholder fetched data. \`data-summon-show\` reads as falsy for missing keys, so wrapping action result UI in \`data-summon-show="<resultKey>"\` is a clean empty-state default.${patternsBlock}`;
+Action-owned state starts empty unless the host declares controlled action state, in which case pending/done/error start false/false/null. Data-resource lifecycle keys start from the default state described above. Render defensively: show an empty-state message only from declared empty state or a form before data exists, never placeholder fetched data. \`data-summon-show\` reads as falsy for missing keys, so wrapping action result UI in \`data-summon-show="<resultKey>"\` is a clean empty-state default.${patternsBlock}`;
 }
 
 export function buildComponentsBlock(pack: ComponentPack | null | undefined): string {
@@ -637,7 +711,12 @@ function formatStateKeys(keys: CapabilityStateKeys): string {
   if (keys.loading) parts.push(`loading=${keys.loading}`);
   if (keys.data) parts.push(`data=${keys.data}`);
   if (keys.error) parts.push(`error=${keys.error}`);
+  if (keys.empty) parts.push(`empty=${keys.empty}`);
   return parts.length ? parts.join(', ') : 'none';
+}
+
+function formatActionStateKeys(keys: ActionStateKeys): string {
+  return `pending=${keys.pending}, done=${keys.done}, error=${keys.error}`;
 }
 
 function formatSurface(surface: CapabilitySurface): string {

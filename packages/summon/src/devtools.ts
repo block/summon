@@ -21,5 +21,6 @@ export type {
   StatePushedEvent,
   StreamGraphEvent,
   StreamLifecycleEvent,
+  SurfaceContractEvent,
   SurfacePlanEvent,
 } from '@summon-internal/devtools';

@@ -178,6 +178,28 @@ Common configs:
 Hosts choose the config before generation. The model may react to the compiled
 safety details, but it cannot widen what the host allowed.
 
+### Surface Contract View
+
+When a server receives a `SurfacePolicy`, Summon also derives a read-only
+`SurfaceContractView` from the compiled policy. This view gives prompts,
+Devtools, replay/debug tooling, and host UIs one compact answer to "what can
+this generated surface do?"
+
+The view includes:
+
+- The normalized host policy, compiled `SurfacePlan`, mode, and script policy.
+- Narrowed host tools/resources, including triggers, schemas, state keys, result
+  schema, and surface data/authority.
+- Narrowed trusted components, including prop schema, sizing, and surface
+  data/authority.
+- Optional host layout slots.
+- Any `ContractIssue[]` produced while compiling the surface policy.
+
+`SurfaceContractView` is diagnostic and prompt-facing only. It is not a JSON UI
+schema and it is not an authority source. Enforcement still lives in
+`SurfacePolicy` compilation, runtime validators, sandbox grants,
+`PolicyEngine`, and component prop validation.
+
 ## 4. Generate The Surface
 
 The generation server should use `@anarchitecture/summon-server` for the
@@ -214,6 +236,13 @@ await runSurfaceGeneration({
   response.write(`${JSON.stringify(line)}\n`);
 });
 ```
+
+For policy-backed runs, `runSurfaceGeneration()` emits host-owned metadata in
+this order before model-authored output:
+
+1. `/surface-policy` - the normalized host policy.
+2. `/surface-plan` - the compiled safety plan.
+3. `/surface-contract` - the compact derived `SurfaceContractView`.
 
 To enable validation retries, pass
 `repair: { enabled: true, provider, maxAttempts, maxTargets }`. The provider
@@ -298,6 +327,7 @@ await consumeSurfaceStream(response.body!, {
   mode: compiledPolicy.mode,
   onMeta: (line) => {
     if (line.path === '/status') renderStatus(String(line.value));
+    if (line.path === '/surface-contract') renderContractSummary(line.value);
   },
   onGraph: (snapshot) => {
     events.push({ kind: 'stream-graph', at: Date.now(), health: snapshot.health });

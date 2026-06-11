@@ -90,9 +90,11 @@ defineReactComponent({
 
 ```ts
 import {
+  compileSurfaceContractView,
   compileSurfacePolicy,
   createComponentRegistry,
   defineComponent,
+  type SurfaceContractView,
 } from '@anarchitecture/summon';
 import {
   consumeSurfaceStream,
@@ -115,6 +117,11 @@ contracts.
 `compileSurfacePolicy(surfacePolicy, catalogs)` gives the client the stream
 mode and narrowed contracts that the server will enforce. Generation authority
 comes from the explicit surface config the host submits.
+
+`compileSurfaceContractView(surfacePolicy, catalogs)` returns the same
+policy-derived compact view that the server emits as `/surface-contract` for
+policy-backed runs. Use it for previews, Devtools panels, and replay summaries;
+do not use it as an enforcement source.
 
 ```ts
 const componentRegistry = createComponentRegistry([

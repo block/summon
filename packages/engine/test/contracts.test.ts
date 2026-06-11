@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   compileDirectionContract,
+  compileSurfaceContractView,
   compileSystemContracts,
   compileTokenContract,
   deriveSurfacePlanControls,
@@ -224,6 +225,62 @@ test('system compiler includes a host-owned surface plan block', () => {
   const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-plan');
   assert.match(surfaceBlock?.text ?? '', /host-owned runtime contract/);
   assert.match(surfaceBlock?.text ?? '', /Do not emit a `\/surface-plan` meta line/);
+});
+
+test('system compiler includes compact surface contract view without dropping detail blocks', () => {
+  const capabilities: CapabilityPack = {
+    intents: [
+      {
+        name: 'search',
+        description: 'Search host data.',
+        argsSchema: '{query: string}',
+        stateShape: '{loading: boolean, results: unknown[]}',
+        kind: 'resource',
+        triggers: ['submit'],
+        stateKeys: { loading: 'loading', data: 'results', error: 'error' },
+        resultSchema: 'unknown[]',
+        surface: { data: 'host-resource', authority: 'read' },
+      },
+    ],
+  };
+  const components: ComponentPack = {
+    components: [
+      {
+        name: 'MetricCard',
+        description: 'Displays a KPI card.',
+        propsSchema: '{label: string, value: string}',
+        surface: { data: 'embedded', authority: 'none' },
+      },
+    ],
+  };
+  const surfaceContract = compileSurfaceContractView({
+    tier: 'declarative',
+    purpose: 'explore',
+    grants: ['search'],
+    components: ['MetricCard'],
+  }, { capabilities, components });
+  const compiled = compileSystemContracts({
+    mode: surfaceContract.surface.mode,
+    surfaceContract,
+    capabilities: surfaceContract.tools.length ? capabilities : null,
+    components,
+    scriptPolicy: surfaceContract.surface.scriptPolicy,
+  });
+
+  assert.deepEqual(
+    compiled.promptBlocks.map((block) => block.id),
+    ['fixed', 'surface-contract', 'capabilities', 'components'],
+  );
+  const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-contract');
+  assert.match(surfaceBlock?.text ?? '', /compact, read-only view/);
+  assert.match(surfaceBlock?.text ?? '', /freeform HTML\/CSS/);
+  assert.match(surfaceBlock?.text ?? '', /Do not emit `\/surface-contract`, `\/surface-policy`, or `\/surface-plan`/);
+  assert.match(surfaceBlock?.text ?? '', /`search` \(resource\)/);
+  assert.match(surfaceBlock?.text ?? '', /`MetricCard`/);
+  assert.equal(compiled.promptBlocks.some((block) => block.id === 'surface-plan'), false);
+  assert.match(compiled.promptBlocks.find((block) => block.id === 'capabilities')?.text ?? '', /Available data resources/);
+  assert.match(compiled.promptBlocks.find((block) => block.id === 'components')?.text ?? '', /Component islands/);
+  assert.deepEqual(compiled.validationContext.surfacePlan, surfaceContract.surface.plan);
 });
 
 test('surface plan normalization and suggestions are stable', () => {

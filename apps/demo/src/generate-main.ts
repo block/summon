@@ -28,6 +28,7 @@ import {
   type ScriptPolicy,
   type SummonLayout,
   type SurfaceCeiling,
+  type SurfaceContractView,
   type SurfacePlan,
   type ValidationCapability,
   type ValidationComponent,
@@ -379,6 +380,7 @@ let currentShape: string | null = null;
 let currentValidationSummary: string | null = null;
 let currentRepairSummary: string | null = null;
 let currentStreamHealth: string | null = null;
+let currentSurfaceContractView: SurfaceContractView | null = null;
 const acc = new SectionAccumulator();
 let handle: SandboxHandle | null = null;
 let policy: PolicyEngine | null = null;
@@ -785,6 +787,7 @@ function applyScenario(scenario: ShowcaseScenario) {
   currentValidationSummary = null;
   currentRepairSummary = null;
   currentStreamHealth = null;
+  currentSurfaceContractView = null;
   respawn(currentDirectionId, currentMode);
   showWelcome();
   updateEditControls();
@@ -806,14 +809,31 @@ function planText(plan: { purpose: string; runtime: string; data: string; author
   ].join(' · ');
 }
 
+function parseSurfaceContractView(value: unknown): SurfaceContractView | null {
+  if (!value || typeof value !== 'object') return null;
+  const contract = value as Partial<SurfaceContractView>;
+  if (!contract.surface || typeof contract.surface !== 'object') return null;
+  if (!Array.isArray(contract.tools) || !Array.isArray(contract.components)) return null;
+  if (!Array.isArray(contract.issues)) return null;
+  return contract as SurfaceContractView;
+}
+
 function renderContractSummary() {
   const active = readActiveContract();
   const requested = active.surfacePlan;
-  const hostTools = active.capabilityNames.length ? active.capabilityNames.join(', ') : 'none';
-  const components = active.componentNames?.length ? active.componentNames.join(', ') : 'none';
+  const contract = currentSurfaceContractView;
+  const hostTools = contract
+    ? contract.tools.map((tool) => tool.name).join(', ') || 'none'
+    : active.capabilityNames.length ? active.capabilityNames.join(', ') : 'none';
+  const components = contract
+    ? contract.components.map((component) => component.name).join(', ') || 'none'
+    : active.componentNames?.length ? active.componentNames.join(', ') : 'none';
+  const toolCount = contract?.tools.length ?? active.capabilityNames.length;
+  const componentCount = contract?.components.length ?? active.componentNames?.length ?? 0;
   const validation = currentValidationSummary ?? 'pending';
   const stream = currentStreamHealth ?? 'pending';
-  const effective = currentEffectiveSurfacePlan ? planText(currentEffectiveSurfacePlan) : 'pending';
+  const effectivePlan = contract?.surface.plan ?? currentEffectiveSurfacePlan;
+  const effective = effectivePlan ? planText(effectivePlan) : 'pending';
   const provider = modelProviders.find((item) => item.id === active.modelProvider);
   const selectedModel = active.generationModel
     ?? provider?.defaults?.generationModel
@@ -823,16 +843,16 @@ function renderContractSummary() {
     ?? provider?.defaults?.utilityModel
     ?? provider?.utilityModel
     ?? 'server default';
-  inspectorStatusEl.textContent = currentEffectiveSurfacePlan ? 'effective' : 'pending';
+  inspectorStatusEl.textContent = contract ? 'contract' : currentEffectiveSurfacePlan ? 'effective' : 'pending';
   contractSummaryEl.innerHTML = '';
   const rows = [
     ['provider', 'Model provider', provider ? `${provider.name} · ${selectedModel}` : 'server default', provider ? 'neutral' : 'pending'],
     ['utility', 'Utility model', selectedUtility, provider ? 'neutral' : 'pending'],
     ['requested', 'Requested surface config', planText(requested), 'neutral'],
-    ['effective', 'Effective safety plan', effective, currentEffectiveSurfacePlan ? 'good' : 'pending'],
-    ['grants', 'Allowed host tools', `${active.capabilityNames.length}: ${hostTools}`, active.capabilityNames.length ? 'neutral' : 'pending'],
-    ['components', 'Trusted components', `${active.componentNames?.length ?? 0}: ${components}`, active.componentNames?.length ? 'good' : 'pending'],
-    ['runtime', 'Runtime', `${active.mode} · scripts ${active.scriptPolicy}`, active.scriptPolicy === 'allow' ? 'warn' : 'neutral'],
+    ['effective', 'Effective safety plan', effective, effectivePlan ? 'good' : 'pending'],
+    ['grants', 'Allowed host tools', `${toolCount}: ${hostTools}`, toolCount ? 'neutral' : 'pending'],
+    ['components', 'Trusted components', `${componentCount}: ${components}`, componentCount ? 'good' : 'pending'],
+    ['runtime', 'Runtime', `${contract?.surface.mode ?? active.mode} · scripts ${contract?.surface.scriptPolicy ?? active.scriptPolicy}`, (contract?.surface.scriptPolicy ?? active.scriptPolicy) === 'allow' ? 'warn' : 'neutral'],
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
     ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
     ['repair', 'Validation retry', active.repair?.enabled ? (currentRepairSummary ?? 'on') : 'off', active.repair?.enabled ? 'warn' : 'pending'],
@@ -862,6 +882,7 @@ function clearEffectiveContractSummary() {
   currentValidationSummary = null;
   currentRepairSummary = null;
   currentStreamHealth = null;
+  currentSurfaceContractView = null;
   renderContractSummary();
 }
 
@@ -1584,6 +1605,7 @@ interface SandboxTarget {
   /** Fires when the server emits `/mode-upgraded`. Parent respawns; children no-op. */
   onModeUpgrade?: () => void;
   onSurfacePlan?: (plan: SurfacePlan) => void;
+  onSurfaceContract?: (contract: SurfaceContractView) => void;
   onShape?: (shape: string) => void;
   onTokenOverrides?: (applied: Array<{ token: string; value: string }>) => void;
   onValidationSummary?: (value: unknown) => void;
@@ -1622,6 +1644,19 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
       );
     } else {
       target.onLog('op-meta', `surface → invalid ${JSON.stringify(line.value)}`);
+    }
+    return;
+  }
+  if (line.op === 'meta' && line.path === '/surface-contract') {
+    const contract = parseSurfaceContractView(line.value);
+    if (contract) {
+      target.onSurfaceContract?.(contract);
+      target.onLog(
+        'op-meta',
+        `surface contract → ${contract.tools.length} tool${contract.tools.length === 1 ? '' : 's'}, ${contract.components.length} component${contract.components.length === 1 ? '' : 's'}`,
+      );
+    } else {
+      target.onLog('op-meta', `surface contract → invalid ${JSON.stringify(line.value)}`);
     }
     return;
   }
@@ -1922,6 +1957,12 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
           events.push({ kind: 'surface-plan', at: Date.now(), plan: surfacePlan });
         }
       }
+      if (line.path === '/surface-contract') {
+        const contract = parseSurfaceContractView(line.value);
+        if (contract && target.recordEvents) {
+          events.push({ kind: 'surface-contract', at: Date.now(), contract });
+        }
+      }
       if (line.path === '/shape' && typeof line.value === 'string') {
         shape = line.value;
       }
@@ -1967,6 +2008,10 @@ function createParentTarget(active: ActiveContract): SandboxTarget {
     },
     onSurfacePlan: (plan) => {
       currentEffectiveSurfacePlan = plan;
+      renderContractSummary();
+    },
+    onSurfaceContract: (contract) => {
+      currentSurfaceContractView = contract;
       renderContractSummary();
     },
     onShape: (shape) => {
@@ -2116,6 +2161,7 @@ function replaySurface(envelope: SurfaceEnvelope) {
   currentStreamHealth = envelope.streamGraph
     ? `${envelope.streamGraph.health.complete ? 'complete' : 'open'} · missing=${envelope.streamGraph.health.missingDeclared.length} blocked=${envelope.streamGraph.health.blockedCount} retried=${envelope.streamGraph.health.repairedCount}`
     : null;
+  currentSurfaceContractView = null;
   acc.reset();
   for (const line of envelope.protocolLines) {
     if (line.op !== 'meta') acc.applyDetailed(line);
@@ -2157,6 +2203,7 @@ async function generate(prompt: string) {
   currentValidationSummary = null;
   currentRepairSummary = null;
   currentStreamHealth = null;
+  currentSurfaceContractView = null;
   respawn(currentDirectionId, active.mode, active);
   hideWelcome();
   goBtn.disabled = true;
@@ -2474,6 +2521,8 @@ function summarize(ev: DevtoolsEvent): string {
       return `sections=${ev.sections.length} missing=${ev.health.missingDeclared.length} skipped=${ev.health.skippedCount} retried=${ev.health.repairedCount}`;
     case 'surface-plan':
       return planText(ev.plan);
+    case 'surface-contract':
+      return `${ev.contract.tools?.length ?? 0} tool${ev.contract.tools?.length === 1 ? '' : 's'} · ${ev.contract.components?.length ?? 0} component${ev.contract.components?.length === 1 ? '' : 's'}`;
     case 'render':
       return `${ev.bytes.toLocaleString()} B`;
     case 'component-sync':
