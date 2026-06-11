@@ -782,12 +782,22 @@
     if (existing) {
       var preservedChildren = directNodeChildren(existing);
       var incomingChildHost = nodeChildrenHost(incoming);
+      var replacementSlotChanged = false;
+      if (preservedChildren.length > 0) {
+        replacementSlotChanged = prepareNodeChildHost(incomingChildHost);
+      }
       for (var i = 0; i < preservedChildren.length; i++) {
         incomingChildHost.appendChild(preservedChildren[i]);
       }
+      markTransientClass(incoming, 'summon-node-update', 520);
       existing.replaceWith(incoming);
+      if (replacementSlotChanged) markSlotFilled(incomingChildHost);
     } else {
-      nodeChildrenHost(parent).appendChild(incoming);
+      var childHost = nodeChildrenHost(parent);
+      var slotChanged = prepareNodeChildHost(childHost);
+      markTransientClass(incoming, 'summon-node-enter', 520);
+      childHost.appendChild(incoming);
+      if (slotChanged) markSlotFilled(childHost);
     }
 
     applyBindings();
@@ -815,6 +825,55 @@
   function nodeChildrenHost(parent) {
     if (!parent || typeof parent.querySelector !== 'function') return parent;
     return parent.querySelector('[data-summon-node-children]') || parent;
+  }
+
+  function prepareNodeChildHost(host) {
+    if (!isNodeChildrenSlot(host)) return false;
+    var hadNodeChildren = directSummonNodeChildCount(host) > 0;
+    var removedSkeletons = removeDirectSkeletons(host);
+    return removedSkeletons > 0 || !hadNodeChildren;
+  }
+
+  function directSummonNodeChildCount(host) {
+    if (!host || !host.children) return 0;
+    var count = 0;
+    for (var i = 0; i < host.children.length; i++) {
+      if (host.children[i].hasAttribute('data-summon-node')) count += 1;
+    }
+    return count;
+  }
+
+  function removeDirectSkeletons(host) {
+    if (!host || !host.children) return 0;
+    var removed = 0;
+    var children = Array.from(host.children);
+    for (var i = 0; i < children.length; i++) {
+      if (children[i].hasAttribute('data-summon-skeleton')) {
+        children[i].remove();
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
+  function isNodeChildrenSlot(el) {
+    return !!(el && el.hasAttribute && el.hasAttribute('data-summon-node-children'));
+  }
+
+  function markSlotFilled(slot) {
+    if (!isNodeChildrenSlot(slot)) return;
+    markTransientClass(slot, 'summon-slot-filled', 560);
+  }
+
+  function markTransientClass(el, className, durationMs) {
+    if (!el || !el.classList) return;
+    el.classList.remove(className);
+    // Force a style flush so repeated replacements retrigger the animation.
+    void el.offsetWidth;
+    el.classList.add(className);
+    window.setTimeout(function () {
+      if (el && el.classList) el.classList.remove(className);
+    }, durationMs);
   }
 
   function rerunScripts(scope) {

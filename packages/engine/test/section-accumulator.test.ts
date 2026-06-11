@@ -165,7 +165,7 @@ test('html node patches compose children into explicit node slots', () => {
     op: 'add',
     path: '/section/main/node/card',
     parent: 'root',
-    html: '<article data-summon-node="card"><h2>Sales</h2><div class="card-body" data-summon-node-children></div></article>',
+    html: '<article data-summon-node="card"><h2>Sales</h2><div class="card-body" data-summon-node-children><div data-summon-skeleton></div><div data-summon-skeleton><span>Loading</span></div></div></article>',
   });
   acc.applyDetailed({
     op: 'add',
@@ -183,6 +183,7 @@ test('html node patches compose children into explicit node slots', () => {
     '</div>',
     '</section>',
   ].join('\n'));
+  assert.doesNotMatch(acc.compose(), /data-summon-skeleton/);
 });
 
 test('html node replacement updates only that node in composed HTML', () => {

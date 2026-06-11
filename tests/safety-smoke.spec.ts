@@ -180,8 +180,12 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
     sectionId: 'main',
     nodeId: 'card',
     parentId: 'root',
-    html: '<article data-summon-node="card"><h2>Sales</h2><div class="slot" data-summon-node-children></div></article>',
+    html: '<article data-summon-node="card"><h2>Sales</h2><div class="slot" data-summon-node-children><div data-summon-skeleton></div><div data-summon-skeleton><span>Loading</span></div></div></article>',
   });
+  const card = sandbox.locator('[data-summon-node="card"]');
+  await expect(card).toHaveClass(/summon-node-enter/);
+  await expect(sandbox.locator('[data-summon-node="card"] [data-summon-node-children] > [data-summon-skeleton]')).toHaveCount(2);
+
   await patchNode({
     sectionId: 'main',
     nodeId: 'card-value',
@@ -189,10 +193,15 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
     html: '<p data-summon-node="card-value">Inside card</p>',
   });
 
+  const cardSlot = sandbox.locator('[data-summon-node="card"] [data-summon-node-children]');
   const cardSlotChild = sandbox.locator(
     '[data-summon-node="card"] [data-summon-node-children] > [data-summon-node="card-value"]',
   );
+  await expect(cardSlot).toHaveClass(/summon-slot-filled/);
+  await expect(sandbox.locator('[data-summon-node="card"] [data-summon-node-children] > [data-summon-skeleton]')).toHaveCount(0);
   await expect(cardSlotChild).toContainText('Inside card');
+  await expect(cardSlotChild).toHaveClass(/summon-node-enter/);
+  await expect(cardSlotChild).not.toHaveClass(/summon-node-enter/);
 
   await patchNode({
     sectionId: 'main',
@@ -201,8 +210,10 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
     html: '<article data-summon-node="card"><h2>Sales updated</h2><div class="slot" data-summon-node-children></div></article>',
   });
 
-  await expect(sandbox.locator('[data-summon-node="card"]')).toContainText('Sales updated');
+  await expect(card).toHaveClass(/summon-node-update/);
+  await expect(card).toContainText('Sales updated');
   await expect(cardSlotChild).toContainText('Inside card');
+  await expect(cardSlotChild).not.toHaveClass(/summon-node-update/);
 });
 
 test('generate showcase sends SurfacePolicy by default', async ({ page }) => {
@@ -270,8 +281,8 @@ test('fragment compare launches section and html node streams from the same prom
           { op: 'meta', path: '/experimental-fragments', value: { mode: 'html-node-v0' } },
           { op: 'set', path: '/screen', value: { sections: ['main'] } },
           { op: 'add', path: '/section/main/node/root', html: '<div data-summon-node="root"></div>' },
-          { op: 'add', path: '/section/main/node/headline', parent: 'root', html: '<h1 data-summon-node="headline">Node stream</h1>' },
-          { op: 'add', path: '/section/main/node/body', parent: 'root', html: '<p data-summon-node="body">Rendered as HTML node patches.</p>' },
+          { op: 'add', path: '/section/main/node/card', parent: 'root', html: '<article data-summon-node="card"><h1>Node stream</h1><div data-summon-node-children><div data-summon-skeleton></div></div></article>' },
+          { op: 'add', path: '/section/main/node/body', parent: 'card', html: '<p data-summon-node="body">Rendered as HTML node patches.</p>' },
         ])
       : jsonl([
           { op: 'set', path: '/screen', value: { sections: ['main'] } },

@@ -125,12 +125,72 @@ const SUMMON_BASE_CSS = `
 [data-summon-section] {
   animation: summon-section-in 0.45s cubic-bezier(0.33, 1, 0.68, 1) both;
 }
+.summon-node-enter {
+  animation: summon-node-enter 0.32s cubic-bezier(0.33, 1, 0.68, 1) both;
+  will-change: opacity, filter, transform;
+}
+.summon-node-update {
+  animation: summon-node-update 0.42s ease-out both;
+}
+.summon-slot-filled {
+  animation: summon-slot-filled 0.42s ease-out both;
+}
+[data-summon-skeleton] {
+  position: relative;
+  overflow: hidden;
+  min-height: 0.8em;
+  border-radius: 6px;
+  color: transparent !important;
+  background: rgba(127, 127, 127, 0.14);
+  pointer-events: none;
+  user-select: none;
+}
+[data-summon-skeleton] > * {
+  visibility: hidden;
+}
+[data-summon-skeleton]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
+  animation: summon-skeleton-sheen 1.35s ease-in-out infinite;
+}
 @keyframes summon-section-in {
   from { opacity: 0; filter: blur(8px); transform: translateY(8px); }
   to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
 }
+@keyframes summon-node-enter {
+  from { opacity: 0; filter: blur(5px); transform: translateY(6px); }
+  to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
+}
+@keyframes summon-node-update {
+  0%   { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
+  35%  { box-shadow: 0 0 0 2px rgba(80, 112, 255, 0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
+}
+@keyframes summon-slot-filled {
+  0%   { box-shadow: inset 0 0 0 0 rgba(80, 112, 255, 0); }
+  45%  { box-shadow: inset 0 0 0 1px rgba(80, 112, 255, 0.12); }
+  100% { box-shadow: inset 0 0 0 0 rgba(80, 112, 255, 0); }
+}
+@keyframes summon-skeleton-sheen {
+  0%   { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(100%); }
+}
 @media (prefers-reduced-motion: reduce) {
-  [data-summon-section] { animation: none; }
+  [data-summon-section],
+  .summon-node-enter,
+  .summon-node-update,
+  .summon-slot-filled,
+  [data-summon-skeleton]::after {
+    animation: none;
+  }
+  .summon-node-enter {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
 }
 `;
 

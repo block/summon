@@ -342,9 +342,11 @@ function childIdsFor(parentId: string, state: HtmlNodeSectionState): string[] {
 }
 
 function injectChildren(html: string, children: string): string {
-  const slotIndex = nodeChildrenSlotInsertionIndex(html);
-  if (slotIndex !== null) {
-    return `${html.slice(0, slotIndex)}\n${children}\n${html.slice(slotIndex)}`;
+  const slotRange = nodeChildrenSlotRange(html);
+  if (slotRange !== null) {
+    const slotInner = removeDirectSkeletonChildren(html.slice(slotRange.insertIndex, slotRange.closeIndex));
+    const retainedInner = slotInner.trim().length > 0 ? `\n${slotInner}` : '';
+    return `${html.slice(0, slotRange.insertIndex)}\n${children}${retainedInner}\n${html.slice(slotRange.closeIndex)}`;
   }
   const tagName = rootTagName(html);
   if (!tagName) return `${html}\n${children}`;
@@ -354,13 +356,15 @@ function injectChildren(html: string, children: string): string {
   return `${html.slice(0, match.index)}\n${children}\n${html.slice(match.index)}`;
 }
 
-function nodeChildrenSlotInsertionIndex(html: string): number | null {
+function nodeChildrenSlotRange(html: string): { insertIndex: number; closeIndex: number } | null {
   const slotOpenRe = /<\s*([a-zA-Z][\w:-]*)\b(?=[^>]*\sdata-summon-node-children(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)[^>]*>/i;
   const match = slotOpenRe.exec(html);
   if (!match || match.index === undefined) return null;
   const tagName = match[1]?.toLowerCase();
   if (!tagName || /\/\s*>$/.test(match[0])) return null;
-  return matchingCloseTagIndex(html, tagName, match.index + match[0].length);
+  const insertIndex = match.index + match[0].length;
+  const closeIndex = matchingCloseTagIndex(html, tagName, insertIndex);
+  return closeIndex === null ? null : { insertIndex, closeIndex };
 }
 
 function matchingCloseTagIndex(
@@ -382,6 +386,78 @@ function matchingCloseTagIndex(
   }
   return null;
 }
+
+function removeDirectSkeletonChildren(html: string): string {
+  const ranges = directSkeletonChildRanges(html);
+  if (ranges.length === 0) return html;
+  let out = '';
+  let cursor = 0;
+  for (const [start, end] of ranges) {
+    out += html.slice(cursor, start);
+    cursor = end;
+  }
+  return out + html.slice(cursor);
+}
+
+function directSkeletonChildRanges(html: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  const tagRe = /<!--[\s\S]*?-->|<![^>]*>|<\/?[a-zA-Z][\w:-]*(?:\s+[^<>]*?)?\s*\/?>/g;
+  let depth = 0;
+  let topStart = -1;
+  let topSkeleton = false;
+  let match: RegExpExecArray | null;
+  while ((match = tagRe.exec(html))) {
+    const rawTag = match[0]!;
+    if (rawTag.startsWith('<!--') || rawTag.startsWith('<!')) continue;
+    const tagName = rawTag.match(/^<\s*\/?\s*([a-zA-Z][\w:-]*)/)?.[1]?.toLowerCase();
+    if (!tagName) continue;
+    const closing = /^<\s*\//.test(rawTag);
+    if (closing) {
+      if (depth > 0) {
+        depth -= 1;
+        if (depth === 0 && topSkeleton) {
+          ranges.push([topStart, match.index + rawTag.length]);
+        }
+      }
+      continue;
+    }
+    const selfClosing = /\/\s*>$/.test(rawTag) || VOID_TAGS.has(tagName);
+    if (depth === 0) {
+      const skeleton = hasAttr(rawTag, 'data-summon-skeleton');
+      if (selfClosing) {
+        if (skeleton) ranges.push([match.index, match.index + rawTag.length]);
+        continue;
+      }
+      topStart = match.index;
+      topSkeleton = skeleton;
+      depth = 1;
+      continue;
+    }
+    if (!selfClosing) depth += 1;
+  }
+  return ranges;
+}
+
+function hasAttr(rawTag: string, attr: string): boolean {
+  return new RegExp(`\\s${escapeRegExp(attr)}(?:\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s>]+))?(?=\\s|/?>)`, 'i').test(rawTag);
+}
+
+const VOID_TAGS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
 
 function rootTagName(html: string): string | null {
   return html.trim().match(/^<\s*([a-zA-Z][\w:-]*)\b/)?.[1]?.toLowerCase() ?? null;

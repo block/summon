@@ -98,7 +98,8 @@ Rules:
 - Use lowercase kebab-case ids for sections and nodes.
 - Omit \`parent\` to append a node directly under the section wrapper. Set \`parent\` to an earlier node id to append inside that parent node.
 - Emit a root visual container first, then useful child nodes such as headers, metric cards, rows, list items, action groups, chart shells, status panels, and notes.
-- When a card, panel, list, or table shell will receive child node patches, include an empty child slot inside it, such as \`<div data-summon-node-children></div>\`, and set those child lines' \`parent\` to that shell's node id.
+- Emit useful shells early. When a card, panel, list, or table shell will receive child node patches, include a child slot inside it, such as \`<div data-summon-node-children></div>\`, and set those child lines' \`parent\` to that shell's node id.
+- Shell slots may include 1-3 direct lightweight placeholders with \`data-summon-skeleton\`; later real child node patches will replace those placeholders automatically.
 - Do not emit content that visually belongs inside a card or panel as a sibling of that card or the root container.
 - Each node patch should usually be 500-2000 bytes and visually meaningful immediately. Prefer many small useful patches over one large section.
 - Do not put \`data-summon-node\` on nested elements inside a node patch. Child nodes must arrive as their own later protocol lines.
