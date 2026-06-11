@@ -70,6 +70,16 @@ const capabilityContract = registry.toContract();
 `capabilityContract.pack` is model-facing. `capabilityContract.validationCapabilities`
 and `capabilityContract.initialState` are runtime-facing.
 
+Data resources can expose a host-owned empty state when "no results" is a
+merchant-facing condition. Add `stateKeys.empty` and, when array length is not
+the right definition, `isEmpty(data)`. The generated surface should render
+`$alias.empty`; it should not infer "no results" from missing pre-load data.
+
+Actions can opt into a tiny lifecycle with `controlled: true`. Summon then
+pushes pending, done, and error state around the host handler so generated UI can
+disable the trigger, show host errors, and render success only after the host
+actually finishes. Existing actions remain uncontrolled unless they opt in.
+
 Approval actions are still host tools. The difference is that the host can
 prepare the exact operation before asking for a decision. The generated surface
 gets only small status state such as pending, approved, denied, failed, and a

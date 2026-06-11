@@ -76,10 +76,10 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
       argsSchema: searchArgsSchema,
       resultSchema: searchResultSchema,
       defaultData: [],
-      stateKeys: { loading: 'searching', data: 'results', error: 'searchError' },
+      stateKeys: { loading: 'searching', data: 'results', error: 'searchError', empty: 'noResults' },
       triggers: ['submit', 'mount'],
       stateShape:
-        '{searching: boolean, query: string, results: Array<{title: string, snippet: string, source: string}> | null, searchError: string | null}',
+        '{searching: boolean, query: string, results: Array<{title: string, snippet: string, source: string}> | null, searchError: string | null, noResults: boolean}',
       patterns: [
         {
           name: 'Search resource',
@@ -90,6 +90,7 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
   </form>
   <p data-summon-show="$s.loading">Searching...</p>
   <p data-summon-show="$s.error" data-summon-bind="$s.error"></p>
+  <p data-summon-show="$s.empty">No matching results.</p>
   <ul data-summon-show="$s.data" data-summon-foreach="$s.data" data-summon-as="result">
     <template>
       <li>
@@ -127,10 +128,13 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
         'Save the option the user chose. Args must include an option label. Use for generated comparison, picker, or review surfaces.',
       argsSchema: chooseArgsSchema,
       stateShape: '{lastChoice: string, chosenOptions: string[]}',
+      controlled: true,
       patterns: [
         {
           name: 'Save a choice',
-          code: `<button data-summon-on-click="choose" data-summon-args='{"option":"Balanced path"}'>Save this option</button>
+          code: `<button data-summon-on-click="choose" data-summon-args='{"option":"Balanced path"}' data-summon-attr-disabled="choosePending">Save this option</button>
+<p data-summon-show="choosePending">Saving...</p>
+<p data-summon-show="chooseError" data-summon-bind="chooseError"></p>
 <p data-summon-show="lastChoice">Saved: <span data-summon-bind="lastChoice"></span></p>`,
         },
       ],

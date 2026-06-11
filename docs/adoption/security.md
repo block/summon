@@ -96,6 +96,9 @@ requires a compatible host registry for the same reason.
 - Use `defineWorkerAction` / `defineWorkerResource` for host-owned background
   work and `defineApprovalAction` for operations that require a host approval
   adapter before the handler runs.
+- Use controlled action state for merchant-facing pending, success, and error
+  UI. Generated surfaces should render those keys; they should not invent local
+  completion or failure state for host actions.
 - Treat approval as a workflow owned by the host, not a generated modal. For
   approval actions, the host may `prepare` the exact operation into an
   `ApprovalRequest`; the user approves or denies that request in host UI; the

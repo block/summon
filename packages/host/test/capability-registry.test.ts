@@ -270,6 +270,104 @@ test('registry-generated handlers reject invalid args before execution', async (
   assert.ok(errors[0] instanceof IntentArgsError);
 });
 
+test('controlled actions push pending, done, and error lifecycle state', async () => {
+  const states: Record<string, unknown>[] = [];
+  const registry = createCapabilityRegistry([
+    defineAction({
+      name: 'save',
+      description: 'Save a selection.',
+      argsSchema: z.object({ label: z.string() }),
+      stateShape: '{savedLabel: string | null}',
+      controlled: true,
+      handler: async ({ args, push }) => {
+        push({ savedLabel: args.label });
+      },
+    }),
+  ]);
+
+  const contract = registry.toContract();
+  assert.deepEqual(contract.pack.intents[0]?.actionStateKeys, {
+    pending: 'savePending',
+    done: 'saveDone',
+    error: 'saveError',
+  });
+  assert.deepEqual(contract.initialState, {
+    savePending: false,
+    saveDone: false,
+    saveError: null,
+  });
+
+  const policy = new PolicyEngine({
+    handlers: registry.toPolicyHandlers(),
+    onStateChange: (state) => states.push(state),
+  });
+
+  await policy.dispatch('save', { label: 'Balanced path' });
+
+  assert.deepEqual(states[0], {
+    savePending: true,
+    saveDone: false,
+    saveError: null,
+  });
+  assert.equal(states[1]?.savedLabel, 'Balanced path');
+  assert.equal(states.at(-1)?.savePending, false);
+  assert.equal(states.at(-1)?.saveDone, true);
+  assert.equal(states.at(-1)?.saveError, null);
+});
+
+test('controlled actions support custom state keys and rethrow failures to diagnostics', async () => {
+  const states: Record<string, unknown>[] = [];
+  const errors: Error[] = [];
+  const registry = createCapabilityRegistry([
+    defineAction({
+      name: 'save',
+      description: 'Save a selection.',
+      argsSchema: z.object({ label: z.string() }),
+      stateShape: '{}',
+      controlled: {
+        stateKeys: {
+          pending: 'saving',
+          done: 'saved',
+          error: 'saveFailure',
+        },
+      },
+      handler: () => {
+        throw new Error('write failed');
+      },
+    }),
+  ]);
+
+  const policy = new PolicyEngine({
+    handlers: registry.toPolicyHandlers(),
+    onStateChange: (state) => states.push(state),
+    onHandlerError: (_intent, error) => errors.push(error),
+  });
+
+  await policy.dispatch('save', { label: 'Balanced path' });
+
+  assert.equal(states[0]?.saving, true);
+  assert.equal(states.at(-1)?.saving, false);
+  assert.equal(states.at(-1)?.saved, false);
+  assert.equal(states.at(-1)?.saveFailure, 'write failed');
+  assert.equal(errors[0]?.message, 'write failed');
+});
+
+test('default actions do not receive controlled lifecycle state', () => {
+  const registry = createCapabilityRegistry([
+    defineAction({
+      name: 'save',
+      description: 'Save a selection.',
+      argsSchema: z.object({ label: z.string() }),
+      stateShape: '{}',
+      handler: () => {},
+    }),
+  ]);
+
+  const contract = registry.toContract();
+  assert.equal(contract.pack.intents[0]?.actionStateKeys, undefined);
+  assert.deepEqual(contract.initialState, {});
+});
+
 test('data resource handlers push loading, data, and error state', async () => {
   const registry = createCapabilityRegistry([
     defineDataResource({
@@ -309,6 +407,123 @@ test('data resource handlers push loading, data, and error state', async () => {
       lookupQuery: 'summon',
     },
   ]);
+});
+
+test('data resource handlers expose optional empty state after successful empty results', async () => {
+  let nextResult: { title: string }[] = [];
+  const registry = createCapabilityRegistry([
+    defineDataResource({
+      name: 'lookup',
+      description: 'Fetch lookup results.',
+      argsSchema: z.object({ query: z.string() }),
+      resultSchema: z.array(z.object({ title: z.string() })),
+      defaultData: [],
+      stateKeys: {
+        loading: 'lookupLoading',
+        data: 'lookupResults',
+        error: 'lookupError',
+        empty: 'lookupEmpty',
+      },
+      triggers: ['submit'],
+      fetch: async () => nextResult,
+    }),
+  ]);
+
+  assert.deepEqual(registry.toContract().initialState, {
+    lookupLoading: false,
+    lookupResults: [],
+    lookupError: null,
+    lookupEmpty: false,
+  });
+
+  const states: Record<string, unknown>[] = [];
+  const policy = new PolicyEngine({
+    handlers: registry.toPolicyHandlers(),
+    onStateChange: (state) => states.push(state),
+  });
+
+  await policy.dispatch('lookup', { query: 'none' });
+  assert.equal(states[0]?.lookupEmpty, false);
+  assert.equal(states.at(-1)?.lookupEmpty, true);
+
+  nextResult = [{ title: 'Found' }];
+  await policy.dispatch('lookup', { query: 'found' });
+  assert.equal(states.at(-2)?.lookupEmpty, false);
+  assert.equal(states.at(-1)?.lookupEmpty, false);
+});
+
+test('data resource empty state resets false on invalid and failed host results', async () => {
+  let mode: 'invalid' | 'throw' = 'invalid';
+  const registry = createCapabilityRegistry([
+    defineDataResource({
+      name: 'lookup',
+      description: 'Fetch lookup results.',
+      argsSchema: z.object({ query: z.string() }),
+      resultSchema: z.array(z.object({ title: z.string() })),
+      defaultData: [],
+      stateKeys: {
+        loading: 'lookupLoading',
+        data: 'lookupResults',
+        error: 'lookupError',
+        empty: 'lookupEmpty',
+      },
+      triggers: ['submit'],
+      fetch: async () => {
+        if (mode === 'throw') throw new Error('network down');
+        return [{ title: 42 }] as any;
+      },
+    }),
+  ]);
+
+  let latestState: Record<string, unknown> = {};
+  const policy = new PolicyEngine({
+    handlers: registry.toPolicyHandlers(),
+    onStateChange: (state) => {
+      latestState = state;
+    },
+  });
+
+  await policy.dispatch('lookup', { query: 'bad' });
+  assert.equal(latestState.lookupEmpty, false);
+  assert.equal(latestState.lookupError, 'Resource "lookup" returned invalid data');
+
+  mode = 'throw';
+  await policy.dispatch('lookup', { query: 'bad' });
+  assert.equal(latestState.lookupEmpty, false);
+  assert.equal(latestState.lookupError, 'network down');
+});
+
+test('data resource empty state supports custom isEmpty logic', async () => {
+  const registry = createCapabilityRegistry([
+    defineDataResource({
+      name: 'lookup',
+      description: 'Fetch lookup result.',
+      argsSchema: z.object({ query: z.string() }),
+      resultSchema: z.object({ items: z.array(z.string()), total: z.number() }),
+      defaultData: { items: [], total: 0 },
+      stateKeys: {
+        loading: 'lookupLoading',
+        data: 'lookupResult',
+        error: 'lookupError',
+        empty: 'lookupEmpty',
+      },
+      triggers: ['submit'],
+      isEmpty: (result) => result.total === 0,
+      fetch: async () => ({ items: ['cached suggestion'], total: 0 }),
+    }),
+  ]);
+
+  let latestState: Record<string, unknown> = {};
+  const policy = new PolicyEngine({
+    handlers: registry.toPolicyHandlers(),
+    onStateChange: (state) => {
+      latestState = state;
+    },
+  });
+
+  await policy.dispatch('lookup', { query: 'none' });
+  assert.deepEqual(latestState.lookupResult, { items: ['cached suggestion'], total: 0 });
+  assert.equal(latestState.lookupEmpty, true);
 });
 
 test('data resource result validation converts invalid host data into error state', async () => {

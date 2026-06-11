@@ -31,8 +31,16 @@
       const loading = keys.loading;
       const data = keys.data;
       const error = keys.error;
+      const empty = keys.empty;
       if (typeof loading !== 'string' || typeof data !== 'string' || typeof error !== 'string') continue;
-      out[name] = Object.freeze({ stateKeys: Object.freeze({ loading, data, error }) });
+      out[name] = Object.freeze({
+        stateKeys: Object.freeze({
+          loading,
+          data,
+          error,
+          ...(typeof empty === 'string' ? { empty } : {}),
+        }),
+      });
     }
     return Object.freeze(out);
   }
@@ -174,7 +182,8 @@
     const loading = walkPath(currentState, keys.loading);
     const data = walkPath(currentState, keys.data);
     const error = walkPath(currentState, keys.error);
-    if (!rest) return { loading, data, error };
+    const empty = keys.empty ? walkPath(currentState, keys.empty) : undefined;
+    if (!rest) return { loading, data, error, empty };
     const dot = rest.indexOf('.');
     const head = dot === -1 ? rest : rest.slice(0, dot);
     const tail = dot === -1 ? '' : rest.slice(dot + 1);
@@ -182,6 +191,7 @@
     if (head === 'loading') base = loading;
     else if (head === 'data') base = data;
     else if (head === 'error') base = error;
+    else if (head === 'empty') base = empty;
     else return undefined;
     return tail ? walkPath(base, tail) : base;
   }

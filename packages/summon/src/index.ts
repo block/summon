@@ -25,6 +25,7 @@ export {
 
 export type {
   ActionDefinition,
+  ActionStateKeys,
   ApprovalActionDefinition,
   ApprovalDecision,
   ApprovalPrepared,
@@ -43,6 +44,7 @@ export type {
   IntentEntry,
   IntentHandler,
   PolicyEngineOptions,
+  ResourceStateKeys,
   StateShapeDescriptor,
   TypedIntentEntry,
 } from '@summon-internal/host';

@@ -32,6 +32,7 @@ export function scanIntentBindings(
   context: ValidationContext,
   issues: ContractIssue[],
 ): void {
+  const actionUsages = actionUsageMap(capabilityMap);
   for (const element of elements) {
     for (const trigger of ['click', 'submit', 'mount'] as const) {
       const intent = element.attrs.get(`data-summon-on-${trigger}`)?.trim();
@@ -50,8 +51,12 @@ export function scanIntentBindings(
         );
       }
       validateSurfaceCapability(capability, context, issues);
+      const usage = actionUsages.get(capability.name);
+      if (usage) usage.hasTrigger = true;
     }
+    recordActionStateUsage(element.attrs, actionUsages);
   }
+  warnForActionStateQuality(actionUsages, issues);
 }
 
 export function scanResourceAndAttributeBindings(
@@ -303,6 +308,11 @@ function referencesResourceSlot(
   return value.trim() === path || value.trim().startsWith(`${path}.`);
 }
 
+function referencesStateKey(value: string, key: string): boolean {
+  const trimmed = value.trim();
+  return trimmed === key || trimmed.startsWith(`${key}.`);
+}
+
 function warnForResourceQuality(
   resourceUsages: ResourceUsage[],
   issues: ContractIssue[],
@@ -331,6 +341,85 @@ function warnForResourceQuality(
         warn(
           'resource-data-not-rendered',
           `Data resource "${usage.name}" has no data binding or foreach under ${aliasPath}.data`,
+        ),
+      );
+    }
+    if (usage.hasEmptyState && !usage.hasEmptyBinding) {
+      issues.push(
+        warn(
+          'resource-empty-not-rendered',
+          `Data resource "${usage.name}" has no visible empty binding under ${aliasPath}.empty`,
+        ),
+      );
+    }
+  }
+}
+
+interface ActionUsage {
+  name: string;
+  pending: string;
+  error: string;
+  hasTrigger: boolean;
+  hasPendingBinding: boolean;
+  hasErrorBinding: boolean;
+}
+
+function actionUsageMap(capabilityMap: Map<string, RuntimeCapability>): Map<string, ActionUsage> {
+  const out = new Map<string, ActionUsage>();
+  for (const capability of capabilityMap.values()) {
+    if (capability.kind !== 'action' || !capability.actionStateKeys) continue;
+    out.set(capability.name, {
+      name: capability.name,
+      pending: capability.actionStateKeys.pending,
+      error: capability.actionStateKeys.error,
+      hasTrigger: false,
+      hasPendingBinding: false,
+      hasErrorBinding: false,
+    });
+  }
+  return out;
+}
+
+function recordActionStateUsage(
+  attrs: Map<string, string>,
+  actionUsages: Map<string, ActionUsage>,
+): void {
+  if (actionUsages.size === 0) return;
+  for (const [attr, value] of attrs) {
+    if (!isBindingAttribute(attr)) continue;
+    for (const usage of actionUsages.values()) {
+      if (
+        (attr === 'data-summon-attr-disabled' || isVisibleStateBinding(attr)) &&
+        referencesStateKey(value, usage.pending)
+      ) {
+        usage.hasPendingBinding = true;
+      }
+      if (isVisibleStateBinding(attr) && referencesStateKey(value, usage.error)) {
+        usage.hasErrorBinding = true;
+      }
+    }
+  }
+}
+
+function warnForActionStateQuality(
+  actionUsages: Map<string, ActionUsage>,
+  issues: ContractIssue[],
+): void {
+  for (const usage of actionUsages.values()) {
+    if (!usage.hasTrigger) continue;
+    if (!usage.hasPendingBinding) {
+      issues.push(
+        warn(
+          'action-pending-not-rendered',
+          `Controlled action "${usage.name}" has no disabled or visible pending binding for ${usage.pending}`,
+        ),
+      );
+    }
+    if (!usage.hasErrorBinding) {
+      issues.push(
+        warn(
+          'action-error-not-rendered',
+          `Controlled action "${usage.name}" has no visible error binding for ${usage.error}`,
         ),
       );
     }

@@ -17,6 +17,7 @@ export {
 } from './capability-registry.js';
 export type {
   ActionDefinition,
+  ActionStateKeys,
   ApprovalActionDefinition,
   ApprovalDecision,
   ApprovalPrepared,
@@ -25,5 +26,6 @@ export type {
   CapabilityDefinition,
   CapabilityRegistry,
   DataResourceDefinition,
+  ResourceStateKeys,
   StateShapeDescriptor,
 } from './capability-registry.js';

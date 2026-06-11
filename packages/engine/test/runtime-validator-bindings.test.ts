@@ -90,6 +90,106 @@ test('warns when data resource UI omits lifecycle bindings without blocking', ()
   ]);
 });
 
+test('warns when data resource UI omits declared empty state binding', () => {
+  const issues = validateHtmlFragment(
+    `<div data-summon-resource="search" data-summon-resource-as="s">
+      <form data-summon-resource-trigger="submit">
+        <input name="query">
+        <button data-summon-attr-disabled="$s.loading">Go</button>
+      </form>
+      <p data-summon-show="$s.loading">Searching...</p>
+      <p data-summon-show="$s.error" data-summon-bind="$s.error"></p>
+      <ul data-summon-show="$s.data" data-summon-foreach="$s.data" data-summon-as="r"><template><li data-summon-bind="$r.title"></li></template></ul>
+    </div>`,
+    {
+      mode: 'interactive',
+      capabilities: [
+        {
+          name: 'search',
+          kind: 'resource',
+          triggers: ['submit'],
+          stateKeys: { loading: 'searching', data: 'results', error: 'searchError', empty: 'noResults' },
+        },
+      ],
+    },
+  );
+
+  assert.equal(issues.some((issue) => issue.severity === 'block'), false);
+  assert.deepEqual(codes(issues), ['resource-empty-not-rendered']);
+});
+
+test('accepts declared empty state binding for data resources', () => {
+  const issues = validateHtmlFragment(
+    `<div data-summon-resource="search" data-summon-resource-as="s">
+      <form data-summon-resource-trigger="submit">
+        <input name="query">
+        <button data-summon-attr-disabled="$s.loading">Go</button>
+      </form>
+      <p data-summon-show="$s.loading">Searching...</p>
+      <p data-summon-show="$s.error" data-summon-bind="$s.error"></p>
+      <p data-summon-show="$s.empty">No results</p>
+      <ul data-summon-show="$s.data" data-summon-foreach="$s.data" data-summon-as="r"><template><li data-summon-bind="$r.title"></li></template></ul>
+    </div>`,
+    {
+      mode: 'interactive',
+      capabilities: [
+        {
+          name: 'search',
+          kind: 'resource',
+          triggers: ['submit'],
+          stateKeys: { loading: 'searching', data: 'results', error: 'searchError', empty: 'noResults' },
+        },
+      ],
+    },
+  );
+
+  assert.deepEqual(issues, []);
+});
+
+test('warns when controlled action UI omits pending or error state bindings', () => {
+  const issues = validateHtmlFragment(
+    '<button data-summon-on-click="save" data-summon-args=\'{"choice":"A"}\'>Save</button>',
+    {
+      mode: 'interactive',
+      capabilities: [
+        {
+          name: 'save',
+          kind: 'action',
+          triggers: ['click'],
+          actionStateKeys: { pending: 'savePending', done: 'saveDone', error: 'saveError' },
+        },
+      ],
+    },
+  );
+
+  assert.equal(issues.some((issue) => issue.severity === 'block'), false);
+  assert.deepEqual(codes(issues), [
+    'action-error-not-rendered',
+    'action-pending-not-rendered',
+  ]);
+});
+
+test('accepts pending and error bindings for controlled actions', () => {
+  const issues = validateHtmlFragment(
+    `<button data-summon-on-click="save" data-summon-args='{"choice":"A"}' data-summon-attr-disabled="savePending">Save</button>
+     <p data-summon-show="savePending">Saving...</p>
+     <p data-summon-show="saveError" data-summon-bind="saveError"></p>`,
+    {
+      mode: 'interactive',
+      capabilities: [
+        {
+          name: 'save',
+          kind: 'action',
+          triggers: ['click'],
+          actionStateKeys: { pending: 'savePending', done: 'saveDone', error: 'saveError' },
+        },
+      ],
+    },
+  );
+
+  assert.deepEqual(issues, []);
+});
+
 test('rejects invalid resource declarations and unsafe attr bindings', () => {
   const issues = validateHtmlFragment(
     `<button data-summon-resource="choose" data-summon-resource-trigger="click">Bad</button>

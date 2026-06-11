@@ -20,6 +20,7 @@ export function buildCapabilityMap(context: ValidationContext): Map<string, Runt
         kind: capability.kind ?? 'action',
         triggers: new Set(triggers),
         stateKeys: capability.stateKeys,
+        actionStateKeys: capability.actionStateKeys,
         surface: capability.surface,
       });
     }
