@@ -30,27 +30,46 @@ test('capability compiler returns prompt, pack, intent names, and validation met
         stateShape: '{searching: boolean, results: any[] | null, searchError: string | null}',
         kind: 'resource',
         triggers: ['submit', 'mount'],
-        stateKeys: { loading: 'searching', data: 'results', error: 'searchError' },
+        stateKeys: { loading: 'searching', data: 'results', error: 'searchError', empty: 'noResults' },
         resultSchema: '{title: string}[]',
         defaultDataShape: '[]',
         defaultData: [],
       },
+      {
+        name: 'save',
+        description: 'Save a choice.',
+        argsSchema: '{choice: string}',
+        stateShape: '{savedChoice: string | null}',
+        kind: 'action',
+        triggers: ['click'],
+        actionStateKeys: { pending: 'savePending', done: 'saveDone', error: 'saveError' },
+      },
     ],
   });
 
-  assert.deepEqual(contract.intentNames, ['search']);
+  assert.deepEqual(contract.intentNames, ['search', 'save']);
   assert.deepEqual(contract.validationCapabilities, [
     {
       name: 'search',
       kind: 'resource',
       triggers: ['submit', 'mount'],
-      stateKeys: { loading: 'searching', data: 'results', error: 'searchError' },
+      stateKeys: { loading: 'searching', data: 'results', error: 'searchError', empty: 'noResults' },
+    },
+    {
+      name: 'save',
+      kind: 'action',
+      triggers: ['click'],
+      actionStateKeys: { pending: 'savePending', done: 'saveDone', error: 'saveError' },
     },
   ]);
   assert.deepEqual(contract.initialState, {
     searching: false,
     results: [],
     searchError: null,
+    noResults: false,
+    savePending: false,
+    saveDone: false,
+    saveError: null,
   });
   assert.equal(contract.promptBlock?.id, 'capabilities');
   assert.match(contract.promptBlock?.text ?? '', /Available data resources/);
@@ -66,9 +85,18 @@ test('capabilities block renders generated protocol docs', () => {
         stateShape: '{searching: boolean, results: any[] | null, searchError: string | null}',
         kind: 'resource',
         triggers: ['submit', 'mount'],
-        stateKeys: { loading: 'searching', data: 'results', error: 'searchError' },
+        stateKeys: { loading: 'searching', data: 'results', error: 'searchError', empty: 'noResults' },
         resultSchema: '{title: string}[]',
         defaultDataShape: '[]',
+      },
+      {
+        name: 'save',
+        description: 'Save a choice.',
+        argsSchema: '{choice: string}',
+        stateShape: '{savedChoice: string | null}',
+        kind: 'action',
+        triggers: ['click'],
+        actionStateKeys: { pending: 'savePending', done: 'saveDone', error: 'saveError' },
       },
     ],
     patterns: [
@@ -87,10 +115,14 @@ test('capabilities block renders generated protocol docs', () => {
   assert.match(text, /Declarative-only interactivity/);
   assert.match(text, /data-summon-resource="<name>"/);
   assert.match(text, /\$alias\.loading/);
+  assert.match(text, /\$alias\.empty/);
   assert.match(text, /Default data: `\[\]`/);
   assert.match(text, /Never hallucinate fetched rows/);
+  assert.match(text, /Render "no results" from `\$alias\.empty`/);
   assert.match(text, /data-summon-show="\$alias\.data"/);
-  assert.match(text, /State keys: loading=searching, data=results, error=searchError/);
+  assert.match(text, /State keys: loading=searching, data=results, error=searchError, empty=noResults/);
+  assert.match(text, /Action state: pending=savePending, done=saveDone, error=saveError/);
+  assert.match(text, /Controlled actions expose host-owned pending\/done\/error keys/);
   assert.doesNotMatch(text, /data-summon-on-click="counter"/);
   assert.doesNotMatch(text, /data-summon-on-submit="submit"/);
   assert.doesNotMatch(text, /data-summon-on-click="log"/);

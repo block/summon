@@ -196,6 +196,12 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
       return ['Add visible UI bound to the data resource error state, for example `data-summon-show="$alias.error" data-summon-bind="$alias.error"`.'];
     case 'resource-data-not-rendered':
       return ['Wrap result UI in `data-summon-show="$alias.data"` and bind or foreach under the data resource alias.'];
+    case 'resource-empty-not-rendered':
+      return ['Add visible no-results UI bound to the data resource empty state, for example `data-summon-show="$alias.empty"`.'];
+    case 'action-pending-not-rendered':
+      return ['Disable the triggering control with `data-summon-attr-disabled="<pendingKey>"` or show a pending message.'];
+    case 'action-error-not-rendered':
+      return ['Add visible host error UI with `data-summon-show="<errorKey>" data-summon-bind="<errorKey>"`.'];
     case 'unsafe-attr-binding':
     case 'bad-attr-binding-placement':
       return ['Use only safe data-summon-attr-* bindings on supported elements.'];

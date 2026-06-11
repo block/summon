@@ -201,7 +201,10 @@ test('mocked generation renders and generated host tool requests update host sta
           html: `
             <article style="padding:24px;font-family:system-ui;">
               <h1>Pick a launch path</h1>
-              <button data-summon-on-click="choose" data-summon-args='{"option":"Balanced path"}'>Save Balanced path</button>
+              <button data-summon-on-click="choose" data-summon-args='{"option":"Balanced path"}' data-summon-attr-disabled="choosePending">Save Balanced path</button>
+              <p data-testid="saving" data-summon-show="choosePending">Saving...</p>
+              <p data-testid="save-error" data-summon-show="chooseError" data-summon-bind="chooseError"></p>
+              <p data-testid="saved" data-summon-show="chooseDone">Saved.</p>
               <p data-summon-show="lastChoice">Saved <span data-summon-bind="lastChoice"></span></p>
             </article>`,
         },
@@ -248,8 +251,108 @@ test('mocked generation renders and generated host tool requests update host sta
 
   const frame = page.frameLocator('#sandbox');
   await frame.locator('button').click();
+  await expect(frame.getByTestId('saved')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('Balanced path');
+  await expect(page.locator('#state-preview')).toContainText('chooseDone');
   await expect(page.locator('#event-log')).toContainText('host tool choose');
+});
+
+test('host search resource renders host-owned empty state', async ({ page }) => {
+  let captured: any = null;
+  await page.route('**/api/model-providers', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(modelProviderPayload()),
+    });
+  });
+  await page.route('**/api/ghost-roots', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    });
+  });
+  await page.route('**/api/mock-search', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ results: [] }),
+    });
+  });
+  await page.route('**/api/generate', async (route) => {
+    captured = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/plain',
+      body: streamBody([
+        { op: 'meta', path: '/surface-policy', value: captured.surfacePolicy },
+        {
+          op: 'meta',
+          path: '/surface-plan',
+          value: {
+            purpose: 'explore',
+            runtime: 'declarative',
+            data: 'host-resource',
+            authority: 'read',
+            persistence: 'replayable',
+          },
+        },
+        { op: 'set', path: '/screen', value: { sections: ['main'] } },
+        {
+          op: 'add',
+          path: '/section/main',
+          html: `
+            <section data-summon-resource="search" data-summon-resource-as="s" style="padding:24px;font-family:system-ui;">
+              <h1>Recipe search</h1>
+              <form data-summon-resource-trigger="submit">
+                <input name="query" value="zzzzzz">
+                <button data-summon-attr-disabled="$s.loading">Search</button>
+              </form>
+              <p data-testid="loading" data-summon-show="$s.loading">Searching...</p>
+              <p data-testid="error" data-summon-show="$s.error" data-summon-bind="$s.error"></p>
+              <p data-testid="empty" data-summon-show="$s.empty">No recipes found.</p>
+              <ul data-testid="results" data-summon-show="$s.data" data-summon-foreach="$s.data" data-summon-as="result">
+                <template><li data-summon-bind="$result.title"></li></template>
+              </ul>
+            </section>`,
+        },
+        {
+          op: 'meta',
+          path: '/stream-graph-summary',
+          value: {
+            health: {
+              complete: true,
+              missingDeclared: [],
+              blockedCount: 0,
+              skippedCount: 0,
+              repairedCount: 0,
+            },
+            sections: [],
+          },
+        },
+      ]),
+    });
+  });
+
+  await page.goto('/');
+  await page.locator('[data-preset-id="host-resource-search"]').click();
+  await page.locator('#run').click();
+  await expect(page.locator('#status')).toContainText('done');
+
+  expect(captured.surfacePolicy).toEqual({
+    tier: 'declarative',
+    purpose: 'explore',
+    grants: ['search'],
+  });
+
+  const frame = page.frameLocator('#sandbox');
+  await expect(frame.getByTestId('empty')).toBeHidden();
+  await frame.locator('form').evaluate((form) => {
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  });
+  await expect(frame.getByTestId('empty')).toBeVisible();
+  await expect(page.locator('#state-preview')).toContainText('noResults');
 });
 
 test('approval publish uses host-owned approval card for approve and deny decisions', async ({ page }) => {

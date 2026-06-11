@@ -1,4 +1,5 @@
 import type {
+  ActionStateKeys,
   CapabilityKind,
   CapabilityPack,
   CapabilityPattern,
@@ -6,11 +7,14 @@ import type {
   CapabilityTrigger,
   CompiledCapabilityContract,
   IntentSpec,
+  ResourceStateKeys,
   CapabilitySurface,
 } from '@summon-internal/engine';
 import { compileCapabilityContract } from '@summon-internal/engine';
 import type { ZodType, ZodTypeAny } from 'zod';
 import { defineIntent, type IntentEntry, type IntentHandler } from './policy-engine.js';
+
+export type { ActionStateKeys, ResourceStateKeys } from '@summon-internal/engine';
 
 export type StateShapeDescriptor = string | Record<string, unknown>;
 
@@ -24,6 +28,7 @@ export interface CapabilityDefinition<T = unknown> {
   kind?: CapabilityKind;
   triggers?: CapabilityTrigger[];
   stateKeys?: CapabilityStateKeys;
+  actionStateKeys?: ActionStateKeys;
   resultSchema?: string;
   defaultDataShape?: string;
   defaultData?: unknown;
@@ -41,6 +46,7 @@ export interface ActionDefinition<T = unknown> {
   triggers?: CapabilityTrigger[];
   patterns?: CapabilityPattern[];
   surface?: CapabilitySurface;
+  controlled?: boolean | { stateKeys?: Partial<ActionStateKeys> };
   handler: IntentHandler<T>;
 }
 
@@ -53,13 +59,14 @@ export interface DataResourceDefinition<In = unknown, Out = unknown> {
   resultSchemaText?: string;
   defaultData?: Out | null;
   stateShape?: StateShapeDescriptor;
-  stateKeys: Required<Pick<CapabilityStateKeys, 'loading' | 'data' | 'error'>>;
+  stateKeys: ResourceStateKeys;
   triggers: CapabilityTrigger[];
   patterns?: CapabilityPattern[];
   concurrency?: 'latest' | 'drop';
   surface?: CapabilitySurface;
   onStart?: (input: In) => Record<string, unknown>;
   onError?: (message: string) => void;
+  isEmpty?: (data: Out) => boolean;
   fetch: (input: In, signal: AbortSignal) => Promise<Out>;
 }
 
@@ -129,10 +136,18 @@ export function defineCapability<T>(
 }
 
 export function defineAction<T>(definition: ActionDefinition<T>): CapabilityDefinition<T> {
+  const stateKeys = actionStateKeys(definition.name, definition.controlled);
   return defineCapability({
     ...definition,
     kind: 'action',
     triggers: definition.triggers ?? ['click', 'submit'],
+    ...(stateKeys
+      ? {
+          actionStateKeys: stateKeys,
+          stateShape: `${formatStateShape(definition.stateShape)} & {${stateKeys.pending}: boolean, ${stateKeys.done}: boolean, ${stateKeys.error}: string | null}`,
+          handler: createControlledActionHandler(definition, stateKeys),
+        }
+      : {}),
   });
 }
 
@@ -154,6 +169,7 @@ export function defineApprovalAction<T, Plan = T>(
   const approvedHandler = definition.handler;
   return defineAction({
     ...definition,
+    controlled: undefined,
     surface: {
       ...definition.surface,
       authority: 'approval-gated',
@@ -274,6 +290,7 @@ class StaticCapabilityRegistry implements CapabilityRegistry {
         triggers: definition.triggers ?? ['click', 'submit'],
       };
       if (definition.stateKeys) intent.stateKeys = definition.stateKeys;
+      if (definition.actionStateKeys) intent.actionStateKeys = definition.actionStateKeys;
       if (definition.surface) intent.surface = definition.surface;
       if (definition.resultSchema) intent.resultSchema = definition.resultSchema;
       if (definition.defaultDataShape) intent.defaultDataShape = definition.defaultDataShape;
@@ -332,6 +349,7 @@ function createDataResourceHandler<In, Out>(
       [stateKeys.loading]: true,
       [stateKeys.data]: defaultData,
       [stateKeys.error]: null,
+      ...resourceEmptyPatch(stateKeys, false),
     });
 
     try {
@@ -346,6 +364,7 @@ function createDataResourceHandler<In, Out>(
           [stateKeys.loading]: false,
           [stateKeys.data]: defaultData,
           [stateKeys.error]: message,
+          ...resourceEmptyPatch(stateKeys, false),
         });
         return;
       }
@@ -354,6 +373,7 @@ function createDataResourceHandler<In, Out>(
         [stateKeys.loading]: false,
         [stateKeys.data]: parsed.data,
         [stateKeys.error]: null,
+        ...resourceEmptyPatch(stateKeys, resourceIsEmpty(definition, parsed.data)),
       });
     } catch (err) {
       if (controller.signal.aborted) return;
@@ -363,11 +383,70 @@ function createDataResourceHandler<In, Out>(
         [stateKeys.loading]: false,
         [stateKeys.data]: defaultData,
         [stateKeys.error]: message,
+        ...resourceEmptyPatch(stateKeys, false),
       });
     } finally {
       if (inflight === controller) inflight = null;
     }
   };
+}
+
+function actionStateKeys(
+  name: string,
+  controlled: ActionDefinition['controlled'],
+): ActionStateKeys | null {
+  if (!controlled) return null;
+  const partial = typeof controlled === 'object' ? controlled.stateKeys : undefined;
+  return {
+    pending: partial?.pending ?? `${name}Pending`,
+    done: partial?.done ?? `${name}Done`,
+    error: partial?.error ?? `${name}Error`,
+  };
+}
+
+function createControlledActionHandler<T>(
+  definition: ActionDefinition<T>,
+  stateKeys: ActionStateKeys,
+): IntentHandler<T> {
+  const handler = definition.handler;
+  return async (ctx) => {
+    ctx.push({
+      [stateKeys.pending]: true,
+      [stateKeys.done]: false,
+      [stateKeys.error]: null,
+    });
+    try {
+      await handler(ctx);
+      ctx.push({
+        [stateKeys.pending]: false,
+        [stateKeys.done]: true,
+        [stateKeys.error]: null,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      ctx.push({
+        [stateKeys.pending]: false,
+        [stateKeys.done]: false,
+        [stateKeys.error]: message,
+      });
+      throw err;
+    }
+  };
+}
+
+function resourceEmptyPatch(
+  stateKeys: ResourceStateKeys,
+  empty: boolean,
+): Record<string, unknown> {
+  return stateKeys.empty ? { [stateKeys.empty]: empty } : {};
+}
+
+function resourceIsEmpty<In, Out>(
+  definition: DataResourceDefinition<In, Out>,
+  data: Out,
+): boolean {
+  if (definition.isEmpty) return definition.isEmpty(data);
+  return Array.isArray(data) && data.length === 0;
 }
 
 function validateDefaultData<In, Out>(
@@ -400,12 +479,13 @@ function formatDefaultDataShape(value: unknown): string {
 }
 
 function deriveResourceStateShape(
-  keys: Required<Pick<CapabilityStateKeys, 'loading' | 'data' | 'error'>>,
+  keys: ResourceStateKeys,
   resultSchema: ZodTypeAny,
   resultSchemaText?: string,
 ): string {
   const result = resultSchemaText ?? formatZodSchema(resultSchema);
-  return `{${keys.loading}: boolean, ${keys.data}: ${result} | null, ${keys.error}: string | null}`;
+  const empty = keys.empty ? `, ${keys.empty}: boolean` : '';
+  return `{${keys.loading}: boolean, ${keys.data}: ${result} | null, ${keys.error}: string | null${empty}}`;
 }
 
 function assertUniqueCapabilityNames(definitions: CapabilityDefinition<any>[]): void {

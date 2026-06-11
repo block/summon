@@ -98,11 +98,13 @@ export {
   hasCompleteResourceStateKeys,
 } from './capability-contract.js';
 export type {
+  ActionStateKeys,
   CapabilityBindingSpec,
   CapabilityKind,
   CapabilityStateKeys,
   CapabilityTrigger,
   CapabilityTriggerSpec,
+  ResourceStateKeys,
 } from './capability-contract.js';
 export {
   TOKEN_CONTRACT,
