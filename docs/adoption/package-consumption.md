@@ -195,6 +195,7 @@ await consumeSurfaceStream(response.body!, {
 
 ```ts
 import {
+  runAgentSurfaceGeneration,
   runSurfaceGeneration,
   type SummonModelProvider,
 } from '@anarchitecture/summon-server';
@@ -208,6 +209,33 @@ accepted Summon lines and diagnostics, and returns a replay summary.
 `generateSurfaceStream()` remains available for existing integrations that
 consume an async generator, but new servers should prefer
 `runSurfaceGeneration(input, emit)`.
+
+For agent-driven hosts, use `runAgentSurfaceGeneration(input, emit)` when the
+end user should not choose Summon-specific configs. The harness supplies the
+prompt, model provider, host tool catalog, trusted component catalog, and any
+host policy resolver. The broker converts the prompt to an advisory
+`SurfaceIntent`, proposes a `SurfacePolicy`, narrows it through host-owned
+policy, then calls the same `runSurfaceGeneration()` lifecycle.
+
+```ts
+await runAgentSurfaceGeneration({
+  prompt,
+  modelProvider,
+  capabilities: capabilityContract.pack,
+  components: componentContract.pack,
+  hostPolicyResolver: ({ proposedSurfacePolicy }) => {
+    return productPolicy.narrow(proposedSurfacePolicy);
+  },
+}, (line) => {
+  response.write(`${JSON.stringify(line)}\n`);
+});
+```
+
+The intent converter can use rules, a model-assisted `intentModel`, or a custom
+`intentProvider`. `SurfaceIntent` is experimental and advisory; its output is
+never authority. The host resolver and `compileSurfacePolicy()` still decide
+which host tools, components, runtime, and approval paths are actually
+available.
 
 ## Package Gate
 

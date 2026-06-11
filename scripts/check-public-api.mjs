@@ -27,8 +27,13 @@ const expectedRootExports = [
 ].sort();
 
 const expectedServerExports = [
+  'defaultHostPolicyResolver',
   'generateSurfaceStream',
+  'inferSurfaceIntent',
+  'planAgentSurface',
+  'policyFromIntent',
   'resolveSurfaceGenerationPlan',
+  'runAgentSurfaceGeneration',
   'runSurfaceGeneration',
   'summarizeContractIssues',
 ].sort();

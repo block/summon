@@ -239,6 +239,49 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.deepEqual(policyContract.tools?.map((tool) => tool.name), ['search']);
   assert.deepEqual(policyContract.components, []);
 
+  const agentResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a dinner finder where i can search recipes',
+      capabilities: searchCapability,
+      agent: { enabled: true, intentModel: 'off' },
+    }),
+  });
+  const agentBody = await agentResponse.text();
+  assert.equal(agentResponse.status, 200, agentBody);
+
+  assert.equal(anthropicRequests.length, 3);
+  const agentRequest = anthropicRequests[2] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(agentRequest.stream, true);
+  const agentSystemText = agentRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(agentSystemText, /Search host-owned dinner data/);
+  assert.match(agentSystemText, /Surface contract/);
+  assert.match(agentSystemText, /runtime=`declarative`/);
+
+  const agentLines = agentBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.deepEqual(agentLines.slice(0, 6).map((line) => `${line.op} ${line.path}`), [
+    'meta /mode-upgraded',
+    'meta /agent-intent',
+    'meta /agent-policy-resolution',
+    'meta /surface-policy',
+    'meta /surface-plan',
+    'meta /surface-contract',
+  ]);
+  const agentIntent = agentLines[1] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((agentIntent.value as { interaction?: unknown }).interaction, 'search');
+  const agentPolicy = agentLines[3] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.deepEqual(agentPolicy.value, {
+    tier: 'declarative',
+    purpose: 'explore',
+    grants: ['search'],
+    components: [],
+    persistence: 'replayable',
+  });
   const ghostResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -257,8 +300,8 @@ test('api generate sends narrowed contract and stream meta shape through package
   const ghostBody = await ghostResponse.text();
   assert.equal(ghostResponse.status, 200, ghostBody);
 
-  assert.equal(anthropicRequests.length, 3);
-  const ghostRequest = anthropicRequests[2] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(anthropicRequests.length, 4);
+  const ghostRequest = anthropicRequests[3] as { system?: Array<{ text?: string }>; stream?: boolean };
   const ghostSystemText = ghostRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(ghostSystemText, /Checkout product experience/);
 
@@ -296,7 +339,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   const ghostOverrideBody = await ghostOverrideResponse.text();
   assert.equal(ghostOverrideResponse.status, 400);
   assert.match(ghostOverrideBody, /tokenOverrides are not supported with Ghost product memory/);
-  assert.equal(anthropicRequests.length, 3);
+  assert.equal(anthropicRequests.length, 4);
 });
 
 test('api generate emits compact Ghost capsule for root contexts', async (t) => {

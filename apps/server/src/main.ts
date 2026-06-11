@@ -11,9 +11,11 @@ import {
   type TokenOverride,
 } from '@anarchitecture/summon/engine';
 import {
+  planAgentSurface,
   resolveSurfaceGenerationPlan,
   runSurfaceGeneration,
   summarizeContractIssues,
+  type AgentSurfacePlanResult,
   type GenerateEditInput,
   type RepairOptions as SurfaceRepairOptions,
   type SurfaceGenerationSummary,
@@ -466,6 +468,11 @@ app.post('/api/generate', async (req, res) => {
   }
   const edit = parsedEdit.edit;
   const repairOptions = parseRepairOptions(req.body?.repair);
+  const rawAgentOptions = req.body?.agent;
+  const agentOptions = rawAgentOptions && typeof rawAgentOptions === 'object'
+    ? rawAgentOptions as Record<string, unknown>
+    : null;
+  const agentPlanningEnabled = agentOptions?.enabled === true;
 
   const hasSurfacePolicy =
     req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
@@ -481,6 +488,7 @@ app.post('/api/generate', async (req, res) => {
   let modeUpgraded = false;
   let inferenceUsed = false;
   let surfacePlan: SurfacePlan;
+  let agentPlan: AgentSurfacePlanResult | null = null;
 
   // Shape classification — picks ONE response shape so the per-direction
   // block ships only the matching shape exemplar (atoms always ship). Falls
@@ -504,6 +512,23 @@ app.post('/api/generate', async (req, res) => {
     scriptPolicy = compiledPolicy.scriptPolicy;
     pack = compiledPolicy.capabilities;
     surfacePlan = compiledPolicy.surfacePlan;
+  } else if (agentPlanningEnabled) {
+    agentPlan = await planAgentSurface({
+      prompt,
+      capabilities: capabilityCeiling,
+      components: componentPack,
+      intentModel: process.env.SUMMON_AGENT_INTENT_MODEL === '0' || agentOptions?.intentModel === 'off'
+        ? null
+        : {
+            completeText: (request) => modelProvider.completeText(request, modelSelection),
+          },
+      intentTimeoutMs: clampInt(agentOptions?.intentTimeoutMs, 250, 5000, 1800),
+    });
+    mode = agentPlan.compiledPolicy.mode;
+    scriptPolicy = agentPlan.compiledPolicy.scriptPolicy;
+    pack = agentPlan.compiledPolicy.capabilities;
+    surfacePlan = agentPlan.compiledPolicy.surfacePlan;
+    modeUpgraded = requestedMode === 'static' && mode === 'interactive';
   } else {
     // Layer 3: utility-model capability inference. Decides mode + narrows the
     // pack to the minimal subset of intents the prompt actually needs. The
@@ -562,7 +587,11 @@ app.post('/api/generate', async (req, res) => {
       mode,
       surfacePlan,
       shape,
-      capabilities: hasSurfacePolicy ? capabilityCeiling : pack,
+      capabilities: hasSurfacePolicy
+        ? capabilityCeiling
+        : agentPlan
+          ? agentPlan.compiledPolicy.capabilities
+          : pack,
       components: componentPack,
     });
   }
@@ -592,12 +621,30 @@ app.post('/api/generate', async (req, res) => {
       });
     }
   }
-
-  // Emit the mode-upgrade signal as the first byte the client sees, before
-  // any concurrency wait. The client respawns its sandbox into interactive
-  // mode in response, so we want this to land before any artifact bytes.
+  // Emit the mode-upgrade signal before agent diagnostics. The client respawns
+  // its sandbox into interactive mode in response, so this should land before
+  // any broker or artifact bytes that assume the upgraded mode.
   if (modeUpgraded) {
     preludeLines.push({ op: 'meta', path: '/mode-upgraded', value: 'static→interactive' });
+  }
+  if (agentPlan) {
+    preludeLines.push({
+      op: 'meta',
+      path: '/agent-intent',
+      value: agentPlan.intent,
+    });
+    preludeLines.push({
+      op: 'meta',
+      path: '/agent-policy-resolution',
+      value: {
+        source: agentPlan.policyResolution.source,
+        proposedSurfacePolicy: agentPlan.policyResolution.proposedSurfacePolicy,
+        surfacePolicy: agentPlan.policyResolution.surfacePolicy,
+        rejectedCapabilities: agentPlan.policyResolution.rejectedCapabilities,
+        rejectedComponents: agentPlan.policyResolution.rejectedComponents,
+        fallback: agentPlan.policyResolution.fallback,
+      },
+    });
   }
   if (shape) {
     preludeLines.push({ op: 'meta', path: '/shape', value: shape });
@@ -653,11 +700,15 @@ app.post('/api/generate', async (req, res) => {
         ghost: ghostContext ?? null,
         layout,
         edit,
-        capabilities: hasSurfacePolicy ? capabilityCeiling : pack,
+        capabilities: hasSurfacePolicy || agentPlan ? capabilityCeiling : pack,
         components: componentPack,
-        surfacePolicy: hasSurfacePolicy ? req.body.surfacePolicy : null,
-        scriptPolicy: hasSurfacePolicy ? undefined : scriptPolicy,
-        surfacePlan: hasSurfacePolicy ? null : surfacePlan,
+        surfacePolicy: hasSurfacePolicy
+          ? req.body.surfacePolicy
+          : agentPlan
+            ? agentPlan.surfacePolicy
+            : null,
+        scriptPolicy: hasSurfacePolicy || agentPlan ? undefined : scriptPolicy,
+        surfacePlan: hasSurfacePolicy || agentPlan ? null : surfacePlan,
         tokenOverrides: overrides.applied,
         activeTokensCss: ghostContext?.tokenSource.css ?? direction?.tokensCss ?? null,
         preludeLines,

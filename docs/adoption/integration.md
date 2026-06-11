@@ -188,6 +188,33 @@ Common configs:
 Hosts choose the config before generation. The model may react to the compiled
 safety details, but it cannot widen what the host allowed.
 
+### Agent-Driven Configs
+
+When a user is talking to an agent or another harness, the user should not need
+to choose Summon tiers, grants, script policy, or surface plans. Use the server
+broker to translate the prompt into a bounded host-owned config:
+
+```ts
+import { runAgentSurfaceGeneration } from '@anarchitecture/summon-server';
+
+await runAgentSurfaceGeneration({
+  prompt,
+  modelProvider,
+  capabilities: capabilityContract.pack,
+  components: componentContract.pack,
+  hostPolicyResolver: ({ proposedSurfacePolicy }) => {
+    return productPolicy.narrow(proposedSurfacePolicy);
+  },
+}, emit);
+```
+
+The broker emits `/agent-intent` and `/agent-policy-resolution` diagnostics,
+then generation continues through the normal `/surface-policy`,
+`/surface-plan`, and `/surface-contract` path. `SurfaceIntent` is an
+experimental planning shape, not an authority contract. The inferred intent is
+advisory: the host resolver and `compileSurfacePolicy()` still decide which
+tools, components, runtime, and approval paths are actually available.
+
 ### Surface Contract View
 
 When a server receives a `SurfacePolicy`, Summon also derives a read-only
