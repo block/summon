@@ -232,9 +232,10 @@ await runAgentSurfaceGeneration({
 ```
 
 The intent converter can use rules, a model-assisted `intentModel`, or a custom
-`intentProvider`. Its output is never authority. The host resolver and
-`compileSurfacePolicy()` still decide which host tools, components, runtime,
-and approval paths are actually available.
+`intentProvider`. `SurfaceIntent` is experimental and advisory; its output is
+never authority. The host resolver and `compileSurfacePolicy()` still decide
+which host tools, components, runtime, and approval paths are actually
+available.
 
 ## Package Gate
 

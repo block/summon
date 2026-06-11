@@ -265,14 +265,14 @@ test('api generate sends narrowed contract and stream meta shape through package
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
   assert.deepEqual(agentLines.slice(0, 6).map((line) => `${line.op} ${line.path}`), [
+    'meta /mode-upgraded',
     'meta /agent-intent',
     'meta /agent-policy-resolution',
-    'meta /mode-upgraded',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
   ]);
-  const agentIntent = agentLines[0] as Extract<ProtocolLine, { op: 'meta' }>;
+  const agentIntent = agentLines[1] as Extract<ProtocolLine, { op: 'meta' }>;
   assert.equal((agentIntent.value as { interaction?: unknown }).interaction, 'search');
   const agentPolicy = agentLines[3] as Extract<ProtocolLine, { op: 'meta' }>;
   assert.deepEqual(agentPolicy.value, {

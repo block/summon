@@ -621,6 +621,12 @@ app.post('/api/generate', async (req, res) => {
       });
     }
   }
+  // Emit the mode-upgrade signal before agent diagnostics. The client respawns
+  // its sandbox into interactive mode in response, so this should land before
+  // any broker or artifact bytes that assume the upgraded mode.
+  if (modeUpgraded) {
+    preludeLines.push({ op: 'meta', path: '/mode-upgraded', value: 'static→interactive' });
+  }
   if (agentPlan) {
     preludeLines.push({
       op: 'meta',
@@ -639,13 +645,6 @@ app.post('/api/generate', async (req, res) => {
         fallback: agentPlan.policyResolution.fallback,
       },
     });
-  }
-
-  // Emit the mode-upgrade signal as the first byte the client sees, before
-  // any concurrency wait. The client respawns its sandbox into interactive
-  // mode in response, so we want this to land before any artifact bytes.
-  if (modeUpgraded) {
-    preludeLines.push({ op: 'meta', path: '/mode-upgraded', value: 'static→interactive' });
   }
   if (shape) {
     preludeLines.push({ op: 'meta', path: '/shape', value: shape });

@@ -83,6 +83,22 @@ test('planAgentSurface proposes and compiles a declarative policy', async () => 
   });
 });
 
+test('planAgentSurface keeps passive summary prompts static despite powerful nouns', async () => {
+  const updateSummary = await planAgentSurface({
+    prompt: 'make a product update summary for this launch',
+    capabilities,
+  });
+  assert.equal(updateSummary.surfacePolicy.tier, 'static');
+  assert.equal(updateSummary.surfacePolicy.grants, undefined);
+
+  const riskSummary = await planAgentSurface({
+    prompt: 'summarize launch risk for next week',
+    capabilities,
+  });
+  assert.equal(riskSummary.surfacePolicy.tier, 'static');
+  assert.equal(riskSummary.surfacePolicy.grants, undefined);
+});
+
 test('planAgentSurface selects worker and approval tiers from catalog-backed intent', async () => {
   const worker = await planAgentSurface({
     prompt: 'analyze launch risk in the background and score readiness',
@@ -98,6 +114,24 @@ test('planAgentSurface selects worker and approval tiers from catalog-backed int
   assert.equal(approval.surfacePolicy.tier, 'approval');
   assert.deepEqual(approval.surfacePolicy.grants, ['publish_summary']);
   assert.equal(approval.surfacePolicy.purpose, 'operate');
+});
+
+test('planAgentSurface selects host actions only from explicit action phrasing', async () => {
+  const plan = await planAgentSurface({
+    prompt: 'let me save a choice for the launch announcement',
+    capabilities,
+  });
+
+  assert.equal(plan.surfacePolicy.tier, 'declarative');
+  assert.equal(plan.surfacePolicy.purpose, 'operate');
+  assert.deepEqual(plan.surfacePolicy.grants, ['choose']);
+  assert.deepEqual(plan.compiledPolicy.surfacePlan, {
+    purpose: 'operate',
+    runtime: 'declarative',
+    data: 'embedded',
+    authority: 'host-action',
+    persistence: 'replayable',
+  });
 });
 
 test('model-assisted intent can narrow to known names but cannot add unknown grants', async () => {

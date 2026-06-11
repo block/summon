@@ -127,7 +127,7 @@ const PURPOSES = new Set<SurfacePurpose>(SURFACE_PURPOSE_VALUES);
 const MIN_MODEL_CONFIDENCE = 0.45;
 
 const APPROVAL_RE =
-  /\b(approve|approval|confirm|publish|send|email|message|post|delete|remove|archive|update|change|commit|merge|deploy|invite|charge|pay|purchase|refund)\b/i;
+  /\b(approve|approval|confirm|publish|send|email|post|delete|remove|archive|commit|merge|deploy|invite|charge|pay|purchase|refund)\b|\b(update|change)\s+(the|this|that|a|an|my|our)\b/i;
 const BACKGROUND_RE =
   /\b(analy[sz]e|analysis|calculate|compute|forecast|simulate|score|rank|audit|batch|background|long[-\s]?running)\b/i;
 const SEARCH_RE =
@@ -136,6 +136,11 @@ const FORM_RE =
   /\b(form|collect|intake|survey|questionnaire|submit|capture|enter|input)\b/i;
 const SELECT_RE =
   /\b(pick|choose|select|save|remember|vote|rate|rank|favorite)\b/i;
+const DIRECT_CAPABILITY_NAME_RE = /[_\W]+/;
+const FORM_CAPABILITY_RE =
+  /\b(submit|form|collect|intake|survey|questionnaire|capture|input)\b/i;
+const SELECT_CAPABILITY_RE =
+  /\b(choose|choice|select|save|pick|vote|rate|rank|favorite|remember)\b/i;
 
 export async function planAgentSurface(
   input: AgentSurfacePlanningInput,
@@ -582,7 +587,7 @@ function inferCapabilityNames(prompt: string, pack: CapabilityPack | null): stri
   const intents = pack?.intents ?? [];
   if (intents.length === 0) return [];
   const text = prompt.toLowerCase();
-  const matches = intents.filter((intent) => capabilityMatchesIntent(text, intent));
+  const matches = intents.filter((intent) => capabilityMatchesIntent(prompt, text, intent));
   if (matches.length > 0) return matches.map((intent) => intent.name);
 
   const approval = APPROVAL_RE.test(prompt)
@@ -607,19 +612,35 @@ function inferCapabilityNames(prompt: string, pack: CapabilityPack | null): stri
   return [];
 }
 
-function capabilityMatchesIntent(text: string, intent: IntentSpec): boolean {
-  const haystack = `${intent.name} ${intent.description}`.toLowerCase();
-  const terms = new Set([
-    ...intent.name.toLowerCase().split(/[_\W]+/),
-    ...intent.description.toLowerCase().split(/[_\W]+/).filter((term) => term.length > 4),
-  ]);
-  for (const term of terms) {
-    if (term && text.includes(term)) return true;
+function capabilityMatchesIntent(prompt: string, text: string, intent: IntentSpec): boolean {
+  if (matchesCapabilityName(text, intent.name)) return true;
+
+  const data = intentData(intent);
+  const authority = intentAuthority(intent);
+  if (APPROVAL_RE.test(prompt)) return authority === 'approval-gated';
+  if (BACKGROUND_RE.test(prompt)) return data === 'worker';
+  if (SEARCH_RE.test(prompt)) return data === 'host-resource';
+  if (FORM_RE.test(prompt)) {
+    return authority === 'host-action' && data !== 'worker' && capabilityClassMatches(intent, FORM_CAPABILITY_RE);
   }
-  if (SEARCH_RE.test(text) && intentData(intent) === 'host-resource') return true;
-  if (BACKGROUND_RE.test(text) && intentData(intent) === 'worker') return true;
-  if (APPROVAL_RE.test(text) && intentAuthority(intent) === 'approval-gated') return true;
+  if (SELECT_RE.test(prompt)) {
+    return authority === 'host-action' && data !== 'worker' && capabilityClassMatches(intent, SELECT_CAPABILITY_RE);
+  }
   return false;
+}
+
+function matchesCapabilityName(text: string, name: string): boolean {
+  const normalizedName = name.toLowerCase();
+  if (text.includes(normalizedName)) return true;
+  const terms = normalizedName
+    .split(DIRECT_CAPABILITY_NAME_RE)
+    .filter((term) => term.length > 2);
+  if (terms.length === 0) return false;
+  return terms.every((term) => text.includes(term));
+}
+
+function capabilityClassMatches(intent: IntentSpec, pattern: RegExp): boolean {
+  return pattern.test(`${intent.name} ${intent.description}`);
 }
 
 function inferComponentNames(prompt: string, pack: ComponentPack | null): string[] {
