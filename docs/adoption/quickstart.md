@@ -40,10 +40,11 @@ pnpm dev:all
 
 Open `http://localhost:5173/generate.html`.
 
-The Generate workbench uses the same surface configs as the gallery where they
-overlap, but keeps maintainer controls visible: stream diagnostics, Devtools,
+The Generate workbench runs showcase prompts through the agent broker by
+default, then keeps maintainer controls visible: stream diagnostics, Devtools,
 validation retry, edit/replay, custom SurfacePlan overrides, directions, and
-Ghost steering internals.
+Ghost steering internals. The custom Surface Config panel is the explicit
+manual override path.
 
 ## Run A Ghost Sandbox
 
@@ -129,7 +130,8 @@ The Stream and Devtools drawers are for understanding a run after you have
 rendered and interacted with a surface:
 
 - Open the **Stream** drawer to inspect accepted protocol lines, the selected
-  surface config, validation summaries, and validation retry feedback.
+  broker intent, selected surface config, validation summaries, and validation
+  retry feedback.
 - Open the **Devtools** drawer to inspect sandbox startup, render events, host
   tool requests, host dispatch, pushed state, trusted component sync, and stream
   diagnostics.
@@ -138,9 +140,10 @@ rendered and interacted with a surface:
 
 ## Optional Checks
 
-Open `http://localhost:5173/batch.html` to run several prompts through the same
-surface config and allowed host tool set. Use it when changing prompt contracts,
-directions, host tool wiring, visual direction coverage, or throughput behavior.
+Open `http://localhost:5173/batch.html` to run several prompts through the
+agent broker against the same host tool ceiling. Use it when changing prompt
+contracts, directions, host tool wiring, visual direction coverage, or
+throughput behavior.
 
 Use the other `/generate.html` scenarios to exercise static summaries,
 declarative forms, host AI calls, GitHub lookup, trusted host components,

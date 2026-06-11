@@ -124,6 +124,10 @@ interface ModelSelectionPayload {
   modelOptions?: ModelOptions;
 }
 
+interface AgentBrokerRequest {
+  enabled: true;
+}
+
 const layoutPresets = new Map<string, SummonLayout>([
   [
     'card-structured',
@@ -167,6 +171,7 @@ const layoutSel = document.getElementById('layout') as HTMLSelectElement;
 const fragmentUnitSel = document.getElementById('fragment-unit') as HTMLSelectElement;
 const scriptPolicySel = document.getElementById('script-policy') as HTMLSelectElement;
 const tokenPresetSel = document.getElementById('token-preset') as HTMLSelectElement;
+const agentBrokerEnabledEl = document.getElementById('agent-broker-enabled') as HTMLInputElement;
 const repairEnabledEl = document.getElementById('repair-enabled') as HTMLInputElement;
 const customContractEnabledEl = document.getElementById('custom-contract-enabled') as HTMLInputElement;
 const customContractPanelEl = document.getElementById('custom-contract-panel')!;
@@ -389,6 +394,8 @@ let currentValidationSummary: string | null = null;
 let currentRepairSummary: string | null = null;
 let currentStreamHealth: string | null = null;
 let currentSurfaceContractView: SurfaceContractView | null = null;
+let currentAgentIntentSummary: string | null = null;
+let currentAgentPolicySummary: string | null = null;
 const acc = new SectionAccumulator();
 let handle: SandboxHandle | null = null;
 let policy: PolicyEngine | null = null;
@@ -737,17 +744,33 @@ function readRepairOptions(): ActiveContract['repair'] {
   return selectedScenario().repair ?? { enabled: true, maxAttempts: 1, maxTargets: 2 };
 }
 
+function scenarioUsesFixedPolicy(scenario: ShowcaseScenario): boolean {
+  return scenario.surfacePolicy.tier === 'scripted';
+}
+
+function readAgentBrokerEnabled(scenario = selectedScenario()): boolean {
+  return agentBrokerEnabledEl.checked &&
+    !customContractEnabledEl.checked &&
+    !scenarioUsesFixedPolicy(scenario);
+}
+
+function agentBrokerRequestFor(active: Pick<ActiveContract, 'agentBroker'>): AgentBrokerRequest | undefined {
+  return active.agentBroker ? { enabled: true } : undefined;
+}
+
 function readActiveContract(): ActiveContract {
   const scenario = selectedScenario();
   const surfacePlan = readSurfacePlan();
   const modelSelection = readModelSelection();
+  const agentBroker = readAgentBrokerEnabled(scenario);
   return {
     scenarioId: scenario.id,
     prompt: promptEl.value.trim() || scenario.prompt,
     mode: readMode(),
     capabilityNames: scenario.capabilityNames,
     componentNames: scenario.componentNames,
-    ...(customContractEnabledEl.checked ? {} : { surfacePolicy: scenario.surfacePolicy }),
+    agentBroker,
+    ...(!agentBroker && !customContractEnabledEl.checked ? { surfacePolicy: scenario.surfacePolicy } : {}),
     surfacePlan,
     scriptPolicy: deriveSurfacePlanControls(surfacePlan).scriptPolicy,
     ...(layoutSel.value ? { layoutId: layoutSel.value } : {}),
@@ -796,6 +819,9 @@ function applyScenario(scenario: ShowcaseScenario) {
   currentRepairSummary = null;
   currentStreamHealth = null;
   currentSurfaceContractView = null;
+  currentAgentIntentSummary = null;
+  currentAgentPolicySummary = null;
+  syncAgentBrokerControl(scenario);
   respawn(currentDirectionId, currentMode);
   showWelcome();
   updateEditControls();
@@ -817,6 +843,44 @@ function planText(plan: { purpose: string; runtime: string; data: string; author
   ].join(' · ');
 }
 
+function agentIntentText(value: unknown): string {
+  if (!value || typeof value !== 'object') return JSON.stringify(value);
+  const item = value as Record<string, unknown>;
+  const parts = [
+    typeof item.purpose === 'string' ? item.purpose : null,
+    typeof item.interaction === 'string' ? item.interaction : null,
+    typeof item.dataNeed === 'string' ? item.dataNeed : null,
+    typeof item.sideEffect === 'string' ? item.sideEffect : null,
+  ].filter((part): part is string => Boolean(part));
+  const grants = Array.isArray(item.requestedCapabilities)
+    ? item.requestedCapabilities.filter((name): name is string => typeof name === 'string')
+    : [];
+  const components = Array.isArray(item.requestedComponents)
+    ? item.requestedComponents.filter((name): name is string => typeof name === 'string')
+    : [];
+  const access = [
+    grants.length ? `tools=${grants.join(',')}` : '',
+    components.length ? `components=${components.join(',')}` : '',
+  ].filter(Boolean).join(' ');
+  return `${parts.join(' · ') || 'intent'}${access ? ` · ${access}` : ''}`;
+}
+
+function agentPolicyText(value: unknown): string {
+  if (!value || typeof value !== 'object') return JSON.stringify(value);
+  const item = value as Record<string, unknown>;
+  const policy = item.surfacePolicy && typeof item.surfacePolicy === 'object'
+    ? item.surfacePolicy as Record<string, unknown>
+    : null;
+  const source = typeof item.source === 'string' ? item.source : 'broker';
+  const tier = typeof policy?.tier === 'string' ? policy.tier : 'policy';
+  const purpose = typeof policy?.purpose === 'string' ? policy.purpose : 'inform';
+  const fallback = item.fallback === true ? ' · fallback' : '';
+  const rejectedCapabilities = Array.isArray(item.rejectedCapabilities) ? item.rejectedCapabilities.length : 0;
+  const rejectedComponents = Array.isArray(item.rejectedComponents) ? item.rejectedComponents.length : 0;
+  const rejected = rejectedCapabilities + rejectedComponents;
+  return `${source} · ${tier}/${purpose}${fallback}${rejected ? ` · rejected=${rejected}` : ''}`;
+}
+
 function parseSurfaceContractView(value: unknown): SurfaceContractView | null {
   if (!value || typeof value !== 'object') return null;
   const contract = value as Partial<SurfaceContractView>;
@@ -829,6 +893,11 @@ function parseSurfaceContractView(value: unknown): SurfaceContractView | null {
 function renderContractSummary() {
   const active = readActiveContract();
   const requested = active.surfacePlan;
+  const broker = active.agentBroker
+    ? currentAgentPolicySummary ?? currentAgentIntentSummary ?? 'planning on run'
+    : scenarioUsesFixedPolicy(selectedScenario())
+      ? 'fixed scripted policy'
+      : 'manual surface config';
   const contract = currentSurfaceContractView;
   const hostTools = contract
     ? contract.tools.map((tool) => tool.name).join(', ') || 'none'
@@ -856,7 +925,8 @@ function renderContractSummary() {
   const rows = [
     ['provider', 'Model provider', provider ? `${provider.name} · ${selectedModel}` : 'server default', provider ? 'neutral' : 'pending'],
     ['utility', 'Utility model', selectedUtility, provider ? 'neutral' : 'pending'],
-    ['requested', 'Requested surface config', planText(requested), 'neutral'],
+    ['broker', 'Agent broker', broker, active.agentBroker ? currentAgentPolicySummary ? 'good' : 'neutral' : 'pending'],
+    ['requested', 'Requested surface config', active.agentBroker ? 'brokered from prompt' : planText(requested), 'neutral'],
     ['effective', 'Effective safety plan', effective, effectivePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${toolCount}: ${hostTools}`, toolCount ? 'neutral' : 'pending'],
     ['components', 'Trusted components', `${componentCount}: ${components}`, componentCount ? 'good' : 'pending'],
@@ -891,6 +961,8 @@ function clearEffectiveContractSummary() {
   currentRepairSummary = null;
   currentStreamHealth = null;
   currentSurfaceContractView = null;
+  currentAgentIntentSummary = null;
+  currentAgentPolicySummary = null;
   renderContractSummary();
 }
 
@@ -1331,10 +1403,15 @@ function updateGhostControls() {
   if (enabled && !ghostTargetEl.value.trim()) ghostTargetEl.value = '.';
 }
 
+function syncAgentBrokerControl(scenario = selectedScenario()) {
+  agentBrokerEnabledEl.disabled = customContractEnabledEl.checked || scenarioUsesFixedPolicy(scenario);
+}
+
 function setCustomContractEnabled(enabled: boolean) {
   customContractEnabledEl.checked = enabled;
   customContractPanelEl.hidden = !enabled;
   document.body.classList.toggle('custom-contract-on', enabled);
+  syncAgentBrokerControl();
   if (!enabled && showcaseScenarios.length > 0) {
     setSurfaceControls(selectedScenario().surfacePlan);
   }
@@ -1569,6 +1646,10 @@ scriptPolicySel.addEventListener('change', () => {
   clearEffectiveContractSummary();
 });
 tokenPresetSel.addEventListener('change', clearEffectiveContractSummary);
+agentBrokerEnabledEl.addEventListener('change', () => {
+  clearEffectiveContractSummary();
+  logLine('op-meta', `agent broker → ${readAgentBrokerEnabled() ? 'on' : 'off'}`);
+});
 repairEnabledEl.addEventListener('change', clearEffectiveContractSummary);
 customContractEnabledEl.addEventListener('change', () => {
   setCustomContractEnabled(customContractEnabledEl.checked);
@@ -1618,6 +1699,8 @@ interface SandboxTarget {
   onModeUpgrade?: () => void;
   onSurfacePlan?: (plan: SurfacePlan) => void;
   onSurfaceContract?: (contract: SurfaceContractView) => void;
+  onAgentIntent?: (summary: string) => void;
+  onAgentPolicy?: (summary: string) => void;
   onShape?: (shape: string) => void;
   onTokenOverrides?: (applied: Array<{ token: string; value: string }>) => void;
   onValidationSummary?: (value: unknown) => void;
@@ -1644,6 +1727,18 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
     // intents. Child: ignore — children are spawned interactive already.
     target.onLog('op-meta', `mode auto-upgraded → interactive (heuristic match)`);
     target.onModeUpgrade?.();
+    return;
+  }
+  if (line.op === 'meta' && line.path === '/agent-intent') {
+    const summary = agentIntentText(line.value);
+    target.onAgentIntent?.(summary);
+    target.onLog('op-meta', `agent intent → ${summary}`);
+    return;
+  }
+  if (line.op === 'meta' && line.path === '/agent-policy-resolution') {
+    const summary = agentPolicyText(line.value);
+    target.onAgentPolicy?.(summary);
+    target.onLog('op-meta', `agent policy → ${summary}`);
     return;
   }
   if (line.op === 'meta' && line.path === '/surface-plan') {
@@ -1832,6 +1927,7 @@ interface StreamOptions {
   directionId: string | null;
   layout?: SummonLayout | null;
   fragmentMode?: FragmentMode;
+  agent?: AgentBrokerRequest;
   scriptPolicy?: ScriptPolicy;
   surfacePolicy?: SurfacePolicy;
   surfacePlan?: SurfacePlan;
@@ -1888,6 +1984,7 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
       capabilities: target.capabilities,
       ...(target.components ? { components: target.components } : {}),
       surfaceCeiling: demoSurfaceCeiling,
+      ...(opts.agent ? { agent: opts.agent } : {}),
       ...(opts.scriptPolicy ? { scriptPolicy: opts.scriptPolicy } : {}),
       ...(opts.fragmentMode !== 'section' && !opts.edit ? { fragmentMode: opts.fragmentMode } : {}),
       ...(opts.surfacePolicy ? { surfacePolicy: opts.surfacePolicy } : {}),
@@ -2009,11 +2106,17 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
   };
 }
 
-function surfaceRequestFor(active: ActiveContract): Pick<StreamOptions, 'surfacePolicy' | 'surfacePlan'> {
-  if (!customContractEnabledEl.checked && active.surfacePolicy) {
+function surfaceRequestFor(active: ActiveContract): Pick<StreamOptions, 'agent' | 'surfacePolicy' | 'surfacePlan'> {
+  const agent = agentBrokerRequestFor(active);
+  if (agent) return { agent };
+  return explicitSurfaceRequestFor(active);
+}
+
+function explicitSurfaceRequestFor(active: ActiveContract): Pick<StreamOptions, 'surfacePolicy' | 'surfacePlan'> {
+  if (active.surfacePolicy) {
     return { surfacePolicy: active.surfacePolicy };
   }
-  return { surfacePlan: active.surfacePlan };
+  return { surfacePlan: currentEffectiveSurfacePlan ?? active.surfacePlan };
 }
 
 function createParentTarget(active: ActiveContract): SandboxTarget {
@@ -2034,6 +2137,14 @@ function createParentTarget(active: ActiveContract): SandboxTarget {
     },
     onSurfaceContract: (contract) => {
       currentSurfaceContractView = contract;
+      renderContractSummary();
+    },
+    onAgentIntent: (summary) => {
+      currentAgentIntentSummary = summary;
+      renderContractSummary();
+    },
+    onAgentPolicy: (summary) => {
+      currentAgentPolicySummary = summary;
       renderContractSummary();
     },
     onShape: (shape) => {
@@ -2226,6 +2337,8 @@ async function generate(prompt: string) {
   currentRepairSummary = null;
   currentStreamHealth = null;
   currentSurfaceContractView = null;
+  currentAgentIntentSummary = null;
+  currentAgentPolicySummary = null;
   respawn(currentDirectionId, active.mode, active);
   hideWelcome();
   goBtn.disabled = true;
@@ -2312,7 +2425,7 @@ async function editArtifact(instruction: string) {
       directionId: currentDirectionId,
       layout: readLayout(),
       scriptPolicy: active.scriptPolicy,
-      ...surfaceRequestFor(active),
+      ...explicitSurfaceRequestFor(active),
       tokenOverrides: active.tokenOverrides,
       repair: active.repair,
       edit,
@@ -2480,6 +2593,7 @@ function summonChild(childPrompt: string, title?: string) {
     modelProvider: readModelProviderId(),
     ...readModelSelection(),
     directionId: currentDirectionId,
+    agent: agentBrokerEnabledEl.checked ? { enabled: true } : undefined,
     signal: abort.signal,
   })
     .then(() => {

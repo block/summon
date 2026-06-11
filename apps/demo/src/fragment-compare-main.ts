@@ -7,8 +7,6 @@ import type {
   HtmlNodePatch,
   ProtocolLine,
   StreamGraphSnapshot,
-  SurfaceCeiling,
-  SurfacePlan,
 } from '@anarchitecture/summon/engine';
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
 import tokensSource from '@anarchitecture/summon/tokens.css?raw';
@@ -194,22 +192,6 @@ const targets: CompareTarget[] = [
   },
 ];
 
-const surfacePlan: SurfacePlan = {
-  purpose: 'review',
-  runtime: 'static',
-  data: 'embedded',
-  authority: 'none',
-  persistence: 'replayable',
-};
-
-const surfaceCeiling: SurfaceCeiling = {
-  purposes: ['review'],
-  runtimes: ['static'],
-  data: ['embedded'],
-  authorities: ['none'],
-  persistences: ['replayable'],
-};
-
 const modelOptions = {
   maxOutputTokens: 16000,
   repairMaxOutputTokens: 4000,
@@ -343,6 +325,12 @@ function lineClass(line: ProtocolLine): string {
 }
 
 function lineLabel(line: ProtocolLine): string {
+  if (line.op === 'meta' && line.path === '/agent-intent') {
+    return `agent intent ${agentMetaLabel(line.value)}`;
+  }
+  if (line.op === 'meta' && line.path === '/agent-policy-resolution') {
+    return `agent policy ${agentMetaLabel(line.value)}`;
+  }
   if (line.op === 'meta' && line.path === '/status') {
     return `meta /status ${String(line.value)}`;
   }
@@ -353,6 +341,22 @@ function lineLabel(line: ProtocolLine): string {
     return `${line.op} ${line.path}${line.parent ? ` parent=${line.parent}` : ''}`;
   }
   return `${line.op} ${line.path}`;
+}
+
+function agentMetaLabel(value: unknown): string {
+  if (!value || typeof value !== 'object') return '';
+  const item = value as Record<string, unknown>;
+  const policy = item.surfacePolicy && typeof item.surfacePolicy === 'object'
+    ? item.surfacePolicy as Record<string, unknown>
+    : null;
+  if (policy) {
+    const tier = typeof policy.tier === 'string' ? policy.tier : 'policy';
+    const purpose = typeof policy.purpose === 'string' ? policy.purpose : 'inform';
+    return `${tier}/${purpose}`;
+  }
+  const purpose = typeof item.purpose === 'string' ? item.purpose : 'intent';
+  const interaction = typeof item.interaction === 'string' ? item.interaction : 'none';
+  return `${purpose}/${interaction}`;
 }
 
 function applyNodePatch(target: CompareTarget, patch: HtmlNodePatch): void {
@@ -399,8 +403,7 @@ async function runTarget(target: CompareTarget, prompt: string, signal: AbortSig
         directionId: '',
         mode: 'static',
         modelOptions,
-        surfacePlan,
-        surfaceCeiling,
+        agent: { enabled: true },
         scriptPolicy: 'forbid',
         ...(target.side === 'html-node-v0' ? { fragmentMode: 'html-node-v0' } : {}),
       }),

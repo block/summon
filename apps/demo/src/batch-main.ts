@@ -81,6 +81,24 @@ function tokensFor(directionId: string): string {
   return directions.find((d) => d.id === directionId)?.tokensCss ?? defaultTokensSource;
 }
 
+function summarizeAgentMeta(value: unknown): string {
+  if (!value || typeof value !== 'object') return 'agent broker';
+  const item = value as Record<string, unknown>;
+  const policy = item.surfacePolicy && typeof item.surfacePolicy === 'object'
+    ? item.surfacePolicy as Record<string, unknown>
+    : null;
+  if (policy) {
+    const tier = typeof policy.tier === 'string' ? policy.tier : 'policy';
+    const purpose = typeof policy.purpose === 'string' ? policy.purpose : 'inform';
+    const fallback = item.fallback === true ? ' · fallback' : '';
+    return `${tier}/${purpose}${fallback}`;
+  }
+  const purpose = typeof item.purpose === 'string' ? item.purpose : 'intent';
+  const interaction = typeof item.interaction === 'string' ? item.interaction : 'none';
+  const dataNeed = typeof item.dataNeed === 'string' ? item.dataNeed : 'embedded';
+  return `${purpose}/${interaction}/${dataNeed}`;
+}
+
 document.querySelectorAll<HTMLInputElement>('input[name=mode]').forEach((el) => {
   el.addEventListener('change', () => {
     const m = currentSourceMode();
@@ -267,6 +285,7 @@ async function runOne(
         directionId,
         mode: interactivity,
         capabilities: interactivity === 'interactive' ? tile.capabilityPack : undefined,
+        agent: { enabled: true },
       }),
       signal,
     });
@@ -288,6 +307,14 @@ async function runOne(
         buffer = buffer.slice(nl + 1);
         const parsed = parseProtocolLine(line);
         if (parsed) {
+          if (parsed.op === 'meta' && parsed.path === '/agent-intent') {
+            tile.intentEl.textContent = `agent intent: ${summarizeAgentMeta(parsed.value)}`;
+            tile.intentEl.classList.add('on');
+          }
+          if (parsed.op === 'meta' && parsed.path === '/agent-policy-resolution') {
+            tile.intentEl.textContent = `agent policy: ${summarizeAgentMeta(parsed.value)}`;
+            tile.intentEl.classList.add('on');
+          }
           const changed = acc.apply(parsed);
           if (renderIncrementally && changed && acc.hasAnySection()) {
             tile.handle.render(acc.compose());
@@ -300,6 +327,14 @@ async function runOne(
     if (tail) {
       const parsed = parseProtocolLine(tail);
       if (parsed) {
+        if (parsed.op === 'meta' && parsed.path === '/agent-intent') {
+          tile.intentEl.textContent = `agent intent: ${summarizeAgentMeta(parsed.value)}`;
+          tile.intentEl.classList.add('on');
+        }
+        if (parsed.op === 'meta' && parsed.path === '/agent-policy-resolution') {
+          tile.intentEl.textContent = `agent policy: ${summarizeAgentMeta(parsed.value)}`;
+          tile.intentEl.classList.add('on');
+        }
         const changed = acc.apply(parsed);
         if (renderIncrementally && changed && acc.hasAnySection()) {
           tile.handle.render(acc.compose());

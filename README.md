@@ -52,7 +52,8 @@ pnpm dev:all
 Open `http://localhost:5173/generate.html`.
 
 1. Choose the **Host Data Search** showcase scenario.
-2. Confirm the run is interactive and only the `search` host tool is allowed.
+2. Confirm the agent broker selects an interactive run with only the `search`
+   host tool allowed.
 3. Run it, then submit a generated search such as `chicken pasta`.
 4. Open `http://localhost:5173/adversarial.html` and confirm the sandbox
    boundary still holds.
@@ -86,11 +87,12 @@ registered host tools.
 - `examples/surface-gallery` - primary adopter gallery with curated live
   presets, compact host tools, Ghost-root presets when configured, a sandboxed
   surface, and a small event strip.
-- `/generate.html` - diagnostic maintainer workbench for surface configs, allowed host
-  tools, trusted host components, token overrides, validation retries,
-  edit/replay, Ghost steering, Devtools, and stream diagnostics.
-- `/batch.html` - parallel prompt harness for prompt coverage, host tool wiring,
-  direction-token visual coverage, throughput, and consistency checks.
+- `/generate.html` - diagnostic maintainer workbench for broker-selected
+  surface configs, allowed host tools, trusted host components, token
+  overrides, validation retries, edit/replay, Ghost steering, Devtools, and
+  stream diagnostics.
+- `/batch.html` - parallel broker harness for prompt coverage, host tool
+  wiring, direction-token visual coverage, throughput, and consistency checks.
 - `/adversarial.html` - sandbox boundary checks for network, storage, parent
   access, and unallowed host tool requests.
 - `/strict.html` - trusted host overlay for sensitive input inside a generated

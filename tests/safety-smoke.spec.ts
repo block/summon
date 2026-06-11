@@ -216,12 +216,49 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
   await expect(cardSlotChild).not.toHaveClass(/summon-node-update/);
 });
 
-test('generate showcase sends SurfacePolicy by default', async ({ page }) => {
+test('generate showcase uses the agent broker by default', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
     const body = jsonl([
-      { op: 'meta', path: '/surface-policy', value: captured.surfacePolicy },
+      {
+        op: 'meta',
+        path: '/agent-intent',
+        value: {
+          purpose: 'explore',
+          interaction: 'search',
+          dataNeed: 'host-resource',
+          sideEffect: 'none',
+          requestedCapabilities: ['search'],
+          requestedComponents: [],
+          confidence: 0.72,
+          rationale: 'deterministic keyword and catalog match',
+        },
+      },
+      {
+        op: 'meta',
+        path: '/agent-policy-resolution',
+        value: {
+          source: 'default',
+          proposedSurfacePolicy: {
+            tier: 'declarative',
+            purpose: 'explore',
+            grants: ['search'],
+            components: [],
+            persistence: 'replayable',
+          },
+          surfacePolicy: {
+            tier: 'declarative',
+            purpose: 'explore',
+            grants: ['search'],
+            persistence: 'replayable',
+          },
+          rejectedCapabilities: [],
+          rejectedComponents: [],
+          fallback: false,
+        },
+      },
+      { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'explore', grants: ['search'] } },
       { op: 'meta', path: '/surface-plan', value: hostSearchPlan },
       { op: 'set', path: '/screen', value: { sections: ['main'] } },
       {
@@ -253,14 +290,39 @@ test('generate showcase sends SurfacePolicy by default', async ({ page }) => {
   await expect(page.locator('#iframe-status')).toContainText('done');
 
   expect(captured).toBeTruthy();
-  expect(captured.surfacePolicy).toEqual({
-    tier: 'declarative',
-    purpose: 'explore',
-    grants: ['search'],
-  });
+  expect(captured.agent).toEqual({ enabled: true });
+  expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
   expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['search']);
   expect(captured.scriptPolicy).toBe('forbid');
+  await expect(page.locator('#contract-summary [data-contract-row="broker"]')).toContainText('default');
+  await expect(page.locator('#log')).toContainText('agent policy');
+});
+
+test('batch page brokers each generation request', async ({ page }) => {
+  const captured: any[] = [];
+  await page.route('**/api/generate', async (route) => {
+    const request = route.request().postDataJSON();
+    captured.push(request);
+    const body = jsonl([
+      { op: 'meta', path: '/agent-intent', value: { purpose: 'inform', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
+      { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', surfacePolicy: { tier: 'static', purpose: 'inform', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
+      { op: 'set', path: '/screen', value: { sections: ['main'] } },
+      { op: 'add', path: '/section/main', html: '<section><h1>Batch brokered</h1></section>' },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/batch.html');
+  await page.locator('#count').fill('1');
+  await page.locator('#run').click();
+
+  await expect(page.locator('#summary')).toContainText('1 ok');
+  expect(captured).toHaveLength(1);
+  expect(captured[0].agent).toEqual({ enabled: true });
+  expect(captured[0].surfacePolicy).toBeUndefined();
+  expect(captured[0].surfacePlan).toBeUndefined();
+  await expect(page.locator('.tile-intent')).toContainText('agent policy');
 });
 
 test('fragment compare launches section and html node streams from the same prompt', async ({ page }) => {
@@ -278,6 +340,8 @@ test('fragment compare launches section and html node streams from the same prom
 
     const body = request.fragmentMode === 'html-node-v0'
       ? jsonl([
+          { op: 'meta', path: '/agent-intent', value: { purpose: 'review', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
+          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
           { op: 'meta', path: '/experimental-fragments', value: { mode: 'html-node-v0' } },
           { op: 'set', path: '/screen', value: { sections: ['main'] } },
           { op: 'add', path: '/section/main/node/root', html: '<div data-summon-node="root"></div>' },
@@ -285,6 +349,8 @@ test('fragment compare launches section and html node streams from the same prom
           { op: 'add', path: '/section/main/node/body', parent: 'card', html: '<p data-summon-node="body">Rendered as HTML node patches.</p>' },
         ])
       : jsonl([
+          { op: 'meta', path: '/agent-intent', value: { purpose: 'review', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
+          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
           { op: 'set', path: '/screen', value: { sections: ['main'] } },
           { op: 'add', path: '/section/main', html: '<section><h1>Section stream</h1><p>Rendered as section fragments.</p></section>' },
         ]);
@@ -304,7 +370,10 @@ test('fragment compare launches section and html node streams from the same prom
   const nodeRequest = captured.find((request) => request.fragmentMode === 'html-node-v0');
   expect(sectionRequest?.prompt).toBe(prompt);
   expect(nodeRequest?.prompt).toBe(prompt);
-  expect(sectionRequest?.surfacePlan).toEqual(nodeRequest?.surfacePlan);
+  expect(sectionRequest?.agent).toEqual({ enabled: true });
+  expect(nodeRequest?.agent).toEqual({ enabled: true });
+  expect(sectionRequest?.surfacePlan).toBeUndefined();
+  expect(nodeRequest?.surfacePlan).toBeUndefined();
   expect(sectionRequest?.directionId).toBe('');
   expect(nodeRequest?.directionId).toBe('');
   expect(sectionRequest?.modelOptions).toEqual(nodeRequest?.modelOptions);
@@ -448,9 +517,34 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
       },
       {
         op: 'meta',
-        path: '/surface-policy',
-        value: captured.surfacePolicy,
+        path: '/agent-intent',
+        value: {
+          purpose: 'review',
+          interaction: 'select',
+          dataNeed: 'embedded',
+          sideEffect: 'local-state',
+          requestedCapabilities: ['choose'],
+          requestedComponents: [],
+          confidence: 0.72,
+        },
       },
+      {
+        op: 'meta',
+        path: '/agent-policy-resolution',
+        value: {
+          source: 'default',
+          surfacePolicy: {
+            tier: 'declarative',
+            purpose: 'review',
+            grants: ['choose'],
+            persistence: 'replayable',
+          },
+          rejectedCapabilities: [],
+          rejectedComponents: [],
+          fallback: false,
+        },
+      },
+      { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'review', grants: ['choose'] } },
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
       { op: 'set', path: '/screen', value: { sections: ['main'] } },
       { op: 'add', path: '/section/main', html: '<section><h1>Checkout Review</h1><button data-summon-intent="choose">Accept</button></section>' },
@@ -510,11 +604,8 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
     baseDirectionId: 'ghost',
   });
   expect(captured.directionId).toBeUndefined();
-  expect(captured.surfacePolicy).toEqual({
-    tier: 'declarative',
-    purpose: 'review',
-    grants: ['choose'],
-  });
+  expect(captured.agent).toEqual({ enabled: true });
+  expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
   expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['choose']);
 });
@@ -534,6 +625,30 @@ test('component islands render in host overlay without widening the sandbox', as
         <p id="sandbox-proof">Sandbox placeholder only</p>
       </section>`;
     const body = jsonl([
+      {
+        op: 'meta',
+        path: '/agent-intent',
+        value: {
+          purpose: 'review',
+          interaction: 'select',
+          dataNeed: 'embedded',
+          sideEffect: 'local-state',
+          requestedCapabilities: ['choose'],
+          requestedComponents: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
+          confidence: 0.72,
+        },
+      },
+      {
+        op: 'meta',
+        path: '/agent-policy-resolution',
+        value: {
+          source: 'default',
+          surfacePolicy: componentIslandsPolicy,
+          rejectedCapabilities: [],
+          rejectedComponents: [],
+          fallback: false,
+        },
+      },
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
       { op: 'set', path: '/screen', value: { sections: ['main'] } },
       { op: 'add', path: '/section/main', html },
@@ -569,7 +684,8 @@ test('component islands render in host overlay without widening the sandbox', as
     'TrendSparkline',
     'ApprovalStatus',
   ]);
-  expect(captured.surfacePolicy).toEqual(componentIslandsPolicy);
+  expect(captured.agent).toEqual({ enabled: true });
+  expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
   expect(captured.scriptPolicy).toBe('forbid');
 
