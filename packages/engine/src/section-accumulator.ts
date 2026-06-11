@@ -15,9 +15,24 @@ export interface SectionApplyResult {
   changed: boolean;
   kind: SectionApplyKind;
   sectionId?: string;
+  blockId?: string;
   orderChanged?: boolean;
   htmlChanged?: boolean;
+  blockChanged?: boolean;
 }
+
+type OpaqueSectionState = {
+  kind: 'opaque';
+  html: string;
+};
+
+type BlockSectionState = {
+  kind: 'blocks';
+  blockOrder: string[];
+  blockMap: Map<string, string>;
+};
+
+type SectionState = OpaqueSectionState | BlockSectionState;
 
 /**
  * Applies streaming protocol lines into a mutable section map. Call compose()
@@ -29,7 +44,7 @@ export interface SectionApplyResult {
  * LLM skips the declaration line.
  */
 export class SectionAccumulator {
-  private sectionMap: Map<string, string> = new Map();
+  private sectionMap: Map<string, SectionState> = new Map();
   private sectionOrder: string[] = [];
 
   /** Returns true if the line changed state (for change detection in render loops). */
@@ -51,15 +66,67 @@ export class SectionAccumulator {
       return { changed: false, kind: 'none' };
     }
 
+    if (line.op === 'set' && line.path.startsWith('/section/')) {
+      const id = sectionIdFromSectionPath(line.path);
+      if (!id) return { changed: false, kind: 'none' };
+      const value = line.value as { blocks?: unknown } | undefined;
+      if (!value || !Array.isArray(value.blocks)) return { changed: false, kind: 'none' };
+      const next = value.blocks.filter((block): block is string => typeof block === 'string');
+      if (next.length === 0) return { changed: false, kind: 'none' };
+
+      const prev = this.sectionMap.get(id);
+      const prevOrder = prev?.kind === 'blocks' ? prev.blockOrder : [];
+      const changed = prev?.kind !== 'blocks' || !sameOrder(prevOrder, next);
+      const state = this.ensureBlockSection(id);
+      state.blockOrder = next;
+      for (const blockId of Array.from(state.blockMap.keys())) {
+        if (!next.includes(blockId)) state.blockMap.delete(blockId);
+      }
+      return {
+        changed,
+        kind: 'section',
+        sectionId: id,
+        orderChanged: changed,
+      };
+    }
+
     if (line.op === 'add' && line.path.startsWith('/section/')) {
-      const id = line.path.slice('/section/'.length);
+      const blockTarget = blockTargetFromPath(line.path);
+      if (blockTarget) {
+        const html = typeof line.html === 'string' ? line.html : '';
+        const state = this.ensureBlockSection(blockTarget.sectionId);
+        const prev = state.blockMap.get(blockTarget.blockId);
+        const orderChanged = !state.blockOrder.includes(blockTarget.blockId);
+        if (orderChanged) state.blockOrder.push(blockTarget.blockId);
+        if (prev === html && !orderChanged) {
+          return {
+            changed: false,
+            kind: 'section',
+            sectionId: blockTarget.sectionId,
+            blockId: blockTarget.blockId,
+          };
+        }
+        state.blockMap.set(blockTarget.blockId, html);
+        return {
+          changed: true,
+          kind: 'section',
+          sectionId: blockTarget.sectionId,
+          blockId: blockTarget.blockId,
+          orderChanged,
+          htmlChanged: prev !== html,
+          blockChanged: prev !== html,
+        };
+      }
+
+      const id = sectionIdFromSectionPath(line.path);
       if (!id) return { changed: false, kind: 'none' };
       const html = typeof line.html === 'string' ? line.html : '';
       const prev = this.sectionMap.get(id);
-      if (prev === html && this.sectionOrder.includes(id)) {
+      const prevHtml = prev ? composeSectionInner(prev) : undefined;
+      if (prevHtml === html && this.sectionOrder.includes(id)) {
         return { changed: false, kind: 'section', sectionId: id };
       }
-      this.sectionMap.set(id, html);
+      this.sectionMap.set(id, { kind: 'opaque', html });
       const orderChanged = !this.sectionOrder.includes(id);
       if (!this.sectionOrder.includes(id)) {
         this.sectionOrder.push(id);
@@ -69,7 +136,7 @@ export class SectionAccumulator {
         kind: 'section',
         sectionId: id,
         orderChanged,
-        htmlChanged: prev !== html,
+        htmlChanged: prevHtml !== html,
       };
     }
 
@@ -79,8 +146,9 @@ export class SectionAccumulator {
   compose(): string {
     const parts: string[] = [];
     for (const id of this.sectionOrder) {
-      const html = this.sectionMap.get(id);
-      if (html === undefined) continue;
+      const state = this.sectionMap.get(id);
+      if (state === undefined) continue;
+      const html = composeSectionInner(state);
       parts.push(`<section data-summon-section="${escapeAttr(id)}">\n${html}\n</section>`);
     }
     return parts.join('\n');
@@ -94,14 +162,14 @@ export class SectionAccumulator {
     const sections: SectionSnapshotEntry[] = [];
     const seen = new Set<string>();
     for (const id of this.sectionOrder) {
-      const html = this.sectionMap.get(id);
-      if (html === undefined) continue;
-      sections.push({ id, html });
+      const state = this.sectionMap.get(id);
+      if (state === undefined) continue;
+      sections.push({ id, html: composeSectionInner(state) });
       seen.add(id);
     }
-    for (const [id, html] of this.sectionMap) {
+    for (const [id, state] of this.sectionMap) {
       if (seen.has(id)) continue;
-      sections.push({ id, html });
+      sections.push({ id, html: composeSectionInner(state) });
     }
     return { sections };
   }
@@ -110,7 +178,7 @@ export class SectionAccumulator {
     this.reset();
     for (const section of snapshot.sections) {
       this.sectionOrder.push(section.id);
-      this.sectionMap.set(section.id, section.html);
+      this.sectionMap.set(section.id, { kind: 'opaque', html: section.html });
     }
   }
 
@@ -124,6 +192,21 @@ export class SectionAccumulator {
     this.sectionMap.clear();
     this.sectionOrder = [];
   }
+
+  private ensureBlockSection(id: string): BlockSectionState {
+    const existing = this.sectionMap.get(id);
+    if (existing?.kind === 'blocks') return existing;
+    const state: BlockSectionState = {
+      kind: 'blocks',
+      blockOrder: [],
+      blockMap: new Map(),
+    };
+    this.sectionMap.set(id, state);
+    if (!this.sectionOrder.includes(id)) {
+      this.sectionOrder.push(id);
+    }
+    return state;
+  }
 }
 
 function sameOrder(a: string[], b: string[]): boolean {
@@ -136,4 +219,37 @@ function sameOrder(a: string[], b: string[]): boolean {
 
 function escapeAttr(s: string): string {
   return s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
+}
+
+function sectionIdFromSectionPath(path: string): string | null {
+  if (!path.startsWith('/section/')) return null;
+  const suffix = path.slice('/section/'.length);
+  if (!suffix || suffix.includes('/')) return null;
+  return suffix;
+}
+
+function blockTargetFromPath(path: string): { sectionId: string; blockId: string } | null {
+  if (!path.startsWith('/section/')) return null;
+  const parts = path.slice('/section/'.length).split('/');
+  if (parts.length !== 3 || parts[1] !== 'block') return null;
+  const [sectionId, , blockId] = parts;
+  if (!sectionId || !blockId) return null;
+  return { sectionId, blockId };
+}
+
+function composeSectionInner(state: SectionState): string {
+  if (state.kind === 'opaque') return state.html;
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  for (const id of state.blockOrder) {
+    const html = state.blockMap.get(id);
+    if (html === undefined) continue;
+    seen.add(id);
+    parts.push(`<div data-summon-block="${escapeAttr(id)}">\n${html}\n</div>`);
+  }
+  for (const [id, html] of state.blockMap) {
+    if (seen.has(id)) continue;
+    parts.push(`<div data-summon-block="${escapeAttr(id)}">\n${html}\n</div>`);
+  }
+  return parts.join('\n');
 }

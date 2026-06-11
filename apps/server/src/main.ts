@@ -73,6 +73,20 @@ const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 const modelProviders = createModelProviderRegistry(process.env);
 const defaultModelProvider = modelProviders.defaultProvider;
 
+const EXPERIMENTAL_BLOCK_FRAGMENT_PROMPT = `## Experimental block fragments
+
+This run is using Summon's experimental block-fragment protocol. Keep sections as the outer structure, but stream complete blocks inside each section.
+
+Rules:
+
+- Emit \`set /screen\` first with the stable section ids.
+- For each section, emit \`set /section/<section-id>\` with \`{"blocks":["block-id"]}\` before adding blocks.
+- Emit complete block replacement lines at \`add /section/<section-id>/block/<block-id>\`.
+- Use lowercase kebab-case ids. Each section may declare 1 to 8 blocks.
+- Treat every block as a complete subtree. Do not split a form, table, data resource scope, component placeholder, script lifecycle, or closely coupled control group across blocks.
+- For perceived streaming, emit cheap block placeholders first, then final replacement \`add\` lines for the same block ids.
+- Do not emit whole-section \`add /section/<section-id>\` lines unless you cannot satisfy the block contract.`;
+
 if (!defaultModelProvider) {
   console.error(
     '[summon-server] no model provider is configured. Copy apps/server/.env.example to .env and set ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY.'
@@ -467,6 +481,7 @@ app.post('/api/generate', async (req, res) => {
     return;
   }
   const edit = parsedEdit.edit;
+  const fragmentMode = req.body?.fragmentMode === 'block-v0' ? 'block-v0' : 'section';
   const repairOptions = parseRepairOptions(req.body?.repair);
   const rawAgentOptions = req.body?.agent;
   const agentOptions = rawAgentOptions && typeof rawAgentOptions === 'object'
@@ -652,6 +667,13 @@ app.post('/api/generate', async (req, res) => {
   if (layout) {
     preludeLines.push({ op: 'meta', path: '/layout', value: layout.id });
   }
+  if (fragmentMode === 'block-v0' && !edit) {
+    preludeLines.push({
+      op: 'meta',
+      path: '/experimental-fragments',
+      value: { mode: 'block-v0' },
+    });
+  }
   if (edit) {
     preludeLines.push({
       op: 'meta',
@@ -700,6 +722,13 @@ app.post('/api/generate', async (req, res) => {
         ghost: ghostContext ?? null,
         layout,
         edit,
+        experimentalPromptBlock: fragmentMode === 'block-v0' && !edit
+          ? {
+              id: 'experimental-fragments:block-v0',
+              text: EXPERIMENTAL_BLOCK_FRAGMENT_PROMPT,
+              cache: 'ephemeral',
+            }
+          : null,
         capabilities: hasSurfacePolicy || agentPlan ? capabilityCeiling : pack,
         components: componentPack,
         surfacePolicy: hasSurfacePolicy

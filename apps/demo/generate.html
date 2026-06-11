@@ -11,6 +11,7 @@
   <a class="summon-brand" href="/">summon</a>
   <a class="active" href="/generate.html">Generate</a>
   <a href="/batch.html">Batch</a>
+  <a href="/fragment-compare.html">Fragment compare</a>
 </nav>
 
 <header class="generate-header">
@@ -133,6 +134,13 @@
           <select id="layout" class="pill-select" title="Host layout">
             <option value="">Free layout</option>
             <option value="card-structured">Card: header/content/actions</option>
+          </select>
+        </label>
+        <label>
+          <span class="field-label">Fragment unit</span>
+          <select id="fragment-unit" class="pill-select" title="Streaming fragment unit">
+            <option value="section">Sections</option>
+            <option value="block-v0">Blocks (experimental)</option>
           </select>
         </label>
         <label>

@@ -99,6 +99,7 @@ export interface SurfaceGenerationInput {
   layout?: SummonLayout | null;
   edit?: GenerateEditInput | null;
   editBlock?: string | null;
+  experimentalPromptBlock?: ContractPromptBlock | null;
   capabilities?: CapabilityPack | null;
   components?: ComponentPack | null;
   surfacePolicy?: SurfacePolicy | null;

@@ -27,6 +27,7 @@ export type {
 } from './section-accumulator.js';
 export { StreamGraph } from './stream-graph.js';
 export type {
+  StreamGraphBlock,
   StreamGraphEdge,
   StreamGraphHealth,
   StreamGraphSection,

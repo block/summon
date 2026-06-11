@@ -19,6 +19,7 @@ export default defineConfig({
         // production won't ship its bundle. Dev mode picks them up implicitly.
         main: resolve(__dirname, 'index.html'),
         generate: resolve(__dirname, 'generate.html'),
+        fragmentCompare: resolve(__dirname, 'fragment-compare.html'),
         adversarial: resolve(__dirname, 'adversarial.html'),
         batch: resolve(__dirname, 'batch.html'),
         strict: resolve(__dirname, 'strict.html'),

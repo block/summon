@@ -55,7 +55,21 @@ test('api generate sends narrowed contract and stream meta shape through package
       res.end();
       return;
     }
-    anthropicRequests.push(JSON.parse(await readBody(req)));
+    const request = JSON.parse(await readBody(req));
+    anthropicRequests.push(request);
+    const systemText = Array.isArray(request.system)
+      ? request.system.map((block: { text?: unknown }) => typeof block.text === 'string' ? block.text : '').join('\n')
+      : '';
+    const generatedText = systemText.includes('Experimental block fragments')
+      ? [
+          '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+          '{"op":"set","path":"/section/hero","value":{"blocks":["headline"]}}\n',
+          '{"op":"add","path":"/section/hero/block/headline","html":"<h1>Dinner finder</h1><p>Ready.</p>"}\n',
+        ]
+      : [
+          '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+          '{"op":"add","path":"/section/hero","html":"<section><h1>Dinner finder</h1><p>Ready.</p></section>"}\n',
+        ];
     res.writeHead(200, {
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache',
@@ -85,7 +99,7 @@ test('api generate sends narrowed contract and stream meta shape through package
         index: 0,
         delta: {
           type: 'text_delta',
-          text: '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+          text: generatedText[0],
         },
       }),
       sse('content_block_delta', {
@@ -93,7 +107,7 @@ test('api generate sends narrowed contract and stream meta shape through package
         index: 0,
         delta: {
           type: 'text_delta',
-          text: '{"op":"add","path":"/section/hero","html":"<section><h1>Dinner finder</h1><p>Ready.</p></section>"}\n',
+          text: generatedText.slice(1).join(''),
         },
       }),
       sse('content_block_stop', {
@@ -282,6 +296,43 @@ test('api generate sends narrowed contract and stream meta shape through package
     components: [],
     persistence: 'replayable',
   });
+
+  const blockResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a dinner finder in blocks',
+      mode: 'interactive',
+      capabilities: searchCapability,
+      surfacePlan,
+      surfaceCeiling,
+      scriptPolicy: 'forbid',
+      fragmentMode: 'block-v0',
+    }),
+  });
+  const blockBody = await blockResponse.text();
+  assert.equal(blockResponse.status, 200, blockBody);
+
+  assert.equal(anthropicRequests.length, 4);
+  const blockRequest = anthropicRequests[3] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(blockRequest.stream, true);
+  const blockSystemText = blockRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(blockSystemText, /Experimental block fragments/);
+  assert.match(blockSystemText, /add \/section\/<section-id>\/block\/<block-id>/);
+
+  const blockLines = blockBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.equal(blockLines.some((line) => line.path === '/experimental-fragments'), true);
+  assert.equal(blockLines.some((line) => line.path === '/section/hero'), true);
+  assert.equal(blockLines.some((line) => line.path === '/section/hero/block/headline'), true);
+  const blockSummary = blockLines.find((line) => line.path === '/stream-graph-summary') as
+    | Extract<ProtocolLine, { op: 'meta' }>
+    | undefined;
+  assert.match(JSON.stringify(blockSummary?.value), /declaredBlockCount/);
+
   const ghostResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -300,8 +351,8 @@ test('api generate sends narrowed contract and stream meta shape through package
   const ghostBody = await ghostResponse.text();
   assert.equal(ghostResponse.status, 200, ghostBody);
 
-  assert.equal(anthropicRequests.length, 4);
-  const ghostRequest = anthropicRequests[3] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(anthropicRequests.length, 5);
+  const ghostRequest = anthropicRequests[4] as { system?: Array<{ text?: string }>; stream?: boolean };
   const ghostSystemText = ghostRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(ghostSystemText, /Checkout product experience/);
 

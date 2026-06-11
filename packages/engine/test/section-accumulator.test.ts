@@ -66,3 +66,58 @@ test('repeated section add replaces existing html without changing order', () =>
   assert.match(acc.compose(), /Final answer/);
   assert.deepEqual(acc.snapshot().sections.map((section) => section.id), ['hero']);
 });
+
+test('block fragments compose inside stable section wrappers', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['summary'] } });
+  assert.deepEqual(
+    acc.applyDetailed({ op: 'set', path: '/section/summary', value: { blocks: ['headline', 'metrics'] } }),
+    { changed: true, kind: 'section', sectionId: 'summary', orderChanged: true },
+  );
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/summary/block/headline',
+    html: '<h1>Closeout</h1>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/summary/block/metrics',
+    html: '<p>42 orders</p>',
+  });
+
+  assert.equal(acc.compose(), [
+    '<section data-summon-section="summary">',
+    '<div data-summon-block="headline">',
+    '<h1>Closeout</h1>',
+    '</div>',
+    '<div data-summon-block="metrics">',
+    '<p>42 orders</p>',
+    '</div>',
+    '</section>',
+  ].join('\n'));
+});
+
+test('block replacement updates one block and whole-section add clears block state', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['summary'] } });
+  acc.applyDetailed({ op: 'set', path: '/section/summary', value: { blocks: ['a', 'b'] } });
+  acc.applyDetailed({ op: 'add', path: '/section/summary/block/a', html: '<p>A</p>' });
+  acc.applyDetailed({ op: 'add', path: '/section/summary/block/b', html: '<p>Draft</p>' });
+
+  const replacement = acc.applyDetailed({
+    op: 'add',
+    path: '/section/summary/block/b',
+    html: '<p>Final</p>',
+  });
+  assert.equal(replacement.changed, true);
+  assert.equal(replacement.blockId, 'b');
+  assert.match(acc.compose(), /<p>A<\/p>/);
+  assert.match(acc.compose(), /<p>Final<\/p>/);
+  assert.doesNotMatch(acc.compose(), /Draft/);
+
+  acc.applyDetailed({ op: 'add', path: '/section/summary', html: '<article>Opaque</article>' });
+  assert.equal(
+    acc.compose(),
+    '<section data-summon-section="summary">\n<article>Opaque</article>\n</section>',
+  );
+});

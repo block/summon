@@ -146,6 +146,54 @@ test('generate showcase sends SurfacePolicy by default', async ({ page }) => {
   expect(captured.scriptPolicy).toBe('forbid');
 });
 
+test('fragment compare launches section and block streams from the same prompt', async ({ page }) => {
+  const captured: any[] = [];
+  let releaseBoth!: () => void;
+  const bothArrived = new Promise<void>((resolve) => {
+    releaseBoth = resolve;
+  });
+
+  await page.route('**/api/generate', async (route) => {
+    const request = route.request().postDataJSON();
+    captured.push(request);
+    if (captured.length === 2) releaseBoth();
+    await bothArrived;
+
+    const body = request.fragmentMode === 'block-v0'
+      ? jsonl([
+          { op: 'meta', path: '/experimental-fragments', value: { mode: 'block-v0' } },
+          { op: 'set', path: '/screen', value: { sections: ['main'] } },
+          { op: 'set', path: '/section/main', value: { blocks: ['headline', 'body'] } },
+          { op: 'add', path: '/section/main/block/headline', html: '<h1>Block stream</h1>' },
+          { op: 'add', path: '/section/main/block/body', html: '<p>Rendered as block fragments.</p>' },
+        ])
+      : jsonl([
+          { op: 'set', path: '/screen', value: { sections: ['main'] } },
+          { op: 'add', path: '/section/main', html: '<section><h1>Section stream</h1><p>Rendered as section fragments.</p></section>' },
+        ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/fragment-compare.html');
+  const prompt = 'compare a launch readiness dashboard in both fragment modes';
+  await page.locator('#prompt').fill(prompt);
+  await page.locator('#run').click();
+
+  await expect.poll(() => captured.length).toBe(2);
+  const sectionRequest = captured.find((request) => request.fragmentMode !== 'block-v0');
+  const blockRequest = captured.find((request) => request.fragmentMode === 'block-v0');
+  expect(sectionRequest?.prompt).toBe(prompt);
+  expect(blockRequest?.prompt).toBe(prompt);
+  expect(sectionRequest?.surfacePlan).toEqual(blockRequest?.surfacePlan);
+  expect(sectionRequest?.fragmentMode).toBeUndefined();
+  expect(blockRequest?.fragmentMode).toBe('block-v0');
+
+  await expect(page.locator('#section-status')).toContainText('done');
+  await expect(page.locator('#block-status')).toContainText('done');
+  await expect(page.frameLocator('#section-frame').locator('body')).toContainText('Section stream');
+  await expect(page.frameLocator('#block-frame').locator('body')).toContainText('Block stream');
+});
+
 test('generate showcase sends raw SurfacePlan from the advanced override', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {

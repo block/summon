@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Summon — fragment compare</title>
+<link rel="stylesheet" href="/summon.css">
+</head>
+<body class="fragment-compare-page">
+<nav class="summon-nav">
+  <a class="summon-brand" href="/">summon</a>
+  <a href="/generate.html">Generate</a>
+  <a href="/batch.html">Batch</a>
+  <a class="active" href="/fragment-compare.html">Fragment compare</a>
+</nav>
+
+<header class="compare-header">
+  <div>
+    <h1 class="page-title">Fragment compare</h1>
+    <p class="lede">Run the same prompt twice: section fragments on the left, experimental block fragments on the right.</p>
+  </div>
+  <div class="compare-summary" id="summary">Idle</div>
+</header>
+
+<form id="compare-form" class="compare-controls">
+  <label class="compare-prompt">
+    <span class="field-label">Prompt</span>
+    <textarea id="prompt">build a compact product launch readiness dashboard with a crisp executive summary, three metric groups, risk callouts, and next actions. Stream a rough useful version first, then refine the details in place.</textarea>
+  </label>
+  <div class="compare-actions">
+    <button id="run" type="submit" class="btn btn-sm">Run both</button>
+    <button id="stop" type="button" class="btn-secondary btn-sm" disabled>Stop</button>
+  </div>
+</form>
+
+<main class="compare-grid" aria-label="Fragment comparison">
+  <section class="compare-pane" data-fragment-side="section">
+    <header>
+      <div>
+        <span>Sections</span>
+        <strong>current behavior</strong>
+      </div>
+      <span id="section-status" class="status">idle</span>
+    </header>
+    <iframe id="section-frame" title="Section fragment result"></iframe>
+    <div class="compare-metrics" id="section-metrics">0 lines · 0 B</div>
+    <div class="log compare-log" id="section-log"></div>
+  </section>
+
+  <section class="compare-pane" data-fragment-side="block-v0">
+    <header>
+      <div>
+        <span>Blocks</span>
+        <strong>experimental block-v0</strong>
+      </div>
+      <span id="block-status" class="status">idle</span>
+    </header>
+    <iframe id="block-frame" title="Block fragment result"></iframe>
+    <div class="compare-metrics" id="block-metrics">0 lines · 0 B</div>
+    <div class="log compare-log" id="block-log"></div>
+  </section>
+</main>
+
+<script type="module" src="/src/fragment-compare-main.ts"></script>
+</body>
+</html>

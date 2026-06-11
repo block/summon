@@ -67,6 +67,7 @@ export class SurfaceGenerationSession {
       ghostPrompt: input.ghostPrompt ?? null,
       layout: input.layout ?? null,
       editBlock,
+      experimentalPromptBlock: input.experimentalPromptBlock ?? null,
       capabilities: this.surfacePolicy?.capabilities ?? input.capabilities ?? null,
       components: this.surfacePolicy?.components ?? input.components ?? null,
       scriptPolicy: this.surfacePolicy?.scriptPolicy ?? input.scriptPolicy,

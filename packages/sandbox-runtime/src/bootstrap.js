@@ -656,8 +656,10 @@
         // Same section, possibly updated content. Replace innerHTML on the
         // existing element so the entrance animation does NOT re-fire.
         if (existingEl.innerHTML !== incomingEl.innerHTML) {
-          existingEl.innerHTML = incomingEl.innerHTML;
-          rerunScripts(existingEl);
+          if (!patchSectionBlocks(existingEl, incomingEl)) {
+            existingEl.innerHTML = incomingEl.innerHTML;
+            rerunScripts(existingEl);
+          }
         }
       } else {
         // New section — appending to #summon-root mounts it for the first time,
@@ -688,6 +690,64 @@
 
     applyBindings();
     applyMountIntents();
+  }
+
+  function patchSectionBlocks(existingSection, incomingSection) {
+    var existingBlocks = directBlockChildren(existingSection);
+    var incomingBlocks = directBlockChildren(incomingSection);
+    if (existingBlocks.length === 0 || incomingBlocks.length === 0) return false;
+
+    var existingById = new Map();
+    for (var i = 0; i < existingBlocks.length; i++) {
+      var existingId = existingBlocks[i].getAttribute('data-summon-block');
+      if (existingId) existingById.set(existingId, existingBlocks[i]);
+    }
+
+    var wantedIds = new Set();
+    for (var j = 0; j < incomingBlocks.length; j++) {
+      var incomingBlock = incomingBlocks[j];
+      var id = incomingBlock.getAttribute('data-summon-block');
+      if (!id) continue;
+      wantedIds.add(id);
+      var existingBlock = existingById.get(id);
+      if (existingBlock) {
+        if (existingBlock.innerHTML !== incomingBlock.innerHTML) {
+          existingBlock.innerHTML = incomingBlock.innerHTML;
+          rerunScripts(existingBlock);
+        }
+      } else {
+        existingSection.appendChild(incomingBlock);
+        rerunScripts(incomingBlock);
+        existingById.set(id, incomingBlock);
+      }
+    }
+
+    for (var _i = 0; _i < existingBlocks.length; _i++) {
+      var stale = existingBlocks[_i];
+      var staleId = stale.getAttribute('data-summon-block');
+      if (staleId && !wantedIds.has(staleId)) stale.remove();
+    }
+
+    for (var k = 0; k < incomingBlocks.length; k++) {
+      var wantedId = incomingBlocks[k].getAttribute('data-summon-block');
+      if (!wantedId) continue;
+      var desired = existingById.get(wantedId);
+      if (!desired) continue;
+      if (existingSection.children[k] !== desired) {
+        existingSection.insertBefore(desired, existingSection.children[k] || null);
+      }
+    }
+
+    return true;
+  }
+
+  function directBlockChildren(section) {
+    var out = [];
+    for (var i = 0; i < section.children.length; i++) {
+      var child = section.children[i];
+      if (child.hasAttribute('data-summon-block')) out.push(child);
+    }
+    return out;
   }
 
   function rerunScripts(scope) {

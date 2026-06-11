@@ -2,6 +2,18 @@ import type { ContractIssue } from './contracts.js';
 import type { ProtocolLine } from './protocol.js';
 import type { RepairFeedbackMetaValue } from './protocol-hardener.js';
 
+export interface StreamGraphBlock {
+  id: string;
+  declared: boolean;
+  present: boolean;
+  revision: number;
+  bytes: number;
+  firstDeclaredLine?: number;
+  firstSeenLine?: number;
+  lastUpdatedLine?: number;
+  lastIssue?: ContractIssue;
+}
+
 export interface StreamGraphSection {
   id: string;
   declared: boolean;
@@ -12,6 +24,10 @@ export interface StreamGraphSection {
   firstSeenLine?: number;
   lastUpdatedLine?: number;
   lastIssue?: ContractIssue;
+  blocks?: StreamGraphBlock[];
+  declaredBlockCount?: number;
+  presentBlockCount?: number;
+  lastBlockIssue?: ContractIssue;
 }
 
 export interface StreamGraphEdge {
@@ -48,6 +64,12 @@ const SKIPPED_ISSUE_CODES = new Set([
   'invalid-add-path',
   'invalid-section-path',
   'invalid-section-html',
+  'invalid-block-value',
+  'invalid-block-count',
+  'invalid-block-id',
+  'duplicate-block-id',
+  'invalid-block-path',
+  'undeclared-block',
   'layout-disallowed',
   'section-not-targeted',
   'undeclared-section',
@@ -76,8 +98,19 @@ export class StreamGraph {
       return;
     }
 
+    if (line.op === 'set' && line.path.startsWith(SECTION_PREFIX)) {
+      this.applyBlockDeclaration(line.path, line.value);
+      return;
+    }
+
     if (line.op === 'add' && line.path.startsWith(SECTION_PREFIX)) {
-      this.applySection(line.path.slice(SECTION_PREFIX.length), line.html ?? '');
+      const blockTarget = blockTargetFromPath(line.path);
+      if (blockTarget) {
+        this.applyBlock(blockTarget.sectionId, blockTarget.blockId, line.html ?? '');
+        return;
+      }
+      const sectionId = sectionIdFromPath(line.path);
+      if (sectionId) this.applySection(sectionId, line.html ?? '');
       return;
     }
 
@@ -93,6 +126,15 @@ export class StreamGraph {
       this.skippedCount += 1;
     }
 
+    const blockTarget = blockTargetFromPath(issue.path);
+    if (blockTarget) {
+      const section = this.ensureSection(blockTarget.sectionId);
+      section.lastIssue = issue;
+      section.lastBlockIssue = issue;
+      ensureBlock(section, blockTarget.blockId).lastIssue = issue;
+      return;
+    }
+
     const sectionId = sectionIdFromPath(issue.path);
     if (sectionId) {
       this.ensureSection(sectionId).lastIssue = issue;
@@ -104,8 +146,17 @@ export class StreamGraph {
     if (feedback.status === 'skipped') this.skippedCount += 1;
     if (feedback.status === 'repaired') this.repairedCount += 1;
 
-    const sectionId = sectionIdFromPath(feedback.target);
+    const blockTarget = blockTargetFromPath(feedback.target);
     const issue = feedback.issues[0];
+    if (blockTarget && issue) {
+      const section = this.ensureSection(blockTarget.sectionId);
+      section.lastIssue = issue;
+      section.lastBlockIssue = issue;
+      ensureBlock(section, blockTarget.blockId).lastIssue = issue;
+      return;
+    }
+
+    const sectionId = sectionIdFromPath(feedback.target);
     if (sectionId && issue) {
       this.ensureSection(sectionId).lastIssue = issue;
     }
@@ -130,6 +181,11 @@ export class StreamGraph {
         section.firstDeclaredLine ?? 0,
         section.firstSeenLine ?? 0,
         section.lastUpdatedLine ?? 0,
+        ...(section.blocks ?? []).flatMap((block) => [
+          block.firstDeclaredLine ?? 0,
+          block.firstSeenLine ?? 0,
+          block.lastUpdatedLine ?? 0,
+        ]),
       );
     }
     this.skippedCount = snapshot.health.skippedCount;
@@ -176,10 +232,51 @@ export class StreamGraph {
     section.present = true;
     section.revision += 1;
     section.bytes = html.length;
+    section.blocks = undefined;
+    section.declaredBlockCount = undefined;
+    section.presentBlockCount = undefined;
+    section.lastBlockIssue = undefined;
     if (section.firstSeenLine === undefined) {
       section.firstSeenLine = this.lineCount;
     }
     section.lastUpdatedLine = this.lineCount;
+  }
+
+  private applyBlockDeclaration(path: string, value: unknown): void {
+    const sectionId = sectionIdFromPath(path);
+    if (!sectionId) return;
+    const blocks = sectionBlocks(value);
+    if (blocks.length === 0) return;
+    const section = this.ensureSection(sectionId);
+    for (const block of section.blocks ?? []) block.declared = false;
+    for (const id of blocks) {
+      const block = ensureBlock(section, id);
+      block.declared = true;
+      if (block.firstDeclaredLine === undefined) {
+        block.firstDeclaredLine = this.lineCount;
+      }
+    }
+  }
+
+  private applyBlock(sectionId: string, blockId: string, html: string): void {
+    const section = this.ensureSection(sectionId);
+    const block = ensureBlock(section, blockId);
+    section.present = true;
+    section.revision += 1;
+    section.lastUpdatedLine = this.lineCount;
+    if (section.firstSeenLine === undefined) {
+      section.firstSeenLine = this.lineCount;
+    }
+    block.present = true;
+    block.revision += 1;
+    block.bytes = html.length;
+    if (block.firstSeenLine === undefined) {
+      block.firstSeenLine = this.lineCount;
+    }
+    block.lastUpdatedLine = this.lineCount;
+    section.bytes = (section.blocks ?? [])
+      .filter((candidate) => candidate.present)
+      .reduce((sum, candidate) => sum + candidate.bytes, 0);
   }
 
   private applyMeta(line: ProtocolLine & { op: 'meta' }): void {
@@ -187,6 +284,21 @@ export class StreamGraph {
       this.skippedCount += 1;
       const value = line.value as { path?: unknown; code?: unknown; message?: unknown } | undefined;
       const path = typeof value?.path === 'string' ? value.path : undefined;
+      const issue: ContractIssue = {
+        source: 'protocol',
+        severity: 'warn',
+        code: typeof value?.code === 'string' ? value.code : 'protocol-skip',
+        message: typeof value?.message === 'string' ? value.message : 'Protocol line skipped',
+        path,
+      };
+      const blockTarget = blockTargetFromPath(path);
+      if (blockTarget) {
+        const section = this.ensureSection(blockTarget.sectionId);
+        section.lastIssue = issue;
+        section.lastBlockIssue = issue;
+        ensureBlock(section, blockTarget.blockId).lastIssue = issue;
+        return;
+      }
       const sectionId = sectionIdFromPath(path);
       if (sectionId) {
         this.ensureSection(sectionId).lastIssue = {
@@ -293,17 +405,73 @@ function screenSections(value: unknown): string[] {
     : [];
 }
 
+function sectionBlocks(value: unknown): string[] {
+  const obj = value as { blocks?: unknown } | undefined;
+  return Array.isArray(obj?.blocks)
+    ? obj.blocks.filter((block): block is string => typeof block === 'string')
+    : [];
+}
+
 function sectionIdFromPath(path: unknown): string | null {
   if (typeof path !== 'string' || !path.startsWith(SECTION_PREFIX)) return null;
   const id = path.slice(SECTION_PREFIX.length);
+  if (!id || id.includes('/')) return null;
   return id || null;
 }
 
+function blockTargetFromPath(path: unknown): { sectionId: string; blockId: string } | null {
+  if (typeof path !== 'string' || !path.startsWith(SECTION_PREFIX)) return null;
+  const parts = path.slice(SECTION_PREFIX.length).split('/');
+  if (parts.length !== 3 || parts[1] !== 'block') return null;
+  const [sectionId, , blockId] = parts;
+  if (!sectionId || !blockId) return null;
+  return { sectionId, blockId };
+}
+
+function ensureBlock(section: StreamGraphSection, id: string): StreamGraphBlock {
+  section.blocks ??= [];
+  const existing = section.blocks.find((block) => block.id === id);
+  if (existing) return existing;
+  const block: StreamGraphBlock = {
+    id,
+    declared: false,
+    present: false,
+    revision: 0,
+    bytes: 0,
+  };
+  section.blocks.push(block);
+  return block;
+}
+
 function cloneSection(section: StreamGraphSection): StreamGraphSection {
+  const blocks = section.blocks?.map(cloneBlock);
+  const declaredBlockCount = blocks?.filter((block) => block.declared).length;
+  const presentBlockCount = blocks?.filter((block) => block.present).length;
+  const lastBlockIssue = section.lastBlockIssue ?? lastIssueFromBlocks(blocks);
   return {
     ...section,
     ...(section.lastIssue ? { lastIssue: { ...section.lastIssue } } : {}),
+    ...(blocks ? { blocks } : {}),
+    ...(blocks ? { declaredBlockCount: declaredBlockCount ?? 0 } : {}),
+    ...(blocks ? { presentBlockCount: presentBlockCount ?? 0 } : {}),
+    ...(lastBlockIssue ? { lastBlockIssue: { ...lastBlockIssue } } : {}),
   };
+}
+
+function cloneBlock(block: StreamGraphBlock): StreamGraphBlock {
+  return {
+    ...block,
+    ...(block.lastIssue ? { lastIssue: { ...block.lastIssue } } : {}),
+  };
+}
+
+function lastIssueFromBlocks(blocks: StreamGraphBlock[] | undefined): ContractIssue | undefined {
+  if (!blocks) return undefined;
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const issue = blocks[i]?.lastIssue;
+    if (issue) return issue;
+  }
+  return undefined;
 }
 
 function isContractIssue(value: unknown): value is ContractIssue {

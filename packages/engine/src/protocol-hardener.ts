@@ -78,7 +78,18 @@ const STRUCTURAL_SKIP_CODES = new Set([
   'invalid-add-path',
   'invalid-section-path',
   'invalid-section-html',
+  'invalid-block-value',
+  'invalid-block-count',
+  'invalid-block-id',
+  'duplicate-block-id',
+  'invalid-block-path',
+  'undeclared-block',
 ]);
+
+interface BlockSectionState {
+  blockOrder: string[];
+  blockMap: Map<string, string>;
+}
 
 export function createProtocolHardener(options: ProtocolHardenerOptions): ProtocolHardener {
   const layout = options.layout ?? null;
@@ -91,6 +102,7 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
     ? [...options.initialScreenSections]
     : null;
   const syntheticSections: string[] = [];
+  const blockSections = new Map<string, BlockSectionState>();
 
   const processParsedLine = (line: ProtocolLine): ProtocolHardenerResult => {
     if (layout && line.op === 'set' && line.path === '/screen') {
@@ -118,8 +130,8 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       return skipLine(structuralIssue, line, validationIssues);
     }
 
-    if (layout && line.op === 'add') {
-      const sectionId = sectionIdFromPath(line.path);
+    if (layout && (line.op === 'add' || line.op === 'set') && line.path !== '/screen') {
+      const sectionId = sectionIdFromAnyPath(line.path);
       if (sectionId && !layoutSections.has(sectionId)) {
         return skipLine(
           layoutDisallowedIssue(`Section "${sectionId}" is not part of layout "${layout.id}"`, line),
@@ -138,6 +150,14 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
     }
 
     if (line.op === 'set') {
+      return processSetLine(line, validationIssues);
+    }
+
+    return processAddLine(line, validationIssues);
+  };
+
+  const processSetLine = (line: SetLine, validationIssues: ContractIssue[]): ProtocolHardenerResult => {
+    if (line.path === '/screen') {
       const sections = screenSections(line);
       realScreenSections = sections;
       return {
@@ -147,10 +167,6 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       };
     }
 
-    return processAddLine(line, validationIssues);
-  };
-
-  const processAddLine = (line: AddLine, validationIssues: ContractIssue[]): ProtocolHardenerResult => {
     const sectionId = sectionIdFromPath(line.path);
     if (!sectionId) {
       return skipLine(
@@ -166,13 +182,44 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       );
     }
 
-    if (allowedSectionIds && !allowedSectionIds.has(sectionId)) {
+    const targetIssue = issueForUntargetedSection(sectionId, line.path);
+    if (targetIssue) return skipLine(targetIssue, line, validationIssues);
+
+    const declarationIssue = issueForUndeclaredSection(sectionId, line.path, false);
+    if (declarationIssue) return skipLine(declarationIssue, line, validationIssues);
+
+    const blocks = sectionBlocks(line);
+    const current = blockSections.get(sectionId);
+    const nextMap = new Map<string, string>();
+    for (const blockId of blocks) {
+      const existing = current?.blockMap.get(blockId);
+      if (existing !== undefined) nextMap.set(blockId, existing);
+    }
+    blockSections.set(sectionId, {
+      blockOrder: blocks,
+      blockMap: nextMap,
+    });
+    return {
+      outboundLines: [line],
+      acceptedLines: [line],
+      issues: validationIssues,
+    };
+  };
+
+  const processAddLine = (line: AddLine, validationIssues: ContractIssue[]): ProtocolHardenerResult => {
+    const blockTarget = blockTargetFromPath(line.path);
+    if (blockTarget) {
+      return processAddBlockLine(line, blockTarget, validationIssues);
+    }
+
+    const sectionId = sectionIdFromPath(line.path);
+    if (!sectionId) {
       return skipLine(
         contractIssue({
-          source: 'edit',
+          source: 'protocol',
           severity: 'warn',
-          code: 'section-not-targeted',
-          message: `Section "${sectionId}" is not targeted for this edit`,
+          code: 'invalid-section-path',
+          message: `Invalid section path "${line.path}"`,
           path: line.path,
         }),
         line,
@@ -180,19 +227,11 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       );
     }
 
-    if (realScreenSections && !realScreenSections.includes(sectionId)) {
-      return skipLine(
-        contractIssue({
-          source: 'protocol',
-          severity: 'warn',
-          code: 'undeclared-section',
-          message: `Section "${sectionId}" was not declared by the real screen order`,
-          path: line.path,
-        }),
-        line,
-        validationIssues,
-      );
-    }
+    const targetIssue = issueForUntargetedSection(sectionId, line.path);
+    if (targetIssue) return skipLine(targetIssue, line, validationIssues);
+
+    const declarationIssue = issueForUndeclaredSection(sectionId, line.path, true);
+    if (declarationIssue) return skipLine(declarationIssue, line, validationIssues);
 
     if (!layout && !realScreenSections) {
       if (!syntheticSections.includes(sectionId)) {
@@ -219,11 +258,106 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       }
     }
 
+    blockSections.delete(sectionId);
     return {
       outboundLines: [line],
       acceptedLines: [line],
       issues: validationIssues,
     };
+  };
+
+  const processAddBlockLine = (
+    line: AddLine,
+    target: { sectionId: string; blockId: string },
+    validationIssues: ContractIssue[],
+  ): ProtocolHardenerResult => {
+    const targetIssue = issueForUntargetedSection(target.sectionId, line.path);
+    if (targetIssue) return skipLine(targetIssue, line, validationIssues);
+
+    const declarationIssue = issueForUndeclaredSection(target.sectionId, line.path, false);
+    if (declarationIssue) return skipLine(declarationIssue, line, validationIssues);
+
+    const state = blockSections.get(target.sectionId);
+    if (!state || !state.blockOrder.includes(target.blockId)) {
+      return skipLine(
+        contractIssue({
+          source: 'protocol',
+          severity: 'warn',
+          code: 'undeclared-block',
+          message: `Block "${target.blockId}" was not declared by section "${target.sectionId}"`,
+          path: line.path,
+        }),
+        line,
+        validationIssues,
+      );
+    }
+
+    const candidateBlocks = new Map(state.blockMap);
+    candidateBlocks.set(target.blockId, line.html ?? '');
+    const composedHtml = composeBlockSectionHtml(state.blockOrder, candidateBlocks);
+    const composedIssues = validateProtocolLine({
+      op: 'add',
+      path: `/section/${target.sectionId}`,
+      html: composedHtml,
+    }, options.validationContext).map((issue) => ({
+      ...issue,
+      path: line.path,
+    }));
+    const composedBlocker = composedIssues.find(isBlockingIssue);
+    if (composedBlocker) {
+      return {
+        outboundLines: [],
+        acceptedLines: [],
+        issues: normalizeStructuralIssues([...validationIssues, ...composedIssues]),
+        blocked: composedBlocker,
+        repairFeedback: [repairFeedbackForIssue(composedBlocker, line, 'blocked')],
+        rejectedLine: line,
+      };
+    }
+
+    state.blockMap = candidateBlocks;
+    return {
+      outboundLines: [line],
+      acceptedLines: [line],
+      issues: [...validationIssues, ...composedIssues],
+    };
+  };
+
+  const issueForUntargetedSection = (sectionId: string, path: string): ContractIssue | null => {
+    if (!allowedSectionIds || allowedSectionIds.has(sectionId)) return null;
+    return contractIssue({
+      source: 'edit',
+      severity: 'warn',
+      code: 'section-not-targeted',
+      message: `Section "${sectionId}" is not targeted for this edit`,
+      path,
+    });
+  };
+
+  const issueForUndeclaredSection = (
+    sectionId: string,
+    path: string,
+    allowSynthetic: boolean,
+  ): ContractIssue | null => {
+    if (realScreenSections && !realScreenSections.includes(sectionId)) {
+      return contractIssue({
+        source: 'protocol',
+        severity: 'warn',
+        code: 'undeclared-section',
+        message: `Section "${sectionId}" was not declared by the real screen order`,
+        path,
+      });
+    }
+    if (!allowSynthetic && !layout && !realScreenSections) {
+      return contractIssue({
+        source: 'protocol',
+        severity: 'warn',
+        code: 'undeclared-section',
+        message: `Section "${sectionId}" requires a /screen declaration before block fragments`,
+        path,
+      });
+    }
+    return null;
   };
 
   return {
@@ -344,10 +478,45 @@ function screenSections(line: SetLine): string[] {
     : [];
 }
 
+function sectionBlocks(line: SetLine): string[] {
+  const value = line.value as { blocks?: unknown } | undefined;
+  return Array.isArray(value?.blocks)
+    ? value.blocks.filter((block): block is string => typeof block === 'string')
+    : [];
+}
+
 function sectionIdFromPath(path: string): string | null {
   if (!path.startsWith(SECTION_PREFIX)) return null;
   const sectionId = path.slice(SECTION_PREFIX.length);
+  if (sectionId.includes('/')) return null;
   return sectionId.length > 0 ? sectionId : null;
+}
+
+function sectionIdFromAnyPath(path: string): string | null {
+  return sectionIdFromPath(path) ?? blockTargetFromPath(path)?.sectionId ?? null;
+}
+
+function blockTargetFromPath(path: string): { sectionId: string; blockId: string } | null {
+  if (!path.startsWith(SECTION_PREFIX)) return null;
+  const parts = path.slice(SECTION_PREFIX.length).split('/');
+  if (parts.length !== 3 || parts[1] !== 'block') return null;
+  const [sectionId, , blockId] = parts;
+  if (!sectionId || !blockId) return null;
+  return { sectionId, blockId };
+}
+
+function composeBlockSectionHtml(blockOrder: string[], blockMap: Map<string, string>): string {
+  const parts: string[] = [];
+  for (const blockId of blockOrder) {
+    const html = blockMap.get(blockId);
+    if (html === undefined) continue;
+    parts.push(`<div data-summon-block="${escapeAttr(blockId)}">\n${html}\n</div>`);
+  }
+  return parts.join('\n');
+}
+
+function escapeAttr(s: string): string {
+  return s.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;');
 }
 
 function layoutDisallowedIssue(message: string, line: ProtocolLine): ContractIssue {

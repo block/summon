@@ -831,7 +831,7 @@ function promptBlocksToText(blocks: ContractPromptBlock[]): string {
 }
 
 function repairModeSystemText(): string {
-  return '## Repair mode\n\nYou are repairing one blocked Summon section. Return exactly one safe replacement `add /section/<same-id>` JSONL line and nothing else.';
+  return '## Repair mode\n\nYou are repairing one blocked Summon target. Return exactly one safe replacement `add` JSONL line for the same target path and nothing else.';
 }
 
 function extractAnthropicText(content: Anthropic.Message['content']): string {

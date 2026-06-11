@@ -114,6 +114,8 @@ interface ModelOptions {
   effort?: 'low' | 'medium' | 'high';
 }
 
+type FragmentMode = 'section' | 'block-v0';
+
 interface ModelSelectionPayload {
   modelProvider?: string;
   generationModel?: string;
@@ -162,6 +164,7 @@ const directionSel = document.getElementById('direction') as HTMLSelectElement;
 const ghostTargetEl = document.getElementById('ghost-target') as HTMLInputElement;
 const ghostBaseDirectionSel = document.getElementById('ghost-base-direction') as HTMLSelectElement;
 const layoutSel = document.getElementById('layout') as HTMLSelectElement;
+const fragmentUnitSel = document.getElementById('fragment-unit') as HTMLSelectElement;
 const scriptPolicySel = document.getElementById('script-policy') as HTMLSelectElement;
 const tokenPresetSel = document.getElementById('token-preset') as HTMLSelectElement;
 const repairEnabledEl = document.getElementById('repair-enabled') as HTMLInputElement;
@@ -258,6 +261,9 @@ function readModelSelection(): ModelSelectionPayload {
 function readLayout(): SummonLayout | null {
   const layout = layoutPresets.get(layoutSel.value);
   return layout ? { id: layout.id, slots: layout.slots.map((slot) => ({ ...slot })) } : null;
+}
+function readFragmentMode(): FragmentMode {
+  return fragmentUnitSel.value === 'block-v0' ? 'block-v0' : 'section';
 }
 function setMode(m: Mode) {
   const radio = document.querySelector<HTMLInputElement>(`input[name=mode][value="${m}"]`);
@@ -1534,6 +1540,10 @@ layoutSel.addEventListener('change', () => {
   logLine('op-meta', `layout → ${layoutSel.value || 'free'}`);
 });
 
+fragmentUnitSel.addEventListener('change', () => {
+  logLine('op-meta', `fragment unit → ${readFragmentMode()}`);
+});
+
 document.querySelectorAll<HTMLInputElement>('input[name=mode]').forEach((el) => {
   el.addEventListener('change', () => {
     currentMode = readMode();
@@ -1664,6 +1674,11 @@ function applyLineTo(target: SandboxTarget, line: ProtocolLine, context: Surface
     const shape = typeof line.value === 'string' ? line.value : '';
     if (shape) target.onShape?.(shape);
     target.onLog('op-meta', `shape → ${shape || JSON.stringify(line.value)}`);
+    return;
+  }
+  if (line.op === 'meta' && line.path === '/experimental-fragments') {
+    const mode = (line.value as { mode?: unknown } | undefined)?.mode;
+    target.onLog('op-meta', `fragments → ${typeof mode === 'string' ? mode : JSON.stringify(line.value)}`);
     return;
   }
   if (line.op === 'meta' && line.path === '/token-overrides') {
@@ -1814,6 +1829,7 @@ interface StreamOptions {
   modelOptions?: ModelOptions;
   directionId: string | null;
   layout?: SummonLayout | null;
+  fragmentMode?: FragmentMode;
   scriptPolicy?: ScriptPolicy;
   surfacePolicy?: SurfacePolicy;
   surfacePlan?: SurfacePlan;
@@ -1871,6 +1887,7 @@ async function streamGenerationInto(target: SandboxTarget, opts: StreamOptions):
       ...(target.components ? { components: target.components } : {}),
       surfaceCeiling: demoSurfaceCeiling,
       ...(opts.scriptPolicy ? { scriptPolicy: opts.scriptPolicy } : {}),
+      ...(opts.fragmentMode === 'block-v0' && !opts.edit ? { fragmentMode: opts.fragmentMode } : {}),
       ...(opts.surfacePolicy ? { surfacePolicy: opts.surfacePolicy } : {}),
       ...(opts.surfacePlan ? { surfacePlan: opts.surfacePlan } : {}),
       ...(opts.tokenOverrides ? { tokenOverrides: opts.tokenOverrides } : {}),
@@ -2224,6 +2241,7 @@ async function generate(prompt: string) {
       modelOptions: active.modelOptions,
       directionId: currentDirectionId,
       layout: readLayout(),
+      fragmentMode: readFragmentMode(),
       scriptPolicy: active.scriptPolicy,
       ...surfaceRequestFor(active),
       tokenOverrides: active.tokenOverrides,

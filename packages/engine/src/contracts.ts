@@ -139,6 +139,7 @@ export interface SystemContractInput {
   ghostPrompt?: string | null;
   layout?: SummonLayout | null;
   editBlock?: string | null;
+  experimentalPromptBlock?: ContractPromptBlock | null;
   capabilities?: CapabilityPack | null;
   components?: ComponentPack | null;
   scriptPolicy?: ScriptPolicy;
@@ -396,6 +397,10 @@ export function compileSystemContracts(
       text: input.editBlock,
       cache: 'ephemeral',
     });
+  }
+
+  if (input.experimentalPromptBlock) {
+    promptBlocks.push(input.experimentalPromptBlock);
   }
 
   const activeSurfacePlan = input.surfaceContract?.surface.plan ?? input.surfacePlan ?? null;
