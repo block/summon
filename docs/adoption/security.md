@@ -55,8 +55,14 @@ with exact runtime, data, authority, persistence, and script policy for
 validation and diagnostics. Shape describes visual composition; posture
 describes the act; the surface config describes the public host decision.
 
-Generated UI must not emit or widen `/surface-policy` or `/surface-plan`.
-Those meta lines are host-owned diagnostics.
+Summon also derives a `SurfaceContractView` from the compiled policy. It is a
+compact diagnostic and prompt-facing view of the selected policy, narrowed host
+tools/resources, narrowed trusted components, optional host layout slots, and
+compile issues. It does not grant authority and it does not replace validators
+or the `PolicyEngine`.
+
+Generated UI must not emit or widen `/surface-policy`, `/surface-plan`, or
+`/surface-contract`. Those meta lines are host-owned diagnostics.
 
 ## Trusted Host Components
 
