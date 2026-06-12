@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
 import { SectionAccumulator } from '@anarchitecture/summon/engine';
+import { Button, panelClass } from '../../../components/ui.js';
+import { cn } from '../../../lib/cn.js';
 import { createScopedDemoRegistry } from '../../../showcase.js';
 import { childCapabilityNames } from '../constants.js';
 import type { ChildSurfaceModel } from '../types.js';
@@ -66,16 +68,17 @@ export function ChildSurface({
   }, [child, contract.pack]);
 
   return (
-    <section className="child-pane">
-      <header>
-        <span className="child-title">{child.title ?? 'Summoned'}</span>
-        <span className="child-prompt" title={child.prompt}>{child.prompt}</span>
-        <span className="child-status">{status}</span>
-        <button type="button" className="child-close" aria-label="Close summoned UI" onClick={onClose}>x</button>
+    <section className={cn(panelClass, 'overflow-hidden')}>
+      <header className="flex items-center gap-3 border-b border-line px-3.5 py-2.5 text-[13px] text-ink-soft">
+        <span className="font-semibold text-ink">{child.title ?? 'Summoned'}</span>
+        <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-ink-muted" title={child.prompt}>{child.prompt}</span>
+        <span className="font-mono text-[11px] text-ink-muted">{status}</span>
+        <Button type="button" variant="ghost" size="icon-xs" aria-label="Close summoned UI" onClick={onClose}>x</Button>
       </header>
       <SummonSurface
         ref={surfaceRef}
         title={`Summoned: ${child.title ?? child.prompt.slice(0, 40)}`}
+        className="block h-[480px] w-full border-0 bg-black"
         html=""
         tokensSource={child.tokensSource}
         capabilityRegistry={registry}

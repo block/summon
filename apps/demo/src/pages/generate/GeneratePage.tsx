@@ -11,7 +11,9 @@ import {
 import type { ApprovalDecision, ApprovalRequest } from '@anarchitecture/summon';
 import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
-import { AppNav, PageHeader } from '../../components/chrome.js';
+import { AppNav } from '../../components/chrome.js';
+import { pageWidthClass } from '../../components/ui.js';
+import { cn } from '../../lib/cn.js';
 import {
   createGhostShowcaseScenario,
   createScopedDemoRegistry,
@@ -562,13 +564,15 @@ export function GeneratePage() {
   return (
     <>
       <AppNav active="generate" />
-      <PageHeader
-        title="Generate"
-        lede="Scenario-led generative UI workbench"
-        className="generate-header"
-      />
+      <div className="sr-only">
+        <h1>Generate</h1>
+        <p>Scenario-led generative UI workbench</p>
+      </div>
 
-      <div className="generate-shell">
+      <div className={cn(
+        pageWidthClass,
+        'grid grid-cols-[minmax(210px,260px)_minmax(0,1fr)_minmax(260px,320px)] items-start gap-[clamp(24px,3vw,52px)] max-[1180px]:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] max-[820px]:grid-cols-1 max-[820px]:gap-6',
+      )}>
         <ScenarioRail
           groupedScenarios={groupedScenarios}
           selectedScenario={selectedScenario}

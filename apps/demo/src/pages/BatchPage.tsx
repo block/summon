@@ -8,6 +8,8 @@ import {
 } from '@anarchitecture/summon/engine';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { AppNav, ModeGroup, PageHeader } from '../components/chrome.js';
+import { Button, compactInputClass, compactSelectClass, pageWidthClass, panelClass, statusToneClass, textareaClass } from '../components/ui.js';
+import { cn } from '../lib/cn.js';
 import { createDemoCapabilityRegistry } from '../capabilities.js';
 import { ALL_PROMPTS, sample } from '../prompts.js';
 
@@ -65,9 +67,11 @@ interface TileResult {
 function BatchTile({
   run,
   onComplete,
+  stacked,
 }: {
   run: BatchTileRun;
   onComplete: (id: number, result: TileResult) => void;
+  stacked: boolean;
 }) {
   const surfaceRef = useRef<SummonSurfaceHandle>(null);
   const [status, setStatus] = useState('pending');
@@ -180,29 +184,34 @@ function BatchTile({
   }, [capabilityPack, onComplete, run]);
 
   return (
-    <div className="tile">
-      <div className="tile-header">
-        <div className="tile-prompt">{run.prompt}</div>
-        <div className="tile-meta">
-          <span className={`status ${statusClass}`}>{status}</span>
+    <div className={cn(panelClass, 'flex min-w-0 flex-col')}>
+      <div className="flex flex-col gap-1 border-b border-line bg-surface-muted px-[18px] py-3.5 text-xs leading-normal">
+        <div className="text-[13px] font-medium tracking-normal text-ink">{run.prompt}</div>
+        <div className="flex justify-between gap-2 font-mono text-[11px] text-ink-muted">
+          <span className={statusToneClass(statusClass)}>{status}</span>
           <span>{bytes.toLocaleString()} B</span>
         </div>
-        <div className={['tile-intent', intent ? 'on' : '', intent?.err ? 'err' : ''].filter(Boolean).join(' ')}>
-          {intent?.text}
-        </div>
+        {intent ? (
+          <div className={cn('border-t border-dashed border-line bg-surface px-3.5 py-2 font-mono text-[11px]', intent.err ? 'text-danger' : 'text-good')}>
+            {intent.text}
+          </div>
+        ) : null}
       </div>
-      <div className="tile-body">
+      <div className="relative">
         <SummonSurface
           ref={surfaceRef}
           title={run.prompt}
+          className={cn('block w-full border-0 bg-black', stacked ? 'h-[880px]' : 'h-[760px]')}
           html=""
           tokensSource={run.tokensCss}
           capabilityRegistry={registry}
           grantedCapabilities={validationCapabilities ?? undefined}
         />
-        <div className={['tile-overlay', run.interactivity === 'interactive' && statusClass === 'streaming' ? 'on' : ''].filter(Boolean).join(' ')}>
-          Generating...
-        </div>
+        {run.interactivity === 'interactive' && statusClass === 'streaming' ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/85 text-[13px] font-medium tracking-normal text-ink-soft">
+            Generating...
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -301,10 +310,10 @@ export function BatchPage() {
         lede="Fire N generations in parallel. Same prompt to compare consistency, or a seeded random sample from the curated prompt pool to compare coverage."
         className="batch-header"
       />
-      <div className="controls batch-controls">
-        <label>
+      <div className={cn(pageWidthClass, 'mb-3.5 flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-3.5')}>
+        <label className="flex items-center gap-2 text-[13px] text-ink-soft">
           Direction
-          <select id="direction" value={directionId} onChange={(event) => setDirectionId(event.target.value)}>
+          <select id="direction" className={cn(compactSelectClass, 'min-w-44')} value={directionId} onChange={(event) => setDirectionId(event.target.value)}>
             {directions.length === 0 ? <option value="">Default</option> : null}
             {directions.map((direction) => (
               <option key={direction.id} value={direction.id} title={direction.description}>{direction.name}</option>
@@ -326,23 +335,30 @@ export function BatchPage() {
             setCount((value) => Math.min(value, maxInteractiveTiles));
           }} /><span>Interactive</span></label>
         </ModeGroup>
-        <label>Count <input id="count" type="number" min="1" max={cap} value={count} onChange={(event) => setCount(Number(event.target.value))} /></label>
+        <label className="flex items-center gap-2 text-[13px] text-ink-soft">Count <input id="count" type="number" className={cn(compactInputClass, 'w-16 text-center')} min="1" max={cap} value={count} onChange={(event) => setCount(Number(event.target.value))} /></label>
         {sourceMode === 'random' ? (
-          <label id="seed-wrap">Seed <input id="seed" type="number" className="seed" value={seed} placeholder="auto" onChange={(event) => setSeed(event.target.value)} /></label>
+          <label id="seed-wrap" className="flex items-center gap-2 text-[13px] text-ink-soft">Seed <input id="seed" type="number" className={cn(compactInputClass, 'w-[90px] text-center')} value={seed} placeholder="auto" onChange={(event) => setSeed(event.target.value)} /></label>
         ) : null}
         {sourceMode === 'same' ? (
-          <label id="same-wrap" style={{ flex: '1 1 300px', display: 'flex' }}>
+          <label id="same-wrap" className="flex flex-[1_1_300px] items-center gap-2 text-[13px] text-ink-soft">
             Prompt
-            <textarea id="same-prompt" value={samePrompt} onChange={(event) => setSamePrompt(event.target.value)} placeholder="help me plan a low-key date night for this Friday" />
+            <textarea id="same-prompt" className={cn(textareaClass, 'min-h-10 flex-1 basis-[300px] py-2.5 text-[13px]')} value={samePrompt} onChange={(event) => setSamePrompt(event.target.value)} placeholder="help me plan a low-key date night for this Friday" />
           </label>
         ) : null}
-        <button id="run" type="button" className="btn btn-sm" disabled={running} onClick={runBatch}>Run</button>
-        <button id="stop" type="button" className="btn-secondary btn-sm" disabled={!running} onClick={() => abortRef.current?.abort()}>Stop</button>
+        <Button id="run" type="button" size="sm" disabled={running} onClick={runBatch}>Run</Button>
+        <Button id="stop" type="button" variant="secondary" size="sm" disabled={!running} onClick={() => abortRef.current?.abort()}>Stop</Button>
       </div>
-      <div className={`grid ${layout === 'grid' ? 'layout-grid' : 'layout-stacked'} batch-grid`} id="grid">
-        {runs.map((run) => <BatchTile key={run.id} run={run} onComplete={onComplete} />)}
+      <div
+        className={cn(
+          pageWidthClass,
+          'grid gap-7',
+          layout === 'grid' ? 'grid-cols-2 max-[820px]:grid-cols-1' : 'grid-cols-[minmax(0,1100px)] justify-center',
+        )}
+        id="grid"
+      >
+        {runs.map((run) => <BatchTile key={run.id} run={run} stacked={layout === 'stacked'} onComplete={onComplete} />)}
       </div>
-      <div className="summary batch-summary" id="summary">{summary}</div>
+      <div className={cn(pageWidthClass, 'mt-3.5 rounded-card border border-line bg-surface-muted px-[18px] py-3 text-[13px] text-ink-soft')} id="summary">{summary}</div>
     </>
   );
 }

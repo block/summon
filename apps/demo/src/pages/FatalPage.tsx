@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import bootstrapSource from '@anarchitecture/summon/bootstrap.js?raw';
 import tokensSource from '@anarchitecture/summon/tokens.css?raw';
-import { AppNav, Pane } from '../components/chrome.js';
+import { AppNav, PageHeader, Pane } from '../components/chrome.js';
+import { cn } from '../lib/cn.js';
+import { logToneClass, pageWidthClass } from '../components/ui.js';
 
 const CSP = [
   "default-src 'none'",
@@ -98,26 +100,26 @@ function FatalCase({
   }, [expect, sandboxId]);
 
   return (
-    <div className="case">
-      <h2>{title}</h2>
-      <p>{description}</p>
-      <div className="layout cols-2">
+    <section className={cn(pageWidthClass, 'mb-8 rounded-card p-5')}>
+      <h2 className="m-0 mb-1 text-[clamp(18px,1.6vw,22px)] font-semibold leading-[1.15] tracking-normal text-ink">{title}</h2>
+      <p className="m-0 mb-3.5 max-w-[72ch] text-[13px] text-ink-soft">{description}</p>
+      <div className="grid grid-cols-2 gap-5 max-[820px]:grid-cols-1">
         <Pane title="Sandbox iframe">
           <iframe
             ref={iframeRef}
             id={`${id}-frame`}
-            className="h-200"
+            className="h-[200px]"
             title={id === 'case-a' ? 'control' : 'misconfigured'}
             sandbox={sandbox}
           />
         </Pane>
         <Pane title="Result">
-          <div id={`${id}-result`} className="results">
-            <div className={result.kind}>{result.text}</div>
+          <div id={`${id}-result`} className="px-[18px] py-3.5 font-mono text-xs leading-[1.7]">
+            <div className={logToneClass(result.kind)}>{result.text}</div>
           </div>
         </Pane>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -125,11 +127,10 @@ export function FatalPage() {
   return (
     <>
       <AppNav />
-      <h1 className="page-title">Bootstrap self-test</h1>
-      <p className="lede">
-        Drives bootstrap into a deliberately misconfigured sandbox. Bootstrap&apos;s startup self-test should detect the
-        regression and post SUMMON_FATAL instead of SUMMON_READY.
-      </p>
+      <PageHeader
+        title="Bootstrap self-test"
+        lede="Drives bootstrap into a deliberately misconfigured sandbox. Bootstrap's startup self-test should detect the regression and post SUMMON_FATAL instead of SUMMON_READY."
+      />
 
       <FatalCase
         id="case-a"

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
-import { AppNav, LogView, Pane } from '../components/chrome.js';
+import { AppNav, LogView, PageHeader, Pane } from '../components/chrome.js';
+import { cn } from '../lib/cn.js';
+import { logToneClass, pageWidthClass } from '../components/ui.js';
 import { STRICT_DEMO_BODY_HTML } from '../strict-demo-artifact.js';
 
 interface StrictBounds {
@@ -145,18 +147,22 @@ export function StrictPage() {
   return (
     <>
       <AppNav />
-      <h1 className="page-title">Strict tier - host-owned card input</h1>
-      <p className="lede">
-        Outer sandbox draws the form layout but does <em>not</em> render the card field. It reserves a placeholder,
-        emits <code>mount_strict_input</code> with bounds, and the host overlays a trusted input on top. Outer never sees
-        the digits - only a tokenized result.
-      </p>
-      <div className="layout cols-3-2">
+      <PageHeader
+        title="Strict tier - host-owned card input"
+        lede={(
+          <>
+            Outer sandbox draws the form layout but does <em>not</em> render the card field. It reserves a placeholder,
+            emits <code className="rounded-control bg-surface-muted px-1.5 py-px font-mono text-[0.92em]">mount_strict_input</code> with bounds,
+            and the host overlays a trusted input on top. Outer never sees the digits - only a tokenized result.
+          </>
+        )}
+      />
+      <div className={cn(pageWidthClass, 'grid grid-cols-[1.4fr_1fr] gap-5 max-[820px]:grid-cols-1')}>
         <Pane title="Sandbox iframe (overlay sits on top)">
           <SummonSurface
             ref={surfaceRef}
             id="sandbox"
-            className="h-540"
+            className="h-[540px]"
             title="Summon strict-tier demo"
             html={STRICT_DEMO_BODY_HTML}
             artifactIntents={strictIntents}
@@ -167,8 +173,8 @@ export function StrictPage() {
           />
         </Pane>
         <Pane title="Host bridge log">
-          <LogView id="log" className="h-540">
-            {logs.map((log, index) => <div key={index} className={log.cls}>{log.text}</div>)}
+          <LogView id="log" className="max-h-[540px]">
+            {logs.map((log, index) => <div key={index} className={logToneClass(log.cls)}>{log.text}</div>)}
           </LogView>
         </Pane>
       </div>

@@ -8,6 +8,8 @@ import type {
 } from '@anarchitecture/summon/engine';
 import tokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { AppNav, LogView, PageHeader } from '../components/chrome.js';
+import { Button, fieldLabelClass, pageWidthClass, panelClass, statusToneClass, textareaClass, logToneClass } from '../components/ui.js';
+import { cn } from '../lib/cn.js';
 
 type FragmentSide = 'section' | 'html-node-v0';
 type PromptComplexity = 'simple' | 'medium' | 'complex';
@@ -258,26 +260,27 @@ function CompareTargetPane({
   }, [logLine, onDone, run, side]);
 
   return (
-    <section className="compare-pane" data-fragment-side={side}>
-      <header>
+    <section className={cn(panelClass, 'min-w-0 overflow-hidden')} data-fragment-side={side}>
+      <header className="flex items-center justify-between gap-3 border-b border-line bg-surface-muted px-3.5 py-3">
         <div>
-          <span>{side === 'section' ? 'Sections' : 'HTML Nodes'}</span>
-          <strong>{side === 'section' ? 'current behavior' : 'experimental html-node-v0'}</strong>
+          <span className="block font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">{side === 'section' ? 'Sections' : 'HTML Nodes'}</span>
+          <strong className="mt-0.5 block text-[11px] font-medium text-ink-muted">{side === 'section' ? 'current behavior' : 'experimental html-node-v0'}</strong>
         </div>
-        <span id={side === 'section' ? 'section-status' : 'block-status'} className="status" data-status={status}>{status}</span>
+        <span id={side === 'section' ? 'section-status' : 'block-status'} className={cn('shrink-0 font-mono text-[11px]', statusToneClass(status))} data-status={status}>{status}</span>
       </header>
       <SummonSurface
         ref={surfaceRef}
         id={side === 'section' ? 'section-frame' : 'block-frame'}
         title={side === 'section' ? 'Section fragment result' : 'HTML node patch result'}
+        className="block h-[min(62vh,620px)] min-h-[460px] w-full border-0 bg-black max-[820px]:min-h-[360px]"
         html={blankDarkArtifact}
         tokensSource={tokensSource}
       />
-      <div className="compare-metrics" id={side === 'section' ? 'section-metrics' : 'block-metrics'}>
+      <div className="border-y border-line px-3.5 py-2 font-mono text-[11px] text-ink-muted" id={side === 'section' ? 'section-metrics' : 'block-metrics'}>
         {metricsText(metrics, side)}
       </div>
-      <LogView id={side === 'section' ? 'section-log' : 'block-log'} className="compare-log">
-        {logs.map((log, index) => <div key={index} className={log.cls}>{log.text}</div>)}
+      <LogView id={side === 'section' ? 'section-log' : 'block-log'} className="h-[190px] bg-surface-muted px-3.5 py-2.5">
+        {logs.map((log, index) => <div key={index} className={logToneClass(log.cls)}>{log.text}</div>)}
       </LogView>
     </section>
   );
@@ -328,39 +331,38 @@ export function FragmentComparePage() {
       <AppNav active="fragment-compare" />
       <PageHeader
         title="Fragment compare"
-        className="compare-header"
-        aside={<div className="compare-summary" id="summary">{summary}</div>}
+        aside={<div className="self-end font-mono text-[11px] text-ink-muted" id="summary">{summary}</div>}
       />
-      <form className="compare-controls" onSubmit={(event) => {
+      <form className={cn(pageWidthClass, 'mb-7 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6 max-[820px]:grid-cols-1')} onSubmit={(event) => {
         event.preventDefault();
         runBoth();
       }}>
-        <section className="compare-presets" aria-labelledby="prompt-presets-label">
-          <div className="compare-presets-header">
-            <span id="prompt-presets-label" className="field-label">Sample prompt matrix</span>
-            <span className="compare-presets-note">Rows are Summon use cases. Columns are complexity.</span>
+        <section className="col-span-full grid gap-2.5" aria-labelledby="prompt-presets-label">
+          <div className="flex items-center justify-between gap-3 max-[820px]:block">
+            <span id="prompt-presets-label" className={fieldLabelClass}>Sample prompt matrix</span>
+            <span className="text-xs text-ink-muted max-[820px]:mt-1 max-[820px]:block">Rows are Summon use cases. Columns are complexity.</span>
           </div>
-          <div id="prompt-preset-matrix" className="compare-preset-matrix">
-            <div className="compare-preset-corner">Use case</div>
+          <div id="prompt-preset-matrix" className="grid grid-cols-[minmax(150px,0.75fr)_repeat(3,minmax(0,1fr))] items-stretch gap-3 max-[820px]:grid-cols-1">
+            <div className="flex min-h-7 items-center text-xs font-bold uppercase tracking-normal text-ink-muted max-[820px]:hidden">Use case</div>
             {promptComplexities.map((complexity) => (
-              <div key={complexity.id} className="compare-preset-column">{complexity.label}</div>
+              <div key={complexity.id} className="flex min-h-7 items-center text-xs font-bold uppercase tracking-normal text-ink-muted max-[820px]:hidden">{complexity.label}</div>
             ))}
             {promptUseCases.map((useCase) => (
               <PromptPresetRow key={useCase.id} useCase={useCase} activePresetId={activePresetId} onPreset={updatePrompt} />
             ))}
           </div>
         </section>
-        <label className="compare-prompt">
-          <span className="field-label">Prompt</span>
-          <textarea id="prompt" value={prompt} onChange={(event) => updatePrompt(event.target.value)} />
+        <label>
+          <span className={fieldLabelClass}>Prompt</span>
+          <textarea id="prompt" className={cn(textareaClass, 'min-h-28 w-full')} value={prompt} onChange={(event) => updatePrompt(event.target.value)} />
         </label>
-        <div className="compare-actions">
-          <button id="run" type="submit" className="btn btn-sm" disabled={running}>Run both</button>
-          <button id="stop" type="button" className="btn-secondary btn-sm" disabled={!running} onClick={() => abortRef.current?.abort()}>Stop</button>
+        <div className="flex gap-2">
+          <Button id="run" type="submit" size="sm" disabled={running}>Run both</Button>
+          <Button id="stop" type="button" variant="secondary" size="sm" disabled={!running} onClick={() => abortRef.current?.abort()}>Stop</Button>
         </div>
       </form>
 
-      <main className="compare-grid" aria-label="Fragment comparison">
+      <main className={cn(pageWidthClass, 'grid grid-cols-2 gap-7 max-[820px]:grid-cols-1')} aria-label="Fragment comparison">
         <CompareTargetPane side="section" run={run} onDone={onDone} />
         <CompareTargetPane side="html-node-v0" run={run} onDone={onDone} />
       </main>
@@ -379,9 +381,9 @@ function PromptPresetRow({
 }) {
   return (
     <>
-      <div className="compare-preset-usecase">
-        <span className="compare-preset-usecase-label">{useCase.label}</span>
-        <span className="compare-preset-usecase-desc">{useCase.description}</span>
+      <div className="min-w-0 rounded-card border border-transparent bg-transparent p-3 max-[820px]:mt-1.5">
+        <span className="mb-1 block text-[13px] font-bold leading-tight text-ink">{useCase.label}</span>
+        <span className="block text-xs leading-[1.35] text-ink-muted">{useCase.description}</span>
       </div>
       {promptComplexities.map((complexity) => {
         const preset = promptPresets.find(
@@ -392,15 +394,18 @@ function PromptPresetRow({
           <button
             key={preset.id}
             type="button"
-            className="compare-preset-button"
+            className={cn(
+              'min-h-[82px] min-w-0 rounded-card border border-transparent bg-transparent p-3 text-left [font:inherit] tracking-normal text-ink transition-colors hover:bg-transparent',
+              preset.id === activePresetId && 'border-line-strong bg-surface',
+            )}
             data-preset-id={preset.id}
             data-complexity={complexity.id}
             data-active={preset.id === activePresetId ? 'true' : undefined}
             aria-label={`${useCase.label}, ${complexity.label}: ${preset.title}`}
             onClick={() => onPreset(preset.prompt)}
           >
-            <span className="compare-preset-title">{preset.title}</span>
-            <span className="compare-preset-preview">{preset.prompt}</span>
+            <span className="mb-1 block text-[13px] font-bold leading-tight text-ink">{preset.title}</span>
+            <span className="line-clamp-3 block overflow-hidden text-xs leading-[1.35] text-ink-muted">{preset.prompt}</span>
           </button>
         );
       })}

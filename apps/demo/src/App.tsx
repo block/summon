@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { cn } from './lib/cn.js';
 import { LandingPage } from './pages/LandingPage.js';
 
 const AdversarialPage = lazy(() => import('./pages/AdversarialPage.js').then((module) => ({ default: module.AdversarialPage })));
@@ -11,19 +12,14 @@ const StrictPage = lazy(() => import('./pages/StrictPage.js').then((module) => (
 
 export function App() {
   const { pathname } = useLocation();
-  const className = pathname === '/'
-    ? 'landing'
-    : [
-        'dev-page',
-        pathname === '/generate' ? 'generate-page' : '',
-        pathname === '/batch' ? 'batch-page' : '',
-        pathname === '/fragment-compare' ? 'fragment-compare-page' : '',
-        pathname === '/strict' || pathname === '/fatal' || pathname === '/adversarial' ? 'utility-page' : '',
-      ].filter(Boolean).join(' ');
+  const isLanding = pathname === '/';
 
   return (
-    <div className={`app-shell ${className}`}>
-      <Suspense fallback={<div className="route-loading">Loading...</div>}>
+    <div className={cn(
+      'min-h-screen bg-surface text-ink',
+      isLanding ? 'flex flex-col' : 'px-10 pb-[72px] pt-12 max-[820px]:px-4 max-[820px]:pb-14 max-[820px]:pt-7',
+    )}>
+      <Suspense fallback={<div className="mx-auto w-[min(100%,var(--dev-page-width))] text-ink-soft">Loading...</div>}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/generate" element={<GeneratePage />} />

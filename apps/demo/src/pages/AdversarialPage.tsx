@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { SummonSurface } from '@anarchitecture/summon-react';
-import { AppNav, LogView, Pane } from '../components/chrome.js';
+import { AppNav, LogView, PageHeader, Pane } from '../components/chrome.js';
+import { cn } from '../lib/cn.js';
+import { logToneClass, pageWidthClass } from '../components/ui.js';
 import { ADVERSARIAL_BODY_HTML } from '../adversarial-artifact.js';
 
 type Report = { test: string; status: 'blocked' | 'allowed' | 'info'; detail: string };
@@ -67,13 +69,15 @@ export function AdversarialPage() {
   return (
     <>
       <AppNav />
-      <h1 className="page-title">Phase 1 adversarial harness</h1>
-      <p className="lede">Loads a sandbox with a deliberately malicious artifact. Each attempt that fails is a win.</p>
-      <div className="layout cols-2">
+      <PageHeader
+        title="Phase 1 adversarial harness"
+        lede="Loads a sandbox with a deliberately malicious artifact. Each attempt that fails is a win."
+      />
+      <div className={cn(pageWidthClass, 'grid grid-cols-2 gap-5 max-[820px]:grid-cols-1')}>
         <Pane title="Sandbox iframe">
           <SummonSurface
             id="sandbox"
-            className="h-320"
+            className="h-[320px]"
             title="Summon sandbox"
             html={ADVERSARIAL_BODY_HTML}
             artifactIntents={artifactIntents}
@@ -83,25 +87,25 @@ export function AdversarialPage() {
           />
         </Pane>
         <Pane title="Test results">
-          <LogView id="results" className="h-320">
+          <LogView id="results" className="max-h-[320px]">
             {visibleReports.map((report, index) => {
               const verdict = judge(report, rejections);
               const cls = verdict === 'pass' ? 'pass' : verdict === 'fail' ? 'fail' : 'info';
               const mark = verdict === 'pass' ? '✓' : verdict === 'fail' ? '✗' : '·';
               const extra = expectedHostRejection.has(report.test) ? ' (host-rejected)' : '';
               return (
-                <div key={`${report.test}-${index}`} className={cls}>
+                <div key={`${report.test}-${index}`} className={logToneClass(cls)}>
                   {mark} {report.test} - {report.status}{extra}{report.detail ? `: ${report.detail}` : ''}
                 </div>
               );
             })}
             {rejections.length > 0 ? (
               <>
-                <div className="info adversarial-rejection-heading">Host-side rejections:</div>
+                <div className={logToneClass('info')}>Host-side rejections:</div>
                 {rejections.map((rejection, index) => {
                   const raw = rejection.raw as { intent?: string };
                   return (
-                    <div key={index} className="info">
+                    <div key={index} className={logToneClass('info')}>
                       · {rejection.reason}{raw?.intent ? ` intent="${raw.intent}"` : ''}
                     </div>
                   );
@@ -109,11 +113,11 @@ export function AdversarialPage() {
               </>
             ) : null}
           </LogView>
-          <div className="summary" id="summary">
+          <div className="border-t border-line bg-surface-muted px-[18px] py-3 text-[13px] text-ink-soft" id="summary">
             {done
               ? counts.fail === 0
-                ? <><span className="pass">All {counts.pass} tests passed.</span> Sandbox boundary holding.</>
-                : <><span className="fail">{counts.fail} failed</span>, {counts.pass} passed. Review failures above.</>
+                ? <><span className={logToneClass('pass')}>All {counts.pass} tests passed.</span> Sandbox boundary holding.</>
+                : <><span className={logToneClass('fail')}>{counts.fail} failed</span>, {counts.pass} passed. Review failures above.</>
               : `${counts.pass + counts.fail} results in, running...`}
           </div>
         </Pane>
