@@ -40,7 +40,7 @@ function jsonl(lines: any[]): string {
 }
 
 test('adversarial sandbox boundary holds', async ({ page }) => {
-  await page.goto('/adversarial.html');
+  await page.goto('/adversarial');
 
   const summary = page.locator('#summary');
   await expect(summary).toContainText('Sandbox boundary holding.', { timeout: 30_000 });
@@ -53,7 +53,7 @@ test('adversarial sandbox boundary holds', async ({ page }) => {
 });
 
 test('bootstrap self-test fails closed on unsafe sandbox config', async ({ page }) => {
-  await page.goto('/fatal.html');
+  await page.goto('/fatal');
 
   await expect(page.locator('#case-a-result')).toContainText('SUMMON_READY');
   await expect(page.locator('#case-a-result .fail')).toHaveCount(0);
@@ -65,7 +65,7 @@ test('bootstrap self-test fails closed on unsafe sandbox config', async ({ page 
 });
 
 test('strict input keeps sensitive entry in host overlay', async ({ page }) => {
-  await page.goto('/strict.html');
+  await page.goto('/strict');
 
   const hostInput = page.locator('[data-summon-strict-slot="card_number"] input');
   await expect(hostInput).toBeVisible();
@@ -86,7 +86,7 @@ test('strict input keeps sensitive entry in host overlay', async ({ page }) => {
 test('generate page boots without server credentials', async ({ page }) => {
   const pageErrors = collectPageErrors(page);
 
-  await page.goto('/generate.html');
+  await page.goto('/generate');
 
   await expect(page.locator('#sandbox')).toHaveAttribute('sandbox', 'allow-scripts');
   await expect(page.locator('#go')).toBeEnabled();
@@ -133,12 +133,13 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
   })).toBe(true);
 
   async function patchNode(patch: any) {
-    await page.locator('#sandbox').evaluate((iframe, nextPatch) => {
+    await page.locator('#sandbox').evaluate((iframe, payload) => {
       (iframe as HTMLIFrameElement).contentWindow?.postMessage({
         type: 'SUMMON_NODE_PATCH',
-        patch: nextPatch,
+        sandbox_id: payload.sandboxId,
+        patch: payload.patch,
       }, '*');
-    }, patch);
+    }, { patch, sandboxId });
   }
 
   await patchNode({
@@ -284,7 +285,7 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
-  await page.goto('/generate.html');
+  await page.goto('/generate');
   await page.locator('#scenario').selectOption('host-resource-search');
   await page.locator('#go').click();
   await expect(page.locator('#iframe-status')).toContainText('done');
@@ -313,7 +314,7 @@ test('batch page brokers each generation request', async ({ page }) => {
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
-  await page.goto('/batch.html');
+  await page.goto('/batch');
   await page.locator('#count').fill('1');
   await page.locator('#run').click();
 
@@ -357,7 +358,7 @@ test('fragment compare launches section and html node streams from the same prom
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
-  await page.goto('/fragment-compare.html');
+  await page.goto('/fragment-compare');
   await expect(page.locator('#prompt-preset-matrix')).toContainText('Operational workflows');
   await expect(page.locator('#prompt-preset-matrix')).toContainText('Complex');
   await page.getByRole('button', { name: /Operational workflows, Complex: Migration Control/ }).click();
@@ -433,7 +434,7 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
-  await page.goto('/generate.html');
+  await page.goto('/generate');
   await expect(page.locator('#scenario')).toContainText('Validation Retry Diagnostics');
   await page.locator('#scenario').selectOption('repair-diagnostics');
   await page.locator('#token-preset').selectOption('accent-blue');
@@ -587,7 +588,7 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
-  await page.goto('/generate.html');
+  await page.goto('/generate');
   await expect(page.locator('#scenario')).toContainText('Ghost steer: checkout');
   await page.locator('#scenario').selectOption('ghost-checkout');
   await page.locator('#go').click();
@@ -670,7 +671,7 @@ test('component islands render in host overlay without widening the sandbox', as
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
-  await page.goto('/generate.html');
+  await page.goto('/generate');
   await page.locator('#scenario').selectOption('component-islands');
   await page.locator('#go').click();
 
@@ -755,7 +756,7 @@ test('component island prop failures do not render host DOM and emit diagnostics
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
 
-  await page.goto('/generate.html');
+  await page.goto('/generate');
   await page.locator('#scenario').selectOption('component-islands');
   await page.locator('#go').click();
 

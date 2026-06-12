@@ -135,6 +135,6 @@ behavior.
   credentials.
 
 The manual containment page remains available at
-`http://localhost:5173/adversarial.html`. WebKit is the V1 browser proxy for
+`http://localhost:5173/adversarial`. WebKit is the V1 browser proxy for
 mobile WebView behavior; native wrapper tests should be added before any mobile
 bridge is exposed.

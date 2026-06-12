@@ -7,7 +7,7 @@ needed.
 
 ## Generation Failed
 
-Open the **Stream** drawer on `/generate.html` and check:
+Open the **Stream** drawer on `/generate` and check:
 
 - `/error` - server-side generation error or blocked-generation message.
 - `/validation-blocked` - a blocking issue stopped generation or validation
@@ -109,7 +109,7 @@ Common fixes:
 1. Run `pnpm test:safety`.
 2. If it fails, inspect the Playwright trace/screenshot.
 3. For manual inspection, run `pnpm dev:all` and open
-   `http://localhost:5173/adversarial.html`.
+   `http://localhost:5173/adversarial`.
 4. Confirm network, storage, parent DOM, and unallowed host tool request checks
    still pass.
 5. Inspect `spawnSandbox` before changing iframe sandbox attributes or CSP.

@@ -4,17 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && vite",
-    "build": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && vite build",
+    "dev": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && pnpm --filter @summon-internal/react build && pnpm --filter @anarchitecture/summon-react build && vite",
+    "build": "pnpm --filter @summon-internal/devtools --filter @summon-internal/engine --filter @summon-internal/host --filter @summon-internal/sandbox-runtime build && pnpm --filter @anarchitecture/summon build && pnpm --filter @summon-internal/react build && pnpm --filter @anarchitecture/summon-react build && vite build",
     "preview": "vite preview",
     "test": "tsx --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@anarchitecture/summon": "workspace:*",
+    "@anarchitecture/summon-react": "workspace:*",
     "@summon-internal/engine": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^7.17.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

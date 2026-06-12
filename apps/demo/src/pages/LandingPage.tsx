@@ -1,8 +1,8 @@
-import '../styles.css';
+import { Link } from 'react-router-dom';
 
 const cards = [
   {
-    href: '/generate.html',
+    href: '/generate',
     title: 'Generate',
     body: 'One prompt. Watch Claude paint a UI section-by-section into a locked-down iframe, live as each line of JSONL arrives.',
     icon: (
@@ -14,7 +14,7 @@ const cards = [
     ),
   },
   {
-    href: '/batch.html',
+    href: '/batch',
     title: 'Batch',
     body: 'Fan out N parallel generations. Same prompt to compare consistency, or a seeded sample of asks to compare coverage.',
     icon: (
@@ -27,7 +27,7 @@ const cards = [
     ),
   },
   {
-    href: '/fragment-compare.html',
+    href: '/fragment-compare',
     title: 'Fragment compare',
     body: 'Run one prompt in two locked iframes at the same time: section stream versus experimental block stream.',
     icon: (
@@ -45,7 +45,7 @@ const cards = [
 
 function LandingCard({ card }: { card: (typeof cards)[number] }) {
   return (
-    <a className="landing-card" href={card.href}>
+    <Link className="landing-card" to={card.href}>
       <div className="landing-card-icon" aria-hidden="true">
         <svg
           viewBox="0 0 24 24"
@@ -78,7 +78,7 @@ function LandingCard({ card }: { card: (typeof cards)[number] }) {
           <path d="m12 5 7 7-7 7" />
         </svg>
       </div>
-    </a>
+    </Link>
   );
 }
 

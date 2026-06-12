@@ -3,7 +3,7 @@ import {
   type ComponentDefinition,
   type ComponentRegistry,
 } from '@anarchitecture/summon';
-import { SectionAccumulator, type ProtocolLine } from '@anarchitecture/summon/engine';
+import { SectionAccumulator, type HtmlNodePatch, type ProtocolLine } from '@anarchitecture/summon/engine';
 import {
   createComponentIslandRegistry,
   spawnSandbox,
@@ -19,7 +19,16 @@ import {
   bootstrapSource as defaultBootstrapSource,
   tokensSource as defaultTokensSource,
 } from '@anarchitecture/summon/assets';
-import { createElement, useEffect, useMemo, useRef, type ComponentType, type CSSProperties } from 'react';
+import {
+  createElement,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  type ComponentType,
+  type CSSProperties,
+} from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
 export interface SummonSurfaceChrome {
@@ -30,24 +39,71 @@ export interface SummonSurfaceProps {
   envelope?: SurfaceEnvelope | null;
   html?: string;
   protocolLines?: ProtocolLine[];
+  artifactIntents?: string[];
+  grantedIntents?: string[];
+  grantedCapabilities?: Artifact['capabilities'];
+  artifactComponents?: Artifact['components'];
   capabilityRegistry?: CapabilityRegistry | null;
   componentRegistry?: ComponentRegistry | null;
   bootstrapSource?: string;
   tokensSource?: string;
   initialState?: Record<string, unknown>;
   chrome?: SummonSurfaceChrome;
+  onIntent?: (intent: string, args: Record<string, unknown>) => void;
+  onIntentRejected?: (reason: string, raw: unknown) => void;
   onEvent?: (event: DevtoolsEvent) => void;
   onFatal?: (reason: string) => void;
   onHandlerError?: (intent: string, error: Error) => void;
   onComponentError?: (error: ComponentIslandError) => void;
+  id?: string;
   title?: string;
   className?: string;
   style?: CSSProperties;
 }
 
-export function SummonSurface(props: SummonSurfaceProps) {
+export interface SummonSurfaceHandle {
+  iframe: HTMLIFrameElement | null;
+  sandboxId: string | null;
+  render(html: string): void;
+  patchNode(patch: HtmlNodePatch): void;
+  pushState(state: Record<string, unknown>): void;
+  setChrome(chrome: SummonSurfaceChrome): void;
+}
+
+export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>(function SummonSurface(
+  props,
+  ref,
+) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const handleRef = useRef<SandboxHandle | null>(null);
+  const lastRenderedHtmlRef = useRef<string | null>(null);
   const events = useMemo(() => createEventStore(), []);
+
+  useImperativeHandle(ref, () => ({
+    get iframe() {
+      return iframeRef.current;
+    },
+    get sandboxId() {
+      return handleRef.current?.sandboxId ?? null;
+    },
+    render(html: string) {
+      lastRenderedHtmlRef.current = html;
+      handleRef.current?.render(html);
+    },
+    patchNode(patch: HtmlNodePatch) {
+      handleRef.current?.patchNode(patch);
+    },
+    pushState(state: Record<string, unknown>) {
+      handleRef.current?.pushState(state);
+    },
+    setChrome(chrome: SummonSurfaceChrome) {
+      handleRef.current?.setChrome(chrome);
+    },
+  }), []);
+
+  useEffect(() => {
+    lastRenderedHtmlRef.current = null;
+  }, [props.envelope, props.html, props.protocolLines]);
 
   useEffect(() => {
     if (!props.onEvent) return;
@@ -64,8 +120,8 @@ export function SummonSurface(props: SummonSurfaceProps) {
     const contract = props.capabilityRegistry?.toContract();
     const componentContract = props.componentRegistry?.toContract();
     const handlers = props.capabilityRegistry?.toPolicyHandlers() ?? {};
-    const grantedIntents = props.capabilityRegistry?.intents() ?? [];
-    const grantedCapabilities = contract?.validationCapabilities ?? [];
+    const grantedIntents = props.grantedIntents ?? props.capabilityRegistry?.intents() ?? [];
+    const grantedCapabilities = props.grantedCapabilities ?? contract?.validationCapabilities ?? [];
     const initialState = {
       ...(contract?.initialState ?? {}),
       ...(props.initialState ?? {}),
@@ -92,9 +148,9 @@ export function SummonSurface(props: SummonSurfaceProps) {
 
     const artifact: Artifact = {
       // Advisory only. spawnSandbox receives host grants below.
-      intents: props.envelope?.grants.intents ?? [],
-      capabilities: props.envelope?.grants.capabilities,
-      components: props.envelope?.grants.components ?? componentContract?.validationComponents,
+      intents: props.artifactIntents ?? props.envelope?.grants.intents ?? grantedIntents,
+      capabilities: props.envelope?.grants.capabilities ?? props.grantedCapabilities,
+      components: props.artifactComponents ?? props.envelope?.grants.components ?? componentContract?.validationComponents,
       html: resolveHtml(props),
       initialState,
     };
@@ -110,11 +166,32 @@ export function SummonSurface(props: SummonSurfaceProps) {
       events,
       onSandboxFatal: props.onFatal,
       onIntent: (intent, args) => {
-        void policy.dispatch(intent, args);
+        props.onIntent?.(intent, args);
+        if (Object.prototype.hasOwnProperty.call(handlers, intent)) {
+          void policy.dispatch(intent, args);
+        }
       },
+      onIntentRejected: props.onIntentRejected,
       onComponents: (components, sandboxId) => {
+        const grantedComponents = components.filter((component) => grantedComponentNames.has(component.name));
+        for (const component of components) {
+          if (grantedComponentNames.has(component.name)) continue;
+          const error = {
+            code: 'unknown-component' as const,
+            sandboxId,
+            componentId: component.id,
+            componentName: component.name,
+            reason: `component "${component.name}" was not granted by the host`,
+          };
+          events.push({
+            kind: 'component-error',
+            at: Date.now(),
+            ...error,
+          });
+          props.onComponentError?.(error);
+        }
         if (!islands && grantedComponentNames.size > 0) {
-          for (const component of components) {
+          for (const component of grantedComponents) {
             if (!grantedComponentNames.has(component.name)) continue;
             const error = {
               code: 'registry-missing' as const,
@@ -132,7 +209,7 @@ export function SummonSurface(props: SummonSurfaceProps) {
           }
           return;
         }
-        islands?.sync(components, {
+        islands?.sync(grantedComponents, {
           sandboxId,
           emitIntent: (intent, args = {}) => {
             void policy.dispatch(intent, args);
@@ -140,13 +217,18 @@ export function SummonSurface(props: SummonSurfaceProps) {
         });
       },
     });
+    handleRef.current = handle;
     if (props.chrome) handle.setChrome(props.chrome);
+    if (lastRenderedHtmlRef.current !== null) {
+      handle.render(lastRenderedHtmlRef.current);
+    }
 
     return () => {
       islands?.destroy();
       islands = null;
       handle?.dispose();
       handle = null;
+      handleRef.current = null;
     };
   }, [
     events,
@@ -155,8 +237,14 @@ export function SummonSurface(props: SummonSurfaceProps) {
     props.chrome,
     props.componentRegistry,
     props.envelope,
+    props.artifactIntents,
+    props.grantedIntents,
+    props.grantedCapabilities,
+    props.artifactComponents,
     props.html,
     props.initialState,
+    props.onIntent,
+    props.onIntentRejected,
     props.onFatal,
     props.onComponentError,
     props.onHandlerError,
@@ -166,11 +254,12 @@ export function SummonSurface(props: SummonSurfaceProps) {
 
   return createElement('iframe', {
     ref: iframeRef,
+    id: props.id,
     title: props.title ?? 'Summon surface',
     className: props.className,
     style: props.style,
   });
-}
+});
 
 export interface ReactComponentDefinition<T = unknown>
   extends Omit<ComponentDefinition<T>, 'render' | 'destroy'> {

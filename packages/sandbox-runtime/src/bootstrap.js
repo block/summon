@@ -372,7 +372,7 @@
       el.hidden = truthy(resolveKey(el.getAttribute('data-summon-hide'), el));
     }
     applyAttrBindings(root);
-    scheduleComponentSync();
+    syncComponents();
   }
 
   function parseArgs(raw) {
@@ -945,10 +945,9 @@
   }
 
   window.addEventListener('message', (event) => {
-    // Only accept messages from our parent window. Other frames or workers ignored.
-    if (event.source !== PARENT) return;
     const data = event.data;
     if (!data || typeof data !== 'object') return;
+    if (data.sandbox_id !== SANDBOX_ID) return;
 
     if (data.type === 'SUMMON_STATE') {
       const next = data.state && typeof data.state === 'object' ? data.state : {};
@@ -976,9 +975,8 @@
 
     if (data.type === 'SUMMON_CHROME') {
       // Mirror host-declared chrome attributes onto <html>. Host-controlled —
-      // we still validate keys/values defensively because the listener is
-      // bound to `window` and other frames' messages can land here even
-      // though the sandbox_id gate filtered the major culprits.
+      // we still validate keys/values defensively because the listener is bound
+      // to `window` and the sandbox_id gate filters ambient frame messages.
       var attrs = data.attrs;
       if (!attrs || typeof attrs !== 'object') return;
       var root = document.documentElement;

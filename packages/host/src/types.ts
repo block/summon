@@ -9,12 +9,20 @@ export type { HtmlNodePatch } from '@summon-internal/engine';
 /** Messages from host into the sandbox iframe. */
 export interface StateMessage {
   type: 'SUMMON_STATE';
+  sandbox_id: string;
   state: Record<string, unknown>;
 }
 
 export interface NodePatchMessage {
   type: 'SUMMON_NODE_PATCH';
+  sandbox_id: string;
   patch: HtmlNodePatch;
+}
+
+export interface RenderMessage {
+  type: 'SUMMON_RENDER';
+  sandbox_id: string;
+  html: string;
 }
 
 /**

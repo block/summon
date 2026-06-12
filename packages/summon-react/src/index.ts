@@ -6,5 +6,6 @@ export type {
   ReactComponentRuntimeContext,
   ReactComponentWithRuntimeDefinition,
   SummonSurfaceChrome,
+  SummonSurfaceHandle,
   SummonSurfaceProps,
 } from '@summon-internal/react';

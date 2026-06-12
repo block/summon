@@ -299,14 +299,14 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     }
     while (pendingStates.length > 0) {
       const state = pendingStates.shift()!;
-      opts.iframe.contentWindow.postMessage({ type: 'SUMMON_STATE', state }, '*');
+      opts.iframe.contentWindow.postMessage({ type: 'SUMMON_STATE', sandbox_id: sandboxId, state }, '*');
     }
     while (pendingDomOps.length > 0) {
       const op = pendingDomOps.shift()!;
       if (op.kind === 'render') {
-        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', html: op.html }, '*');
+        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', sandbox_id: sandboxId, html: op.html }, '*');
       } else {
-        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_NODE_PATCH', patch: op.patch }, '*');
+        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_NODE_PATCH', sandbox_id: sandboxId, patch: op.patch }, '*');
       }
     }
   }

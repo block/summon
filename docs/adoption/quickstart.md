@@ -38,7 +38,7 @@ generation and replay.
 pnpm dev:all
 ```
 
-Open `http://localhost:5173/generate.html`.
+Open `http://localhost:5173/generate`.
 
 The Generate workbench runs showcase prompts through the agent broker by
 default, then keeps maintainer controls visible: stream diagnostics, Devtools,
@@ -85,7 +85,7 @@ pnpm dev:all
 ```
 
 Open `http://localhost:5174` for the adopter-facing gallery preset, or
-`http://localhost:5173/generate.html` for the diagnostic Ghost scenario and
+`http://localhost:5173/generate` for the diagnostic Ghost scenario and
 `Ghost · <id>` direction. Keep **Ghost base** on the bundled **Ghost** direction
 unless you are intentionally testing another token base. **Ghost target** is a
 relative path inside the configured repo root; use `.` for the root package or a
@@ -120,7 +120,7 @@ shaped to exercise the adopter path:
 7. Open **Saved surfaces** and replay the completed surface. It should render
    the same UI while keeping the sandbox boundary intact.
 
-Then open `http://localhost:5173/adversarial.html` and confirm the sandbox
+Then open `http://localhost:5173/adversarial` and confirm the sandbox
 checks pass. This proves the quickstart did not require relaxing the sandbox
 boundary.
 
@@ -140,18 +140,18 @@ rendered and interacted with a surface:
 
 ## Optional Checks
 
-Open `http://localhost:5173/batch.html` to run several prompts through the
+Open `http://localhost:5173/batch` to run several prompts through the
 agent broker against the same host tool ceiling. Use it when changing prompt
 contracts, directions, host tool wiring, visual direction coverage, or
 throughput behavior.
 
-Use the other `/generate.html` scenarios to exercise static summaries,
+Use the other `/generate` scenarios to exercise static summaries,
 declarative forms, host AI calls, GitHub lookup, trusted host components,
 background host work, approval-required publish, scripted interactive mode,
 token overrides, layout constraints, sibling summon, Ghost steering when
 configured, and validation retry diagnostics.
 
-Open `http://localhost:5173/strict.html` to see the trusted host overlay pattern
+Open `http://localhost:5173/strict` to see the trusted host overlay pattern
 for sensitive input. The generated sandbox describes the slot; the host owns the
 real input and pushes only safe state back.
 

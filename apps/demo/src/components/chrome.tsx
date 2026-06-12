@@ -1,23 +1,28 @@
 import type { ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
 
 export interface AppNavProps {
   active?: 'generate' | 'batch' | 'fragment-compare';
 }
 
 const navItems = [
-  { id: 'generate', label: 'Generate', href: '/generate.html' },
-  { id: 'batch', label: 'Batch', href: '/batch.html' },
-  { id: 'fragment-compare', label: 'Fragment compare', href: '/fragment-compare.html' },
+  { id: 'generate', label: 'Generate', href: '/generate' },
+  { id: 'batch', label: 'Batch', href: '/batch' },
+  { id: 'fragment-compare', label: 'Fragment compare', href: '/fragment-compare' },
 ] as const;
 
 export function AppNav({ active }: AppNavProps) {
   return (
     <nav className="summon-nav">
-      <a className="summon-brand" href="/">summon</a>
+      <NavLink className="summon-brand" to="/">summon</NavLink>
       {navItems.map((item) => (
-        <a key={item.id} className={active === item.id ? 'active' : undefined} href={item.href}>
+        <NavLink
+          key={item.id}
+          className={({ isActive }) => (active === item.id || isActive ? 'active' : undefined)}
+          to={item.href}
+        >
           {item.label}
-        </a>
+        </NavLink>
       ))}
     </nav>
   );
@@ -61,55 +66,20 @@ export function Pane({ title, status, children, className }: PaneProps) {
   );
 }
 
-export function LogView({ id, className }: { id: string; className?: string }) {
-  return <div id={id} className={['log', className].filter(Boolean).join(' ')} />;
+export function LogView({
+  id,
+  className,
+  children,
+}: {
+  id?: string;
+  className?: string;
+  children?: ReactNode;
+}) {
+  return <div id={id} className={['log', className].filter(Boolean).join(' ')}>{children}</div>;
 }
 
 export function StatusPill({ id, children }: { id?: string; children: ReactNode }) {
   return <span id={id} className="status">{children}</span>;
-}
-
-export function Field({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: ReactNode;
-  htmlFor?: string;
-  children: ReactNode;
-}) {
-  return (
-    <label htmlFor={htmlFor}>
-      <span className="field-label">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-export function ToolbarButton({
-  id,
-  children,
-  disabled,
-  type = 'button',
-}: {
-  id?: string;
-  children: ReactNode;
-  disabled?: boolean;
-  type?: 'button' | 'submit';
-}) {
-  return <button id={id} type={type} disabled={disabled}>{children}</button>;
-}
-
-export function SandboxFrame({
-  id,
-  title,
-  className,
-}: {
-  id: string;
-  title: string;
-  className?: string;
-}) {
-  return <iframe id={id} className={className} title={title} />;
 }
 
 export function ModeGroup({ title, children }: { title: string; children: ReactNode }) {
