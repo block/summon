@@ -96,6 +96,9 @@
   const subscribers = new Set();
   const mountedIntentKeys = new Set();
   let componentSyncScheduled = false;
+  let componentSyncFallbackTimer = 0;
+  let componentLayoutPollTimer = 0;
+  let componentLayoutSignature = '';
   let componentResizeObserver = null;
   const componentResizeObserved = new Set();
   const SAFE_ATTR_BINDINGS = Object.freeze(['src', 'alt', 'title', 'aria-label', 'value', 'placeholder', 'disabled']);
@@ -384,10 +387,19 @@
   function scheduleComponentSync() {
     if (componentSyncScheduled) return;
     componentSyncScheduled = true;
-    requestAnimationFrame(() => {
+    const run = () => {
+      if (!componentSyncScheduled) return;
       componentSyncScheduled = false;
+      if (componentSyncFallbackTimer) {
+        clearTimeout(componentSyncFallbackTimer);
+        componentSyncFallbackTimer = 0;
+      }
       syncComponents();
-    });
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(run);
+    }
+    componentSyncFallbackTimer = setTimeout(run, 50);
   }
 
   function syncComponents() {
@@ -395,6 +407,7 @@
     if (!root) return;
     const els = Array.from(root.querySelectorAll('[data-summon-component]'));
     const components = [];
+    const layoutParts = [];
     for (const el of els) {
       const name = el.getAttribute('data-summon-component') || '';
       const id = el.getAttribute('data-summon-component-id') || '';
@@ -404,6 +417,7 @@
         ? interpolate(parsed, el)
         : {};
       const rect = el.getBoundingClientRect();
+      layoutParts.push(componentLayoutPart(el, rect));
       components.push({
         id,
         name,
@@ -417,7 +431,9 @@
       });
       if (components.length >= 64) break;
     }
+    componentLayoutSignature = layoutParts.join('|');
     refreshComponentResizeObservers(root, els);
+    updateComponentLayoutPolling(els.length > 0);
     PARENT.postMessage({
       type: 'SUMMON_COMPONENTS',
       sandbox_id: SANDBOX_ID,
@@ -447,6 +463,46 @@
       observer.observe(el);
       componentResizeObserved.add(el);
     }
+  }
+
+  function componentLayoutPart(el, rect) {
+    return [
+      el.getAttribute('data-summon-component-id') || '',
+      el.getAttribute('data-summon-component') || '',
+      rect.left,
+      rect.top,
+      rect.width,
+      rect.height,
+    ].join(':');
+  }
+
+  function readComponentLayoutSignature() {
+    const root = document.getElementById('summon-root');
+    if (!root) return '';
+    const els = Array.from(root.querySelectorAll('[data-summon-component]'));
+    const parts = [];
+    for (const el of els.slice(0, 64)) {
+      parts.push(componentLayoutPart(el, el.getBoundingClientRect()));
+    }
+    return parts.join('|');
+  }
+
+  function updateComponentLayoutPolling(enabled) {
+    if (!enabled) {
+      if (componentLayoutPollTimer) {
+        clearInterval(componentLayoutPollTimer);
+        componentLayoutPollTimer = 0;
+      }
+      componentLayoutSignature = '';
+      return;
+    }
+    if (componentLayoutPollTimer) return;
+    componentLayoutPollTimer = setInterval(() => {
+      const next = readComponentLayoutSignature();
+      if (next === componentLayoutSignature) return;
+      componentLayoutSignature = next;
+      scheduleComponentSync();
+    }, 100);
   }
 
   // Collect named form controls into a flat args object. Multi-step thinking:

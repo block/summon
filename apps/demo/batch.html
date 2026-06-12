@@ -3,56 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Summon — batch testing</title>
-<link rel="stylesheet" href="/summon.css">
+<title>Summon - Batch</title>
 </head>
-<body class="dev-page batch-page">
-<nav class="summon-nav">
-  <a class="summon-brand" href="/">summon</a>
-  <a href="/generate.html">Generate</a>
-  <a class="active" href="/batch.html">Batch</a>
-  <a href="/fragment-compare.html">Fragment compare</a>
-</nav>
-
-<header class="dev-header batch-header">
-  <div>
-    <h1 class="page-title">Batch testing</h1>
-    <p class="lede">Fire N generations in parallel. Same prompt to compare consistency, or a seeded random sample from the curated prompt pool to compare coverage.</p>
-  </div>
-</header>
-
-<div class="controls batch-controls">
-  <label>Direction <select id="direction"></select></label>
-
-  <div class="mode-group" title="Mode">
-    <label><input type="radio" name="mode" value="random" checked><span>Random</span></label>
-    <label><input type="radio" name="mode" value="same"><span>Same</span></label>
-  </div>
-
-  <div class="mode-group" title="Layout">
-    <label><input type="radio" name="layout" value="grid" checked><span>Grid</span></label>
-    <label><input type="radio" name="layout" value="stacked"><span>Stacked</span></label>
-  </div>
-
-  <div class="mode-group" title="Interactivity">
-    <label><input type="radio" name="interactivity" value="static" checked><span>Static</span></label>
-    <label><input type="radio" name="interactivity" value="interactive"><span>Interactive</span></label>
-  </div>
-
-  <label>Count <input type="number" id="count" min="1" max="12" value="4"></label>
-  <label id="seed-wrap">Seed <input type="number" class="seed" id="seed" placeholder="auto"></label>
-  <label id="same-wrap" style="flex:1 1 300px; display:none;">
-    Prompt
-    <textarea id="same-prompt" placeholder="help me plan a low-key date night for this Friday"></textarea>
-  </label>
-
-  <button id="run" type="button" class="btn btn-sm">Run</button>
-  <button id="stop" type="button" class="btn-secondary btn-sm" disabled>Stop</button>
-</div>
-
-<div class="grid layout-grid batch-grid" id="grid"></div>
-<div class="summary batch-summary" id="summary">No run yet.</div>
-
-<script type="module" src="/src/batch-main.ts"></script>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/entries/batch.tsx"></script>
 </body>
 </html>
