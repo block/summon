@@ -162,13 +162,13 @@ export function useSurfaceStream({
     }
     if (line.op === 'meta' && line.path === '/ghost-context') {
       const value = line.value as { product?: unknown; source?: unknown; targetPath?: unknown; layers?: unknown; baseDirectionId?: unknown; styleSource?: unknown } | undefined;
-      const product = typeof value?.product === 'string' ? value.product : 'Ghost';
+      const product = typeof value?.product === 'string' ? value.product : 'Ghost fingerprint';
       const source = typeof value?.source === 'string' ? value.source : 'root';
       const targetPath = typeof value?.targetPath === 'string' ? value.targetPath : '.';
       const layers = Array.isArray(value?.layers) ? value.layers.filter((layer): layer is string => typeof layer === 'string') : [];
       const base = typeof value?.baseDirectionId === 'string' ? value.baseDirectionId : 'none';
       const style = typeof value?.styleSource === 'string' ? value.styleSource : 'unknown';
-      logLine('op-meta', `ghost context -> ${product}; source=${source}; target=${targetPath}; layers=${layers.join(' > ') || '.'}; base=${base}; style=${style}`);
+      logLine('op-meta', `fingerprint context -> ${product}; source=${source}; target=${targetPath}; layers=${layers.join(' > ') || '.'}; token fallback=${base}; style=${style}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/ghost-token-source') {
@@ -182,7 +182,7 @@ export function useSurfaceStream({
       const source = typeof value?.source === 'string' ? value.source : 'unknown';
       const kind = typeof value?.kind === 'string' ? value.kind : 'unknown';
       const base = typeof value?.baseDirectionId === 'string' ? `; base=${value.baseDirectionId}` : '';
-      logLine('op-meta', `ghost tokens -> ${kind} (${source})${base}`);
+      logLine('op-meta', `fingerprint tokens -> ${kind} (${source})${base}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/ghost-review-packet') {
@@ -192,7 +192,7 @@ export function useSurfaceStream({
       const sections = Array.isArray(value?.declaredSections) ? value.declaredSections.filter((section): section is string => typeof section === 'string') : [];
       const blocked = typeof value?.validation?.blocked === 'number' ? value.validation.blocked : 0;
       const warnings = typeof value?.validation?.warnings === 'number' ? value.validation.warnings : 0;
-      logLine('op-meta', `ghost review packet -> base=${base}; style=${style}; sections=${sections.join(', ') || 'none'}; validation=${blocked}/${warnings}`);
+      logLine('op-meta', `fingerprint review packet -> base=${base}; style=${style}; sections=${sections.join(', ') || 'none'}; validation=${blocked}/${warnings}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/validation-summary') {

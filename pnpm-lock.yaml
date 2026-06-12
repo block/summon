@@ -79,8 +79,8 @@ importers:
   apps/server:
     dependencies:
       '@anarchitecture/ghost':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.7.2
+        version: 0.7.2
       '@anarchitecture/summon':
         specifier: workspace:*
         version: link:../../packages/summon
@@ -268,8 +268,8 @@ importers:
 
 packages:
 
-  '@anarchitecture/ghost@0.2.0':
-    resolution: {integrity: sha512-HabLQTrJKe7o3+kP9ntF9MZz7jYPrzKz5r6sQ/G36nB0JC2XH393XqDUt+imRRt87yq+dK4/KqMcDUbM0n8HLQ==}
+  '@anarchitecture/ghost@0.7.2':
+    resolution: {integrity: sha512-KyXvEKGt417rrwXOZ5QdB5ZTzufXxNEO6XAmj+F504A7HXi2w4HfyZ0o2ZNL+01N6oBX4OucEN+h3AuqweLf/A==}
     hasBin: true
 
   '@anthropic-ai/sdk@0.88.0':
@@ -2063,7 +2063,7 @@ packages:
 
 snapshots:
 
-  '@anarchitecture/ghost@0.2.0':
+  '@anarchitecture/ghost@0.7.2':
     dependencies:
       cac: 6.7.14
       jiti: 2.7.0

@@ -12,8 +12,7 @@ import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import type { ActiveContract, Mode } from '../../../showcase.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
-import { defaultGhostBaseDirectionId } from '../surfaceHelpers.js';
-import type { ChildSurfaceModel, DirectionInfo, FragmentMode, LogEntry, StreamOptions, StreamResult } from '../types.js';
+import type { ChildSurfaceModel, FragmentMode, LogEntry, StreamOptions, StreamResult } from '../types.js';
 
 export function useGenerationRuns({
   surfaceRef,
@@ -27,7 +26,6 @@ export function useGenerationRuns({
   directionId,
   ghostTarget,
   ghostBaseDirectionId,
-  directions,
   fragmentMode,
   editPrompt,
   editTargets,
@@ -73,7 +71,6 @@ export function useGenerationRuns({
   directionId: string | null;
   ghostTarget: string;
   ghostBaseDirectionId: string | null;
-  directions: DirectionInfo[];
   fragmentMode: FragmentMode;
   editPrompt: string;
   editTargets: string;
@@ -141,7 +138,7 @@ export function useGenerationRuns({
         active: activeContract,
         directionId,
         ghostTargetPath: ghostTarget.trim() || '.',
-        ghostBaseDirectionId: ghostBaseDirectionId ?? defaultGhostBaseDirectionId(directions),
+        ghostBaseDirectionId,
         layout: readLayout(),
         fragmentMode,
         signal: abort.signal,
@@ -176,7 +173,6 @@ export function useGenerationRuns({
     currentRepairSummary,
     currentValidationSummary,
     directionId,
-    directions,
     fragmentMode,
     ghostBaseDirectionId,
     ghostTarget,
@@ -226,7 +222,7 @@ export function useGenerationRuns({
         },
         directionId,
         ghostTargetPath: ghostTarget.trim() || '.',
-        ghostBaseDirectionId: ghostBaseDirectionId ?? defaultGhostBaseDirectionId(directions),
+        ghostBaseDirectionId,
         layout: readLayout(),
         signal: abort.signal,
         edit: {
@@ -258,7 +254,6 @@ export function useGenerationRuns({
     appendDevEvent,
     artifactRevisionRef,
     directionId,
-    directions,
     editPrompt,
     editTargets,
     ghostBaseDirectionId,

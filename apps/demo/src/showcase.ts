@@ -300,9 +300,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
 export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
   return {
     id: `ghost-${rootId}`,
-    label: `Ghost steer: ${rootId}`,
+    label: `Fingerprint: ${rootId}`,
     prompt:
-      'generate a compact review surface that follows this Ghost memory root and lets me choose an approved direction with host-allowed controls',
+      'generate a review surface that follows this Ghost fingerprint package and lets me choose an approved direction with host-allowed controls',
     mode: 'interactive',
     capabilityNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'review', grants: ['choose'] },

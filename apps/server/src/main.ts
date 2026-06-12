@@ -26,13 +26,11 @@ import { fileURLToPath } from 'node:url';
 import {
   defaultDirectionId,
   loadDirections,
-  PREFERRED_DEFAULT_DIRECTION_ID,
   type Direction,
 } from './directions-loader.js';
 import { registerDemoRoutes } from './demo-routes.js';
 import {
   buildGhostReviewPacket,
-  ghostCapsuleMeta,
   ghostContextMeta,
   ghostTokenSourceMeta,
   parseGhostRequest,
@@ -97,10 +95,10 @@ Rules:
 - Then emit \`add /section/<section-id>/node/<node-id>\` lines. Each node line must include one complete raw HTML element with \`data-summon-node="<node-id>"\` on that root element.
 - Use lowercase kebab-case ids for sections and nodes.
 - Omit \`parent\` to append a node directly under the section wrapper. Set \`parent\` to an earlier node id to append inside that parent node.
-- Emit a root visual container first, then useful child nodes such as headers, metric cards, rows, list items, action groups, chart shells, status panels, and notes.
-- Emit useful shells early. When a card, panel, list, or table shell will receive child node patches, include a child slot inside it, such as \`<div data-summon-node-children></div>\`, and set those child lines' \`parent\` to that shell's node id.
+- Emit a root composition container first, then useful child nodes such as headers, table sections, rows, list items, timeline steps, action groups, chart shells, callouts, notes, and metric blocks when appropriate.
+- Emit useful shells early. When a purposeful container, list, table, timeline, or chart shell will receive child node patches, include a child slot inside it, such as \`<div data-summon-node-children></div>\`, and set those child lines' \`parent\` to that shell's node id.
 - Shell slots may include 1-3 direct lightweight placeholders with \`data-summon-skeleton\`; later real child node patches will replace those placeholders automatically.
-- Do not emit content that visually belongs inside a card or panel as a sibling of that card or the root container.
+- Do not orphan content that belongs inside a declared parent container. Choose parent containers because the layout needs them, not as decoration.
 - Each node patch should usually be 500-2000 bytes and visually meaningful immediately. Prefer many small useful patches over one large section.
 - Do not put \`data-summon-node\` on nested elements inside a node patch. Child nodes must arrive as their own later protocol lines.
 - Do not emit scripts, inline event handlers, external URLs, or whole-section \`add /section/<section-id>\` lines unless you cannot satisfy the node-patch contract.`;
@@ -406,9 +404,7 @@ app.get('/api/ghost-roots', (_req, res) => {
     publicGhostRoots(ghostRoots).map(({ id }) => ({
       id,
       defaultTargetPath: '.',
-      defaultBaseDirectionId: directionsById.has(PREFERRED_DEFAULT_DIRECTION_ID)
-        ? PREFERRED_DEFAULT_DIRECTION_ID
-        : DEFAULT_DIRECTION_ID ?? null,
+      defaultBaseDirectionId: null,
     })),
   );
 });
@@ -442,19 +438,19 @@ app.post('/api/generate', async (req, res) => {
     req.body?.tokenOverrides !== undefined &&
     req.body.tokenOverrides !== null
   ) {
-    res.status(400).json({ error: 'tokenOverrides are not supported with Ghost product memory' });
+    res.status(400).json({ error: 'tokenOverrides are not supported with Ghost fingerprints' });
     return;
   }
 
   const requestedGhostBaseDirectionId =
     ghostRequest
-      ? (ghostRequest.baseDirectionId ?? (directionsById.has(PREFERRED_DEFAULT_DIRECTION_ID) ? PREFERRED_DEFAULT_DIRECTION_ID : null))
+      ? ghostRequest.baseDirectionId
       : null;
   const ghostBaseDirection = requestedGhostBaseDirectionId
     ? directionsById.get(requestedGhostBaseDirectionId)
     : undefined;
   if (ghostRequest && requestedGhostBaseDirectionId && !ghostBaseDirection) {
-    res.status(400).json({ error: `unknown Ghost base direction "${requestedGhostBaseDirectionId}"` });
+    res.status(400).json({ error: `unknown fingerprint token fallback direction "${requestedGhostBaseDirectionId}"` });
     return;
   }
 
@@ -475,11 +471,11 @@ app.post('/api/generate', async (req, res) => {
   }
 
   const directionId = ghostContext
-    ? ghostContext.baseDirectionId ?? undefined
+    ? undefined
     : ((typeof req.body?.directionId === 'string' ? req.body.directionId : undefined) ??
       DEFAULT_DIRECTION_ID);
   const direction = ghostContext
-    ? ghostBaseDirection
+    ? undefined
     : directionId
       ? directionsById.get(directionId)
       : undefined;
@@ -535,7 +531,7 @@ app.post('/api/generate', async (req, res) => {
   // are no exemplars to filter. Also skipped when the host supplies a layout:
   // the layout is the composition anchor, and exemplars become visual-only.
   let shape: ResponseShape | null = null;
-  if (!layout && direction && process.env.SUMMON_INFER_SHAPE !== '0') {
+  if (!layout && (direction || ghostContext) && process.env.SUMMON_INFER_SHAPE !== '0') {
     shape = await inferShape({
       completeText: (request) => modelProvider.completeText(request, modelSelection),
     }, prompt);
@@ -651,13 +647,6 @@ app.post('/api/generate', async (req, res) => {
       path: '/ghost-token-source',
       value: ghostTokenSourceMeta(ghostContext.tokenSource),
     });
-    if (ghostContext.source === 'root' && ghostContext.capsule) {
-      preludeLines.push({
-        op: 'meta',
-        path: '/ghost-capsule',
-        value: ghostCapsuleMeta(ghostContext.capsule),
-      });
-    }
   }
   // Emit the mode-upgrade signal before agent diagnostics. The client respawns
   // its sandbox into interactive mode in response, so this should land before
@@ -743,6 +732,7 @@ app.post('/api/generate', async (req, res) => {
             }
           : null,
         ghost: ghostContext ?? null,
+        activeTokensCss: ghostContext?.tokenSource.css ?? null,
         layout,
         edit,
         experimentalPromptBlock: fragmentMode !== 'section' && !edit
@@ -765,7 +755,6 @@ app.post('/api/generate', async (req, res) => {
         scriptPolicy: hasSurfacePolicy || agentPlan ? undefined : scriptPolicy,
         surfacePlan: hasSurfacePolicy || agentPlan ? null : surfacePlan,
         tokenOverrides: overrides.applied,
-        activeTokensCss: ghostContext?.tokenSource.css ?? direction?.tokensCss ?? null,
         preludeLines,
         repair,
         modelProvider: (request) => modelProvider.streamSurfaceGeneration(request, (nextUsage) => {

@@ -37,7 +37,6 @@ import { fallbackCatalog } from './modelProviders.js';
 import { loadSavedSurfaces } from './savedSurfaces.js';
 import {
   buildContractRows,
-  defaultGhostBaseDirectionId,
   describeScenario,
   ghostRootFromSelection,
   groupScenarios,
@@ -166,16 +165,12 @@ export function GeneratePage() {
     setModelEffort(selectedProvider.controls?.effort?.default ?? 'medium');
   }, [selectedProvider]);
 
-  useEffect(() => {
-    if (ghostBaseDirectionId || directions.length === 0) return;
-    setGhostBaseDirectionId(defaultGhostBaseDirectionId(directions));
-  }, [directions, ghostBaseDirectionId]);
-
   const tokensFor = useCallback((id: string | null): string => {
     if (!id) return defaultTokensSource;
     if (ghostRootFromSelection(id)) {
-      const base = ghostBaseDirectionId ?? defaultGhostBaseDirectionId(directions);
-      return directions.find((direction) => direction.id === base)?.tokensCss ?? defaultTokensSource;
+      return ghostBaseDirectionId
+        ? directions.find((direction) => direction.id === ghostBaseDirectionId)?.tokensCss ?? defaultTokensSource
+        : defaultTokensSource;
     }
     return directions.find((direction) => direction.id === id)?.tokensCss ?? defaultTokensSource;
   }, [directions, ghostBaseDirectionId]);
@@ -400,7 +395,7 @@ export function GeneratePage() {
       const rootId = scenario.id.slice('ghost-'.length);
       const root = ghostRoots.find((item) => item.id === rootId);
       setGhostTarget(root?.defaultTargetPath || '.');
-      setGhostBaseDirectionId(root?.defaultBaseDirectionId ?? defaultGhostBaseDirectionId(directions));
+      setGhostBaseDirectionId(root?.defaultBaseDirectionId ?? null);
     }
     resetForScenarioChange();
     logLine('op-meta', `scenario -> ${scenario.label}`);
@@ -486,7 +481,6 @@ export function GeneratePage() {
     directionId,
     ghostTarget,
     ghostBaseDirectionId,
-    directions,
     fragmentMode,
     editPrompt,
     editTargets,

@@ -47,7 +47,7 @@ export interface OptOutGroup {
 export const REQUIRED_TOKENS: TokenSpec[] = [
   // Colors — every direction defines all of these.
   { name: 'color-bg', kind: 'color', description: 'page background' },
-  { name: 'color-surface', kind: 'color', description: 'elevated panel/card surface' },
+  { name: 'color-surface', kind: 'color', description: 'elevated surface' },
   { name: 'color-surface-muted', kind: 'color', description: 'secondary/disabled surface' },
   { name: 'color-border', kind: 'color', description: 'thin neutral divider' },
   { name: 'color-border-input', kind: 'color', description: 'border on text inputs' },
@@ -74,7 +74,7 @@ export const REQUIRED_TOKENS: TokenSpec[] = [
   { name: 'radius-pill', kind: 'radius', description: '999px — interactive pill' },
   { name: 'radius-sm', kind: 'radius', description: 'small structural radius' },
   { name: 'radius-md', kind: 'radius', description: 'medium structural radius' },
-  { name: 'radius-lg', kind: 'radius', description: 'large structural radius (cards)' },
+  { name: 'radius-lg', kind: 'radius', description: 'large structural radius' },
   { name: 'radius-xl', kind: 'radius', description: 'extra-large radius (modals/sheets)' },
 
   // Type — fonts and scale.
@@ -120,8 +120,8 @@ export const OPT_OUT_GROUPS: OptOutGroup[] = [
 
 export const SHADOW_TOKENS: TokenSpec[] = [
   { name: 'shadow-mini', kind: 'shadow', description: 'tiny lift — chips, micro-popovers' },
-  { name: 'shadow-card', kind: 'shadow', description: 'card-level lift' },
-  { name: 'shadow-elevated', kind: 'shadow', description: 'prominent panel lift' },
+  { name: 'shadow-card', kind: 'shadow', description: 'medium surface lift' },
+  { name: 'shadow-elevated', kind: 'shadow', description: 'prominent surface lift' },
   { name: 'shadow-popover', kind: 'shadow', description: 'popover/menu' },
   { name: 'shadow-modal', kind: 'shadow', description: 'modal/sheet' },
 ];

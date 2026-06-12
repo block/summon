@@ -12,13 +12,13 @@ import {
   type ShowcaseScenario,
 } from '../../showcase.js';
 import { baseCapabilityPack, baseComponentPack, scenarioCategoryOrder } from './constants.js';
-import type { DirectionInfo, ModelProviderInfo, StreamOptionsPayload } from './types.js';
+import type { ModelProviderInfo, StreamOptionsPayload } from './types.js';
 
 export function describeScenario(scenario: ShowcaseScenario): { category: string; description: string } {
   if (scenario.id.startsWith('ghost-')) {
     return {
-      category: 'Ghost',
-      description: 'Environment-specific Ghost memory root with host-allowed controls.',
+      category: 'Fingerprint',
+      description: 'Portable Ghost fingerprint package with host-allowed controls.',
     };
   }
   switch (scenario.id) {
@@ -121,10 +121,6 @@ export function ghostSelectionValue(rootId: string): string {
 
 export function ghostRootFromSelection(selection: string | null): string | null {
   return selection?.startsWith('ghost:') ? selection.slice('ghost:'.length) : null;
-}
-
-export function defaultGhostBaseDirectionId(directions: DirectionInfo[]): string | null {
-  return directions.find((direction) => direction.id === 'ghost')?.id ?? directions[0]?.id ?? null;
 }
 
 export function tokenOverridesFor(preset: string): Record<string, string> | undefined {

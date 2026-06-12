@@ -62,11 +62,15 @@ To steer generation from a Ghost fingerprint, set `SUMMON_GHOST_ROOTS` in
 `apps/server/.env` before starting the demos. Each configured root should use
 the canonical `.ghost/fingerprint/manifest.yml` package layout; legacy
 `.ghost/fingerprint.yml` roots are bridged for compatibility. The Surface
-Gallery adds a Ghost preset for each root, and the Generate workbench adds both
-the Ghost scenario and the `Ghost · <id>` direction option.
+Gallery adds a Ghost fingerprint preset for each root, and the Generate
+workbench adds a `Fingerprint · <id>` option. A fingerprint run is not a bundled
+visual direction: Summon consumes the Ghost context handoff as product design
+direction, then applies host-owned policy, capabilities, and token CSS.
 
 The full guided path lives in
 [docs/adoption/quickstart.md](docs/adoption/quickstart.md).
+The architecture boundary is documented in
+[docs/ghost-fingerprint-architecture.md](docs/ghost-fingerprint-architecture.md).
 
 ## How It Fits Together
 

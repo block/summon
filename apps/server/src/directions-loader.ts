@@ -7,7 +7,7 @@ import {
   type DirectionOpts,
 } from '@anarchitecture/summon/engine';
 
-export const PREFERRED_DEFAULT_DIRECTION_ID = 'ghost';
+export const PREFERRED_DEFAULT_DIRECTION_ID = 'workbench';
 
 export interface DirectionExemplar {
   name: string;

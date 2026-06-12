@@ -57,5 +57,5 @@ export const scenarioCategoryOrder = [
   'Layout',
   'Composition',
   'Diagnostics',
-  'Ghost',
+  'Fingerprint',
 ];

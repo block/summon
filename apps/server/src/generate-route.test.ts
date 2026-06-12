@@ -413,7 +413,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal((ghostContext.value as { source?: unknown }).source, 'resolved-context');
   assert.equal((ghostContext.value as { product?: unknown }).product, 'Checkout');
   const ghostTokenSource = ghostLines.find((line) => line.path === '/ghost-token-source') as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((ghostTokenSource.value as { kind?: unknown }).kind, 'base-direction');
+  assert.equal((ghostTokenSource.value as { kind?: unknown }).kind, 'summon-default');
   const ghostReviewPacket = ghostLines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
   assert.equal((ghostReviewPacket.value as { source?: unknown }).source, 'resolved-context');
 
@@ -431,11 +431,11 @@ test('api generate sends narrowed contract and stream meta shape through package
   });
   const ghostOverrideBody = await ghostOverrideResponse.text();
   assert.equal(ghostOverrideResponse.status, 400);
-  assert.match(ghostOverrideBody, /tokenOverrides are not supported with Ghost product memory/);
+  assert.match(ghostOverrideBody, /tokenOverrides are not supported with Ghost fingerprints/);
   assert.equal(anthropicRequests.length, 6);
 });
 
-test('api generate emits compact Ghost capsule for root contexts', async (t) => {
+test('api generate emits Ghost fingerprint context for root contexts', async (t) => {
   const root = await makeRouteGhostFixture();
   t.after(async () => {
     await rm(root, { recursive: true, force: true });
@@ -509,7 +509,6 @@ test('api generate emits compact Ghost capsule for root contexts', async (t) => 
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
       SUMMON_GHOST_ROOTS: `checkout=${root}`,
-      SUMMON_GHOST_CONTEXT_MODE: '',
       SUMMON_INFER_CAPABILITIES: '0',
       SUMMON_INFER_SHAPE: '0',
     },
@@ -540,53 +539,31 @@ test('api generate emits compact Ghost capsule for root contexts', async (t) => 
   const request = anthropicRequests[0] as { system?: Array<{ text?: string }>; stream?: boolean };
   assert.equal(request.stream, true);
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
-  assert.match(systemText, /Ghost Capsule/);
+  assert.match(systemText, /Summon Surface Brief/);
+  assert.match(systemText, /product design direction package/);
   assert.match(systemText, /Status surfaces must foreground current state/);
   assert.match(systemText, /Surfaces are compact/);
-  assert.doesNotMatch(systemText, /## Manifest/);
-  assert.doesNotMatch(systemText, /```yaml/);
 
   const lines = body
     .trim()
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-capsule',
     'meta /surface-plan',
     'meta /status',
   ]);
 
-  const capsuleLine = lines.find((line) => line.path === '/ghost-capsule') as Extract<ProtocolLine, { op: 'meta' }>;
-  const capsule = capsuleLine.value as {
-    mode?: unknown;
-    prompt?: unknown;
-    promptChars?: number;
-    budgetChars?: number;
-    selectedRefs?: {
-      principles?: string[];
-      experienceContracts?: string[];
-      patterns?: string[];
-    };
-  };
-  assert.equal(capsule.mode, 'capsule');
-  assert.equal(capsule.prompt, undefined);
-  assert.ok((capsule.promptChars ?? 0) > 0);
-  assert.ok((capsule.promptChars ?? 0) <= (capsule.budgetChars ?? 0));
-  assert.deepEqual(capsule.selectedRefs?.principles, ['calm-density']);
-  assert.deepEqual(capsule.selectedRefs?.experienceContracts, ['queue-trust']);
-  assert.deepEqual(capsule.selectedRefs?.patterns, ['measured-surfaces']);
-
   const ghostReviewPacket = lines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
   const reviewPacket = ghostReviewPacket.value as {
     source?: unknown;
-    memoryProvenance?: { merge?: unknown };
+    fingerprintProvenance?: { merge?: unknown };
     sections?: Array<{ id?: unknown; html?: unknown }>;
   };
   assert.equal(reviewPacket.source, 'root');
-  assert.equal(reviewPacket.memoryProvenance?.merge, 'child-wins-by-id');
+  assert.equal(reviewPacket.fingerprintProvenance?.merge, 'child-wins-by-id');
   assert.deepEqual(reviewPacket.sections, [
     { id: 'hero', html: '<section><h1>Checkout queue</h1></section>' },
   ]);
@@ -1010,8 +987,7 @@ id: checkout
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'prose.yml'),
-    `schema: ghost.fingerprint-prose/v1
-summary:
+    `summary:
   product: Checkout
   tone: [quiet, exacting workflows]
 situations:
@@ -1020,13 +996,11 @@ situations:
     user_intent: Show the current checkout queue state.
     product_obligation: Keep operator status legible before secondary detail.
     surface_type: dashboard
-    paths: [.]
-    principles: [principle:calm-density]
-    experience_contracts: [experience_contract:queue-trust]
-    patterns: [pattern:measured-surfaces]
+    principles: [prose.principle:calm-density]
+    experience_contracts: [prose.experience_contract:queue-trust]
+    patterns: [composition.pattern:measured-surfaces]
 principles:
   - id: calm-density
-    status: accepted
     principle: Preserve quiet density and clear hierarchy.
     applies_to:
       paths: [.]
@@ -1036,7 +1010,6 @@ principles:
     check_refs: [check:no-rainbow]
 experience_contracts:
   - id: queue-trust
-    status: accepted
     contract: Status surfaces must foreground current state.
     obligations:
       - Show current queue state before secondary context.
@@ -1045,8 +1018,7 @@ experience_contracts:
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'inventory.yml'),
-    `schema: ghost.fingerprint-inventory/v1
-topology:
+    `topology:
   scopes:
     - id: app
       paths: [.]
@@ -1058,11 +1030,9 @@ building_blocks:
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'composition.yml'),
-    `schema: ghost.fingerprint-composition/v1
-patterns:
+    `patterns:
   - id: measured-surfaces
-    kind: composition
-    status: accepted
+    kind: structure
     pattern: Surfaces are compact, rectangular, and information-first.
     guidance:
       - Use one clear status block before supporting details.
@@ -1077,9 +1047,19 @@ patterns:
 id: checkout
 checks:
   - id: no-rainbow
-    active: true
-    summary: Avoid rainbow decorative color.
-    pattern: rainbow
+    title: Avoid rainbow decorative color
+    status: active
+    severity: serious
+    applies_to:
+      paths: [.]
+    detector:
+      type: forbidden-regex
+      pattern: rainbow
+    evidence:
+      support: 1
+      observed_count: 1
+      examples:
+        - checkout fixture avoids rainbow decorative color
 `,
   );
   await writeFile(

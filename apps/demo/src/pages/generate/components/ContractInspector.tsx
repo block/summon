@@ -235,7 +235,7 @@ export function ContractInspector({
             }}>
               {directions.length === 0 && ghostRoots.length === 0 ? <option value="">Default (no direction)</option> : null}
               {directions.map((direction) => <option key={direction.id} value={direction.id} title={direction.description}>{direction.name}</option>)}
-              {ghostRoots.map((root) => <option key={root.id} value={ghostSelectionValue(root.id)}>Ghost · {root.id}</option>)}
+              {ghostRoots.map((root) => <option key={root.id} value={ghostSelectionValue(root.id)}>Fingerprint · {root.id}</option>)}
             </select>
           </label>
           <label className="min-w-0">
@@ -286,12 +286,13 @@ export function ContractInspector({
 
         <div className="grid grid-cols-2 gap-3 max-[820px]:grid-cols-1">
           <label className="min-w-0">
-            <span className={fieldLabelClass}>Ghost target</span>
-            <input id="ghost-target" className={inputClassName} type="text" value={ghostTarget} disabled={!ghostRootFromSelection(directionId)} placeholder="Ghost target path" title="Ghost target path" onChange={(event) => setGhostTarget(event.target.value)} />
+            <span className={fieldLabelClass}>Fingerprint target</span>
+            <input id="ghost-target" className={inputClassName} type="text" value={ghostTarget} disabled={!ghostRootFromSelection(directionId)} placeholder="Target path" title="Fingerprint target path" onChange={(event) => setGhostTarget(event.target.value)} />
           </label>
           <label className="min-w-0">
-            <span className={fieldLabelClass}>Ghost base</span>
-            <select id="ghost-base-direction" className={selectClassName} title="Ghost base direction" value={ghostBaseDirectionId ?? ''} disabled={!ghostRootFromSelection(directionId) || directions.length === 0} onChange={(event) => setGhostBaseDirectionId(event.target.value || null)}>
+            <span className={fieldLabelClass}>Token fallback</span>
+            <select id="ghost-base-direction" className={selectClassName} title="Optional token fallback direction" value={ghostBaseDirectionId ?? ''} disabled={!ghostRootFromSelection(directionId) || directions.length === 0} onChange={(event) => setGhostBaseDirectionId(event.target.value || null)}>
+              <option value="">Fingerprint/default tokens</option>
               {directions.map((direction) => <option key={direction.id} value={direction.id}>{direction.name}</option>)}
             </select>
           </label>

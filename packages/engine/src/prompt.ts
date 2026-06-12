@@ -89,18 +89,21 @@ export const SUMMON_FIXED_INSTRUCTIONS = `You generate self-contained web UIs as
 
 ## Your job — interpret intent, then design the response
 
-The user types a request in natural language: "help me plan…", "I want to…", "can you compare…", "explain how…". Your job is to pick a response shape that actually helps, then render it.
+The user types a request in natural language: "help me plan…", "I want to…", "can you compare…", "explain how…". Your job is to settle on a rich composition that actually helps, then render it.
 
-Pick the shape that fits the intent. Not every response is a card. Examples:
+Pick the composition that fits the intent. Cards are only one option, not the default. Examples:
 
-- **Plan / itinerary** — a narrative with stages, a timeline, or a numbered walkthrough
-- **Comparison / decision** — side-by-side layout, pros/cons, or a table + verdict
-- **Explainer / summary** — long-form reading with hierarchy, pull quotes, or a TL;DR + details
-- **Tracker / dashboard** — one big number + breakdown, progress visual, or grouped stats
-- **Recommendation** — a single focused card/spread with reasoning, not a page of chrome
-- **Reflection / worksheet** — guided prompts, stepped entries, or a journal shape
+- **Plan / itinerary** — staged narrative, timeline, route, calendar, or numbered walkthrough.
+- **Comparison / decision** — table, matrix, split view, scorecard, annotated verdict, or pros/cons only when useful.
+- **Explainer / summary** — readable article, field guide, pull quotes, marginal notes, or TL;DR with deeper sections.
+- **Tracker / dashboard** — dominant number, progress rail, status map, chart, ledger, or compact stats only when the user asked for metrics.
+- **Recommendation** — focused brief, poster, memo, ranked list, or one composed spread with reasoning.
+- **Reflection / worksheet** — guided prompts, stepped entries, rubric, checklist, journal, or fill-in plan.
+- **Operational view** — queue, table, kanban-like lanes, timeline, incident log, roster, checklist, or command strip.
 
-**Resist the default "big header + cards + footer".** That's one shape among many. Pick what the specific intent actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline card. A tracker wants a dominant number, not a title. A recommendation might be one self-contained block with no header.
+Before using a card grid, ask what job the boxes are doing. Use cards when the content is truly a set of separate comparable objects, selectable choices, or repeated records with distinct evidence. If most groups would become anonymous rounded boxes, redesign as an article, table, timeline, checklist, matrix, ledger, map, split view, or typographic composition instead.
+
+**Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific intent actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
 
 ## Output protocol — JSONL only
 
@@ -157,6 +160,7 @@ The direction block specifies which tokens carry particular meaning for that dir
 - Be direct. No hedging, no "here's your…" preambles. The UI itself is the answer.
 - 3–5 items in lists. One is too few; eight is too many.
 - Lead with the most useful thing. Don't bury the answer under chrome.
+- Let the content determine its native structure: comparisons want tables or matrices, sequences want timelines, procedures want checklists, money wants ledgers, explanations want reading rhythm, and decisions want a clear verdict.
 
 ## How to think about this generation
 
@@ -207,7 +211,7 @@ export function buildDirectionBlock(input: DirectionInput): string {
       );
     } else {
       parts.push(
-        'These are hand-crafted HTML snippets demonstrating the design language across response shapes. Study their spacing rhythm, radii, typography, and color usage — match the same patterns when emitting your own HTML. They are not templates to copy; they show how the design language *feels* across card, article, comparison, and tracker shapes.'
+        'These are hand-crafted HTML snippets demonstrating the design language across response shapes. Study their spacing rhythm, radii, typography, and color usage — match the same patterns when emitting your own HTML. They are not templates to copy; they show how the design language *feels* across articles, comparisons, trackers, focused recommendations, and other compositions.'
       );
     }
     for (const ex of shapeExemplars) {
@@ -230,7 +234,7 @@ export function buildLayoutBlock(layout: SummonLayout): string {
 
   return `## Host layout — this generation
 
-The host has supplied a strict layout contract named **${layout.id}**. This contract overrides the generic instruction to choose your own section structure.
+The host has supplied a strict layout contract named **${layout.id}**. This contract overrides the generic instruction to invent your own section structure.
 
 The host has already declared this section order:
 
@@ -618,7 +622,7 @@ ${scriptPolicyBlock}
 **Every clickable, tappable, or focusable element in your generated UI MUST be wired to one of the declared intents — ${actionWiring}. If you cannot wire an element, do not show it.**
 
 - No button unless you've decided which intent it fires.
-- No clickable result cards unless clicking them emits something.
+- No clickable result tiles, rows, or cards unless clicking them emits something.
 - No pagination, no sorting, no filtering controls unless you've decided which intent they fire.
 
 Dead buttons are worse than no buttons. When in doubt, leave it out.

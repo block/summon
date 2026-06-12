@@ -82,7 +82,9 @@ export async function resolveGhostRootCompat(input: {
   const newLoader = scan.loadFingerprintStackForPath;
   const newContext = scan.fingerprintStackToPackageContext;
   const newWriter = scan.writePackageContextBundleFromContext;
+  const packageRoot = findNearestPackageRoot(input.root, input.targetPath, input.memoryDir);
   if (
+    packageRoot &&
     typeof newLoader === 'function' &&
     typeof newContext === 'function' &&
     typeof newWriter === 'function'
@@ -99,7 +101,6 @@ export async function resolveGhostRootCompat(input: {
     });
   }
 
-  const packageRoot = findNearestPackageRoot(input.root, input.targetPath, input.memoryDir);
   if (packageRoot) {
     return loadSplitPackageRoot(input.root, packageRoot, input.targetPath, input.memoryDir);
   }
@@ -301,9 +302,11 @@ async function promptForSplitPackage(input: {
   intent: string | null;
 }): Promise<string> {
   return [
-    `# ${input.product} Ghost Context`,
+    `# ${input.product} Ghost Fingerprint Context`,
     '',
-    'Use this package-shaped Ghost fingerprint as product-experience memory for generation.',
+    'Use this checked-in Ghost fingerprint as a product design direction package for generation.',
+    '',
+    'Generate from prose + inventory + composition. Prose states intent, inventory supplies source material and evidence, and composition defines reusable surface patterns. Treat checks as validation constraints; only active checks are blocking.',
     '',
     '## Manifest',
     codeBlock(input.manifestRaw),
@@ -321,9 +324,11 @@ async function promptForLegacyPackage(input: {
   intent: string | null;
 }): Promise<string> {
   return [
-    `# ${input.product} Ghost Context`,
+    `# ${input.product} Ghost Fingerprint Context`,
     '',
-    'Use this legacy Ghost fingerprint.yml as compatibility product-experience memory for generation.',
+    'Use this legacy Ghost fingerprint.yml as compatibility product design direction for generation.',
+    '',
+    'Generate from the fingerprint intent and composition fields. Treat checks as validation constraints, not as content to render.',
     '',
     '## Fingerprint',
     codeBlock(input.fingerprintRaw),

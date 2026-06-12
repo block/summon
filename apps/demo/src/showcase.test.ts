@@ -27,7 +27,7 @@ const allDemoCapabilityNames = [
   'summon',
 ];
 
-const publicDirectionIds = new Set(['ghost', 'pulse', 'workbench']);
+const publicDirectionIds = new Set(['pulse', 'workbench']);
 
 test('createScopedDemoRegistry aligns prompt pack, validation grants, and handlers', () => {
   const registry = createScopedDemoRegistry({ onSummon: () => {} }, ['search', 'summon']);
@@ -147,7 +147,8 @@ test('showcase scenarios cover every non-utility demo capability', () => {
 test('showcase scenarios reference bundled public directions', () => {
   for (const scenario of SHOWCASE_SCENARIOS) {
     if (!scenario.directionId) continue;
-    const directionId = scenario.directionId.startsWith('ghost:') ? 'ghost' : scenario.directionId;
+    if (scenario.directionId.startsWith('ghost:')) continue;
+    const directionId = scenario.directionId;
     assert.ok(
       publicDirectionIds.has(directionId),
       `${scenario.id} references unknown public direction "${scenario.directionId}"`,

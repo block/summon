@@ -43,15 +43,16 @@ Open `http://localhost:5173/generate`.
 The Generate workbench runs showcase prompts through the agent broker by
 default, then keeps maintainer controls visible: stream diagnostics, Devtools,
 validation retry, edit/replay, custom SurfacePlan overrides, directions, and
-Ghost steering internals. The custom Surface Config panel is the explicit
+Ghost fingerprint steering internals. The custom Surface Config panel is the explicit
 manual override path.
 
 ## Run A Ghost Sandbox
 
 The Surface Gallery and Generate workbench both add Ghost-backed sandbox presets
-when trusted roots are configured. The bundled **Ghost** direction is a visual
-direction snapshot; root-backed product memory is enabled separately so the
-host still owns which repositories the model can read from.
+when trusted roots are configured. A configured Ghost root is treated as a
+fingerprint package, not as a bundled visual direction. Ghost resolves the
+product design context; Summon still owns host policy, capabilities, runtime
+contracts, and token fallback.
 
 Add one or more trusted Ghost roots to `apps/server/.env`:
 
@@ -85,17 +86,17 @@ pnpm dev:all
 ```
 
 Open `http://localhost:5174` for the adopter-facing gallery preset, or
-`http://localhost:5173/generate` for the diagnostic Ghost scenario and
-`Ghost · <id>` direction. Keep **Ghost base** on the bundled **Ghost** direction
-unless you are intentionally testing another token base. **Ghost target** is a
-relative path inside the configured repo root; use `.` for the root package or a
-nested surface path.
+`http://localhost:5173/generate` for the diagnostic fingerprint scenario and
+`Fingerprint · <id>` option. **Fingerprint target** is a relative path inside
+the configured repo root; use `.` for the root package or a nested surface path.
+**Token fallback** is optional and only supplies CSS tokens when the fingerprint
+package does not provide contract-complete tokens.
 
 When the run starts, the Stream drawer should show `/ghost-context`,
 `/ghost-token-source`, and `/ghost-review-packet` metadata. Those lines confirm
 the server resolved the fingerprint stack, chose token CSS, generated a Summon
 surface, and emitted the review packet needed to inspect the output against the
-same Ghost memory.
+same Ghost fingerprint.
 
 ## Golden Scenario
 

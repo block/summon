@@ -22,14 +22,6 @@ import {
   type GhostStackLayerCompat,
   type GhostContextCompat,
 } from './ghost-scan-compat.js';
-import {
-  buildSummonGhostCapsule,
-  ghostCapsuleMeta,
-  ghostContextMode,
-  type SummonGhostCapsule,
-} from './ghost-capsule.js';
-
-export { ghostCapsuleMeta };
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
@@ -98,7 +90,6 @@ export interface ResolvedRootGhostSteer extends GhostGenerationContext {
   tokenSource: GhostTokenSource;
   baseDirectionId: string | null;
   product: string;
-  capsule?: SummonGhostCapsule;
 }
 
 export interface ResolvedContextGhostSteer extends GhostGenerationContext {
@@ -128,7 +119,7 @@ export interface GhostSurfacePromptOptions {
 }
 
 export interface GhostReviewPacket {
-  schema: 'summon.ghost-generation/v1';
+  schema: 'summon.ghost-fingerprint-generation/v1';
   source: ResolvedGhostSteer['source'];
   prompt: string;
   rootId: string | null;
@@ -136,7 +127,7 @@ export interface GhostReviewPacket {
   memoryDir: string | null;
   product: string;
   layers: string[];
-  memoryProvenance: {
+  fingerprintProvenance: {
     merge: GhostStackCompat['provenance']['merge'] | 'external';
     layers: Array<{
       relativeRoot: string;
@@ -341,11 +332,8 @@ async function resolveRootGhostGenerationContext(
     throw new Error('configured Ghost root must resolve to the fingerprint stack repo root');
   }
   const product = stack.product ?? context.name;
-  const [promptContext, tokenSource] = await Promise.all([
-    buildPromptFromContext(context, {
-      product,
-      targetPath: stack.targetPath,
-    }),
+  const [prompt, tokenSource] = await Promise.all([
+    buildPromptFromContext(context),
     resolveGhostTokenSource(stack, baseDirection),
   ]);
   return {
@@ -354,8 +342,7 @@ async function resolveRootGhostGenerationContext(
     root,
     stack,
     context,
-    prompt: promptContext.prompt,
-    ...(promptContext.capsule ? { capsule: promptContext.capsule } : {}),
+    prompt,
     product,
     tokenSource,
     baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
@@ -366,22 +353,12 @@ export function prepareGhostSurfacePrompt(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): ResolvedGhostSteer {
-  if (context.source !== 'root' || ghostContextMode() === 'raw') return context;
-  const capsule = buildSummonGhostCapsule({
-    raw: context.context.raw,
-    product: context.product,
-    targetPath: context.stack.targetPath,
-    userPrompt: options.userPrompt,
-    mode: options.mode,
-    surfacePlan: options.surfacePlan,
-    shape: options.shape,
-    capabilities: options.capabilities,
-    components: options.components,
-  });
   return {
     ...context,
-    prompt: capsule.prompt,
-    capsule,
+    prompt: [
+      context.prompt.trim(),
+      buildSummonFingerprintSurfaceBrief(context, options),
+    ].filter(Boolean).join('\n\n'),
   };
 }
 
@@ -449,7 +426,7 @@ export function buildGhostReviewPacket(input: {
         memoryDir: input.context.stack.memoryDir,
         product: input.context.product,
         layers: input.context.stack.layers.map((layer) => layer.relativeRoot),
-        memoryProvenance: {
+        fingerprintProvenance: {
           merge: input.context.stack.provenance.merge,
           layers: input.context.stack.provenance.layers.map((layer) => ({
             relativeRoot: layer.relativeRoot,
@@ -463,14 +440,14 @@ export function buildGhostReviewPacket(input: {
         memoryDir: null,
         product: input.context.product ?? input.context.request.id ?? 'Ghost',
         layers: [],
-        memoryProvenance: {
+        fingerprintProvenance: {
           merge: 'external' as const,
           layers: [],
           provenance: input.context.provenance ?? null,
         },
       };
   return {
-    schema: 'summon.ghost-generation/v1',
+    schema: 'summon.ghost-fingerprint-generation/v1',
     source: input.context.source,
     prompt: input.prompt,
     ...rootFields,
@@ -492,20 +469,45 @@ export function buildGhostReviewPacket(input: {
 
 async function buildPromptFromContext(
   context: GhostContextCompat,
-  input: {
-    product: string;
-    targetPath: string;
-  },
-): Promise<{ prompt: string; capsule?: SummonGhostCapsule }> {
-  if (ghostContextMode() === 'raw') {
-    return { prompt: await context.writePrompt() };
-  }
-  const capsule = buildSummonGhostCapsule({
-    raw: context.raw,
-    product: input.product,
-    targetPath: input.targetPath,
-  });
-  return { prompt: capsule.prompt, capsule };
+): Promise<string> {
+  return context.writePrompt();
+}
+
+function buildSummonFingerprintSurfaceBrief(
+  context: ResolvedGhostSteer,
+  options: GhostSurfacePromptOptions,
+): string {
+  const product = context.product
+    ?? (context.source === 'resolved-context' ? context.request.id : context.request.rootId)
+    ?? 'Ghost fingerprint';
+  const targetPath = context.source === 'root' ? context.stack.targetPath : 'external-context';
+  const capabilityNames = options.capabilities?.intents.map((intent) => intent.name) ?? [];
+  const componentNames = options.components?.components.map((component) => component.name) ?? [];
+  const details = [
+    `Product: ${product}`,
+    `Target path: ${targetPath}`,
+    `User request: ${oneLine(options.userPrompt, 600)}`,
+    `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
+    `Mode: ${options.mode}`,
+    options.shape ? `Response shape hint: ${options.shape}` : null,
+    capabilityNames.length > 0 ? `Granted host capabilities: ${capabilityNames.join(', ')}` : 'Granted host capabilities: none',
+    componentNames.length > 0 ? `Granted host components: ${componentNames.join(', ')}` : null,
+  ].filter((line): line is string => Boolean(line));
+
+  return [
+    '## Summon Surface Brief',
+    '',
+    'Treat the Ghost fingerprint above as a product design direction package for this Summon surface.',
+    '',
+    ...details.map((line) => `- ${line}`),
+    '',
+    'Generation rules:',
+    '',
+    '- Compose from the fingerprint prose, inventory, and composition layers. Prose states intent; inventory supplies material and evidence; composition supplies reusable surface patterns.',
+    '- Do not imitate Ghost UI as a visual style. Use inventory examples only when they support the selected intent and composition pattern.',
+    '- The agent broker controls host authority and capabilities. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
+    '- Treat checks as validation constraints, not as content to render.',
+  ].join('\n');
 }
 
 async function resolveGhostTokenSource(
@@ -608,7 +610,7 @@ function resolveFallbackTokenSource(
         baseDirectionId: baseDirection.id,
         warnings: [
           ...warnings,
-          'No contract-complete Ghost token CSS was found; using the base Summon direction tokens.',
+          'No contract-complete Ghost fingerprint token CSS was found; using the fallback Summon direction tokens.',
           ...validation.issues
             .filter((issue) => issue.severity === 'warn')
             .map((issue) => issue.message),
@@ -625,7 +627,7 @@ function resolveFallbackTokenSource(
     css: DEFAULT_TOKENS_CSS,
     warnings: [
       ...warnings,
-      'No contract-complete Ghost token CSS was found; using Summon default tokens.',
+      'No contract-complete Ghost fingerprint token CSS was found; using Summon default tokens.',
     ],
   };
 }
@@ -709,6 +711,11 @@ function declaredSectionsFromLines(lines: ProtocolLine[]): string[] {
     return value.sections.filter((section): section is string => typeof section === 'string');
   }
   return [];
+}
+
+function oneLine(value: string, max: number): string {
+  const compact = value.replace(/\s+/g, ' ').trim();
+  return compact.length <= max ? compact : `${compact.slice(0, Math.max(0, max - 3))}...`;
 }
 
 function isWithinOrEqual(root: string, child: string): boolean {

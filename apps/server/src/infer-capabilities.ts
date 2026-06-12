@@ -43,7 +43,7 @@ Respond with ONLY a single JSON object on one line. No markdown fences, no prose
 or
 {"mode":"interactive","intents":["intent_name", ...]}
 
-Use "static" when the prompt asks for content (cards, articles, recommendations, comparisons, dashboards, summaries) without user interaction. Use "interactive" when the prompt clearly asks for the user to act — pick, submit, filter, toggle, search, vote, track, etc. Also use "interactive" when the UI needs host-owned data from a listed data resource.
+Use "static" when the prompt asks for read-only content (articles, recommendations, comparisons, dashboards, summaries, tables, timelines, checklists, or briefs) without user interaction. Use "interactive" when the prompt clearly asks for the user to act — pick, submit, filter, toggle, search, vote, track, etc. Also use "interactive" when the UI needs host-owned data from a listed data resource.
 
 When interactive, include ONLY the names the prompt actually needs. A picker prompt usually needs the "choose" action alone, not "submit". A search prompt needs the "search" data resource. Never include names that aren't in the available list above.`;
 
