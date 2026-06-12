@@ -1521,3 +1521,46 @@ textarea,
     padding-inline: 18px;
   }
 }
+
+/* Open Foundry match pass: prompt controls stay compact like the workbench. */
+
+.prompt-composer {
+  position: relative;
+  display: block;
+  min-height: 136px;
+}
+
+.prompt-box {
+  min-height: 136px;
+  padding: 20px 132px 76px 20px;
+  resize: vertical;
+}
+
+#run {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  min-width: 92px;
+  height: 48px;
+  min-height: 0;
+  border: 0;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+@media (max-width: 1119px) {
+  .prompt-composer {
+    display: grid;
+    gap: 10px;
+  }
+
+  .prompt-box {
+    padding: 20px;
+  }
+
+  #run {
+    position: static;
+    width: auto;
+    min-width: 0;
+  }
+}
