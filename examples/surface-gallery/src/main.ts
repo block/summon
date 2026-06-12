@@ -32,6 +32,29 @@ import {
   type GalleryPreset,
   type GhostRootInfo,
 } from './presets.js';
+import {
+  approvalActionsClass,
+  approvalButtonClass,
+  approvalCardClass,
+  approvalDetailsClass,
+  approvalEyebrowClass,
+  approvalMetaClass,
+  approvalStackClass,
+  approvalTitleClass,
+  contractLabelClass,
+  contractRowClass,
+  contractValueClass,
+  eventRowClass,
+  inspectorPanelClass,
+  inspectorTabClass,
+  presetCardClass,
+  presetCategoryClass,
+  presetIndexClass,
+  presetMainClass,
+  presetMetaClass,
+  presetTitleClass,
+  statusBadgeClass,
+} from './ui.js';
 import './styles.css';
 
 interface ModelProviderInfo {
@@ -167,14 +190,14 @@ function renderPresetCards(): void {
   for (const [index, preset] of galleryPresets.entries()) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'preset-card';
+    button.className = presetCardClass(preset.id === selectedPreset.id);
     button.dataset.presetId = preset.id;
     button.innerHTML = `
-      <span class="preset-index">${String(index + 1).padStart(2, '0')}</span>
-      <span class="preset-main">
-        <strong>${preset.title}</strong>
-        <span>${preset.category}</span>
-        <em>${compactPolicyText(preset)}</em>
+      <span class="${presetIndexClass}">${String(index + 1).padStart(2, '0')}</span>
+      <span class="${presetMainClass}">
+        <strong class="${presetTitleClass}">${preset.title}</strong>
+        <span class="${presetCategoryClass}">${preset.category}</span>
+        <em class="${presetMetaClass}">${compactPolicyText(preset)}</em>
       </span>
     `;
     button.addEventListener('click', () => selectPreset(preset.id));
@@ -186,8 +209,8 @@ function selectPreset(id: string): void {
   selectedPreset = galleryPresets.find((preset) => preset.id === id) ?? findPreset(id);
   activeTokensSourceOverride = null;
   currentSurfaceContractView = null;
-  for (const card of presetList.querySelectorAll<HTMLButtonElement>('.preset-card')) {
-    card.classList.toggle('active', card.dataset.presetId === selectedPreset.id);
+  for (const card of presetList.querySelectorAll<HTMLButtonElement>('[data-preset-id]')) {
+    card.className = presetCardClass(card.dataset.presetId === selectedPreset.id);
   }
   presetCategory.textContent = selectedPreset.category;
   presetTitle.textContent = selectedPreset.title;
@@ -200,7 +223,7 @@ function selectPreset(id: string): void {
   renderHealth('idle');
   selectInspectorTab('contract');
   setSetupNote(null);
-  welcome.classList.remove('hidden');
+  welcome.hidden = false;
 }
 
 function respawnSandbox(initialHtml = ''): void {
@@ -345,7 +368,7 @@ async function generateSelectedSurface(): Promise<void> {
       onMeta: (line) => handleMeta(line),
       onRenderHtml: (html) => {
         surfaceRenderedDuringRun = true;
-        welcome.classList.add('hidden');
+        welcome.hidden = true;
         handle?.render(html);
       },
       onParseError: (raw) => {
@@ -481,9 +504,9 @@ function renderContract(): void {
   ];
   for (const [key, label, value] of rows) {
     const row = document.createElement('div');
-    row.className = 'contract-row';
+    row.className = contractRowClass;
     row.dataset.contractRow = key;
-    row.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+    row.innerHTML = `<span class="${contractLabelClass}">${label}</span><strong class="${contractValueClass}">${value}</strong>`;
     contractSummary.append(row);
   }
 }
@@ -528,15 +551,18 @@ async function loadModelProviderSummary(): Promise<void> {
         ? `${selected.name} - ${selected.model}`
         : `${selected.name} - missing ${selected.missingEnv ?? 'key'}`;
       providerSummaryEl.dataset.providerState = selected.configured ? 'ready' : 'missing';
+      providerSummaryEl.className = statusBadgeClass(selected.configured ? 'ready' : 'missing');
     } else {
       modelProviderLabel = 'server default';
       providerSummaryEl.dataset.providerState = 'unknown';
+      providerSummaryEl.className = statusBadgeClass('unknown');
     }
   } catch {
     defaultModelProviderId = null;
     modelProviders = [];
     modelProviderLabel = 'server offline';
     providerSummaryEl.dataset.providerState = 'offline';
+    providerSummaryEl.className = statusBadgeClass('offline');
   }
   providerSummaryEl.textContent = modelProviderLabel;
   populateModelProviderSelect();
@@ -677,10 +703,10 @@ function showStreamingWelcome(status: string): void {
   const lineText = acceptedStructuralLines === 0
     ? 'Waiting for validated surface lines.'
     : `${acceptedStructuralLines} validated surface line${acceptedStructuralLines === 1 ? '' : 's'} received.`;
-  welcome.querySelector<HTMLElement>('.welcome-kicker')!.textContent = label;
+  document.getElementById('welcome-kicker')!.textContent = label;
   welcomeTitle.textContent = selectedPreset.title;
   welcomeDetail.textContent = `${lineText} The sandbox updates as structure arrives.`;
-  welcome.classList.remove('hidden');
+  welcome.hidden = false;
 }
 
 function renderPromptLength(): void {
@@ -700,7 +726,7 @@ function renderEvents(): void {
   eventLog.innerHTML = '';
   for (const event of rows) {
     const row = document.createElement('div');
-    row.className = 'event-row';
+    row.className = eventRowClass;
     row.textContent = event;
     eventLog.append(row);
   }
@@ -710,12 +736,12 @@ function selectInspectorTab(tab: InspectorTab): void {
   inspectorStatusEl.textContent = inspectorTabLabel(tab);
   for (const button of inspectorTabButtons) {
     const active = button.dataset.inspectorTab === tab;
-    button.classList.toggle('active', active);
+    button.className = inspectorTabClass(active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   }
   for (const panel of inspectorPanels) {
     const active = panel.dataset.inspectorPanel === tab;
-    panel.classList.toggle('active', active);
+    panel.className = inspectorPanelClass(active);
     panel.hidden = !active;
   }
 }
@@ -779,16 +805,20 @@ function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision
   pushHostMessage(`approval pending: ${request.summary}`, { attention: true });
   return new Promise((resolve) => {
     const card = document.createElement('section');
-    card.className = 'approval-card';
+    card.className = approvalCardClass;
     card.dataset.approvalId = request.id;
+    card.dataset.approvalCard = '';
 
     const eyebrow = document.createElement('span');
+    eyebrow.className = approvalEyebrowClass;
     eyebrow.textContent = request.capability;
 
     const title = document.createElement('strong');
+    title.className = approvalTitleClass;
     title.textContent = request.summary;
 
     const meta = document.createElement('p');
+    meta.className = approvalMetaClass;
     meta.textContent = `Request ${request.id}`;
 
     card.append(eyebrow, title, meta);
@@ -796,18 +826,20 @@ function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision
     const details = formatApprovalDetails(request.details);
     if (details) {
       const detailsEl = document.createElement('pre');
+      detailsEl.className = approvalDetailsClass;
       detailsEl.textContent = details;
       card.appendChild(detailsEl);
     }
 
     const actions = document.createElement('div');
-    actions.className = 'approval-actions';
+    actions.className = approvalActionsClass;
     const approve = document.createElement('button');
     approve.type = 'button';
-    approve.className = 'approval-approve';
+    approve.className = approvalButtonClass('approve');
     approve.textContent = 'Approve';
     const deny = document.createElement('button');
     deny.type = 'button';
+    deny.className = approvalButtonClass('deny');
     deny.textContent = 'Deny';
     actions.append(deny, approve);
     card.appendChild(actions);
@@ -842,7 +874,7 @@ function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision
 function ensureApprovalStack(): HTMLElement {
   if (approvalStack) return approvalStack;
   approvalStack = document.createElement('div');
-  approvalStack.className = 'approval-stack';
+  approvalStack.className = approvalStackClass;
   document.body.appendChild(approvalStack);
   return approvalStack;
 }

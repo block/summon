@@ -143,7 +143,7 @@ test('gallery shows progressive placeholder before final stream replacement', as
     await page.goto('/');
     await page.locator('#run').click();
 
-    await expect(page.locator('.welcome-kicker')).toHaveText(/Streaming|Writing/);
+    await expect(page.locator('#welcome-kicker')).toHaveText(/Streaming|Writing/);
     await expect(page.locator('#welcome-detail')).toContainText('Waiting for validated surface lines');
 
     const frame = page.frameLocator('#sandbox');
@@ -254,7 +254,7 @@ test('mocked generation renders and generated host tool requests update host sta
   await expect(frame.getByTestId('saved')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('Balanced path');
   await expect(page.locator('#state-preview')).toContainText('chooseDone');
-  await expect(page.locator('#event-log')).toContainText('host tool choose');
+  await expect(page.locator('#event-log')).toContainText('host dispatch choose');
 });
 
 test('host search resource renders host-owned empty state', async ({ page }) => {
@@ -435,22 +435,22 @@ test('approval publish uses host-owned approval card for approve and deny decisi
 
   const frame = page.frameLocator('#sandbox');
   await frame.getByRole('button', { name: 'Publish' }).click();
-  await expect(page.locator('.approval-card')).toContainText('Publish "Approval smoke"');
-  await expect(page.locator('.approval-card')).toContainText('gallery-updates');
+  await expect(page.locator('[data-approval-card]')).toContainText('Publish "Approval smoke"');
+  await expect(page.locator('[data-approval-card]')).toContainText('gallery-updates');
   await expect(frame.getByTestId('waiting')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('publish_summary');
 
-  await page.locator('.approval-card').getByRole('button', { name: 'Approve' }).click();
-  await expect(page.locator('.approval-card')).toHaveCount(0);
+  await page.locator('[data-approval-card]').getByRole('button', { name: 'Approve' }).click();
+  await expect(page.locator('[data-approval-card]')).toHaveCount(0);
   await expect(frame.getByTestId('approved')).toBeVisible();
   await expect(frame.getByTestId('published')).toContainText('Approval smoke');
 
   await page.locator('#run').click();
   await expect(page.locator('#status')).toContainText('done');
   await frame.getByRole('button', { name: 'Publish' }).click();
-  await expect(page.locator('.approval-card')).toContainText('Publish "Approval smoke"');
-  await page.locator('.approval-card').getByRole('button', { name: 'Deny' }).click();
-  await expect(page.locator('.approval-card')).toHaveCount(0);
+  await expect(page.locator('[data-approval-card]')).toContainText('Publish "Approval smoke"');
+  await page.locator('[data-approval-card]').getByRole('button', { name: 'Deny' }).click();
+  await expect(page.locator('[data-approval-card]')).toHaveCount(0);
   await expect(frame.getByTestId('denied')).toBeVisible();
   await expect(frame.getByTestId('published')).toBeHidden();
 });
