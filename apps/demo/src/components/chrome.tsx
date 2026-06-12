@@ -13,6 +13,9 @@ const navItems = [
   { id: 'fragment-compare', label: 'Fragment compare', href: '/fragment-compare' },
 ] as const;
 
+const navItemBaseClass =
+  'inline-flex h-[30px] items-center rounded-card border border-transparent px-3 text-xs font-semibold transition-colors';
+
 export function AppNav({ active }: AppNavProps) {
   return (
     <nav className={cn(pageWidthClass, 'mb-11 flex min-h-[30px] flex-wrap items-center gap-1 max-[820px]:mb-[30px]')}>
@@ -25,10 +28,15 @@ export function AppNav({ active }: AppNavProps) {
       {navItems.map((item) => (
         <NavLink
           key={item.id}
-          className={({ isActive }) => cn(
-            'inline-flex h-[30px] items-center rounded-card border border-transparent px-3 text-xs font-semibold text-ink-soft transition-colors hover:bg-surface-muted hover:text-ink',
-            (active === item.id || isActive) && 'bg-ink text-black hover:bg-ink hover:text-black',
-          )}
+          className={({ isActive }) => {
+            const selected = active === item.id || isActive;
+            return cn(
+              navItemBaseClass,
+              selected
+                ? 'bg-ink text-ink-inverse hover:bg-ink hover:text-ink-inverse'
+                : 'text-ink-soft hover:bg-surface-muted hover:text-ink',
+            );
+          }}
           to={item.href}
         >
           {item.label}
@@ -66,7 +74,7 @@ export interface PaneProps {
 
 export function Pane({ title, status, children, className }: PaneProps) {
   return (
-    <div className={cn(elevatedPanelClass, 'flex min-w-0 flex-col [&_iframe]:block [&_iframe]:w-full [&_iframe]:border-0 [&_iframe]:bg-black', className)}>
+    <div className={cn(elevatedPanelClass, 'flex min-w-0 flex-col [&_iframe]:block [&_iframe]:w-full [&_iframe]:border-0 [&_iframe]:bg-surface-raised', className)}>
       <header className={panelHeaderClass}>
         {title}
         {status ? <StatusText>{status}</StatusText> : null}
@@ -95,7 +103,7 @@ export function StatusPill({ id, children }: { id?: string; children: ReactNode 
 export function ModeGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div
-      className="inline-flex rounded-full border border-line bg-surface p-[3px] [&_input]:sr-only [&_label]:cursor-pointer [&_span]:block [&_span]:rounded-full [&_span]:px-3 [&_span]:py-1 [&_span]:text-xs [&_span]:font-medium [&_span]:text-ink-soft [&_span]:transition-colors [&_label:hover_span]:text-ink [&_input:checked+span]:bg-ink [&_input:checked+span]:font-semibold [&_input:checked+span]:text-black"
+      className="inline-flex rounded-full border border-line bg-surface p-[3px] [&_input]:sr-only [&_label]:cursor-pointer [&_span]:block [&_span]:rounded-full [&_span]:px-3 [&_span]:py-1 [&_span]:text-xs [&_span]:font-medium [&_span]:text-ink-soft [&_span]:transition-colors [&_label:hover_span]:text-ink [&_input:checked+span]:bg-ink [&_input:checked+span]:font-semibold [&_input:checked+span]:text-ink-inverse"
       title={title}
     >
       {children}

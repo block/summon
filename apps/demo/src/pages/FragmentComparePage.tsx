@@ -8,7 +8,7 @@ import type {
 } from '@anarchitecture/summon/engine';
 import tokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { AppNav, LogView, PageHeader } from '../components/chrome.js';
-import { Button, fieldLabelClass, pageWidthClass, panelClass, statusToneClass, textareaClass, logToneClass } from '../components/ui.js';
+import { Button, fieldLabelClass, pageWidthClass, statusToneClass, textareaClass, logToneClass } from '../components/ui.js';
 import { cn } from '../lib/cn.js';
 
 type FragmentSide = 'section' | 'html-node-v0';
@@ -66,13 +66,32 @@ const modelOptions = {
   effort: 'low',
 } as const;
 
-const blankDarkArtifact =
-  '<style>html,body{min-height:100%;margin:0;background:#000;color:oklch(0.96 0.003 264)}</style>';
+const blankArtifact =
+  '<style>html,body{min-height:100%;margin:0;background:transparent;color:CanvasText}</style>';
+
+const matrixHeaderClass =
+  'flex min-h-7 items-center text-xs font-bold uppercase tracking-normal text-ink-soft max-[820px]:hidden';
+
+const useCaseCellClass =
+  'min-w-0 rounded-card border border-line-hover bg-surface-muted p-3 max-[820px]:mt-1.5';
+
+const presetButtonClass =
+  'group min-h-[92px] min-w-0 rounded-card p-3 text-left [font:inherit] tracking-normal text-ink transition-[background-color,border-color,box-shadow,transform] duration-150 focus-visible:border-line-strong focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[var(--focus-ring)]';
+
+const idlePresetButtonClass =
+  'border border-line-hover bg-surface-muted hover:-translate-y-px hover:border-line-strong hover:bg-surface-raised';
+
+const activePresetButtonClass =
+  'border border-line-strong bg-surface-raised shadow-card';
 
 function lineClass(line: ProtocolLine): string {
   if (line.op === 'add') return 'op-add';
   if (line.op === 'set') return 'op-set';
   return 'op-meta';
+}
+
+function fragmentLogToneClass(tone: string): string {
+  return tone === 'op-meta' || tone === 'info' ? 'text-ink-soft' : logToneClass(tone);
 }
 
 function agentMetaLabel(value: unknown): string {
@@ -164,7 +183,7 @@ function CompareTargetPane({
     setStatus('starting');
     setLogs([]);
     setMetrics({ lines: 0, bytes: 0, nodeCommits: 0, firstNodeAt: null, graph: null });
-    surfaceRef.current?.render(blankDarkArtifact);
+    surfaceRef.current?.render(blankArtifact);
     logLine('info', side === 'html-node-v0'
       ? 'POST /api/generate fragmentMode=html-node-v0'
       : 'POST /api/generate fragmentMode=section');
@@ -260,27 +279,36 @@ function CompareTargetPane({
   }, [logLine, onDone, run, side]);
 
   return (
-    <section className={cn(panelClass, 'min-w-0 overflow-hidden')} data-fragment-side={side}>
-      <header className="flex items-center justify-between gap-3 border-b border-line bg-surface-muted px-3.5 py-3">
+    <section className="min-w-0 overflow-hidden rounded-card border border-line-hover bg-surface shadow-card" data-fragment-side={side}>
+      <header className="flex items-center justify-between gap-3 border-b border-line-hover bg-surface-muted px-3.5 py-3">
         <div>
-          <span className="block font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">{side === 'section' ? 'Sections' : 'HTML Nodes'}</span>
-          <strong className="mt-0.5 block text-[11px] font-medium text-ink-muted">{side === 'section' ? 'current behavior' : 'experimental html-node-v0'}</strong>
+          <span className="block font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-soft">{side === 'section' ? 'Sections' : 'HTML Nodes'}</span>
+          <strong className="mt-0.5 block text-[11px] font-medium text-ink">{side === 'section' ? 'current behavior' : 'experimental html-node-v0'}</strong>
         </div>
-        <span id={side === 'section' ? 'section-status' : 'block-status'} className={cn('shrink-0 font-mono text-[11px]', statusToneClass(status))} data-status={status}>{status}</span>
+        <span
+          id={side === 'section' ? 'section-status' : 'block-status'}
+          className={cn(
+            'shrink-0 rounded-full border border-line bg-surface-raised px-2 py-1 font-mono text-[11px]',
+            status === 'idle' || status === 'starting' ? 'text-ink-soft' : statusToneClass(status),
+          )}
+          data-status={status}
+        >
+          {status}
+        </span>
       </header>
       <SummonSurface
         ref={surfaceRef}
         id={side === 'section' ? 'section-frame' : 'block-frame'}
         title={side === 'section' ? 'Section fragment result' : 'HTML node patch result'}
-        className="block h-[min(62vh,620px)] min-h-[460px] w-full border-0 bg-black max-[820px]:min-h-[360px]"
-        html={blankDarkArtifact}
+        className="block h-[min(62vh,620px)] min-h-[460px] w-full border-0 bg-surface-raised max-[820px]:min-h-[360px]"
+        html={blankArtifact}
         tokensSource={tokensSource}
       />
-      <div className="border-y border-line px-3.5 py-2 font-mono text-[11px] text-ink-muted" id={side === 'section' ? 'section-metrics' : 'block-metrics'}>
+      <div className="border-y border-line-hover bg-surface-raised px-3.5 py-2 font-mono text-[11px] text-ink-soft" id={side === 'section' ? 'section-metrics' : 'block-metrics'}>
         {metricsText(metrics, side)}
       </div>
       <LogView id={side === 'section' ? 'section-log' : 'block-log'} className="h-[190px] bg-surface-muted px-3.5 py-2.5">
-        {logs.map((log, index) => <div key={index} className={logToneClass(log.cls)}>{log.text}</div>)}
+        {logs.map((log, index) => <div key={index} className={fragmentLogToneClass(log.cls)}>{log.text}</div>)}
       </LogView>
     </section>
   );
@@ -331,7 +359,7 @@ export function FragmentComparePage() {
       <AppNav active="fragment-compare" />
       <PageHeader
         title="Fragment compare"
-        aside={<div className="self-end font-mono text-[11px] text-ink-muted" id="summary">{summary}</div>}
+        aside={<div className="self-end rounded-full border border-line-hover bg-surface-muted px-3 py-1.5 font-mono text-[11px] text-ink-soft" id="summary">{summary}</div>}
       />
       <form className={cn(pageWidthClass, 'mb-7 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-6 max-[820px]:grid-cols-1')} onSubmit={(event) => {
         event.preventDefault();
@@ -340,12 +368,12 @@ export function FragmentComparePage() {
         <section className="col-span-full grid gap-2.5" aria-labelledby="prompt-presets-label">
           <div className="flex items-center justify-between gap-3 max-[820px]:block">
             <span id="prompt-presets-label" className={fieldLabelClass}>Sample prompt matrix</span>
-            <span className="text-xs text-ink-muted max-[820px]:mt-1 max-[820px]:block">Rows are Summon use cases. Columns are complexity.</span>
+            <span className="text-xs text-ink-soft max-[820px]:mt-1 max-[820px]:block">Rows are Summon use cases. Columns are complexity.</span>
           </div>
           <div id="prompt-preset-matrix" className="grid grid-cols-[minmax(150px,0.75fr)_repeat(3,minmax(0,1fr))] items-stretch gap-3 max-[820px]:grid-cols-1">
-            <div className="flex min-h-7 items-center text-xs font-bold uppercase tracking-normal text-ink-muted max-[820px]:hidden">Use case</div>
+            <div className={matrixHeaderClass}>Use case</div>
             {promptComplexities.map((complexity) => (
-              <div key={complexity.id} className="flex min-h-7 items-center text-xs font-bold uppercase tracking-normal text-ink-muted max-[820px]:hidden">{complexity.label}</div>
+              <div key={complexity.id} className={matrixHeaderClass}>{complexity.label}</div>
             ))}
             {promptUseCases.map((useCase) => (
               <PromptPresetRow key={useCase.id} useCase={useCase} activePresetId={activePresetId} onPreset={updatePrompt} />
@@ -381,31 +409,33 @@ function PromptPresetRow({
 }) {
   return (
     <>
-      <div className="min-w-0 rounded-card border border-transparent bg-transparent p-3 max-[820px]:mt-1.5">
+      <div className={useCaseCellClass}>
         <span className="mb-1 block text-[13px] font-bold leading-tight text-ink">{useCase.label}</span>
-        <span className="block text-xs leading-[1.35] text-ink-muted">{useCase.description}</span>
+        <span className="block text-xs leading-[1.35] text-ink-soft">{useCase.description}</span>
       </div>
       {promptComplexities.map((complexity) => {
         const preset = promptPresets.find(
           (candidate) => candidate.useCase === useCase.id && candidate.complexity === complexity.id,
         );
         if (!preset) return <div key={complexity.id} />;
+        const isActive = preset.id === activePresetId;
         return (
           <button
             key={preset.id}
             type="button"
             className={cn(
-              'min-h-[82px] min-w-0 rounded-card border border-transparent bg-transparent p-3 text-left [font:inherit] tracking-normal text-ink transition-colors hover:bg-transparent',
-              preset.id === activePresetId && 'border-line-strong bg-surface',
+              presetButtonClass,
+              isActive ? activePresetButtonClass : idlePresetButtonClass,
             )}
             data-preset-id={preset.id}
             data-complexity={complexity.id}
-            data-active={preset.id === activePresetId ? 'true' : undefined}
+            data-active={isActive ? 'true' : undefined}
+            aria-pressed={isActive}
             aria-label={`${useCase.label}, ${complexity.label}: ${preset.title}`}
             onClick={() => onPreset(preset.prompt)}
           >
             <span className="mb-1 block text-[13px] font-bold leading-tight text-ink">{preset.title}</span>
-            <span className="line-clamp-3 block overflow-hidden text-xs leading-[1.35] text-ink-muted">{preset.prompt}</span>
+            <span className="line-clamp-3 block overflow-hidden text-xs leading-[1.35] text-ink-soft">{preset.prompt}</span>
           </button>
         );
       })}

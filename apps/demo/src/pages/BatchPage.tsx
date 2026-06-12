@@ -201,14 +201,14 @@ function BatchTile({
         <SummonSurface
           ref={surfaceRef}
           title={run.prompt}
-          className={cn('block w-full border-0 bg-black', stacked ? 'h-[880px]' : 'h-[760px]')}
+          className={cn('block w-full border-0 bg-surface-raised', stacked ? 'h-[880px]' : 'h-[760px]')}
           html=""
           tokensSource={run.tokensCss}
           capabilityRegistry={registry}
           grantedCapabilities={validationCapabilities ?? undefined}
         />
         {run.interactivity === 'interactive' && statusClass === 'streaming' ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/85 text-[13px] font-medium tracking-normal text-ink-soft">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--overlay-strong)] text-[13px] font-medium tracking-normal text-ink-soft">
             Generating...
           </div>
         ) : null}

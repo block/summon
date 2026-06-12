@@ -18,7 +18,7 @@ export const panelHeaderClass =
   'flex items-center justify-between gap-3 border-b border-line bg-surface-muted px-3.5 py-3 font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted';
 
 const controlBaseClass =
-  'min-w-0 rounded-control border border-line-input bg-black text-sm text-ink transition-[border-color,box-shadow,background-color,color] duration-150 focus:border-line-strong focus:outline-none focus:ring-3 focus:ring-white/10 disabled:cursor-not-allowed disabled:opacity-45';
+  'min-w-0 rounded-control border border-line-input bg-surface-raised text-sm text-ink transition-[border-color,box-shadow,background-color,color] duration-150 focus:border-line-strong focus:outline-none focus:ring-3 focus:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45';
 
 export const inputClass = cn(controlBaseClass, 'px-3.5 py-3');
 export const compactInputClass = cn(controlBaseClass, 'h-[30px] px-3.5 py-0 text-xs font-medium');
@@ -43,7 +43,7 @@ export function buttonClass({
 } = {}): string {
   return cn(
     buttonBaseClass,
-    variant === 'primary' && 'border border-transparent bg-ink text-black hover:bg-white/85',
+    variant === 'primary' && 'border border-transparent bg-ink text-ink-inverse hover:opacity-85',
     variant === 'secondary' && 'border border-line-input bg-surface text-ink-soft hover:border-line-hover hover:bg-surface-muted hover:text-ink',
     variant === 'chip' && 'border border-transparent bg-surface-muted text-ink hover:border-line-hover hover:bg-surface',
     variant === 'ghost' && 'border border-line-input bg-transparent text-ink-soft hover:border-line-hover hover:bg-surface-muted hover:text-ink',
@@ -82,7 +82,7 @@ export function StatusText({ className, children, ...props }: ComponentProps<'sp
 export function modeOptionClass(active: boolean): string {
   return cn(
     'rounded-full px-3 py-1 text-xs font-medium text-ink-soft transition-colors duration-150 hover:text-ink',
-    active && 'bg-ink font-semibold text-black hover:text-black',
+    active && 'bg-ink font-semibold text-ink-inverse hover:text-ink-inverse',
   );
 }
 

@@ -46,10 +46,13 @@ const cards = [
 function LandingCard({ card }: { card: (typeof cards)[number] }) {
   return (
     <Link
-      className="group flex flex-col gap-4 rounded-card border border-line bg-black p-5 text-inherit no-underline transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-line-hover hover:shadow-card"
+      className="group flex flex-col gap-4 rounded-card border border-line bg-surface-raised p-5 text-inherit no-underline transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:shadow-card"
       to={card.href}
     >
-      <div className="flex size-10 items-center justify-center rounded-control bg-surface text-ink transition-colors duration-150 group-hover:bg-ink group-hover:text-black" aria-hidden="true">
+      <div
+        className="flex size-10 items-center justify-center rounded-control bg-surface text-ink transition-colors duration-150 group-hover:bg-ink group-hover:text-ink-inverse"
+        aria-hidden="true"
+      >
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -63,24 +66,10 @@ function LandingCard({ card }: { card: (typeof cards)[number] }) {
         </svg>
       </div>
       <div>
-        <h2 className="m-0 mb-1.5 text-base font-semibold tracking-normal text-ink">{card.title}</h2>
-        <p className="m-0 text-[13px] leading-[1.55] text-ink-soft">{card.body}</p>
-      </div>
-      <div className="mt-auto flex items-center gap-1 text-[13px] font-medium text-ink-muted transition-colors duration-150 group-hover:text-ink">
-        <span>Open</span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="size-3.5 transition-transform duration-150 group-hover:translate-x-0.5"
-          aria-hidden="true"
-        >
-          <path d="M5 12h14" />
-          <path d="m12 5 7 7-7 7" />
-        </svg>
+        <h2 className="m-0 mb-1.5 text-lg font-semibold tracking-normal text-ink">
+          {card.title}
+        </h2>
+        <p className="m-0 text-sm leading-[1.55] text-ink-soft">{card.body}</p>
       </div>
     </Link>
   );
@@ -88,17 +77,19 @@ function LandingCard({ card }: { card: (typeof cards)[number] }) {
 
 export function LandingPage() {
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-[72px]">
-      <div className="w-full max-w-[880px]">
-        <header className="mb-9">
-          <h1 className="m-0 mb-2.5 text-[clamp(64px,9vw,116px)] font-bold leading-[0.88] tracking-normal text-ink">summon</h1>
+    <main className="flex flex-1 p-16">
+      <div className="w-full ">
+        <header className="mb-24">
+          <h1 className="m-0 mb-2.5 text-[clamp(64px,9vw,116px)] font-bold leading-[0.88] tracking-normal text-ink">
+            summon
+          </h1>
           <p className="m-0 max-w-[56ch] text-[15px] leading-[1.55] text-ink-soft">
             summon renders ai-generated UI in a locked iframe. the ui can only
             use host tools the app allows.
           </p>
         </header>
 
-        <div className="grid grid-cols-2 gap-2.5 max-[600px]:grid-cols-1">
+        <div className="grid grid-cols-3 gap-2">
           {cards.map((card) => (
             <LandingCard key={card.href} card={card} />
           ))}

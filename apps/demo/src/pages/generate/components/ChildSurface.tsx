@@ -78,7 +78,7 @@ export function ChildSurface({
       <SummonSurface
         ref={surfaceRef}
         title={`Summoned: ${child.title ?? child.prompt.slice(0, 40)}`}
-        className="block h-[480px] w-full border-0 bg-black"
+        className="block h-[480px] w-full border-0 bg-surface-raised"
         html=""
         tokensSource={child.tokensSource}
         capabilityRegistry={registry}
