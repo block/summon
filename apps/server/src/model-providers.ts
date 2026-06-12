@@ -461,7 +461,7 @@ function parseEffort(raw: unknown, fallback: ModelEffort): ModelEffort {
 
 function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
   const apiKey = env.ANTHROPIC_API_KEY?.trim();
-  const model = env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6';
+  const model = env.ANTHROPIC_MODEL ?? 'claude-opus-4-8';
   const utilityModel = env.ANTHROPIC_SMALL_MODEL ?? 'claude-haiku-4-5';
   const defaults = createProviderDefaults({
     env,

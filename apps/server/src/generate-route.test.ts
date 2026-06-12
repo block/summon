@@ -88,7 +88,7 @@ test('api generate sends narrowed contract and stream meta shape through package
           id: 'msg_test',
           type: 'message',
           role: 'assistant',
-          model: 'claude-sonnet-4-6',
+          model: 'claude-opus-4-8',
           content: [],
           stop_reason: null,
           stop_sequence: null,
@@ -177,7 +177,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(anthropicRequests.length, 1);
   const request = anthropicRequests[0] as { model?: string; system?: Array<{ text?: string }>; stream?: boolean };
   assert.equal(request.stream, true);
-  assert.equal(request.model, 'claude-sonnet-4-6');
+  assert.equal(request.model, 'claude-opus-4-8');
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(systemText, /Search host-owned dinner data/);
   assert.match(systemText, /host-resource/);
@@ -461,7 +461,7 @@ test('api generate emits compact Ghost capsule for root contexts', async (t) => 
           id: 'msg_ghost',
           type: 'message',
           role: 'assistant',
-          model: 'claude-sonnet-4-6',
+          model: 'claude-opus-4-8',
           content: [],
           stop_reason: null,
           stop_sequence: null,

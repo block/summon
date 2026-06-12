@@ -126,7 +126,7 @@ button {
   align-items: center;
   gap: 7px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--panel);
   color: var(--muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -146,7 +146,7 @@ button {
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--line-strong);
 }
 
@@ -804,7 +804,7 @@ button {
 
 .host-approval span {
   width: max-content;
-  border-radius: 999px;
+  border-radius: 0;
   color: #ffffff;
   font-size: 11px;
   font-weight: 850;
@@ -968,5 +968,556 @@ button {
     min-height: 44px;
     border-left: 0;
     border-top: 1px solid var(--line);
+  }
+}
+
+/* Open Foundry-inspired dark gallery skin. Keep behavior/selectors intact. */
+
+:root {
+  color-scheme: dark;
+  --bg: oklch(0.2 0.002 264);
+  --chrome: oklch(0.2 0.002 264);
+  --panel: oklch(0.2 0.002 264);
+  --panel-quiet: oklch(0.23 0.002 264);
+  --ink: oklch(0.96 0.003 264);
+  --ink-soft: oklch(1 0 0 / 0.48);
+  --muted: oklch(1 0 0 / 0.24);
+  --muted-quiet: oklch(1 0 0 / 0.18);
+  --line: oklch(0.4 0.01 264 / 0.24);
+  --line-strong: oklch(0.96 0.003 264 / 0.72);
+  --accent: oklch(0.96 0.003 264);
+  --shadow: none;
+}
+
+body {
+  background: var(--bg);
+}
+
+.gallery-shell {
+  width: min(100%, 1680px);
+  min-height: calc(100vh - 48px);
+  margin: 24px auto;
+  grid-template-columns: 260px minmax(0, 1fr) 320px;
+  grid-template-rows: 58px minmax(0, 1fr);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.gallery-masthead {
+  height: 58px;
+  border-bottom-color: var(--line);
+  background: var(--panel);
+}
+
+.wordmark {
+  font-size: 16px;
+  font-weight: 760;
+}
+
+.masthead-meta span,
+.gallery-model-controls select,
+.gallery-model-controls input,
+.prompt-box {
+  border-color: var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.masthead-meta span::before {
+  border-radius: 999px;
+}
+
+.preset-rail,
+.contract-panel {
+  background: var(--chrome);
+}
+
+.preset-rail {
+  border-right-color: var(--line);
+}
+
+.contract-panel {
+  border-left-color: var(--line);
+}
+
+.rail-heading,
+.inspector-header,
+.event-heading,
+.prompt-panel-header {
+  border-color: var(--line);
+}
+
+.rail-heading span,
+.inspector-header span,
+.event-heading span,
+.prompt-label,
+.eyebrow,
+.health-grid span,
+.gallery-model-controls span {
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.preset-list {
+  gap: 6px;
+}
+
+.preset-card {
+  border-radius: 6px;
+  background: transparent;
+}
+
+.preset-card:hover,
+.preset-card:focus-visible {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.preset-card.active {
+  border-color: var(--line-strong);
+  background: var(--panel-quiet);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.preset-card.active .preset-index,
+.preset-card.active .preset-main strong,
+.preset-card.active .preset-main span,
+.preset-card.active .preset-main em {
+  color: var(--ink);
+}
+
+.preset-main strong {
+  font-size: 17px;
+  font-weight: 760;
+  line-height: 1.02;
+}
+
+.surface-stage {
+  gap: 14px;
+  padding: 22px;
+  background: var(--bg);
+}
+
+.stage-header {
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom-color: var(--line);
+}
+
+.stage-header h2 {
+  max-width: 820px;
+  font-size: clamp(32px, 4.4vw, 74px);
+  font-weight: 760;
+  line-height: 0.95;
+}
+
+.stage-header p:last-child {
+  max-width: 64ch;
+  color: var(--muted);
+}
+
+.surface-meta,
+.prompt-panel,
+.sandbox-frame,
+.contract-summary,
+.health-grid,
+.event-panel,
+#state-preview,
+.setup-note,
+.approval-card {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: none;
+}
+
+.surface-meta span,
+.contract-row,
+.health-grid div,
+.event-heading,
+.prompt-panel-header {
+  border-color: var(--line);
+}
+
+#run,
+.approval-actions .approval-approve {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #080806;
+}
+
+#run:hover,
+.approval-actions .approval-approve:hover {
+  background: oklch(0.88 0.005 264);
+}
+
+.sandbox-frame {
+  min-height: 560px;
+  box-shadow: none;
+}
+
+#sandbox,
+.iframe-shell,
+.welcome {
+  background: #000000;
+}
+
+.setup-note {
+  border-color: rgba(227, 189, 106, 0.34);
+  background: rgba(227, 189, 106, 0.1);
+  color: #e3bd6a;
+}
+
+.sandbox-toolbar {
+  border-color: var(--line);
+  background: var(--panel-quiet);
+  color: var(--muted);
+}
+
+.sandbox-toolbar strong {
+  color: var(--ink);
+}
+
+.inspector-tabs {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--panel-quiet);
+}
+
+.inspector-tabs button {
+  border-color: var(--line);
+  border-radius: 6px;
+}
+
+.inspector-tabs button:hover,
+.inspector-tabs button.active {
+  background: var(--accent);
+  color: #080806;
+}
+
+.event-log {
+  background: var(--line);
+}
+
+.event-row {
+  background: var(--panel);
+  color: var(--muted);
+}
+
+#state-preview,
+.host-metric,
+.host-trend,
+.host-approval {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.host-metric span,
+.host-trend span,
+.host-trend p,
+.host-approval p {
+  color: var(--muted);
+}
+
+.host-approval span {
+  color: #080806;
+}
+
+button,
+select,
+input,
+textarea,
+.host-metric,
+.host-trend,
+.host-approval,
+.host-approval span,
+.approval-actions button {
+  border-radius: 6px;
+}
+
+@media (min-width: 1320px) and (min-height: 880px) {
+  .gallery-shell {
+    width: min(100%, 1560px);
+    min-height: calc(100vh - 72px);
+    margin: 36px auto;
+  }
+
+  .stage-header h2 {
+    font-size: clamp(42px, 4.8vw, 88px);
+  }
+
+  .sandbox-frame {
+    min-height: 640px;
+  }
+}
+
+@media (max-width: 1119px) {
+  .gallery-shell {
+    width: 100%;
+    min-height: 100vh;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .gallery-masthead {
+    height: auto;
+    position: static;
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .masthead-meta {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .gallery-model-controls {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .surface-stage {
+    padding: 18px;
+  }
+
+  .stage-header h2 {
+    font-size: clamp(34px, 13vw, 56px);
+  }
+
+  .prompt-composer {
+    grid-template-columns: 1fr;
+  }
+
+  #run {
+    min-height: 44px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+/* Open Foundry simplicity pass: open page, sparse rails, specimen-first spacing. */
+
+.gallery-shell {
+  width: min(calc(100% - 96px), 1600px);
+  min-height: calc(100vh - 96px);
+  margin: 48px auto;
+  grid-template-columns: 270px minmax(0, 1fr) 310px;
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: clamp(28px, 3vw, 56px);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.gallery-masthead {
+  min-height: 36px;
+  height: auto;
+  margin-bottom: 42px;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.wordmark {
+  font-size: 18px;
+}
+
+.masthead-meta {
+  justify-content: flex-start;
+}
+
+.masthead-meta span,
+.gallery-model-controls select,
+.gallery-model-controls input {
+  background: transparent;
+}
+
+.preset-rail,
+.contract-panel {
+  background: transparent;
+}
+
+.preset-rail {
+  border-right: 0;
+}
+
+.contract-panel {
+  border-left: 0;
+}
+
+.rail-heading,
+.inspector-header {
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.preset-list {
+  gap: 18px;
+}
+
+.preset-card {
+  padding: 12px 10px;
+  border-color: transparent;
+}
+
+.preset-card:hover,
+.preset-card:focus-visible {
+  border-color: var(--line);
+  background: transparent;
+}
+
+.preset-card.active {
+  border-color: var(--line-strong);
+  background: var(--panel);
+  box-shadow: none;
+}
+
+.preset-main {
+  gap: 3px;
+}
+
+.preset-main strong {
+  font-size: 18px;
+}
+
+.surface-stage {
+  gap: 26px;
+  padding: 0;
+  background: transparent;
+}
+
+.stage-header {
+  gap: 14px;
+  padding-bottom: 28px;
+}
+
+.stage-header h2 {
+  max-width: 900px;
+  font-size: 124px;
+  line-height: 0.86;
+}
+
+.stage-header p:last-child {
+  max-width: 52ch;
+  font-size: 16px;
+}
+
+.surface-meta {
+  border: 0;
+  background: transparent;
+}
+
+.surface-meta span {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.prompt-panel {
+  border: 0;
+  background: transparent;
+}
+
+.prompt-panel-header {
+  padding-inline: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+.prompt-box {
+  min-height: 120px;
+  padding: 20px;
+  border-width: 1px;
+  background: var(--panel);
+}
+
+#run {
+  min-width: 108px;
+}
+
+.sandbox-frame {
+  min-height: 620px;
+  border-width: 1px;
+}
+
+.contract-summary,
+.health-grid,
+.event-panel,
+#state-preview,
+.setup-note,
+.approval-card {
+  background: transparent;
+}
+
+.contract-row,
+.health-grid div,
+.event-row,
+.host-metric,
+.host-trend,
+.host-approval {
+  background: transparent;
+}
+
+@media (min-width: 1320px) and (min-height: 880px) {
+  .gallery-shell {
+    width: min(calc(100% - 112px), 1600px);
+    min-height: calc(100vh - 112px);
+    margin: 56px auto;
+  }
+
+  .stage-header h2 {
+    font-size: 136px;
+  }
+
+  .sandbox-frame {
+    min-height: 700px;
+  }
+}
+
+@media (max-width: 1119px) {
+  body {
+    min-width: 0;
+  }
+
+  .gallery-shell {
+    width: 100%;
+    min-height: 100vh;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    margin: 0;
+    column-gap: 0;
+  }
+
+  .gallery-masthead {
+    margin-bottom: 0;
+    padding: 16px;
+  }
+
+  .surface-stage {
+    padding: 26px 18px;
+  }
+
+  .stage-header h2 {
+    font-size: 56px;
+    line-height: 0.9;
+  }
+
+  .sandbox-frame {
+    min-height: 520px;
+  }
+
+  .preset-rail,
+  .contract-panel {
+    padding-inline: 18px;
   }
 }

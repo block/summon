@@ -199,6 +199,9 @@ const modelOptions = {
   effort: 'low',
 } as const;
 
+const blankDarkArtifact =
+  '<style>html,body{min-height:100%;margin:0;background:#000;color:oklch(0.96 0.003 264)}</style>';
+
 let activeAbort: AbortController | null = null;
 let activePresetId: string | null = null;
 
@@ -275,7 +278,7 @@ function resetTarget(target: CompareTarget): void {
   target.handle?.dispose();
   target.handle = spawnSandbox({
     iframe: target.frame,
-    artifact: { html: '', intents: [] },
+    artifact: { html: blankDarkArtifact, intents: [] },
     grantedIntents: [],
     bootstrapSource,
     tokensSource,

@@ -6,7 +6,7 @@
 <title>Summon — fragment compare</title>
 <link rel="stylesheet" href="/summon.css">
 </head>
-<body class="fragment-compare-page">
+<body class="dev-page fragment-compare-page">
 <nav class="summon-nav">
   <a class="summon-brand" href="/">summon</a>
   <a href="/generate.html">Generate</a>
@@ -14,10 +14,9 @@
   <a class="active" href="/fragment-compare.html">Fragment compare</a>
 </nav>
 
-<header class="compare-header">
+<header class="dev-header compare-header">
   <div>
     <h1 class="page-title">Fragment compare</h1>
-    <p class="lede">Run the same prompt twice: section fragments on the left, experimental HTML node patches on the right.</p>
   </div>
   <div class="compare-summary" id="summary">Idle</div>
 </header>
@@ -49,7 +48,7 @@
       </div>
       <span id="section-status" class="status">idle</span>
     </header>
-    <iframe id="section-frame" title="Section fragment result"></iframe>
+    <iframe id="section-frame" title="Section fragment result" srcdoc="<style>html,body{margin:0;min-height:100%;background:#000;color:oklch(0.96 0.003 264)}</style>"></iframe>
     <div class="compare-metrics" id="section-metrics">0 lines · 0 B</div>
     <div class="log compare-log" id="section-log"></div>
   </section>
@@ -62,7 +61,7 @@
       </div>
       <span id="block-status" class="status">idle</span>
     </header>
-    <iframe id="block-frame" title="HTML node patch result"></iframe>
+    <iframe id="block-frame" title="HTML node patch result" srcdoc="<style>html,body{margin:0;min-height:100%;background:#000;color:oklch(0.96 0.003 264)}</style>"></iframe>
     <div class="compare-metrics" id="block-metrics">0 lines · 0 B</div>
     <div class="log compare-log" id="block-log"></div>
   </section>

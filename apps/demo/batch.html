@@ -6,7 +6,7 @@
 <title>Summon — batch testing</title>
 <link rel="stylesheet" href="/summon.css">
 </head>
-<body class="wide">
+<body class="dev-page batch-page">
 <nav class="summon-nav">
   <a class="summon-brand" href="/">summon</a>
   <a href="/generate.html">Generate</a>
@@ -14,10 +14,14 @@
   <a href="/fragment-compare.html">Fragment compare</a>
 </nav>
 
-<h1 class="page-title">Batch testing</h1>
-<p class="lede">Fire N generations in parallel. Same prompt to compare consistency, or a seeded random sample from the curated prompt pool to compare coverage.</p>
+<header class="dev-header batch-header">
+  <div>
+    <h1 class="page-title">Batch testing</h1>
+    <p class="lede">Fire N generations in parallel. Same prompt to compare consistency, or a seeded random sample from the curated prompt pool to compare coverage.</p>
+  </div>
+</header>
 
-<div class="controls">
+<div class="controls batch-controls">
   <label>Direction <select id="direction"></select></label>
 
   <div class="mode-group" title="Mode">
@@ -46,8 +50,8 @@
   <button id="stop" type="button" class="btn-secondary btn-sm" disabled>Stop</button>
 </div>
 
-<div class="grid layout-grid" id="grid"></div>
-<div class="summary" id="summary" style="margin-top: 16px; border-radius: var(--radius-card); border: 1px solid var(--border-default);">No run yet.</div>
+<div class="grid layout-grid batch-grid" id="grid"></div>
+<div class="summary batch-summary" id="summary">No run yet.</div>
 
 <script type="module" src="/src/batch-main.ts"></script>
 </body>
