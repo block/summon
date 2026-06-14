@@ -475,6 +475,7 @@
         "SurfaceIntentDataNeed",
         "SurfaceIntentInteraction",
         "SurfaceIntentSideEffect",
+        "SurfaceIntentSource",
         "SurfaceGenerationInput",
         "SurfaceGenerationSummary"
       ]

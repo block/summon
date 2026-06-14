@@ -259,13 +259,14 @@ export async function resolveGhostGenerationContext(
   if (resolve(relay.source.repoRoot) !== resolve(root)) {
     throw new Error('configured Ghost root must resolve to the fingerprint stack repo root');
   }
+  const stackRelay = relay as RelayGatherResult & { source: RelayStackSource };
   const product = relay.entrypoint.identity.product || relay.name || request.rootId;
-  const tokenSource = await resolveGhostTokenSource(relay, baseDirection);
+  const tokenSource = await resolveGhostTokenSource(stackRelay, baseDirection);
   return {
     source: 'root',
     request,
     root,
-    relay: relay as RelayGatherResult & { source: RelayStackSource },
+    relay: stackRelay,
     prompt: relay.brief,
     product,
     tokenSource,

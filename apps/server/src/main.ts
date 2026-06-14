@@ -40,7 +40,6 @@ import {
   resolveGhostGenerationContext,
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
-import { inferPack } from './infer-capabilities.js';
 import { inferShape, type ResponseShape } from './infer-shape.js';
 import { parseCapabilityPack } from './capability-pack.js';
 import { parseComponentPack } from './component-pack.js';
@@ -326,23 +325,6 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
   return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
-/**
- * Conservative two-signal heuristic for "this static-mode prompt actually wants
- * interactivity". Requires BOTH an interactive verb AND user-action framing,
- * so passive list requests like "pick a name for my puppy" don't trip it.
- *
- * Tunable knob: tighten ACTION_FRAMING for false-positives; loosen for
- * false-negatives.
- */
-const INTERACTIVE_VERBS =
-  /\b(pick|choose|select|submit|filter|toggle|track|count|tally|vote|rate|swipe|drag|search\s+for|let\s+me\s+(pick|choose|search|filter|select))\b/i;
-const ACTION_FRAMING =
-  /\b(let\s+me|i\s+can|lets?\s+the\s+user|so\s+i\s+can|that\s+i\s+can|where\s+i\s+can|i\s+(want\s+to|need\s+to)\s+(pick|choose|select|filter|track|count|search|toggle)|with\s+\d+\s+(options?|choices?|cards?|tabs?)|from\s+\d+\s+(options?|choices?|cards?|tabs?)|help\s+me\s+(pick|choose|select|filter|find|track|count|toggle))\b/i;
-
-function detectsInteractiveIntent(prompt: string): boolean {
-  return INTERACTIVE_VERBS.test(prompt) && ACTION_FRAMING.test(prompt);
-}
-
 // Simple concurrency cap for /api/generate — protects against a runaway batch
 // page firing too many parallel streams at the selected model API.
 const MAX_CONCURRENT_GENERATIONS = 12;
@@ -506,10 +488,11 @@ app.post('/api/generate', async (req, res) => {
   const agentOptions = rawAgentOptions && typeof rawAgentOptions === 'object'
     ? rawAgentOptions as Record<string, unknown>
     : null;
-  const agentPlanningEnabled = agentOptions?.enabled === true;
 
   const hasSurfacePolicy =
     req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
+  const hasSurfacePlan =
+    req.body?.surfacePlan !== undefined && req.body.surfacePlan !== null;
   const requestedMode: 'static' | 'interactive' =
     req.body?.mode === 'interactive' ? 'interactive' : 'static';
   let scriptPolicy: ScriptPolicy | undefined =
@@ -520,7 +503,6 @@ app.post('/api/generate', async (req, res) => {
   let mode: 'static' | 'interactive' = requestedMode;
   let pack: CapabilityPack | null = null;
   let modeUpgraded = false;
-  let inferenceUsed = false;
   let surfacePlan: SurfacePlan;
   let agentPlan: AgentSurfacePlanResult | null = null;
 
@@ -546,7 +528,24 @@ app.post('/api/generate', async (req, res) => {
     scriptPolicy = compiledPolicy.scriptPolicy;
     pack = compiledPolicy.capabilities;
     surfacePlan = compiledPolicy.surfacePlan;
-  } else if (agentPlanningEnabled) {
+  } else if (hasSurfacePlan) {
+    pack = requestedMode === 'interactive' ? capabilityCeiling : null;
+    const resolvedSurface = resolveSurfaceGenerationPlan({
+      prompt,
+      mode,
+      scriptPolicy,
+      capabilities: pack,
+      rawSurfacePlan: req.body?.surfacePlan,
+      rawSurfaceCeiling: req.body?.surfaceCeiling,
+    });
+    if (mode !== resolvedSurface.mode) {
+      modeUpgraded = mode === 'static' && resolvedSurface.mode === 'interactive' ? true : modeUpgraded;
+      mode = resolvedSurface.mode;
+      pack = mode === 'interactive' ? pack ?? capabilityCeiling : null;
+    }
+    scriptPolicy = resolvedSurface.scriptPolicy;
+    surfacePlan = resolvedSurface.surfacePlan;
+  } else {
     agentPlan = await planAgentSurface({
       prompt,
       capabilities: capabilityCeiling,
@@ -563,56 +562,6 @@ app.post('/api/generate', async (req, res) => {
     pack = agentPlan.compiledPolicy.capabilities;
     surfacePlan = agentPlan.compiledPolicy.surfacePlan;
     modeUpgraded = requestedMode === 'static' && mode === 'interactive';
-  } else {
-    // Layer 3: utility-model capability inference. Decides mode + narrows the
-    // pack to the minimal subset of intents the prompt actually needs. The
-    // pack is treated as a ceiling — inference can only narrow, never expand.
-    // Falls through to the Layer 2 regex on timeout or error.
-    if (process.env.SUMMON_INFER_CAPABILITIES === '1' && capabilityCeiling) {
-      const inferred = await inferPack({
-        completeText: (request) => modelProvider.completeText(request, modelSelection),
-      }, prompt, capabilityCeiling);
-      if (inferred) {
-        inferenceUsed = true;
-        if (requestedMode === 'interactive') {
-          // Respect the user's explicit interactive choice. Inference may narrow
-          // the pack, but won't downgrade to static.
-          mode = 'interactive';
-          pack = inferred.pack ?? capabilityCeiling;
-        } else {
-          mode = inferred.mode;
-          pack = inferred.pack;
-          modeUpgraded = mode === 'interactive';
-        }
-      }
-    }
-
-    // Layer 2 regex fallback — runs when inference is disabled, ceiling is
-    // missing, or inference returned null (timeout/parse failure). Only upgrades
-    // when a ceiling exists; without one there's no Capabilities block to emit.
-    if (!inferenceUsed) {
-      if (requestedMode === 'static' && capabilityCeiling && detectsInteractiveIntent(prompt)) {
-        mode = 'interactive';
-        modeUpgraded = true;
-      }
-      pack = mode === 'interactive' ? capabilityCeiling : null;
-    }
-
-    const resolvedSurface = resolveSurfaceGenerationPlan({
-      prompt,
-      mode,
-      scriptPolicy,
-      capabilities: pack,
-      rawSurfacePlan: req.body?.surfacePlan,
-      rawSurfaceCeiling: req.body?.surfaceCeiling,
-    });
-    if (mode !== resolvedSurface.mode) {
-      modeUpgraded = mode === 'static' && resolvedSurface.mode === 'interactive' ? true : modeUpgraded;
-      mode = resolvedSurface.mode;
-      pack = mode === 'interactive' ? pack ?? capabilityCeiling : null;
-    }
-    scriptPolicy = resolvedSurface.scriptPolicy;
-    surfacePlan = resolvedSurface.surfacePlan;
   }
 
   if (ghostContext) {
@@ -665,6 +614,7 @@ app.post('/api/generate', async (req, res) => {
       path: '/agent-policy-resolution',
       value: {
         source: agentPlan.policyResolution.source,
+        intentSource: agentPlan.intentSource,
         proposedSurfacePolicy: agentPlan.policyResolution.proposedSurfacePolicy,
         surfacePolicy: agentPlan.policyResolution.surfacePolicy,
         rejectedCapabilities: agentPlan.policyResolution.rejectedCapabilities,
@@ -786,7 +736,7 @@ app.post('/api/generate', async (req, res) => {
         cache_creation_input_tokens: 0,
       };
       const stats = summary.repairStats ?? { queued: 0, cancelled: 0, repaired: 0, failed: 0 };
-      const upgradeTag = modeUpgraded ? ` (upgraded ${inferenceUsed ? 'via inference' : 'via regex'})` : '';
+      const upgradeTag = modeUpgraded ? ` (upgraded via ${agentPlan ? 'broker' : 'surface plan'})` : '';
       console.log(
         `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
           ` shape=${shape ?? 'all'}` +

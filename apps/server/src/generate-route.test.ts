@@ -148,7 +148,7 @@ test('api generate sends narrowed contract and stream meta shape through package
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -294,6 +294,8 @@ test('api generate sends narrowed contract and stream meta shape through package
   ]);
   const agentIntent = agentLines[1] as Extract<ProtocolLine, { op: 'meta' }>;
   assert.equal((agentIntent.value as { interaction?: unknown }).interaction, 'search');
+  const agentResolution = agentLines[2] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((agentResolution.value as { intentSource?: unknown }).intentSource, 'deterministic');
   const agentPolicy = agentLines[3] as Extract<ProtocolLine, { op: 'meta' }>;
   assert.deepEqual(agentPolicy.value, {
     tier: 'declarative',
@@ -487,7 +489,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
       SUMMON_GHOST_ROOTS: `checkout=${root}`,
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -529,12 +531,18 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 8).map((line) => `${line.op} ${line.path}`), [
     'meta /ghost-context',
     'meta /ghost-token-source',
+    'meta /agent-intent',
+    'meta /agent-policy-resolution',
+    'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'meta /status',
   ]);
+  const ghostAgentResolution = lines[3] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((ghostAgentResolution.value as { intentSource?: unknown }).intentSource, 'deterministic');
 
   const ghostContext = lines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
   const contextMeta = ghostContext.value as {
@@ -665,7 +673,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -789,7 +797,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
       OPENAI_BASE_URL: `http://127.0.0.1:${openAIPort}/v1`,
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -926,7 +934,7 @@ test('api generate can stream with Gemini provider', async (t) => {
       GEMINI_API_KEY: 'test-gemini-key',
       GOOGLE_API_KEY: '',
       GEMINI_BASE_URL: `http://127.0.0.1:${geminiPort}`,
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],

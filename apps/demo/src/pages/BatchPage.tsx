@@ -40,8 +40,9 @@ function summarizeAgentMeta(value: unknown): string {
   if (policy) {
     const tier = typeof policy.tier === 'string' ? policy.tier : 'policy';
     const purpose = typeof policy.purpose === 'string' ? policy.purpose : 'inform';
+    const intentSource = typeof item.intentSource === 'string' ? ` · ${item.intentSource}` : '';
     const fallback = item.fallback === true ? ' · fallback' : '';
-    return `${tier}/${purpose}${fallback}`;
+    return `${tier}/${purpose}${intentSource}${fallback}`;
   }
   const purpose = typeof item.purpose === 'string' ? item.purpose : 'intent';
   const interaction = typeof item.interaction === 'string' ? item.interaction : 'none';

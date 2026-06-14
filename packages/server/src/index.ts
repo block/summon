@@ -28,6 +28,7 @@ export type {
   SurfaceIntentDataNeed,
   SurfaceIntentInteraction,
   SurfaceIntentSideEffect,
+  SurfaceIntentSource,
 } from './agent-broker.js';
 
 export type {

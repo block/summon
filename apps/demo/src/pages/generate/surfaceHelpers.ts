@@ -195,13 +195,15 @@ export function agentPolicyText(value: unknown): string {
     ? item.surfacePolicy as Record<string, unknown>
     : null;
   const source = typeof item.source === 'string' ? item.source : 'broker';
+  const intentSource = typeof item.intentSource === 'string' ? item.intentSource : '';
   const tier = typeof policy?.tier === 'string' ? policy.tier : 'policy';
   const purpose = typeof policy?.purpose === 'string' ? policy.purpose : 'inform';
   const fallback = item.fallback === true ? ' · fallback' : '';
   const rejectedCapabilities = Array.isArray(item.rejectedCapabilities) ? item.rejectedCapabilities.length : 0;
   const rejectedComponents = Array.isArray(item.rejectedComponents) ? item.rejectedComponents.length : 0;
   const rejected = rejectedCapabilities + rejectedComponents;
-  return `${source} · ${tier}/${purpose}${fallback}${rejected ? ` · rejected=${rejected}` : ''}`;
+  const sourceText = intentSource ? `${source}/${intentSource}` : source;
+  return `${sourceText} · ${tier}/${purpose}${fallback}${rejected ? ` · rejected=${rejected}` : ''}`;
 }
 
 export function applyTokenOverrideCss(baseCss: string, applied: Array<{ token: string; value: string }>): string {

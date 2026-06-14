@@ -11,7 +11,10 @@
       class="mx-auto my-12 grid min-h-[calc(100vh-96px)] w-[min(calc(100%_-_96px),1600px)] grid-cols-[270px_minmax(0,1fr)_310px] grid-rows-[auto_minmax(0,1fr)] gap-x-[clamp(28px,3vw,56px)] bg-transparent max-[1119px]:my-0 max-[1119px]:min-h-screen max-[1119px]:w-full max-[1119px]:grid-cols-1 max-[1119px]:grid-rows-none max-[1119px]:gap-x-0"
     >
       <header class="col-span-full mb-[42px] flex min-h-9 items-center justify-between gap-6 bg-transparent max-[1119px]:mb-0 max-[1119px]:grid max-[1119px]:gap-2.5 max-[1119px]:p-4" aria-label="Gallery masthead">
-        <a class="text-lg font-bold text-gallery-ink no-underline" href="/">Summon</a>
+        <div class="grid min-w-0 gap-1.5">
+          <a class="text-lg font-bold text-gallery-ink no-underline" href="/">Summon</a>
+          <p class="m-0 max-w-[560px] text-sm leading-normal text-gallery-muted"><strong class="text-gallery-ink">Tiny authority. Huge expression.</strong> Generated product surfaces where the model owns composition and the host owns data, actions, components, and approval.</p>
+        </div>
         <div class="flex min-w-0 items-center justify-start gap-2 max-[1119px]:flex-wrap" aria-label="Environment status">
           <span
             id="provider-summary"
@@ -58,13 +61,28 @@
             <p id="preset-description" class="m-0 mt-3.5 max-w-[52ch] text-base leading-normal text-gallery-muted">
               Choose a preset to see a focused Summon surface.
             </p>
+            <p id="preset-claim" class="m-0 mt-4 max-w-[58ch] border-l-2 border-gallery-line-strong pl-4 text-[15px] font-semibold leading-normal text-gallery-ink">
+              The gallery proves Summon's boundary by making authority visible.
+            </p>
           </div>
         </header>
 
-        <div class="grid grid-cols-[minmax(0,1.45fr)_minmax(140px,0.85fr)_minmax(140px,0.85fr)] overflow-hidden bg-transparent max-[1119px]:grid-cols-1" aria-label="Selected surface contract">
-          <span id="surface-policy-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">policy pending</span>
-          <span id="surface-tools-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">0 host tools</span>
-          <span id="surface-components-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">0 components</span>
+        <div class="grid gap-4" aria-label="Selected surface contract">
+          <div class="grid grid-cols-[minmax(0,1.45fr)_minmax(140px,0.85fr)_minmax(140px,0.85fr)] overflow-hidden bg-transparent max-[1119px]:grid-cols-1">
+            <span id="surface-policy-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">policy pending</span>
+            <span id="surface-tools-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">0 host tools</span>
+            <span id="surface-components-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">0 components</span>
+          </div>
+          <section class="grid gap-3 rounded-[8px] border border-gallery-line bg-gallery-panel-muted p-3.5" aria-label="Authority surface">
+            <div class="flex items-start justify-between gap-4 max-[1119px]:grid">
+              <div class="min-w-0">
+                <p class="m-0 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Authority surface</p>
+                <p id="authority-boundary" class="m-0 mt-2 max-w-[68ch] text-[13px] leading-normal text-gallery-soft">The host-selected policy decides what can run.</p>
+              </div>
+              <button id="try-boundary" class="h-9 min-w-[116px] cursor-pointer rounded-full border border-gallery-line-strong bg-transparent px-3 text-xs font-extrabold text-gallery-ink hover:border-gallery-accent hover:bg-gallery-accent hover:text-black disabled:cursor-not-allowed disabled:opacity-45" type="button" hidden>Try boundary</button>
+            </div>
+            <div id="authority-meter" class="grid grid-cols-2 overflow-hidden rounded-[6px] border border-gallery-line bg-gallery-bg max-[1119px]:grid-cols-1"></div>
+          </section>
         </div>
 
         <section class="min-w-0 overflow-hidden bg-transparent" aria-label="Prompt">
@@ -72,6 +90,7 @@
             <label class="m-0 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted" for="prompt">Prompt</label>
             <span id="prompt-length" class="font-mono text-[10.5px] leading-none text-gallery-muted">0 chars</span>
           </div>
+          <div id="preset-notes" class="grid gap-2.5 border-b border-gallery-line py-3 text-[13px] leading-normal text-gallery-muted" hidden></div>
           <div class="relative block min-h-[136px] max-[1119px]:grid max-[1119px]:gap-2.5">
             <textarea
               id="prompt"

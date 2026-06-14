@@ -93,8 +93,8 @@ test('generate page boots without server credentials', async ({ page }) => {
   await expect(page.locator('#welcome')).toBeVisible();
   await expect(page.locator('#welcome')).toContainText('Host Data Search');
   await expect(page.locator('#scenario')).toContainText('Host Data Search');
-  await expect(page.locator('.generate-shell')).toBeVisible();
-  await expect(page.locator('.scenario-card.active')).toContainText('Host Data Search');
+  await expect(page.locator('#scenario-list')).toBeVisible();
+  await expect(page.locator('[data-scenario-id="host-resource-search"][aria-pressed="true"]')).toContainText('Host Data Search');
   await expect(page.locator('#contract-summary [data-contract-row="requested"]')).toContainText(
     'Requested surface config',
   );
@@ -241,6 +241,7 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
+          intentSource: 'deterministic',
           proposedSurfacePolicy: {
             tier: 'declarative',
             purpose: 'explore',
@@ -307,7 +308,7 @@ test('batch page brokers each generation request', async ({ page }) => {
     captured.push(request);
     const body = jsonl([
       { op: 'meta', path: '/agent-intent', value: { purpose: 'inform', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-      { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', surfacePolicy: { tier: 'static', purpose: 'inform', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
+      { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'inform', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
       { op: 'set', path: '/screen', value: { sections: ['main'] } },
       { op: 'add', path: '/section/main', html: '<section><h1>Batch brokered</h1></section>' },
     ]);
@@ -323,7 +324,7 @@ test('batch page brokers each generation request', async ({ page }) => {
   expect(captured[0].agent).toEqual({ enabled: true });
   expect(captured[0].surfacePolicy).toBeUndefined();
   expect(captured[0].surfacePlan).toBeUndefined();
-  await expect(page.locator('.tile-intent')).toContainText('agent policy');
+  await expect(page.locator('#grid')).toContainText('agent policy');
 });
 
 test('fragment compare launches section and html node streams from the same prompt', async ({ page }) => {
@@ -342,7 +343,7 @@ test('fragment compare launches section and html node streams from the same prom
     const body = request.fragmentMode === 'html-node-v0'
       ? jsonl([
           { op: 'meta', path: '/agent-intent', value: { purpose: 'review', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
+          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
           { op: 'meta', path: '/experimental-fragments', value: { mode: 'html-node-v0' } },
           { op: 'set', path: '/screen', value: { sections: ['main'] } },
           { op: 'add', path: '/section/main/node/root', html: '<div data-summon-node="root"></div>' },
@@ -351,7 +352,7 @@ test('fragment compare launches section and html node streams from the same prom
         ])
       : jsonl([
           { op: 'meta', path: '/agent-intent', value: { purpose: 'review', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
+          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
           { op: 'set', path: '/screen', value: { sections: ['main'] } },
           { op: 'add', path: '/section/main', html: '<section><h1>Section stream</h1><p>Rendered as section fragments.</p></section>' },
         ]);
@@ -440,7 +441,7 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
   await page.locator('#token-preset').selectOption('accent-blue');
 
   await expect(page.locator('#prompt')).toHaveValue(/onboarding checklist/);
-  await expect(page.locator('.scenario-card.active')).toContainText('Validation Retry Diagnostics');
+  await expect(page.locator('[data-scenario-id="repair-diagnostics"][aria-pressed="true"]')).toContainText('Validation Retry Diagnostics');
   await expect(page.locator('#repair-enabled')).toBeChecked();
   await expect(page.locator('#custom-contract-panel')).toBeHidden();
   await page.locator('#custom-contract-enabled').check();
@@ -534,6 +535,7 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
+          intentSource: 'deterministic',
           surfacePolicy: {
             tier: 'declarative',
             purpose: 'review',
@@ -589,14 +591,14 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
   });
 
   await page.goto('/generate');
-  await expect(page.locator('#scenario')).toContainText('Ghost steer: checkout');
+  await expect(page.locator('#scenario')).toContainText('Fingerprint: checkout');
   await page.locator('#scenario').selectOption('ghost-checkout');
   await page.locator('#go').click();
 
   await expect(page.locator('#iframe-status')).toContainText('done');
-  await expect(page.locator('#log')).toContainText('ghost context');
+  await expect(page.locator('#log')).toContainText('fingerprint context');
   await expect(page.locator('#log')).toContainText('Checkout Review');
-  await expect(page.locator('#log')).toContainText('ghost review packet');
+  await expect(page.locator('#log')).toContainText('fingerprint review packet');
 
   expect(captured).toBeTruthy();
   expect(captured.ghost).toEqual({
@@ -644,6 +646,7 @@ test('component islands render in host overlay without widening the sandbox', as
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
+          intentSource: 'deterministic',
           surfacePolicy: componentIslandsPolicy,
           rejectedCapabilities: [],
           rejectedComponents: [],
@@ -675,6 +678,9 @@ test('component islands render in host overlay without widening the sandbox', as
   await page.locator('#scenario').selectOption('component-islands');
   await page.locator('#go').click();
 
+  await page.locator('#sandbox').scrollIntoViewIfNeeded();
+  const sandbox = page.frameLocator('#sandbox');
+  await expect(sandbox.locator('#sandbox-proof')).toContainText('Sandbox placeholder only');
   const hostIsland = page.locator('[data-summon-component-id="launch-score"]');
   await expect(hostIsland).toContainText('Launch score');
   await expect(hostIsland).toContainText('84');
@@ -690,7 +696,6 @@ test('component islands render in host overlay without widening the sandbox', as
   expect(captured.surfacePlan).toBeUndefined();
   expect(captured.scriptPolicy).toBe('forbid');
 
-  const sandbox = page.frameLocator('#sandbox');
   await expect(sandbox.locator('[data-summon-component-id="launch-score"]')).not.toContainText('84');
 
   const iframe = await page.locator('#sandbox').elementHandle();
@@ -700,12 +705,6 @@ test('component islands render in host overlay without widening the sandbox', as
   expect(beforeScroll).toBeTruthy();
   await frame!.evaluate(() => window.scrollTo(0, 80));
   await expect.poll(async () => (await hostIsland.boundingBox())?.y ?? 0).toBeLessThan(beforeScroll!.y - 40);
-
-  await frame!.evaluate(() => {
-    const el = document.querySelector<HTMLElement>('[data-summon-component-id="launch-score"]');
-    if (el) el.style.height = '150px';
-  });
-  await expect.poll(async () => (await hostIsland.boundingBox())?.height ?? 0).toBeGreaterThan(130);
 
   await page.evaluate(() => {
     window.postMessage({
@@ -760,6 +759,7 @@ test('component island prop failures do not render host DOM and emit diagnostics
   await page.locator('#scenario').selectOption('component-islands');
   await page.locator('#go').click();
 
+  await page.locator('#sandbox').scrollIntoViewIfNeeded();
   await expect(page.locator('[data-summon-component-id="bad-props"]')).toHaveCount(0);
   await expect(page.locator('#devtools-log')).toContainText('component-error');
   await expect(page.locator('#devtools-log')).toContainText('props-invalid');

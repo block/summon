@@ -36,6 +36,13 @@ export const presetMainClass = 'grid min-w-0 gap-[3px]';
 export const presetTitleClass = 'min-w-0 break-words text-lg font-bold leading-[1.02] text-gallery-ink';
 export const presetCategoryClass = 'overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-soft';
 export const presetMetaClass = 'min-w-0 break-words font-mono text-[10.5px] not-italic leading-tight text-gallery-muted';
+export const presetClaimClass = 'min-w-0 break-words text-[12.5px] not-italic leading-snug text-gallery-soft';
+
+export const authorityCellClass = 'grid min-w-0 gap-1 border-b border-r border-gallery-line p-2.5 even:border-r-0 max-[1119px]:border-r-0';
+export const authorityLabelClass = 'font-mono text-[9.5px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted';
+export const authorityValueClass = 'min-w-0 break-words font-mono text-[11.5px] font-bold leading-tight text-gallery-ink';
+export const notesKickerClass = 'font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted';
+export const notesListClass = 'm-0 grid gap-1.5 pl-4';
 
 export function inspectorTabClass(active: boolean): string {
   return cx(

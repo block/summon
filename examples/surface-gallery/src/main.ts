@@ -47,8 +47,14 @@ import {
   eventRowClass,
   inspectorPanelClass,
   inspectorTabClass,
+  authorityCellClass,
+  authorityLabelClass,
+  authorityValueClass,
+  notesKickerClass,
+  notesListClass,
   presetCardClass,
   presetCategoryClass,
+  presetClaimClass,
   presetIndexClass,
   presetMainClass,
   presetMetaClass,
@@ -109,6 +115,11 @@ const customModelEl = document.getElementById('custom-model') as HTMLInputElemen
 const presetCategory = document.getElementById('preset-category')!;
 const presetTitle = document.getElementById('preset-title')!;
 const presetDescription = document.getElementById('preset-description')!;
+const presetClaim = document.getElementById('preset-claim')!;
+const authorityBoundary = document.getElementById('authority-boundary')!;
+const authorityMeter = document.getElementById('authority-meter')!;
+const tryBoundaryButton = document.getElementById('try-boundary') as HTMLButtonElement;
+const presetNotes = document.getElementById('preset-notes')!;
 const surfacePolicyPill = document.getElementById('surface-policy-pill')!;
 const surfaceToolsPill = document.getElementById('surface-tools-pill')!;
 const surfaceComponentsPill = document.getElementById('surface-components-pill')!;
@@ -165,6 +176,13 @@ void initGallery();
 runButton.addEventListener('click', () => {
   void generateSelectedSurface();
 });
+tryBoundaryButton.addEventListener('click', () => {
+  if (!selectedPreset.adversarialPrompt) return;
+  promptEl.value = selectedPreset.adversarialPrompt;
+  renderPromptLength();
+  selectInspectorTab('stream');
+  void generateSelectedSurface();
+});
 promptEl.addEventListener('input', renderPromptLength);
 modelProviderSel.addEventListener('change', () => {
   customModelEl.value = '';
@@ -196,7 +214,8 @@ function renderPresetCards(): void {
       <span class="${presetIndexClass}">${String(index + 1).padStart(2, '0')}</span>
       <span class="${presetMainClass}">
         <strong class="${presetTitleClass}">${preset.title}</strong>
-        <span class="${presetCategoryClass}">${preset.category}</span>
+        <span class="${presetCategoryClass}">${preset.category}${preset.featured ? ' · featured' : ''}</span>
+        <span class="${presetClaimClass}">${preset.claim}</span>
         <em class="${presetMetaClass}">${compactPolicyText(preset)}</em>
       </span>
     `;
@@ -215,11 +234,16 @@ function selectPreset(id: string): void {
   presetCategory.textContent = selectedPreset.category;
   presetTitle.textContent = selectedPreset.title;
   presetDescription.textContent = selectedPreset.description;
+  presetClaim.textContent = selectedPreset.claim;
   promptEl.value = selectedPreset.prompt;
+  tryBoundaryButton.hidden = !selectedPreset.adversarialPrompt;
+  tryBoundaryButton.disabled = !selectedPreset.adversarialPrompt;
   renderPromptLength();
   resetCounters();
   respawnSandbox();
   renderContract();
+  renderAuthorityMeter(compiledPolicyFor(selectedPreset));
+  renderPresetNotes();
   renderHealth('idle');
   selectInspectorTab('contract');
   setSetupNote(null);
@@ -454,6 +478,51 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
   blockedCountEl.textContent = String(blockedLines);
 }
 
+function renderAuthorityMeter(compiled: CompiledSurfacePolicy): void {
+  const plan = compiled.surfacePlan;
+  const grants = compiled.policy.grants;
+  const components = compiled.policy.components;
+  authorityBoundary.textContent = selectedPreset.boundary ?? 'The host-selected policy decides what can run.';
+  authorityMeter.innerHTML = '';
+  const rows: Array<[string, string]> = [
+    ['Runtime', plan.runtime],
+    ['Data', plan.data],
+    ['Authority', plan.authority],
+    ['Scripts', compiled.scriptPolicy],
+    ['Network', 'blocked'],
+    ['Storage', 'blocked'],
+    ['Parent DOM', 'blocked'],
+    ['External assets', 'blocked'],
+    ['Host tools', grants.length ? grants.join(', ') : 'none'],
+    ['Components', components.length ? components.join(', ') : 'none'],
+    ['Persistence', plan.persistence],
+    ['Approval', plan.authority === 'approval-gated' ? 'host UI required' : 'not granted'],
+  ];
+  for (const [label, value] of rows) {
+    const cell = document.createElement('div');
+    cell.className = authorityCellClass;
+    cell.innerHTML = `<span class="${authorityLabelClass}">${label}</span><strong class="${authorityValueClass}">${value}</strong>`;
+    authorityMeter.append(cell);
+  }
+}
+
+function renderPresetNotes(): void {
+  const notes = selectedPreset.notes;
+  presetNotes.innerHTML = '';
+  presetNotes.hidden = !notes;
+  if (!notes) return;
+  const setup = document.createElement('p');
+  setup.className = 'm-0 text-gallery-soft';
+  setup.innerHTML = `<span class="${notesKickerClass}">Setup</span><br>${notes.setup}`;
+  const watch = document.createElement('div');
+  const items = notes.watchFor.map((item) => `<li>${item}</li>`).join('');
+  watch.innerHTML = `<span class="${notesKickerClass}">Watch for</span><ul class="${notesListClass}">${items}</ul>`;
+  const takeaway = document.createElement('p');
+  takeaway.className = 'm-0 font-semibold text-gallery-ink';
+  takeaway.innerHTML = `<span class="${notesKickerClass}">Takeaway</span><br>${notes.takeaway}`;
+  presetNotes.append(setup, watch, takeaway);
+}
+
 function renderContract(): void {
   const contract = currentSurfaceContractView;
   const componentNames = policyComponents(selectedPreset.surfacePolicy);
@@ -487,6 +556,7 @@ function renderContract(): void {
   surfaceComponentsPill.textContent = `${componentCount} component${componentCount === 1 ? '' : 's'}`;
   welcomeTitle.textContent = selectedPreset.title;
   welcomeDetail.textContent = selectedPreset.description;
+  renderAuthorityMeter(compiledPolicyFor(selectedPreset));
   contractSummary.innerHTML = '';
   const rows: Array<[string, string, string]> = [
     ['provider', 'Model provider', provider ? `${provider.name} - ${generationModel}` : modelProviderLabel],

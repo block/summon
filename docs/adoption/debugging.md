@@ -139,6 +139,8 @@ These names are useful when maintaining Summon or writing a deeper adapter:
 
 | Path | Meaning |
 | --- | --- |
+| `/agent-intent` | Broker-advisory intent inferred from the prompt before host policy narrowing. |
+| `/agent-policy-resolution` | Brokered proposed/effective surface config, host policy source, intent source, and rejected tools/components. |
 | `/surface-policy` | Host-owned public surface config selected for this run. |
 | `/surface-plan` | Host-owned compiled safety plan selected for this run. |
 | `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, trusted components, optional layout, and compile issues. |
