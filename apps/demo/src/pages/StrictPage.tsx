@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { AppNav, LogView, PageHeader, Pane } from '../components/chrome.js';
+import { TrustedFixtureSurface, type TrustedFixtureSurfaceHandle } from '../components/TrustedFixtureSurface.js';
 import { cn } from '../lib/cn.js';
 import { logToneClass, pageWidthClass } from '../components/ui.js';
 import { STRICT_DEMO_BODY_HTML } from '../strict-demo-artifact.js';
@@ -52,7 +52,7 @@ function formatCard(value: string): string {
 }
 
 export function StrictPage() {
-  const surfaceRef = useRef<SummonSurfaceHandle>(null);
+  const surfaceRef = useRef<TrustedFixtureSurfaceHandle>(null);
   const stateRef = useRef<StrictState>(initialStrictState);
   const cardValueRef = useRef('');
   const [, setState] = useState<StrictState>(initialStrictState);
@@ -159,13 +159,12 @@ export function StrictPage() {
       />
       <div className={cn(pageWidthClass, 'grid grid-cols-[1.4fr_1fr] gap-5 max-[820px]:grid-cols-1')}>
         <Pane title="Sandbox iframe (overlay sits on top)">
-          <SummonSurface
+          <TrustedFixtureSurface
             ref={surfaceRef}
             id="sandbox"
             className="h-[540px]"
             title="Summon strict-tier demo"
             html={STRICT_DEMO_BODY_HTML}
-            artifactIntents={strictIntents}
             grantedIntents={strictIntents}
             initialState={initialStrictSurfaceState}
             onIntent={onIntent}

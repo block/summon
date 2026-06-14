@@ -1,3 +1,5 @@
+import postcss from 'postcss';
+import valueParser from 'postcss-value-parser';
 import type { ScriptPolicy } from '../prompt.js';
 import type { ContractIssue } from '../contracts.js';
 import type { ValidationLimits } from '../validation-limits.js';
@@ -21,9 +23,14 @@ const UNSAFE_TAGS = new Set([
   'portal',
 ]);
 const URL_ATTRS = new Set(['src', 'href', 'action', 'poster', 'srcset']);
-const CSS_URL_RE = /\burl\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]+))\s*\)/gi;
-const IMPORT_RE = /@import\b/i;
 const EMIT_LITERAL_RE = /\bsandbox\.emit\s*\(\s*(['"])([a-zA-Z][a-zA-Z0-9_]{0,39})\1/g;
+const ALLOWED_AT_RULES = new Set([
+  'media',
+  'container',
+  'supports',
+  'keyframes',
+  '-webkit-keyframes',
+]);
 
 export function scanElementSafety(
   elements: HtmlOpenToken[],
@@ -78,19 +85,25 @@ export function scanCss(
       issues.push(block('css-size-limit', `Inline CSS exceeds ${limits.maxCssBytes} bytes`));
       continue;
     }
-    if (IMPORT_RE.test(css)) {
-      issues.push(block('css-import', 'External CSS imports are not allowed'));
+    let root: postcss.Root;
+    try {
+      root = postcss.parse(css);
+    } catch {
+      issues.push(block('invalid-css', 'Inline CSS could not be parsed'));
+      continue;
     }
-    IMPORT_RE.lastIndex = 0;
-
-    let match: RegExpExecArray | null;
-    CSS_URL_RE.lastIndex = 0;
-    while ((match = CSS_URL_RE.exec(css)) !== null) {
-      const value = (match[1] ?? match[2] ?? match[3] ?? '').trim();
-      if (isBlockedUrl(value, true)) {
-        issues.push(block('external-url', `External CSS asset URL is not allowed: ${value}`));
+    root.walkAtRules((rule) => {
+      const name = rule.name.toLowerCase();
+      if (name === 'import') {
+        issues.push(block('css-import', 'External CSS imports are not allowed'));
+      } else if (!ALLOWED_AT_RULES.has(name)) {
+        issues.push(block('css-at-rule', `CSS @${rule.name} rules are not allowed`));
       }
-    }
+      scanCssValue(rule.params, issues);
+    });
+    root.walkDecls((decl) => {
+      scanCssValue(decl.value, issues);
+    });
   }
 }
 
@@ -113,10 +126,8 @@ export function scanSandboxEmit(
   }
 }
 
-function effectiveScriptPolicy(context: ValidationContext): ScriptPolicy {
-  return context.surfacePlan?.runtime === 'scripted' && context.scriptPolicy === 'allow'
-    ? 'allow'
-    : 'forbid';
+function effectiveScriptPolicy(_context: ValidationContext): ScriptPolicy {
+  return 'forbid';
 }
 
 function hasInlineHandler(attrs: Map<string, string>): boolean {
@@ -126,7 +137,7 @@ function hasInlineHandler(attrs: Map<string, string>): boolean {
   return false;
 }
 
-function isBlockedUrl(value: string, isAsset: boolean): boolean {
+export function isBlockedUrl(value: string, isAsset: boolean): boolean {
   const url = value.trim().toLowerCase();
   if (!url || url.startsWith('#')) return false;
   if (url.startsWith('data:')) return false;
@@ -134,4 +145,29 @@ function isBlockedUrl(value: string, isAsset: boolean): boolean {
   if (/^[a-z][a-z0-9+.-]*:/.test(url)) return true;
   if (url.startsWith('//')) return true;
   return isAsset;
+}
+
+function scanCssValue(value: string, issues: ContractIssue[]): void {
+  const parsed = valueParser(value);
+  parsed.walk((node) => {
+    if (node.type !== 'function') return;
+    if (cssIdent(node.value) !== 'url') return;
+    const raw = valueParser.stringify(node.nodes).trim().replace(/^['"]|['"]$/g, '');
+    const decoded = cssIdent(raw).trim();
+    if (isBlockedUrl(decoded, true)) {
+      issues.push(block('external-url', `External CSS asset URL is not allowed: ${decoded}`));
+    }
+  });
+}
+
+function cssIdent(value: string): string {
+  return value
+    .replace(/\\([0-9a-fA-F]{1,6}\s?|.)/g, (_, escaped: string) => {
+      const hex = escaped.trim();
+      if (/^[0-9a-fA-F]+$/.test(hex)) {
+        return String.fromCodePoint(Number.parseInt(hex, 16));
+      }
+      return escaped;
+    })
+    .toLowerCase();
 }

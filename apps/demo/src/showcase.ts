@@ -208,17 +208,16 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   },
   {
-    id: 'scripted-interactive',
-    label: 'Scripted interactive',
+    id: 'local-state-motion',
+    label: 'Local state + motion',
     prompt:
-      'build a keyboard-friendly scoring picker with local highlighted selection plus host-backed choose and counter controls',
+      'build a scoring picker with tabs, disclosure, local highlighted selection, state-driven styling, and subtle motion using only declarative local state plus host-backed choose and counter controls',
     mode: 'interactive',
     capabilityNames: ['choose', 'counter'],
-    surfacePolicy: { tier: 'scripted', purpose: 'explore', grants: ['choose', 'counter'] },
-    scriptPolicy: 'allow',
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },
     surfacePlan: {
       purpose: 'explore',
-      runtime: 'scripted',
+      runtime: 'declarative',
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',

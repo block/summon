@@ -40,7 +40,7 @@ export const layoutPresets = new Map<string, SummonLayout>([
 ]);
 
 export const demoSurfaceCeiling: SurfaceCeiling = {
-  runtimes: ['static', 'declarative', 'scripted', 'worker'],
+  runtimes: ['static', 'declarative', 'worker'],
   data: ['embedded', 'host-resource', 'worker'],
   authorities: ['none', 'read', 'host-action', 'approval-gated'],
   persistences: ['replayable'],

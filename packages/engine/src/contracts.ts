@@ -174,11 +174,12 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'unsafe-tag':
       return ['Use plain HTML elements; remove iframe/object/embed/link/meta/base-like tags.'];
     case 'inline-handler':
-      return ['Replace inline handlers with data-summon attributes or scoped addEventListener calls.'];
+      return ['Replace inline handlers with declarative data-summon attributes such as data-summon-on-click, data-summon-set, or data-summon-toggle.'];
     case 'static-script':
       return ['Remove script tags in static mode, or express the UI without interactivity.'];
     case 'script-not-granted':
-      return ['Use declarative data-summon attributes only, or ask the host to compile a scripted SurfacePlan with scriptPolicy: "allow".'];
+    case 'surface-script-policy-removed':
+      return ['Use declarative data-summon attributes, local state, and motion primitives instead of generated scripts.'];
     case 'unknown-intent':
     case 'intent-trigger-not-granted':
       return ['Use only the granted capabilities and triggers listed in the Capabilities block.'];
@@ -419,26 +420,16 @@ export function compileSystemContracts(
     (activeSurfacePlan
       ? surfacePlanScriptPolicy(activeSurfacePlan)
       : 'forbid');
-  const hasScriptedPlan = activeSurfacePlan?.runtime === 'scripted';
-  if (hasScriptedPlan && requestedScriptPolicy !== 'allow') {
+  const hasLegacyScriptedPlan = (activeSurfacePlan as { runtime?: string } | null | undefined)?.runtime === 'scripted';
+  if (requestedScriptPolicy === 'allow' || hasLegacyScriptedPlan) {
     issues.push(contractIssue({
       source: 'system',
       severity: 'block',
-      code: 'surface-script-policy-mismatch',
-      message: 'A scripted surface requires scriptPolicy: "allow"',
+      code: 'surface-script-policy-removed',
+      message: 'Generated script surfaces are no longer supported; use declarative local state and motion primitives',
     }));
   }
-  if (requestedScriptPolicy === 'allow' && !hasScriptedPlan) {
-    issues.push(contractIssue({
-      source: 'system',
-      severity: 'block',
-      code: 'surface-script-policy-mismatch',
-      message: 'scriptPolicy: "allow" requires a scripted SurfacePlan',
-    }));
-  }
-  const scriptPolicy: ScriptPolicy = requestedScriptPolicy === 'allow' && hasScriptedPlan
-    ? 'allow'
-    : 'forbid';
+  const scriptPolicy: ScriptPolicy = 'forbid';
   const capability = compileCapabilityContract(input.capabilities, { scriptPolicy });
   if (capability.promptBlock) promptBlocks.push(capability.promptBlock);
   issues.push(...capability.issues);

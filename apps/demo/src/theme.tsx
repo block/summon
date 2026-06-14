@@ -57,7 +57,11 @@ function applyTheme(preference: ThemePreference, resolvedTheme: ResolvedTheme) {
   const root = document.documentElement;
   root.dataset.theme = preference;
   root.dataset.colorMode = resolvedTheme;
-  root.classList.toggle('dark', resolvedTheme === 'dark');
+  const classes = root.className
+    .split(/\s+/)
+    .filter((name) => name && name !== 'dark');
+  if (resolvedTheme === 'dark') classes.push('dark');
+  root.className = classes.join(' ');
   root.style.colorScheme = resolvedTheme;
 }
 

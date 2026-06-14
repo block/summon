@@ -1,4 +1,5 @@
 import type {
+  CompiledArtifactHtml,
   ContractIssue,
   ProtocolLine,
   StreamGraphSnapshot,
@@ -7,23 +8,25 @@ import type {
   ValidationComponent,
 } from '@summon-internal/engine';
 import {
+  compileArtifactHtml,
   isProtocolLine,
   normalizeSurfacePlan,
   surfacePlanScriptPolicy,
-  validateHtmlFragment,
   validateProtocolLine,
 } from '@summon-internal/engine';
 
-export const SUMMON_SURFACE_ENVELOPE_VERSION = 1;
+export const SUMMON_SURFACE_ENVELOPE_VERSION = 2;
 
 export interface SurfaceEnvelope {
-  version: 1;
+  version: 2;
   id: string;
   createdAt: string;
   prompt: string;
   surfacePlan: SurfacePlan;
   protocolLines: ProtocolLine[];
-  html: string;
+  compiledHtml: CompiledArtifactHtml;
+  compilerVersion: string;
+  compilerIssues: ContractIssue[];
   validationIssues: ContractIssue[];
   streamGraph: StreamGraphSnapshot | null;
   grants: {
@@ -64,15 +67,23 @@ export function createSurfaceEnvelope(input: CreateSurfaceEnvelopeInput): Surfac
   const createdAt = input.createdAt instanceof Date
     ? input.createdAt.toISOString()
     : input.createdAt ?? new Date().toISOString();
+  const validationContext = validationContextForEnvelope(input);
+  const compiled = compileArtifactHtml(input.html, validationContext);
+  const protocolIssues: ContractIssue[] = [];
+  const protocolLines = input.protocolLines.map((line) =>
+    compileEnvelopeProtocolLine(line, validationContext, protocolIssues),
+  );
   return {
-    version: 1,
+    version: 2,
     id: input.id ?? newEnvelopeId(),
     createdAt,
     prompt: input.prompt,
     surfacePlan: input.surfacePlan,
-    protocolLines: input.protocolLines.map((line) => ({ ...line })),
-    html: input.html,
-    validationIssues: input.validationIssues ?? [],
+    protocolLines,
+    compiledHtml: compiled.html,
+    compilerVersion: compiled.compilerVersion,
+    compilerIssues: compiled.issues,
+    validationIssues: [...(input.validationIssues ?? []), ...compiled.issues, ...protocolIssues],
     streamGraph: input.streamGraph ?? null,
     grants: {
       intents: [...input.grants.intents],
@@ -81,7 +92,7 @@ export function createSurfaceEnvelope(input: CreateSurfaceEnvelopeInput): Surfac
     },
     metadata: input.metadata ?? {},
     tokenCss: input.tokenCss ?? null,
-    runtimeVersion: input.runtimeVersion ?? 'summon-surface-envelope-v1',
+    runtimeVersion: input.runtimeVersion ?? 'summon-surface-envelope-v2',
   };
 }
 
@@ -94,8 +105,15 @@ export function parseSurfaceEnvelope(raw: string | unknown): SurfaceEnvelope | n
       return null;
     }
   }
-  if (!isSurfaceEnvelope(parsed)) return null;
-  return createSurfaceEnvelope(parsed);
+  if (isSurfaceEnvelope(parsed)) {
+    return parsed;
+  }
+  if (isLegacySurfaceEnvelope(parsed)) {
+    const envelope = createSurfaceEnvelope(parsed);
+    if (envelope.compilerIssues.some((issue) => issue.severity === 'block')) return null;
+    return envelope;
+  }
+  return null;
 }
 
 export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
@@ -105,7 +123,11 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
   if (typeof input.id !== 'string' || !input.id) return false;
   if (typeof input.createdAt !== 'string' || Number.isNaN(Date.parse(input.createdAt))) return false;
   if (typeof input.prompt !== 'string') return false;
-  if (typeof input.html !== 'string') return false;
+  if (typeof input.compiledHtml !== 'string') return false;
+  if (typeof input.compilerVersion !== 'string' || !input.compilerVersion) return false;
+  if (!Array.isArray(input.compilerIssues) || !input.compilerIssues.every(isContractIssue)) {
+    return false;
+  }
   if (typeof input.runtimeVersion !== 'string' || !input.runtimeVersion) return false;
 
   const surfacePlan = normalizeSurfacePlan(input.surfacePlan);
@@ -124,23 +146,62 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
     return false;
   }
 
-  const grants = input.grants as SurfaceEnvelope['grants'];
-  const metadata = input.metadata as SurfaceEnvelope['metadata'];
-  const validationContext = {
-    mode: metadata.mode ?? (surfacePlan.runtime === 'static' ? 'static' as const : 'interactive' as const),
-    scriptPolicy: surfacePlanScriptPolicy(surfacePlan),
-    capabilities: grants.capabilities,
-    components: grants.components,
-    allowedIntents: grants.intents,
-    surfacePlan,
-  };
+  const validationContext = validationContextForEnvelope(input as unknown as CreateSurfaceEnvelopeInput);
   for (const line of input.protocolLines as ProtocolLine[]) {
     const issues = validateProtocolLine(line, validationContext);
     if (issues.some((issue) => issue.severity === 'block')) return false;
   }
-  const htmlIssues = validateHtmlFragment(input.html, validationContext);
-  if (htmlIssues.some((issue) => issue.severity === 'block')) return false;
+  const compiled = compileArtifactHtml(input.compiledHtml, validationContext);
+  if (compiled.issues.some((issue) => issue.severity === 'block')) return false;
+  if (compiled.html !== input.compiledHtml) return false;
 
+  return true;
+}
+
+function compileEnvelopeProtocolLine(
+  line: ProtocolLine,
+  validationContext: ReturnType<typeof validationContextForEnvelope>,
+  issues: ContractIssue[],
+): ProtocolLine {
+  if (line.op !== 'add' || line.html === undefined) return { ...line };
+  const compiled = compileArtifactHtml(line.html, validationContext);
+  for (const issue of compiled.issues) {
+    issues.push(issue.path ? issue : { ...issue, path: line.path });
+  }
+  return { ...line, html: compiled.html };
+}
+
+function validationContextForEnvelope(input: {
+  surfacePlan: SurfacePlan;
+  grants: SurfaceEnvelope['grants'];
+  metadata?: SurfaceEnvelope['metadata'];
+}) {
+  return {
+    mode: input.metadata?.mode ?? (input.surfacePlan.runtime === 'static' ? 'static' as const : 'interactive' as const),
+    scriptPolicy: surfacePlanScriptPolicy(input.surfacePlan),
+    capabilities: input.grants.capabilities,
+    components: input.grants.components,
+    allowedIntents: input.grants.intents,
+    surfacePlan: input.surfacePlan,
+  };
+}
+
+function isLegacySurfaceEnvelope(value: unknown): value is CreateSurfaceEnvelopeInput {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const input = value as Record<string, unknown>;
+  if (input.version !== 1) return false;
+  if (typeof input.id !== 'string' || !input.id) return false;
+  if (typeof input.createdAt !== 'string' || Number.isNaN(Date.parse(input.createdAt))) return false;
+  if (typeof input.prompt !== 'string') return false;
+  if (typeof input.html !== 'string') return false;
+  const surfacePlan = normalizeSurfacePlan(input.surfacePlan);
+  if (!surfacePlan) return false;
+  if (!Array.isArray(input.protocolLines) || !input.protocolLines.every(isProtocolLine)) return false;
+  if (!Array.isArray(input.validationIssues) || !input.validationIssues.every(isContractIssue)) return false;
+  if (!isStreamGraphSnapshot(input.streamGraph)) return false;
+  if (!isGrants(input.grants)) return false;
+  if (!isMetadata(input.metadata)) return false;
+  if (input.tokenCss !== undefined && input.tokenCss !== null && typeof input.tokenCss !== 'string') return false;
   return true;
 }
 

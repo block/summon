@@ -9,7 +9,7 @@ export type SurfacePurpose =
   | 'review'
   | 'export';
 
-export type SurfaceRuntime = 'static' | 'declarative' | 'scripted' | 'worker';
+export type SurfaceRuntime = 'static' | 'declarative' | 'worker';
 export type SurfaceData = 'embedded' | 'host-resource' | 'worker';
 export type SurfaceAuthority = 'none' | 'read' | 'host-action' | 'approval-gated';
 export type SurfacePersistence = 'ephemeral' | 'replayable';
@@ -28,7 +28,6 @@ export const SURFACE_PURPOSE_VALUES = [
 export const SURFACE_RUNTIME_VALUES = [
   'static',
   'declarative',
-  'scripted',
   'worker',
 ] as const satisfies readonly SurfaceRuntime[];
 
@@ -182,7 +181,7 @@ export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePla
 
   return {
     purpose: inferPurpose(input.prompt),
-    runtime: hasWorker ? 'worker' : input.scriptPolicy === 'allow' ? 'scripted' : 'declarative',
+    runtime: hasWorker ? 'worker' : 'declarative',
     data: hasWorker ? 'worker' : hasResource ? 'host-resource' : 'embedded',
     authority: hasApproval ? 'approval-gated' : hasAction ? 'host-action' : hasResource ? 'read' : 'none',
     persistence: input.persistence ?? 'replayable',
@@ -198,8 +197,8 @@ export function inferSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan 
   return suggestSurfacePlan(input);
 }
 
-export function surfacePlanScriptPolicy(plan: SurfacePlan): ScriptPolicy {
-  return plan.runtime === 'scripted' ? 'allow' : 'forbid';
+export function surfacePlanScriptPolicy(_plan: SurfacePlan): ScriptPolicy {
+  return 'forbid';
 }
 
 export function deriveSurfacePlanControls(plan: SurfacePlan): SurfacePlanControls {
@@ -226,7 +225,6 @@ Runtime rules:
 
 - \`static\`: render read-only HTML. Do not emit scripts, intents, resources, forms, or controls that require host action.
 - \`declarative\`: use only \`data-summon-*\` bindings and host-granted capabilities.
-- \`scripted\`: scripts are allowed only when the Capabilities block also grants them.
 - \`worker\`: use only capabilities the host describes as worker-backed; the worker remains host-owned.
 
 Authority rules:
@@ -270,7 +268,7 @@ function constrain<T extends string>(value: T, rawAllowed: T[] | undefined, fall
 function constrainRuntime(value: SurfaceRuntime, rawAllowed: SurfaceRuntime[] | undefined): SurfaceRuntime {
   const allowedValues = rawAllowed && rawAllowed.length > 0 ? rawAllowed : DEFAULT_SURFACE_CEILING.runtimes;
   if (allowedValues.includes(value)) return value;
-  if ((value === 'worker' || value === 'scripted') && allowedValues.includes('declarative')) {
+  if (value === 'worker' && allowedValues.includes('declarative')) {
     return 'declarative';
   }
   return allowedValues[0]!;

@@ -217,6 +217,70 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
   await expect(cardSlotChild).not.toHaveClass(/summon-node-update/);
 });
 
+test('sandbox render keeps generated scripts inert while local state and motion work', async ({ page }) => {
+  const sandboxId = 'local-state-test';
+  await page.setContent(`
+    <script>
+      window.__summonMessages = [];
+      window.addEventListener('message', (event) => window.__summonMessages.push(event.data));
+    </script>
+    <iframe id="sandbox" sandbox="allow-scripts"></iframe>
+  `);
+  const nonce = 'summonlocalnonce';
+  const srcdoc = `<!doctype html>
+    <html>
+      <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'; child-src 'none'; media-src 'none'; object-src 'none'; worker-src 'none'">
+        <meta charset="utf-8">
+        <script nonce="${nonce}">window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+        <script nonce="${nonce}">${bootstrapSource}</script>
+      </head>
+      <body><div id="summon-root"></div></body>
+    </html>`;
+  await page.locator('#sandbox').evaluate((iframe, html) => {
+    (iframe as HTMLIFrameElement).srcdoc = html;
+  }, srcdoc);
+  await expect.poll(async () => page.evaluate(() => {
+    const messages = (window as any).__summonMessages as any[];
+    return messages.some((message) => message?.type === 'SUMMON_READY');
+  })).toBe(true);
+
+  const html = `<div data-summon-local='{"tab":"overview","expanded":false}'>
+    <button id="activity-tab" data-summon-set="tab=activity" data-summon-class-active='tab == "activity"'>Activity</button>
+    <button id="toggle" data-summon-toggle="expanded">Toggle</button>
+    <section id="overview" data-summon-show='tab == "overview"'>Overview</section>
+    <section id="activity-panel" data-summon-show='tab == "activity"' data-summon-motion="enter:rise; update:pulse" data-summon-transition="fade-slide">Activity panel</section>
+    <div id="details" data-summon-show="expanded">Details</div>
+  </div><script>parent.postMessage({type:"EXECUTED"}, "*")</script>`;
+  await page.locator('#sandbox').evaluate((iframe, payload) => {
+    (iframe as HTMLIFrameElement).contentWindow?.postMessage({
+      type: 'SUMMON_RENDER',
+      sandbox_id: payload.sandboxId,
+      html: payload.html,
+    }, '*');
+  }, { sandboxId, html });
+
+  const sandbox = page.frameLocator('#sandbox');
+  await expect(sandbox.locator('#overview')).toBeVisible();
+  await expect(sandbox.locator('#activity-panel')).toBeHidden();
+  await expect(sandbox.locator('#details')).toBeHidden();
+  await sandbox.locator('#activity-tab').click();
+  await expect(sandbox.locator('#activity-tab')).toHaveClass(/active/);
+  await expect(sandbox.locator('#overview')).toBeHidden();
+  await expect(sandbox.locator('#activity-panel')).toBeVisible();
+  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-motion-enter-rise/);
+  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-transition-fade-slide/);
+  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-motion-update-pulse/);
+  await sandbox.locator('#toggle').click();
+  await expect(sandbox.locator('#details')).toBeVisible();
+
+  const executed = await page.evaluate(() => {
+    const messages = (window as any).__summonMessages as any[];
+    return messages.some((message) => message?.type === 'EXECUTED');
+  });
+  expect(executed).toBe(false);
+});
+
 test('generate showcase uses the agent broker by default', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {
@@ -550,7 +614,7 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
       { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'review', grants: ['choose'] } },
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
       { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html: '<section><h1>Checkout Review</h1><button data-summon-intent="choose">Accept</button></section>' },
+      { op: 'add', path: '/section/main', html: '<section><h1>Checkout Review</h1><button data-summon-on-click="choose">Accept</button></section>' },
       {
         op: 'meta',
         path: '/ghost-token-source',

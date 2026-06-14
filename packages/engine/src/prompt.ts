@@ -144,7 +144,7 @@ Keep each section's HTML on a single line. Escape double quotes inside the HTML 
 ## HTML/CSS rules
 
 - Plain HTML elements. Inline \`<style>\` blocks and \`style="..."\` attributes are the primary way to style.
-- \`<script>\` tags and event-handler attributes are forbidden **unless** a "## Capabilities" block below explicitly grants them. If there is no Capabilities block, the UI is static.
+- \`<script>\` tags and event-handler attributes are forbidden. If there is no Capabilities block, the UI is static. If there is a Capabilities block, use declarative \`data-summon-*\` attributes only.
 - No external URLs. No external images, no external fonts, no external stylesheets. Inline SVG is fine.
 - Use CSS custom properties for every color, space, radius, and type size. Do not hardcode hex colors, rgb(), pixel spacing, or specific font stacks.
 
@@ -439,7 +439,7 @@ export interface DataResourceSpec extends IntentSpec {
 export interface CapabilityPattern {
   /** Short title shown above the code snippet in the prompt. */
   name: string;
-  /** HTML + <script> code block the LLM sees as an example. */
+  /** HTML code block the LLM sees as an example. Script examples are filtered. */
   code: string;
   /** Optional owner intent. SurfacePolicy narrowing uses this to keep examples
    * aligned with the grants selected for a generation. */
@@ -490,11 +490,10 @@ export interface CapabilitiesBlockOptions {
 
 export function buildCapabilitiesBlock(
   pack: CapabilityPack,
-  options: CapabilitiesBlockOptions = {},
+  _options: CapabilitiesBlockOptions = {},
 ): string {
   if (pack.intents.length === 0) return '';
 
-  const scriptPolicy = options.scriptPolicy ?? 'forbid';
   const actions = pack.intents.filter((intent) => (intent.kind ?? 'action') === 'action');
   const resources = pack.intents.filter((intent) => intent.kind === 'resource');
 
@@ -531,42 +530,21 @@ export function buildCapabilitiesBlock(
   ].filter(Boolean).join('\n\n');
 
   const promptPatterns = (pack.patterns ?? []).filter(
-    (pattern) => scriptPolicy === 'allow' || !/<\s*script\b/i.test(pattern.code),
+    (pattern) => !/<\s*script\b/i.test(pattern.code),
   );
   const patternsBlock =
     promptPatterns.length > 0
       ? `\n\n### Patterns\n\n${promptPatterns
           .map((p) => `**${p.name}:**\n\`\`\`html\n${p.code.trim()}\n\`\`\``)
-          .join('\n\n')}${scriptPolicy === 'allow'
-            ? '\n\nPlace `<script>` tags at the END of the section that uses them, after the DOM they bind to. Keep scripts scoped — they should only touch elements inside their own section.'
-            : ''}`
+          .join('\n\n')}`
       : '';
-  const scriptPolicyBlock = scriptPolicy === 'allow'
-    ? `### Rules for scripts (when the attributes don't fit)
-
-The sandbox SDK at \`window.sandbox\` is still available:
-
-- \`sandbox.emit(intent, args)\` — fire a typed intent.
-- \`sandbox.onState(callback)\` — subscribe to state updates.
-
-Rules:
-
-- Scripts can use \`sandbox.emit\` and \`sandbox.onState\`. Everything else (fetch, XHR, WebSocket, eval, external scripts, localStorage, cookies) is blocked by CSP.
-- A script subscriber must NOT mutate elements that already carry \`data-summon-bind\` / \`-show\` / \`-hide\`. The binder runs after subscribers and will overwrite. Reach for one paradigm per element.
-- Use \`addEventListener\` inside your section's DOM. **Do not** attach listeners to \`document\` or \`window\` — they leak across re-renders.
-- Do not use inline event-handler attributes like \`onclick="..."\`. Use the declarative \`data-summon-on-click\` attribute, or \`addEventListener\` from your \`<script>\`.
-- Use optional chaining on \`getElementById\` / \`querySelector\` in case the element was streamed in later: \`document.getElementById('x')?.addEventListener(...)\`.
-- Scripts may re-execute on re-render. Write them idempotently.
-- Local UI-only ephemeral state (which tab is open, dropdown expanded) can live in your DOM. Anything meaningful must go through an intent.`
-    : `### Script policy — declarative only
+  const scriptPolicyBlock = `### Script policy — declarative only
 
 This host has NOT granted custom artifact scripts. Do not emit \`<script>\` tags. Do not rely on \`sandbox.emit\`, \`sandbox.onState\`, custom event listeners, timers, computed DOM mutations, or local script state.
 
-All interactivity for this generation must use the declarative \`data-summon-*\` attributes above. If the requested behavior cannot be expressed with those attributes and the granted capabilities, leave that control out or state the limitation in the UI.`;
+All interactivity for this generation must use declarative \`data-summon-*\` attributes. Use \`data-summon-local\`, \`data-summon-set\`, \`data-summon-toggle\`, \`data-summon-show\`, \`data-summon-hide\`, \`data-summon-class-*\`, \`data-summon-motion\`, and \`data-summon-transition\` for tabs, disclosures, selection, staged reveal, local visual state, and simple motion. If the requested behavior cannot be expressed with those attributes and the granted capabilities, leave that control out or state the limitation in the UI.`;
 
-  const actionWiring = scriptPolicy === 'allow'
-    ? 'via `data-summon-on-click` / `data-summon-on-submit` or via `sandbox.emit` from a script'
-    : 'via `data-summon-on-click`, `data-summon-on-submit`, or `data-summon-resource-trigger`';
+  const actionWiring = 'via `data-summon-on-click`, `data-summon-on-submit`, or `data-summon-resource-trigger`';
   const intentNames = new Set(pack.intents.map((intent) => intent.name));
   const examples: string[] = [];
   if (intentNames.has('counter')) {
@@ -602,9 +580,7 @@ All interactivity for this generation must use the declarative \`data-summon-*\`
 
   return `## Capabilities — this generation is INTERACTIVE
 
-${scriptPolicy === 'allow'
-  ? '**Prefer declarative attributes over `<script>`.** The sandbox runtime binds a small set of `data-summon-*` attributes to host state and intents — most interactive UIs need no script tags at all. Reach for `<script>` only for cases the attributes don\'t cover (per-item highlighting in a list, computed/formatted text, custom keyboard handling).'
-  : '**Declarative-only interactivity.** The sandbox runtime binds a small set of `data-summon-*` attributes to host state and intents. Custom artifact scripts are not granted for this generation.'}
+**Declarative-only interactivity.** The sandbox runtime binds a small set of \`data-summon-*\` attributes to host state, local ephemeral state, motion recipes, and intents. Custom artifact scripts are not granted for this generation.
 
 Do NOT build CSS-only state machines using \`:has()\`, \`:checked\` sibling selectors, \`<details>\` chained to other elements, or \`:target\` URL hash tricks for state. Those patterns are clever but fragile; the declarative attributes below are shorter and more reliable.
 

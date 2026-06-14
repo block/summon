@@ -6,6 +6,7 @@ import {
   type SectionAccumulator,
   type SurfaceContractView,
   type SurfacePlan,
+  type ValidationContext,
 } from '@anarchitecture/summon/engine';
 import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import type { SummonSurfaceHandle } from '@anarchitecture/summon-react';
@@ -283,6 +284,15 @@ export function useSurfaceStream({
     const components = componentPackFor(active);
     const surfaceRequest = surfaceRequestFor(active);
     const agent = agentBrokerRequestFor(active);
+    const validationContext: ValidationContext = {
+      mode: active.mode,
+      scriptPolicy: active.scriptPolicy,
+      allowedIntents: capabilityPack.intents.map((intent) => intent.name),
+      capabilities: capabilityPack.intents,
+      components: components?.components ?? [],
+      surfacePlan: active.surfacePlan,
+      ...(opts.fragmentMode ? { experimentalFragmentMode: opts.fragmentMode } : {}),
+    };
 
     const response = await fetch('/api/generate', {
       method: 'POST',
@@ -379,6 +389,7 @@ export function useSurfaceStream({
       onNodePatch: (patch) => {
         surfaceRef.current?.patchNode(patch);
       },
+      validationContext,
     });
 
     return {

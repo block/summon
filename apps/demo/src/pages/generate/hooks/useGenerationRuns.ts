@@ -295,8 +295,8 @@ export function useGenerationRuns({
     setRuntimeComponentNames(envelope.grants.components?.map((component) => component.name) ?? null);
     setShowWelcome(false);
     setStatus('replayed');
-    setBytes(new TextEncoder().encode(envelope.html).byteLength);
-    window.setTimeout(() => surfaceRef.current?.render(envelope.html), 0);
+    setBytes(new TextEncoder().encode(envelope.compiledHtml).byteLength);
+    window.setTimeout(() => surfaceRef.current?.render(envelope.compiledHtml), 0);
     appendDevEvent({ kind: 'surface-plan', at: Date.now(), plan: envelope.surfacePlan });
     appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: true });
     logLine('op-meta', `replayed ${envelope.surfacePlan.purpose}/${envelope.surfacePlan.runtime}`);

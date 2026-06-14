@@ -4,7 +4,6 @@ import { validateHtmlFragment } from '../src/index.ts';
 import {
   baseContext,
   codes,
-  scriptedSurfacePlan,
 } from './runtime-validator-fixtures.ts';
 
 test('blocks static scripts and inline handlers', () => {
@@ -38,17 +37,23 @@ test('blocks interactive scripts by default without a scripted surface plan', ()
   assert.deepEqual(codes(issues), ['script-not-granted']);
 });
 
-test('accepts scripts only for scripted surface plan with allow policy', () => {
+test('rejects legacy scripted surface plan with allow policy', () => {
   const issues = validateHtmlFragment(
     '<button>Pick</button><script>sandbox.emit("choose", {"option":"A"})</script>',
     {
       mode: 'interactive',
       scriptPolicy: 'allow',
-      surfacePlan: scriptedSurfacePlan,
+      surfacePlan: {
+        purpose: 'explore',
+        runtime: 'scripted',
+        data: 'embedded',
+        authority: 'host-action',
+        persistence: 'replayable',
+      } as never,
       capabilities: [{ name: 'choose', kind: 'action', triggers: ['click'] }],
     },
   );
-  assert.deepEqual(issues, []);
+  assert.deepEqual(codes(issues), ['script-not-granted', 'surface-script-policy-removed']);
 });
 
 test('blocks external assets and unsafe tags', () => {
@@ -56,7 +61,13 @@ test('blocks external assets and unsafe tags', () => {
     '<iframe srcdoc=""></iframe><img src="https://example.com/a.png"><div style="background:url(/x.png)"></div>',
     baseContext,
   );
-  assert.deepEqual(codes(issues), ['external-url', 'external-url', 'unsafe-tag']);
+  assert.deepEqual(codes(issues), [
+    'external-url',
+    'external-url',
+    'unsafe-attribute',
+    'unsafe-tag',
+    'unsafe-tag',
+  ]);
 });
 
 test('blocks unknown declarative and script intents', () => {
@@ -66,21 +77,38 @@ test('blocks unknown declarative and script intents', () => {
       ...baseContext,
       mode: 'interactive',
       scriptPolicy: 'allow',
-      surfacePlan: scriptedSurfacePlan,
+      surfacePlan: {
+        purpose: 'explore',
+        runtime: 'scripted',
+        data: 'embedded',
+        authority: 'host-action',
+        persistence: 'replayable',
+      } as never,
     },
   );
-  assert.deepEqual(codes(issues), ['unknown-intent', 'unknown-intent']);
+  assert.deepEqual(codes(issues), [
+    'script-not-granted',
+    'surface-script-policy-removed',
+    'unknown-intent',
+    'unknown-intent',
+  ]);
 });
 
-test('validates sandbox.emit by intent name only', () => {
+test('rejects sandbox.emit even when the intent name is granted', () => {
   const issues = validateHtmlFragment(
     '<script>sandbox.emit("search", { query: "boots" })</script>',
     {
       mode: 'interactive',
       scriptPolicy: 'allow',
-      surfacePlan: scriptedSurfacePlan,
+      surfacePlan: {
+        purpose: 'explore',
+        runtime: 'scripted',
+        data: 'embedded',
+        authority: 'host-action',
+        persistence: 'replayable',
+      } as never,
       capabilities: [{ name: 'search', triggers: ['mount'] }],
     },
   );
-  assert.deepEqual(issues, []);
+  assert.deepEqual(codes(issues), ['script-not-granted', 'surface-script-policy-removed']);
 });

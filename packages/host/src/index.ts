@@ -89,6 +89,8 @@ export type {
 } from './strict-input.js';
 export type {
   Artifact,
+  CompiledArtifactHtml,
+  CompiledHtmlNodePatch,
   ComponentIslandBounds,
   ComponentIslandDescriptor,
   ComponentsMessage,

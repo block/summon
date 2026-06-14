@@ -909,8 +909,11 @@ test('surface envelope serializes replay metadata', () => {
     runtimeVersion: 'test',
   });
 
-  assert.equal(envelope.version, 1);
+  assert.equal(envelope.version, 2);
   assert.equal(envelope.prompt, 'compare options');
+  assert.equal(envelope.compiledHtml, '<section>Saved</section>');
+  assert.equal(envelope.compilerIssues.length, 0);
+  assert.equal(envelope.compilerVersion, 'summon-artifact-compiler-v2');
   assert.equal(envelope.metadata.directionId, 'ghost');
   assert.deepEqual(envelope.protocolLines, [
     { op: 'set', path: '/screen', value: { sections: ['hero'] } },
@@ -962,6 +965,6 @@ test('surface envelope parser rejects malformed, wrong-version, and escalating e
   });
 
   assert.equal(parseSurfaceEnvelope('{bad'), null);
-  assert.equal(parseSurfaceEnvelope({ ...envelope, version: 2 }), null);
+  assert.equal(parseSurfaceEnvelope({ ...envelope, version: 3 }), null);
   assert.equal(parseSurfaceEnvelope(envelope), null);
 });

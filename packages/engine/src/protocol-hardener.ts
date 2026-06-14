@@ -17,6 +17,7 @@ import {
 } from './contracts.js';
 import {
   validateProtocolLine,
+  compileArtifactHtml,
   type ValidationContext,
 } from './runtime-validator.js';
 import { normalizeValidationLimits } from './validation-limits.js';
@@ -171,7 +172,7 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       return processSetLine(line, validationIssues);
     }
 
-    return processAddLine(line, validationIssues);
+    return processAddLine(compileAddLine(line, options.validationContext), validationIssues);
   };
 
   const processSetLine = (line: SetLine, validationIssues: ContractIssue[]): ProtocolHardenerResult => {
@@ -483,6 +484,14 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
 
       return processParsedLine(line);
     },
+  };
+}
+
+function compileAddLine(line: AddLine, context: ValidationContext): AddLine {
+  if (line.html === undefined) return line;
+  return {
+    ...line,
+    html: compileArtifactHtml(line.html, context).html,
   };
 }
 

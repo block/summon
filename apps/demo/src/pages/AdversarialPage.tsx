@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { SummonSurface } from '@anarchitecture/summon-react';
 import { AppNav, LogView, PageHeader, Pane } from '../components/chrome.js';
+import { TrustedFixtureSurface } from '../components/TrustedFixtureSurface.js';
 import { cn } from '../lib/cn.js';
 import { logToneClass, pageWidthClass } from '../components/ui.js';
 import { ADVERSARIAL_BODY_HTML } from '../adversarial-artifact.js';
@@ -12,7 +12,6 @@ const expectedHostRejection = new Set([
   'emit-unknown-intent',
   'emit-declared-but-not-granted',
 ]);
-const artifactIntents = ['report', 'escalate'];
 const grantedIntents = ['report'];
 
 function rejectionMatches(test: string, rejections: Rejection[]): boolean {
@@ -75,12 +74,11 @@ export function AdversarialPage() {
       />
       <div className={cn(pageWidthClass, 'grid grid-cols-2 gap-5 max-[820px]:grid-cols-1')}>
         <Pane title="Sandbox iframe">
-          <SummonSurface
+          <TrustedFixtureSurface
             id="sandbox"
             className="h-[320px]"
             title="Summon sandbox"
             html={ADVERSARIAL_BODY_HTML}
-            artifactIntents={artifactIntents}
             grantedIntents={grantedIntents}
             onIntent={onIntent}
             onIntentRejected={onIntentRejected}

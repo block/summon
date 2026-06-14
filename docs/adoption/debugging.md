@@ -21,10 +21,12 @@ Common fixes:
 
 - `external-url` - inline assets as data URLs or remove the reference.
 - `unsafe-tag` - remove iframe, object, embed, link, meta, or base-like tags.
-- `inline-handler` - use `data-summon-on-*` or scoped `addEventListener`.
+- `inline-handler` - use `data-summon-on-*`, `data-summon-set`, or
+  `data-summon-toggle`.
 - `static-script` - remove scripts or choose an interactive surface config.
-- `script-not-granted` - use only declarative `data-summon-*` bindings, or
-  select `SurfacePolicy.tier: "scripted"` for a scripted surface type.
+- `script-not-granted` / `surface-script-policy-removed` - use declarative
+  `data-summon-*` bindings, local state, and motion primitives instead of
+  generated scripts.
 - `surface-policy-*` - fix the host-selected surface config. The compiler
   blocks unknown allowed tools/components and authority above the selected
   surface type before the model is called.

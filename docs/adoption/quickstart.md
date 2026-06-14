@@ -156,7 +156,7 @@ throughput behavior.
 
 Use the other `/generate` scenarios to exercise static summaries,
 declarative forms, host AI calls, GitHub lookup, trusted host components,
-background host work, approval-required publish, scripted interactive mode,
+background host work, approval-required publish, local state and motion,
 token overrides, layout constraints, sibling summon, Ghost steering when
 configured, and validation retry diagnostics.
 

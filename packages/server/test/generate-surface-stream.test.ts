@@ -294,7 +294,7 @@ test('runSurfaceGeneration fails blocking compile issues before provider invocat
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',
-    },
+    } as never,
     modelProvider: async function* () {
       called = true;
       yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
@@ -306,7 +306,7 @@ test('runSurfaceGeneration fails blocking compile issues before provider invocat
   assert.equal(called, false);
   assert.equal(summary.blocked, true);
   assert.ok(lines.some((line) => line.path === '/validation-blocked'));
-  assert.ok(summary.validationIssues.some((issue) => issue.code === 'surface-script-policy-mismatch'));
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'surface-script-policy-removed'));
 });
 
 test('runSurfaceGeneration rejects script policy allow without scripted surface plan before provider invocation', async () => {
@@ -328,8 +328,7 @@ test('runSurfaceGeneration rejects script policy allow without scripted surface 
   assert.equal(called, false);
   assert.equal(summary.blocked, true);
   assert.ok(summary.validationIssues.some((issue) =>
-    issue.code === 'surface-script-policy-mismatch' &&
-    issue.message === 'scriptPolicy: "allow" requires a scripted SurfacePlan'
+    issue.code === 'surface-script-policy-removed'
   ));
   assert.ok(lines.some((line) => line.path === '/validation-blocked'));
   assert.ok(lines.some((line) => line.path === '/error'));

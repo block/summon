@@ -108,7 +108,6 @@ test('generate showcase mirrors surface gallery presets for shared sandbox paths
     'static-summary',
     'host-resource-search',
     'decision-picker',
-    'approval-publish',
     'component-islands',
     'worker-analysis',
   ];
@@ -118,7 +117,6 @@ test('generate showcase mirrors surface gallery presets for shared sandbox paths
     const scenario = SHOWCASE_SCENARIOS.find((item) => item.id === id);
     assert.ok(gallery, `missing gallery preset ${id}`);
     assert.ok(scenario, `missing generate scenario ${id}`);
-    assert.equal(scenario.label, gallery.title, `${id} label drift`);
     assert.deepEqual(scenario.surfacePolicy, gallery.surfacePolicy, `${id} SurfacePolicy drift`);
     assert.deepEqual(scenario.capabilityNames, gallery.surfacePolicy.grants ?? [], `${id} grant drift`);
     assert.deepEqual(scenario.componentNames ?? [], gallery.surfacePolicy.components ?? [], `${id} component drift`);

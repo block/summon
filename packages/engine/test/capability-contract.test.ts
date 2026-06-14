@@ -130,7 +130,7 @@ test('capabilities block renders generated protocol docs', () => {
   assert.match(text, /data-summon-resource="search"/);
 });
 
-test('capabilities block includes scripted guidance only with explicit allow policy', () => {
+test('capabilities block filters script patterns even with legacy allow policy', () => {
   const text = buildCapabilitiesBlock({
     intents: [
       {
@@ -148,6 +148,7 @@ test('capabilities block includes scripted guidance only with explicit allow pol
     ],
   }, { scriptPolicy: 'allow' });
 
-  assert.match(text, /Rules for scripts/);
-  assert.match(text, /document\.getElementById/);
+  assert.match(text, /Script policy — declarative only/);
+  assert.doesNotMatch(text, /Rules for scripts/);
+  assert.doesNotMatch(text, /document\.getElementById/);
 });

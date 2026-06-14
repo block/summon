@@ -1,14 +1,17 @@
 import {
+  compileArtifactHtml,
   parseProtocolLine,
   SectionAccumulator,
   StreamGraph,
+  type CompiledArtifactHtml,
+  type CompiledHtmlNodePatch,
   type ContractIssue,
-  type HtmlNodePatch,
   type MetaLine,
   type ProtocolLine,
   type SectionApplyResult,
   type StreamGraphSnapshot,
   type SurfacePlanMode,
+  type ValidationContext,
 } from '@summon-internal/engine';
 
 export type SurfaceStreamChunk = string | Uint8Array;
@@ -65,22 +68,23 @@ export interface SurfaceStreamOptions {
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
   onRenderHtml?: (
-    html: string,
+    html: CompiledArtifactHtml,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
   onNodePatch?: (
-    patch: HtmlNodePatch,
+    patch: CompiledHtmlNodePatch,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
   onError?: (
     error: Error,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
+  validationContext?: ValidationContext;
 }
 
 export interface SurfaceStreamResult {
   protocolLines: ProtocolLine[];
-  html: string;
+  html: CompiledArtifactHtml;
   streamGraph: StreamGraphSnapshot;
   validationIssues: ContractIssue[];
   parseErrors: SurfaceStreamParseError[];
@@ -127,7 +131,7 @@ export async function consumeSurfaceStream(
 
   const emitRender = async (ctx: SurfaceStreamContext) => {
     if (!accumulator.hasAnySection()) return;
-    await options.onRenderHtml?.(accumulator.compose(), ctx);
+    await options.onRenderHtml?.(accumulator.compose() as CompiledArtifactHtml, ctx);
   };
 
   const handleRawLine = async (raw: string) => {
@@ -152,34 +156,40 @@ export async function consumeSurfaceStream(
       return;
     }
 
-    graph.applyLine(line);
+    const acceptedLine = compileAcceptedLine(line, options.validationContext, validationIssues, graph);
+    if (!acceptedLine) {
+      await emitGraph(context(raw));
+      return;
+    }
+
+    graph.applyLine(acceptedLine);
     let applyResult: SectionApplyResult | undefined;
-    if (line.op !== 'meta') {
-      applyResult = accumulator.applyDetailed(line);
+    if (acceptedLine.op !== 'meta') {
+      applyResult = accumulator.applyDetailed(acceptedLine);
       acceptedStructuralLines += 1;
     }
     const ctx = context(raw, applyResult);
-    protocolLines.push(line);
+    protocolLines.push(acceptedLine);
 
-    if (line.op === 'meta' && line.path === '/validation-blocked' && isContractIssue(line.value)) {
-      pushValidationIssue(validationIssues, line.value);
+    if (acceptedLine.op === 'meta' && acceptedLine.path === '/validation-blocked' && isContractIssue(acceptedLine.value)) {
+      pushValidationIssue(validationIssues, acceptedLine.value);
     }
-    if (line.op === 'meta' && line.path === '/validation-summary') {
-      for (const issue of validationSummaryExamples(line.value)) {
+    if (acceptedLine.op === 'meta' && acceptedLine.path === '/validation-summary') {
+      for (const issue of validationSummaryExamples(acceptedLine.value)) {
         pushValidationIssue(validationIssues, issue);
       }
     }
 
-    await options.onLine?.(line, ctx);
-    if (line.op === 'meta') {
-      await options.onMeta?.(line, ctx);
+    await options.onLine?.(acceptedLine, ctx);
+    if (acceptedLine.op === 'meta') {
+      await options.onMeta?.(acceptedLine, ctx);
       return;
     }
 
     await emitGraph(ctx);
     if (renderMode() === 'live' && applyResult?.changed) {
       if (applyResult.nodePatch && options.onNodePatch) {
-        await options.onNodePatch(applyResult.nodePatch, ctx);
+        await options.onNodePatch(applyResult.nodePatch as CompiledHtmlNodePatch, ctx);
         return;
       }
       await emitRender(ctx);
@@ -214,7 +224,7 @@ export async function consumeSurfaceStream(
     throw error;
   }
 
-  const html = accumulator.compose();
+  const html = accumulator.compose() as CompiledArtifactHtml;
   return {
     protocolLines,
     html,
@@ -224,6 +234,25 @@ export async function consumeSurfaceStream(
     stopped,
     discarded,
   };
+}
+
+function compileAcceptedLine(
+  line: ProtocolLine,
+  validationContext: ValidationContext | undefined,
+  validationIssues: ContractIssue[],
+  graph: StreamGraph,
+): ProtocolLine | null {
+  if (!validationContext || line.op !== 'add' || line.html === undefined) return line;
+  const result = compileArtifactHtml(line.html, validationContext);
+  let blocked = false;
+  for (const issue of result.issues) {
+    const scoped = issue.path ? issue : { ...issue, path: line.path };
+    pushValidationIssue(validationIssues, scoped);
+    graph.recordIssue(scoped);
+    if (issue.severity === 'block') blocked = true;
+  }
+  if (blocked) return null;
+  return { ...line, html: result.html };
 }
 
 async function* chunksFromSource(

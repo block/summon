@@ -568,7 +568,7 @@ function strongestTier(
     components.some((component) => componentSurfaceData(component) === 'worker')) {
     return 'worker';
   }
-  return proposedTier === 'scripted' ? 'declarative' : proposedTier;
+  return proposedTier;
 }
 
 function staticFallbackPolicy(policy: SurfacePolicy): SurfacePolicy {

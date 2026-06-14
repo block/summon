@@ -2,34 +2,35 @@ import type { EventStore } from '@summon-internal/devtools';
 import { hasCompleteResourceStateKeys, type ValidationCapability } from '@summon-internal/engine';
 import type {
   Artifact,
+  CompiledHtmlNodePatch,
   ComponentIslandDescriptor,
-  HtmlNodePatch,
   SandboxHandle,
   SandboxInboundMessage,
 } from './types.js';
 
 /**
- * CSP applied inside every Summon sandbox. `'unsafe-inline'` for scripts is safe here
- * because (a) the iframe is null-origin via sandbox="allow-scripts", so there is no
- * trusted origin for a script to abuse, and (b) `connect-src 'none'` prevents any
- * outbound network. What runs inline has nowhere to exfiltrate to and no parent
- * DOM to touch.
+ * CSP applied inside every Summon sandbox. Scripts are nonce-authorized trusted
+ * bootstrap/resource scripts only; generated artifact HTML arrives after
+ * SUMMON_READY and never receives a script nonce. Generated CSS remains inline
+ * because the compiler constrains it and visual richness is a core Summon goal.
  */
-const CSP = [
-  "default-src 'none'",
-  "script-src 'unsafe-inline'",
-  "style-src 'unsafe-inline'",
-  "img-src data:",
-  "font-src data:",
-  "connect-src 'none'",
-  "form-action 'none'",
-  "base-uri 'none'",
-  "frame-src 'none'",
-  "child-src 'none'",
-  "media-src 'none'",
-  "object-src 'none'",
-  "worker-src 'none'",
-].join('; ');
+function cspForNonce(nonce: string): string {
+  return [
+    "default-src 'none'",
+    `script-src 'nonce-${nonce}'`,
+    "style-src 'unsafe-inline'",
+    "img-src data:",
+    "font-src data:",
+    "connect-src 'none'",
+    "form-action 'none'",
+    "base-uri 'none'",
+    "frame-src 'none'",
+    "child-src 'none'",
+    "media-src 'none'",
+    "object-src 'none'",
+    "worker-src 'none'",
+  ].join('; ');
+}
 
 export interface SpawnOptions {
   iframe: HTMLIFrameElement;
@@ -88,17 +89,21 @@ function escapeHtml(s: string): string {
     .replaceAll('"', '&quot;');
 }
 
+function escapeScriptJson(value: unknown): string {
+  return JSON.stringify(value).replaceAll('<', '\\u003c');
+}
+
 function buildSrcdoc(params: {
   sandboxId: string;
+  scriptNonce: string;
   bootstrapSource: string;
   tokensSource: string;
-  bodyHtml: string;
   resourceMap: ResourceMap;
 }): string {
   // The CSP meta must come FIRST in <head> — anything before it is unprotected.
-  // Artifact HTML always renders inside #summon-root so the bootstrap can swap
-  // content post-spawn via SUMMON_RENDER messages without touching bootstrap or
-  // tokens.
+  // Artifact HTML is deliberately absent from initial srcdoc. The trusted
+  // bootstrap sends SUMMON_READY, then the host queues the compiled render
+  // through SUMMON_RENDER.
   //
   // The base style block (entrance animation for live-paint sections) is
   // emitted BEFORE the direction's tokensSource so directions can override —
@@ -107,16 +112,17 @@ function buildSrcdoc(params: {
   return `<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Security-Policy" content="${escapeHtml(CSP)}">
+<meta http-equiv="Content-Security-Policy" content="${escapeHtml(cspForNonce(params.scriptNonce))}">
 <meta charset="utf-8">
-<script>window.__SUMMON_SANDBOX_ID__=${JSON.stringify(params.sandboxId)};</script>
-<script>window.__SUMMON_RESOURCES__=${JSON.stringify(params.resourceMap)};</script>
-<script>${params.bootstrapSource}</script>
+<script nonce="${params.scriptNonce}">window.__SUMMON_SANDBOX_ID__=${escapeScriptJson(params.sandboxId)};</script>
+<script nonce="${params.scriptNonce}">window.__SUMMON_RESOURCES__=${escapeScriptJson(params.resourceMap)};</script>
+<script nonce="${params.scriptNonce}">${params.bootstrapSource}</script>
 <style>${SUMMON_BASE_CSS}</style>
 <style>${params.tokensSource}</style>
 </head>
 <body>
-<div id="summon-root">${params.bodyHtml}</div>
+<div id="summon-root"></div>
+<script nonce="${params.scriptNonce}">window.__SUMMON_SIGNAL_READY__?.();</script>
 </body>
 </html>`;
 }
@@ -134,6 +140,37 @@ const SUMMON_BASE_CSS = `
 }
 .summon-slot-filled {
   animation: summon-slot-filled 0.42s ease-out both;
+}
+.summon-motion-enter-rise {
+  animation: summon-motion-rise 0.34s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+.summon-motion-enter-fade {
+  animation: summon-motion-fade 0.24s ease-out both;
+}
+.summon-motion-enter-fade-slide {
+  animation: summon-motion-fade-slide 0.32s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+.summon-motion-enter-pop {
+  animation: summon-motion-pop 0.28s cubic-bezier(0.2, 0.9, 0.2, 1.2) both;
+}
+.summon-motion-update-pulse {
+  animation: summon-motion-pulse 0.46s ease-out both;
+}
+.summon-motion-update-fade {
+  animation: summon-motion-update-fade 0.28s ease-out both;
+}
+.summon-motion-update-pop {
+  animation: summon-motion-pop 0.24s cubic-bezier(0.2, 0.9, 0.2, 1.2) both;
+}
+.summon-transition-fade,
+.summon-transition-rise,
+.summon-transition-fade-slide,
+.summon-transition-pop {
+  transition:
+    opacity 0.18s ease-out,
+    filter 0.18s ease-out,
+    transform 0.18s ease-out,
+    box-shadow 0.18s ease-out;
 }
 [data-summon-skeleton] {
   position: relative;
@@ -174,6 +211,31 @@ const SUMMON_BASE_CSS = `
   45%  { box-shadow: inset 0 0 0 1px rgba(80, 112, 255, 0.12); }
   100% { box-shadow: inset 0 0 0 0 rgba(80, 112, 255, 0); }
 }
+@keyframes summon-motion-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes summon-motion-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes summon-motion-fade-slide {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes summon-motion-pop {
+  from { opacity: 0; transform: scale(0.985); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes summon-motion-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
+  35%  { box-shadow: 0 0 0 3px rgba(80, 112, 255, 0.16); }
+  100% { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
+}
+@keyframes summon-motion-update-fade {
+  0%   { opacity: 0.72; }
+  100% { opacity: 1; }
+}
 @keyframes summon-skeleton-sheen {
   0%   { transform: translateX(-100%); }
   60%, 100% { transform: translateX(100%); }
@@ -183,8 +245,21 @@ const SUMMON_BASE_CSS = `
   .summon-node-enter,
   .summon-node-update,
   .summon-slot-filled,
+  .summon-motion-enter-rise,
+  .summon-motion-enter-fade,
+  .summon-motion-enter-fade-slide,
+  .summon-motion-enter-pop,
+  .summon-motion-update-pulse,
+  .summon-motion-update-fade,
+  .summon-motion-update-pop,
   [data-summon-skeleton]::after {
     animation: none;
+  }
+  .summon-transition-fade,
+  .summon-transition-rise,
+  .summon-transition-fade-slide,
+  .summon-transition-pop {
+    transition: none;
   }
   .summon-node-enter {
     opacity: 1;
@@ -265,6 +340,7 @@ function normalizeComponentDescriptors(raw: unknown): ComponentIslandDescriptor[
 
 export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
   const sandboxId = randomSandboxId();
+  const scriptNonce = randomSandboxId();
   // Bridge allowlist comes only from the host grant. A JS caller that omits
   // grantedIntents fails closed because `new Set(undefined)` grants nothing.
   const intentAllowlist = new Set(opts.grantedIntents);
@@ -279,7 +355,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
   const pendingStates: Record<string, unknown>[] = [];
   const pendingDomOps: Array<
     | { kind: 'render'; html: string }
-    | { kind: 'node-patch'; patch: HtmlNodePatch }
+    | { kind: 'node-patch'; patch: CompiledHtmlNodePatch }
   > = [];
   // Chrome attributes are merged before flush so a flurry of setChrome calls
   // pre-ready collapses into a single postMessage. Post-ready, each setChrome
@@ -429,11 +505,14 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
 
   opts.iframe.srcdoc = buildSrcdoc({
     sandboxId,
+    scriptNonce,
     bootstrapSource: opts.bootstrapSource,
     tokensSource: opts.tokensSource,
-    bodyHtml: opts.artifact.html,
     resourceMap,
   });
+  if (opts.artifact.html) {
+    pendingDomOps.push({ kind: 'render', html: opts.artifact.html });
+  }
 
   opts.events?.push({
     kind: 'sandbox-spawned',

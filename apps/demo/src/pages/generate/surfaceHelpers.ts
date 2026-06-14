@@ -39,8 +39,8 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
       return { category: 'Worker', description: 'Background worker data plus host-action authority.' };
     case 'approval-publish':
       return { category: 'Approval', description: 'Publish workflow guarded by an approval-gated host action.' };
-    case 'scripted-interactive':
-      return { category: 'Runtime', description: 'Scripted runtime allowed by explicit script policy.' };
+    case 'local-state-motion':
+      return { category: 'Runtime', description: 'Declarative local state and host-owned motion recipes.' };
     case 'token-override':
       return { category: 'Tokens', description: 'Token override request that repaints through host CSS.' };
     case 'layout-card':
@@ -87,7 +87,7 @@ export function displayPlanPart(value: string): string {
 }
 
 export function scenarioUsesFixedPolicy(scenario: ShowcaseScenario): boolean {
-  return scenario.surfacePolicy.tier === 'scripted';
+  return false;
 }
 
 export function capabilityPackFor(active: ActiveContract): CapabilityPack {
@@ -261,7 +261,7 @@ export function buildContractRows({
   const broker = active.agentBroker
     ? currentAgentPolicySummary ?? currentAgentIntentSummary ?? 'planning on run'
     : scenarioUsesFixedPolicy(selectedScenario)
-      ? 'fixed scripted policy'
+      ? 'fixed policy'
       : 'manual surface config';
   const contract = currentSurfaceContractView;
   const hostTools = contract

@@ -5,21 +5,23 @@ import { AppNav, PageHeader, Pane } from '../components/chrome.js';
 import { cn } from '../lib/cn.js';
 import { logToneClass, pageWidthClass } from '../components/ui.js';
 
-const CSP = [
-  "default-src 'none'",
-  "script-src 'unsafe-inline'",
-  "style-src 'unsafe-inline'",
-  "img-src data:",
-  "font-src data:",
-  "connect-src 'none'",
-  "form-action 'none'",
-  "base-uri 'none'",
-  "frame-src 'none'",
-  "child-src 'none'",
-  "media-src 'none'",
-  "object-src 'none'",
-  "worker-src 'none'",
-].join('; ');
+function cspForNonce(nonce: string): string {
+  return [
+    "default-src 'none'",
+    `script-src 'nonce-${nonce}'`,
+    "style-src 'unsafe-inline'",
+    "img-src data:",
+    "font-src data:",
+    "connect-src 'none'",
+    "form-action 'none'",
+    "base-uri 'none'",
+    "frame-src 'none'",
+    "child-src 'none'",
+    "media-src 'none'",
+    "object-src 'none'",
+    "worker-src 'none'",
+  ].join('; ');
+}
 
 function escapeHtml(s: string): string {
   return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -31,17 +33,21 @@ function randomId(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function buildSrcdoc(sandboxId: string): string {
+function escapeScript(s: string): string {
+  return s.replace(/<\/script/gi, '<\\/script');
+}
+
+function buildSrcdoc(sandboxId: string, nonce: string): string {
   return `<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Security-Policy" content="${escapeHtml(CSP)}">
+<meta http-equiv="Content-Security-Policy" content="${escapeHtml(cspForNonce(nonce))}">
 <meta charset="utf-8">
-<script>window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};</script>
-<script>${bootstrapSource}</script>
+<script nonce="${nonce}">window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+<script nonce="${nonce}">${escapeScript(bootstrapSource)}</script>
 <style>${tokensSource}</style>
 </head>
-<body><div id="summon-root"></div></body>
+<body><div id="summon-root"></div><script nonce="${nonce}">window.__SUMMON_SIGNAL_READY__?.();</script></body>
 </html>`;
 }
 
@@ -59,6 +65,7 @@ function FatalCase({
   expect: 'ready' | 'fatal';
 }) {
   const sandboxId = useMemo(randomId, []);
+  const nonce = useMemo(randomId, []);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [result, setResult] = useState<{ kind: 'pass' | 'fail' | 'info'; text: string }>({
     kind: 'info',
@@ -90,14 +97,14 @@ function FatalCase({
       });
     }, 2000);
     if (iframeRef.current) {
-      iframeRef.current.srcdoc = buildSrcdoc(sandboxId);
+      iframeRef.current.srcdoc = buildSrcdoc(sandboxId, nonce);
     }
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener('message', onMessage);
       if (iframeRef.current) iframeRef.current.srcdoc = '';
     };
-  }, [expect, sandboxId]);
+  }, [expect, nonce, sandboxId]);
 
   return (
     <section className={cn(pageWidthClass, 'mb-8 rounded-card p-5')}>

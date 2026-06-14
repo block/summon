@@ -1,4 +1,5 @@
 import {
+  compileArtifactHtml,
   compileSurfacePolicy,
   PolicyEngine,
   type ApprovalDecision,
@@ -15,7 +16,7 @@ import {
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import { SectionAccumulator, type ProtocolLine, type SurfaceContractView } from '@anarchitecture/summon/engine';
+import { SectionAccumulator, type ProtocolLine, type SurfaceContractView, type ValidationContext } from '@anarchitecture/summon/engine';
 import { bootstrapSource, tokensSource } from '@anarchitecture/summon/assets';
 import { createGalleryCapabilityRegistry } from './capabilities.js';
 import {
@@ -283,6 +284,13 @@ function respawnSandbox(initialHtml = ''): void {
   const initialState = compiledPolicy.mode === 'interactive'
     ? capabilityContract.initialState
     : {};
+  const validationContext = validationContextForPolicy(
+    compiledPolicy,
+    capabilityRegistry.intents(),
+    capabilityContract.validationCapabilities,
+    componentContract?.validationComponents,
+  );
+  const compiledInitialHtml = compileArtifactHtml(initialHtml, validationContext).html;
   renderState(initialState);
 
   if (compiledPolicy.mode === 'interactive') {
@@ -303,7 +311,7 @@ function respawnSandbox(initialHtml = ''): void {
   handle = spawnSandbox({
     iframe,
     artifact: {
-      html: initialHtml,
+      html: compiledInitialHtml,
       intents: [],
       capabilities: capabilityContract.validationCapabilities,
       components: componentContract?.validationComponents,
@@ -352,6 +360,7 @@ async function generateSelectedSurface(): Promise<void> {
 
   const compiledPolicy = compiledPolicyFor(selectedPreset);
   const capabilityPack = createGalleryCapabilityRegistry().toContract().pack;
+  const validationContract = createGalleryCapabilityRegistry(compiledPolicy.policy.grants).toContract();
   const componentPack = componentCeilingFor(selectedPreset);
 
   try {
@@ -388,6 +397,12 @@ async function generateSelectedSurface(): Promise<void> {
       mode: compiledPolicy.mode,
       renderMode: 'live',
       accumulator,
+      validationContext: validationContextForPolicy(
+        compiledPolicy,
+        compiledPolicy.policy.grants,
+        validationContract.validationCapabilities,
+        componentPack?.components.map((component) => ({ name: component.name, surface: component.surface })),
+      ),
       onLine: (line, context) => handleLine(line, context),
       onMeta: (line) => handleMeta(line),
       onRenderHtml: (html) => {
@@ -428,6 +443,22 @@ function compiledPolicyFor(preset: GalleryPreset): CompiledSurfacePolicy {
     capabilities: createGalleryCapabilityRegistry().toContract().pack,
     components: createGalleryComponentRegistry().toContract().pack,
   });
+}
+
+function validationContextForPolicy(
+  compiledPolicy: CompiledSurfacePolicy,
+  grantedIntents: string[],
+  capabilities: ValidationContext['capabilities'],
+  components: ValidationContext['components'],
+): ValidationContext {
+  return {
+    mode: compiledPolicy.mode,
+    scriptPolicy: compiledPolicy.scriptPolicy,
+    allowedIntents: grantedIntents,
+    capabilities,
+    components,
+    surfacePlan: compiledPolicy.surfacePlan,
+  };
 }
 
 function handleLine(line: ProtocolLine, context: SurfaceStreamContext): void {

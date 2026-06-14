@@ -90,6 +90,7 @@ defineReactComponent({
 
 ```ts
 import {
+  compileArtifactHtml,
   compileSurfaceContractView,
   compileSurfacePolicy,
   createComponentRegistry,
@@ -110,9 +111,9 @@ import {
 ```
 
 Use `consumeSurfaceStream()` to decode streamed chunks, parse accepted protocol
-lines, maintain generated HTML, update stream diagnostics, and render through
-the sandbox handle. Spawn the iframe with allowed host tools from host-owned
-contracts.
+lines, compile generated HTML when validation context is available, maintain
+generated HTML, update stream diagnostics, and render through the sandbox
+handle. Spawn the iframe with allowed host tools from host-owned contracts.
 
 `compileSurfacePolicy(surfacePolicy, catalogs)` gives the client the stream
 mode and narrowed contracts that the server will enforce. Generation authority
@@ -152,11 +153,20 @@ const policy = new PolicyEngine({
   handlers,
   onStateChange: (state) => handle?.pushState(state),
 });
+const validationContext = {
+  mode: compiledPolicy.mode,
+  scriptPolicy: compiledPolicy.scriptPolicy,
+  allowedIntents: policy.intents,
+  capabilities: grantedCapabilities,
+  components: componentContract.validationComponents,
+  surfacePlan: compiledPolicy.surfacePlan,
+};
+const blankHtml = compileArtifactHtml('', validationContext).html;
 
 handle = spawnSandbox({
   iframe,
   artifact: {
-    html: '',
+    html: blankHtml,
     intents: policy.intents,
     capabilities: grantedCapabilities,
     components: componentContract.validationComponents,
@@ -187,6 +197,7 @@ const response = await fetch('/api/generate', {
 
 await consumeSurfaceStream(response.body!, {
   mode: compiledPolicy.mode,
+  validationContext,
   onRenderHtml: (html) => handle?.render(html),
 });
 ```

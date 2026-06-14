@@ -123,14 +123,14 @@ async function startProgressiveApiServer(): Promise<Server> {
 test('gallery boots and preset selection updates the contract panel', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.locator('[data-preset-id]')).toHaveCount(6);
-  await expect(page.locator('#preset-title')).toContainText('Static summary');
+  await expect(page.locator('[data-preset-id]')).toHaveCount(7);
+  await expect(page.locator('#preset-title')).toContainText('Rich brief, zero authority');
   await expect(page.locator('[data-contract-row="policy"]')).toContainText('Surface config');
   await expect(page.locator('[data-contract-row="policy"]')).toContainText('static');
 
   await page.locator('[data-preset-id="host-resource-search"]').click();
-  await expect(page.locator('#preset-title')).toContainText('Host Data Search');
-  await expect(page.locator('#prompt')).toHaveValue(/weeknight dinner explorer/);
+  await expect(page.locator('#preset-title')).toContainText('Host data, no sandbox network');
+  await expect(page.locator('#prompt')).toHaveValue(/payouts look wrong/);
   await expect(page.locator('[data-contract-row="tier"]')).toContainText('Surface type');
   await expect(page.locator('[data-contract-row="tier"]')).toContainText('declarative');
   await expect(page.locator('[data-contract-row="grants"]')).toContainText('Allowed host tools');
@@ -202,9 +202,9 @@ test('mocked generation renders and generated host tool requests update host sta
             <article style="padding:24px;font-family:system-ui;">
               <h1>Pick a launch path</h1>
               <button data-summon-on-click="choose" data-summon-args='{"option":"Balanced path"}' data-summon-attr-disabled="choosePending">Save Balanced path</button>
-              <p data-testid="saving" data-summon-show="choosePending">Saving...</p>
-              <p data-testid="save-error" data-summon-show="chooseError" data-summon-bind="chooseError"></p>
-              <p data-testid="saved" data-summon-show="chooseDone">Saved.</p>
+              <p id="saving" data-summon-show="choosePending">Saving...</p>
+              <p id="save-error" data-summon-show="chooseError" data-summon-bind="chooseError"></p>
+              <p id="saved" data-summon-show="chooseDone">Saved.</p>
               <p data-summon-show="lastChoice">Saved <span data-summon-bind="lastChoice"></span></p>
             </article>`,
         },
@@ -244,6 +244,7 @@ test('mocked generation renders and generated host tool requests update host sta
     'search',
     'choose',
     'publish_summary',
+    'issue_refund',
     'analysis',
     'compute_score',
   ]);
@@ -251,7 +252,7 @@ test('mocked generation renders and generated host tool requests update host sta
 
   const frame = page.frameLocator('#sandbox');
   await frame.locator('button').click();
-  await expect(frame.getByTestId('saved')).toBeVisible();
+  await expect(frame.locator('#saved')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('Balanced path');
   await expect(page.locator('#state-preview')).toContainText('chooseDone');
   await expect(page.locator('#event-log')).toContainText('host dispatch choose');
@@ -309,10 +310,10 @@ test('host search resource renders host-owned empty state', async ({ page }) => 
                 <input name="query" value="zzzzzz">
                 <button data-summon-attr-disabled="$s.loading">Search</button>
               </form>
-              <p data-testid="loading" data-summon-show="$s.loading">Searching...</p>
-              <p data-testid="error" data-summon-show="$s.error" data-summon-bind="$s.error"></p>
-              <p data-testid="empty" data-summon-show="$s.empty">No recipes found.</p>
-              <ul data-testid="results" data-summon-show="$s.data" data-summon-foreach="$s.data" data-summon-as="result">
+              <p id="loading" data-summon-show="$s.loading">Searching...</p>
+              <p id="error" data-summon-show="$s.error" data-summon-bind="$s.error"></p>
+              <p id="empty" data-summon-show="$s.empty">No recipes found.</p>
+              <ul id="results" data-summon-show="$s.data" data-summon-foreach="$s.data" data-summon-as="result">
                 <template><li data-summon-bind="$result.title"></li></template>
               </ul>
             </section>`,
@@ -347,15 +348,15 @@ test('host search resource renders host-owned empty state', async ({ page }) => 
   });
 
   const frame = page.frameLocator('#sandbox');
-  await expect(frame.getByTestId('empty')).toBeHidden();
+  await expect(frame.locator('#empty')).toBeHidden();
   await frame.locator('form').evaluate((form) => {
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   });
-  await expect(frame.getByTestId('empty')).toBeVisible();
+  await expect(frame.locator('#empty')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('noResults');
 });
 
-test('approval publish uses host-owned approval card for approve and deny decisions', async ({ page }) => {
+test('approval refund uses host-owned approval card for approve and deny decisions', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/model-providers', async (route) => {
     await route.fulfill({
@@ -395,13 +396,13 @@ test('approval publish uses host-owned approval card for approve and deny decisi
           path: '/section/main',
           html: `
             <article style="padding:24px;font-family:system-ui;">
-              <h1>Publish review</h1>
-              <button data-summon-on-click="publish_summary" data-summon-args='{"title":"Approval smoke"}'>Publish</button>
-              <p data-testid="waiting" data-summon-show="publishApprovalPending">Waiting for host approval</p>
-              <p data-testid="approved" data-summon-show="publishApprovalApproved">Approved</p>
-              <p data-testid="denied" data-summon-show="publishApprovalDenied">Denied</p>
-              <p data-testid="failed" data-summon-show="publishApprovalError" data-summon-bind="publishApprovalError"></p>
-              <p data-testid="published" data-summon-show="published">Published <span data-summon-bind="publishedTitle"></span></p>
+              <h1>Refund review</h1>
+              <button data-summon-on-click="issue_refund" data-summon-args='{"title":"Approval smoke","amount":"$842.15"}'>Request refund</button>
+              <p id="waiting" data-summon-show="refundApprovalPending">Waiting for host approval</p>
+              <p id="approved" data-summon-show="refundApprovalApproved">Approved</p>
+              <p id="denied" data-summon-show="refundApprovalDenied">Denied</p>
+              <p id="failed" data-summon-show="refundApprovalError" data-summon-bind="refundApprovalError"></p>
+              <p id="refunded" data-summon-show="refundIssued">Refunded <span data-summon-bind="refundAmount"></span></p>
             </article>`,
         },
         {
@@ -423,36 +424,36 @@ test('approval publish uses host-owned approval card for approve and deny decisi
   });
 
   await page.goto('/');
-  await page.locator('[data-preset-id="approval-publish"]').click();
+  await page.locator('[data-preset-id="approval-refund"]').click();
   await page.locator('#run').click();
   await expect(page.locator('#status')).toContainText('done');
 
   expect(captured.surfacePolicy).toEqual({
     tier: 'approval',
     purpose: 'operate',
-    grants: ['publish_summary'],
+    grants: ['issue_refund'],
   });
 
   const frame = page.frameLocator('#sandbox');
-  await frame.getByRole('button', { name: 'Publish' }).click();
-  await expect(page.locator('[data-approval-card]')).toContainText('Publish "Approval smoke"');
-  await expect(page.locator('[data-approval-card]')).toContainText('gallery-updates');
-  await expect(frame.getByTestId('waiting')).toBeVisible();
-  await expect(page.locator('#state-preview')).toContainText('publish_summary');
+  await frame.getByRole('button', { name: 'Request refund' }).click();
+  await expect(page.locator('[data-approval-card]')).toContainText('Issue refund: Approval smoke');
+  await expect(page.locator('[data-approval-card]')).toContainText('card-presentment');
+  await expect(frame.locator('#waiting')).toBeVisible();
+  await expect(page.locator('#state-preview')).toContainText('issue_refund');
 
   await page.locator('[data-approval-card]').getByRole('button', { name: 'Approve' }).click();
   await expect(page.locator('[data-approval-card]')).toHaveCount(0);
-  await expect(frame.getByTestId('approved')).toBeVisible();
-  await expect(frame.getByTestId('published')).toContainText('Approval smoke');
+  await expect(frame.locator('#approved')).toBeVisible();
+  await expect(frame.locator('#refunded')).toContainText('$842.15');
 
   await page.locator('#run').click();
   await expect(page.locator('#status')).toContainText('done');
-  await frame.getByRole('button', { name: 'Publish' }).click();
-  await expect(page.locator('[data-approval-card]')).toContainText('Publish "Approval smoke"');
+  await frame.getByRole('button', { name: 'Request refund' }).click();
+  await expect(page.locator('[data-approval-card]')).toContainText('Issue refund: Approval smoke');
   await page.locator('[data-approval-card]').getByRole('button', { name: 'Deny' }).click();
   await expect(page.locator('[data-approval-card]')).toHaveCount(0);
-  await expect(frame.getByTestId('denied')).toBeVisible();
-  await expect(frame.getByTestId('published')).toBeHidden();
+  await expect(frame.locator('#denied')).toBeVisible();
+  await expect(frame.locator('#refunded')).toBeHidden();
 });
 
 test('component island preset renders host overlays and reports invalid props', async ({ page }) => {

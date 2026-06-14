@@ -8,7 +8,7 @@ test('surface plan blocks scripts and capabilities that exceed declarative stati
     '<button data-summon-on-click="choose">Pick</button><script>sandbox.emit("choose", {})</script>',
     {
       mode: 'interactive',
-      scriptPolicy: 'allow',
+      scriptPolicy: 'forbid',
       surfacePlan: {
         purpose: 'inform',
         runtime: 'declarative',

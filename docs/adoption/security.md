@@ -39,14 +39,14 @@ for this choice is `SurfacePolicy.tier`.
 | --- | --- | --- |
 | Read-only | `SurfacePolicy.tier: "static"` | Summaries, cards, explainers, comparisons, and dashboards. Scripts and host tools are omitted. |
 | Declarative interactive | `SurfacePolicy.tier: "declarative"` | Production default for forms, search, pickers, loading/error/data states, foreach lists, and safe attribute binding. Uses only `data-summon-*`. |
-| Scripted interactive | `SurfacePolicy.tier: "scripted"` | Restricted pilots that need custom keyboard handling, DOM-local state, or computed presentation that declarative bindings cannot express. |
 | Background host work | `SurfacePolicy.tier: "worker"` | Host-owned background work through worker-backed resources/actions. |
 | Requires approval | `SurfacePolicy.tier: "approval"` | Operations that require a host approval adapter before the handler runs. |
 
 Declarative interactive surfaces still support clicks, submits,
 mount-triggered reads, data resources, loading/error/data bindings, foreach
-templates, text binding, and safe image/data attributes. They forbid generated
-`<script>` tags. Custom scripts require the scripted surface type.
+templates, text binding, safe image/data attributes, local ephemeral state, and
+host-owned motion recipes. Generated `<script>` tags are not a public artifact
+capability.
 
 ## Advanced Safety Details
 
@@ -109,8 +109,9 @@ requires a compatible host registry for the same reason.
   validated state and data URLs, not credentials or network endpoints.
 - Treat component definitions as trusted host code. Register only components
   whose data and authority match the selected surface config.
-- Treat custom scripts as an escalation. Prefer declarative bindings unless the
-  host can justify the extra behavior and test coverage.
+- Use declarative local state and motion primitives for tabs, disclosures,
+  selection, staged reveal, and visual feedback. Do not grant custom generated
+  scripts.
 - Run the adversarial browser harness before changing iframe sandbox
   attributes, CSP, postMessage routing, bootstrap startup checks, or script
   execution behavior.

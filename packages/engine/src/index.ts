@@ -142,10 +142,15 @@ export type {
   ValidationResult,
 } from './direction-validator.js';
 export {
+  ARTIFACT_COMPILER_VERSION,
+  compileArtifactHtml,
   validateProtocolLine,
   validateHtmlFragment,
 } from './runtime-validator.js';
 export type {
+  ArtifactCompileResult,
+  CompiledArtifactHtml,
+  CompiledHtmlNodePatch,
   ValidationContext,
   ValidationCapability,
   ValidationComponent,

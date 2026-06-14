@@ -75,6 +75,9 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
+    "parse5": "^8.0.1",
+    "postcss": "^8.5.15",
+    "postcss-value-parser": "^4.2.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

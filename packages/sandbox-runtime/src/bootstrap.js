@@ -1,7 +1,7 @@
 // Summon sandbox bootstrap — runs FIRST inside every sandbox iframe, before any
-// artifact HTML/JS. Installs window.sandbox (frozen) as the only way for the
-// sandboxed code to talk to the host. Capture parent reference and the message
-// constructor early so a later-injected script can't shadow them.
+// compiled artifact HTML. Installs window.sandbox (frozen) as the trusted
+// bridge for controlled test shells and legacy hosts. Generated artifacts do
+// not receive executable scripts.
 (() => {
   'use strict';
 
@@ -93,6 +93,7 @@
   // -------------------------------------------------------------------------
 
   let currentState = Object.freeze({});
+  const localState = Object.create(null);
   const subscribers = new Set();
   const mountedIntentKeys = new Set();
   let componentSyncScheduled = false;
@@ -142,9 +143,9 @@
   //      function of (DOM, state); recomputing is idempotent and the cheapest
   //      possible model.
   //
-  // Scripts written via `sandbox.onState` keep working. The contract is: a
-  // script subscriber should NOT mutate elements that carry a `data-summon-bind`
-  // / `-show` / `-hide` — the binder runs after subscribers and will overwrite.
+  // Generated scripts are not an artifact capability. The `window.sandbox`
+  // object remains a narrow trusted bridge for host-owned tests and legacy
+  // shells, but generated UI should express local behavior with attributes.
 
   function walkPath(obj, path) {
     if (!path) return obj;
@@ -155,6 +156,17 @@
       cur = cur[parts[i]];
     }
     return cur;
+  }
+
+  function hasPath(obj, path) {
+    if (!path) return true;
+    let cur = obj;
+    const parts = path.split('.');
+    for (let i = 0; i < parts.length; i++) {
+      if (cur == null || !Object.prototype.hasOwnProperty.call(Object(cur), parts[i])) return false;
+      cur = cur[parts[i]];
+    }
+    return true;
   }
 
   // Walk up to find the nearest ancestor (inclusive) with a matching foreach
@@ -219,6 +231,7 @@
       const resource = findResourceScope(name, fromEl);
       return resourceStateValue(resource, rest);
     }
+    if (hasPath(localState, path)) return walkPath(localState, path);
     return walkPath(currentState, path);
   }
 
@@ -248,6 +261,57 @@
       return out;
     }
     return value;
+  }
+
+  function seedLocalState(root) {
+    const hosts = root.querySelectorAll('[data-summon-local]');
+    for (const host of hosts) {
+      const raw = host.getAttribute('data-summon-local') || '';
+      if (!raw.trim()) continue;
+      let parsed;
+      try { parsed = JSON.parse(raw); }
+      catch (_) { continue; }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+      for (const key in parsed) {
+        if (!Object.prototype.hasOwnProperty.call(parsed, key)) continue;
+        if (!/^[A-Za-z_$][\w$]{0,39}$/.test(key)) continue;
+        if (!Object.prototype.hasOwnProperty.call(localState, key)) {
+          localState[key] = parsed[key];
+        }
+      }
+    }
+  }
+
+  function parseConditionLiteral(raw) {
+    const trimmed = String(raw || '').trim();
+    if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
+      try { return JSON.parse(trimmed); } catch (_) { return trimmed.slice(1, -1); }
+    }
+    if (trimmed.length >= 2 && trimmed[0] === "'" && trimmed[trimmed.length - 1] === "'") {
+      return trimmed.slice(1, -1);
+    }
+    return trimmed;
+  }
+
+  function evalCondition(expr, fromEl) {
+    const raw = String(expr || '').trim();
+    if (!raw) return false;
+    const match = raw.match(/^(!)?(\$?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?:\s*(==|!=)\s*("[^"]*"|'[^']*'))?$/);
+    if (!match) return truthy(resolveKey(raw, fromEl));
+    const negated = !!match[1];
+    const path = match[2];
+    const op = match[3];
+    const literal = match[4];
+    const value = resolveKey(path, fromEl);
+    let result;
+    if (op) {
+      const expected = parseConditionLiteral(literal);
+      result = String(value ?? '') === String(expected);
+      if (op === '!=') result = !result;
+    } else {
+      result = truthy(value);
+    }
+    return negated ? !result : result;
   }
 
   function applyResourceScopes(root) {
@@ -307,7 +371,8 @@
       const selector = '[data-summon-attr-' + attr + ']';
       const els = root.querySelectorAll(selector);
       for (const el of els) {
-        const v = resolveKey(el.getAttribute('data-summon-attr-' + attr), el);
+        const raw = el.getAttribute('data-summon-attr-' + attr);
+        const v = attr === 'disabled' ? evalCondition(raw, el) : resolveKey(raw, el);
         applySafeAttribute(el, attr, v);
       }
     }
@@ -351,9 +416,69 @@
     }
   }
 
+  function applyClassBindings(root) {
+    const els = root.querySelectorAll('*');
+    for (const el of els) {
+      for (const attr of Array.from(el.attributes)) {
+        if (!attr.name.startsWith('data-summon-class-')) continue;
+        const className = attr.name.slice('data-summon-class-'.length);
+        if (!/^[A-Za-z][\w-]{0,63}$/.test(className)) continue;
+        el.classList.toggle(className, evalCondition(attr.value, el));
+      }
+    }
+  }
+
+  function parseMotionEntries(value) {
+    const out = [];
+    for (const part of String(value || '').split(';')) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const bits = trimmed.split(':');
+      if (bits.length !== 2) continue;
+      const phase = bits[0].trim();
+      const recipe = bits[1].trim();
+      if (!/^(enter|update)$/.test(phase)) continue;
+      if (!/^[a-z][a-z0-9-]{0,31}$/.test(recipe)) continue;
+      out.push({ phase, recipe });
+    }
+    return out;
+  }
+
+  function applyMotion(root) {
+    const motionEls = root.querySelectorAll('[data-summon-motion]');
+    for (const el of motionEls) {
+      const entries = parseMotionEntries(el.getAttribute('data-summon-motion'));
+      for (const entry of entries) {
+        if (entry.phase === 'enter') {
+          el.classList.add('summon-motion-enter-' + entry.recipe);
+        }
+      }
+    }
+    const transitionEls = root.querySelectorAll('[data-summon-transition]');
+    for (const el of transitionEls) {
+      const recipe = (el.getAttribute('data-summon-transition') || '').trim();
+      if (/^[a-z][a-z0-9-]{0,31}$/.test(recipe)) {
+        el.classList.add('summon-transition-' + recipe);
+      }
+    }
+  }
+
+  function triggerUpdateMotion(root) {
+    const motionEls = root.querySelectorAll('[data-summon-motion]');
+    for (const el of motionEls) {
+      const entries = parseMotionEntries(el.getAttribute('data-summon-motion'));
+      for (const entry of entries) {
+        if (entry.phase === 'update') {
+          markTransientClass(el, 'summon-motion-update-' + entry.recipe, 560);
+        }
+      }
+    }
+  }
+
   function applyBindings() {
     const root = document.getElementById('summon-root');
     if (!root) return;
+    seedLocalState(root);
     // Resource scopes must exist before foreach resolution; foreach must stamp
     // clones before bind/show/hide queries run.
     applyResourceScopes(root);
@@ -365,13 +490,15 @@
     }
     const shows = root.querySelectorAll('[data-summon-show]');
     for (const el of shows) {
-      el.hidden = !truthy(resolveKey(el.getAttribute('data-summon-show'), el));
+      el.hidden = !evalCondition(el.getAttribute('data-summon-show'), el);
     }
     const hides = root.querySelectorAll('[data-summon-hide]');
     for (const el of hides) {
-      el.hidden = truthy(resolveKey(el.getAttribute('data-summon-hide'), el));
+      el.hidden = evalCondition(el.getAttribute('data-summon-hide'), el);
     }
     applyAttrBindings(root);
+    applyClassBindings(root);
+    applyMotion(root);
     syncComponents();
   }
 
@@ -549,6 +676,52 @@
     emit(resource.name, args);
   }
 
+  function parseLocalValue(raw) {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    if (value === 'null') return null;
+    if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) return Number(value);
+    if (value.length >= 2 && value[0] === '"' && value[value.length - 1] === '"') {
+      try { return JSON.parse(value); } catch (_) { return value.slice(1, -1); }
+    }
+    if (value.length >= 2 && value[0] === "'" && value[value.length - 1] === "'") {
+      return value.slice(1, -1);
+    }
+    return value;
+  }
+
+  function applyLocalAction(el) {
+    const setValue = el.getAttribute('data-summon-set');
+    const toggleValue = el.getAttribute('data-summon-toggle');
+    let changed = false;
+    if (setValue) {
+      const idx = setValue.indexOf('=');
+      const key = idx === -1 ? '' : setValue.slice(0, idx).trim();
+      const rawValue = idx === -1 ? '' : setValue.slice(idx + 1);
+      if (/^[A-Za-z_$][\w$]{0,39}$/.test(key)) {
+        const next = parseLocalValue(rawValue);
+        if (localState[key] !== next) {
+          localState[key] = next;
+          changed = true;
+        }
+      }
+    }
+    if (toggleValue) {
+      const key = toggleValue.trim();
+      if (/^[A-Za-z_$][\w$]{0,39}$/.test(key)) {
+        localState[key] = !truthy(localState[key]);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    applyBindings();
+    const root = document.getElementById('summon-root');
+    if (root) triggerUpdateMotion(root);
+    scheduleComponentSync();
+  }
+
   function mountKeyFor(el, intent, rawArgs) {
     const section = el.closest('[data-summon-section]');
     const sectionId = section ? section.getAttribute('data-summon-section') || 'root' : 'root';
@@ -590,6 +763,12 @@
   document.addEventListener('click', (event) => {
     const t = event.target;
     if (!(t instanceof Element)) return;
+    const localEl = t.closest('[data-summon-set],[data-summon-toggle]');
+    if (localEl) {
+      event.preventDefault();
+      applyLocalAction(localEl);
+      return;
+    }
     const resourceEl = t.closest('[data-summon-resource-trigger="click"]');
     if (resourceEl) {
       event.preventDefault();
@@ -667,9 +846,9 @@
    * Otherwise (raw artifact HTML, no sections), fall back to a full
    * innerHTML replace.
    *
-   * Inline <script> tags don't execute via innerHTML — clone them into fresh
-   * script elements so they run, but only inside the parts of the tree that
-   * actually changed.
+   * Generated scripts are not an artifact capability. innerHTML-inserted
+   * script tags stay inert, and the sandbox CSP only trusts nonce-authorized
+   * bootstrap scripts.
    */
   function renderRoot(html) {
     const root = document.getElementById('summon-root');
@@ -692,7 +871,6 @@
       sectionEls.clear();
       subscribers.clear();
       root.innerHTML = incoming;
-      rerunScripts(root);
       applyBindings();
       applyMountIntents();
       return;
@@ -714,7 +892,6 @@
         if (existingEl.innerHTML !== incomingEl.innerHTML) {
           if (!patchSectionBlocks(existingEl, incomingEl)) {
             existingEl.innerHTML = incomingEl.innerHTML;
-            rerunScripts(existingEl);
           }
         }
       } else {
@@ -722,7 +899,6 @@
         // which triggers the CSS entrance animation declared on the
         // [data-summon-section] selector.
         root.appendChild(incomingEl);
-        rerunScripts(incomingEl);
         sectionEls.set(id, incomingEl);
       }
     }
@@ -769,11 +945,9 @@
       if (existingBlock) {
         if (existingBlock.innerHTML !== incomingBlock.innerHTML) {
           existingBlock.innerHTML = incomingBlock.innerHTML;
-          rerunScripts(existingBlock);
         }
       } else {
         existingSection.appendChild(incomingBlock);
-        rerunScripts(incomingBlock);
         existingById.set(id, incomingBlock);
       }
     }
@@ -932,18 +1106,6 @@
     }, durationMs);
   }
 
-  function rerunScripts(scope) {
-    const scripts = scope.querySelectorAll('script');
-    for (const old of scripts) {
-      const s = document.createElement('script');
-      for (const attr of Array.from(old.attributes)) {
-        s.setAttribute(attr.name, attr.value);
-      }
-      s.textContent = old.textContent;
-      old.parentNode.replaceChild(s, old);
-    }
-  }
-
   window.addEventListener('message', (event) => {
     const data = event.data;
     if (!data || typeof data !== 'object') return;
@@ -957,6 +1119,10 @@
       // bound element.
       notify();
       applyBindings();
+      {
+        const root = document.getElementById('summon-root');
+        if (root) triggerUpdateMotion(root);
+      }
       return;
     }
 
@@ -1008,6 +1174,29 @@
     enumerable: true,
   });
 
-  // Signal ready so the host can push initial state.
-  PARENT.postMessage({ type: 'SUMMON_READY', sandbox_id: SANDBOX_ID }, '*');
+  let readySent = false;
+  function signalReady() {
+    if (readySent) return;
+    if (!document.getElementById('summon-root')) return;
+    readySent = true;
+    try { delete window.__SUMMON_SIGNAL_READY__; } catch (_) { /* non-critical cleanup */ }
+    // Signal ready only after the render root exists, so the host can safely
+    // flush queued initial renders and state pushes.
+    PARENT.postMessage({ type: 'SUMMON_READY', sandbox_id: SANDBOX_ID }, '*');
+  }
+
+  Object.defineProperty(window, '__SUMMON_SIGNAL_READY__', {
+    value: signalReady,
+    writable: false,
+    configurable: true,
+    enumerable: false,
+  });
+
+  if (document.getElementById('summon-root')) {
+    signalReady();
+  } else if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', signalReady, { once: true });
+  } else {
+    window.setTimeout(signalReady, 0);
+  }
 })();
