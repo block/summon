@@ -27,14 +27,11 @@ It should not be bundled into Summon as a default visual direction.
 
 1. The server receives a trusted root from `SUMMON_GHOST_ROOTS` and a relative
    target path.
-2. `resolveGhostRootCompat` asks Ghost for the fingerprint stack and context
-   handoff. When the installed Ghost package exposes the context-network API,
-   Summon uses `loadFingerprintStackForPath`,
-   `fingerprintStackToPackageContext`, and
-   `writePackageContextBundleFromContext`. Older Ghost versions fall back to a
-   package-shaped fingerprint prompt.
-3. Summon resolves tokens from `.ghost/config.yml`, caller-provided resolved
-   context tokens, an optional token fallback direction, or Summon defaults.
+2. Summon asks Ghost 0.9 relay for the stack-aware handoff with
+   `gatherRelayContext({ cwd: root, target, memoryDir })`. The resulting
+   `# Ghost Relay Brief` is the only Ghost generation prompt source.
+3. Summon resolves tokens from `.ghost/config.yml`, an optional token fallback
+   direction, or Summon defaults.
 4. After the server resolves SurfacePlan, mode, capabilities, and components,
    it appends a small Summon Surface Brief to the Ghost handoff. That brief
    explains the concrete generation run without recompiling or reranking the
@@ -44,6 +41,9 @@ It should not be bundled into Summon as a default visual direction.
 6. The stream emits `/ghost-context`, `/ghost-token-source`, and
    `/ghost-review-packet`. The review packet uses
    `summon.ghost-fingerprint-generation/v1`.
+
+Validate fingerprint packages with `ghost lint`, `ghost verify`, and
+`ghost relay gather <target>` before relying on them for generation.
 
 ## Agent Broker
 

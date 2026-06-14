@@ -22,7 +22,7 @@ afterEach(async () => {
 });
 
 describe('Ghost adapter', () => {
-  it('parses trusted roots and rejects unsafe request paths', async () => {
+  it('parses trusted roots and rejects unsafe or unsupported request paths', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
 
@@ -42,6 +42,10 @@ describe('Ghost adapter', () => {
     assert.deepEqual(parseGhostRequest({ rootId: 'checkout', targetPath: 'a/../b' }, roots), {
       ok: false,
       error: 'ghost.targetPath must not contain path traversal segments',
+    });
+    assert.deepEqual(parseGhostRequest({ source: 'resolved-context', prompt: 'legacy' }, roots), {
+      ok: false,
+      error: 'ghost.source must be "root"; resolved-context is no longer supported',
     });
 
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -68,16 +72,13 @@ describe('Ghost adapter', () => {
       memoryDir: '.ghost',
       baseDirectionId: 'ghost',
     });
-    const explicitRoot = parseGhostRequest({ source: 'root', rootId: 'checkout' }, roots);
-    assert.equal(explicitRoot.ok, true);
-    assert.equal(explicitRoot.ok ? explicitRoot.request?.source : null, 'root');
     assert.deepEqual(parseGhostRequest({ rootId: 'checkout', baseDirectionId: '../ghost' }, roots), {
       ok: false,
       error: 'ghost.baseDirectionId must be a valid direction id',
     });
   });
 
-  it('resolves a Ghost stack into prompt intent and valid token CSS', async () => {
+  it('resolves Ghost relay context into prompt intent and valid token CSS', async () => {
     const root = await makeGhostFixture({ tokenCss: await readDefaultTokensCss() });
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -87,33 +88,26 @@ describe('Ghost adapter', () => {
     const ctx = await resolveGhostContext(parsed.request, roots);
 
     assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
+    assert.equal(ctx.relay.schema, 'ghost.relay.gather/v1');
+    assert.equal(ctx.relay.source.kind, 'stack');
+    assert.equal(ctx.relay.source.repoRoot, resolve(root));
+    assert.equal(ctx.relay.source.fingerprintDir, '.ghost');
+    assert.deepEqual(
+      ctx.relay.source.provenance.layers.map((layer: { relative_root: string }) => layer.relative_root),
+      ['.'],
+    );
     assert.equal(ctx.tokenSource.kind, 'ghost-config');
     assert.equal(ctx.tokenSource.source, 'tokens.css');
     assert.equal(ctx.tokenSource.css, await readDefaultTokensCss());
     assert.equal(ctx.product, 'Test Product');
-    assert.match(ctx.prompt, /Test Product/);
-    assert.match(ctx.prompt, /# Agent Handoff/);
+    assert.match(ctx.prompt, /# Ghost Relay Brief/);
+    assert.match(ctx.prompt, /## Identity Capsule/);
+    assert.match(ctx.prompt, /Product: Test Product/);
     assert.match(ctx.prompt, /Preserve quiet density/);
     assert.match(ctx.prompt, /Status surfaces must foreground current state/);
     assert.match(ctx.prompt, /Surfaces are compact/);
     assert.match(ctx.prompt, /exacting workflows/);
     assert.match(ctx.prompt, /fingerprint\/memory\/intent\.md/);
-  });
-
-  it('bridges legacy fingerprint.yml roots', async () => {
-    const root = await makeLegacyGhostFixture();
-    const roots = parseGhostRoots(`checkout=${root}`);
-    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
-
-    const ctx = await resolveGhostContext(parsed.request, roots);
-
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
-    assert.equal(ctx.product, 'Test Product');
-    assert.match(ctx.prompt, /Preserve quiet density/);
   });
 
   it('appends a Summon surface brief without recompiling the fingerprint', async () => {
@@ -124,9 +118,6 @@ describe('Ghost adapter', () => {
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
     const ctx = await resolveGhostContext(parsed.request, roots);
-
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
     const prepared = prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
@@ -139,8 +130,9 @@ describe('Ghost adapter', () => {
       },
       shape: 'card',
     });
+
     assert.equal(prepared.source, 'root');
-    if (prepared.source !== 'root') assert.fail('expected root context');
+    assert.match(prepared.prompt, /# Ghost Relay Brief/);
     assert.match(prepared.prompt, /## Summon Surface Brief/);
     assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=static; data=embedded; authority=none; persistence=replayable/);
     assert.match(prepared.prompt, /The agent broker controls host authority and capabilities/);
@@ -157,8 +149,6 @@ describe('Ghost adapter', () => {
 
     const ctx = await resolveGhostContext(parsed.request, roots);
 
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
     assert.equal(ctx.tokenSource.kind, 'summon-default');
     assert.equal(ctx.tokenSource.source, '@anarchitecture/summon/tokens.css');
     assert.match(ctx.tokenSource.css, /--color-bg:/);
@@ -178,8 +168,6 @@ describe('Ghost adapter', () => {
       tokensCss: baseTokens,
     });
 
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
     assert.equal(ctx.baseDirectionId, 'ghost');
     assert.equal(ctx.tokenSource.kind, 'base-direction');
     assert.equal(ctx.tokenSource.source, 'direction:ghost/tokens.css');
@@ -187,15 +175,13 @@ describe('Ghost adapter', () => {
     assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('using the fallback Summon direction tokens')));
   });
 
-  it('builds review packet metadata from accepted protocol lines', async () => {
+  it('builds review packet metadata from relay context and accepted protocol lines', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
     const ctx = await resolveGhostContext(parsed.request, roots);
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
 
     const packet = buildGhostReviewPacket({
       context: ctx,
@@ -216,10 +202,11 @@ describe('Ghost adapter', () => {
     assert.equal(packet.product, 'Test Product');
     assert.equal(packet.baseDirectionId, null);
     assert.equal(packet.styleSource, 'summon-default');
-    assert.deepEqual(packet.fingerprintProvenance, {
-      merge: 'child-wins-by-id',
-      layers: [{ relativeRoot: '.', memoryDir: '.ghost' }],
-    });
+    assert.equal(packet.fingerprintProvenance.merge, 'child-wins-by-id');
+    assert.deepEqual(
+      packet.fingerprintProvenance.layers.map(({ relativeRoot, memoryDir, dir }) => ({ relativeRoot, memoryDir, dir })),
+      [{ relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' }],
+    );
     assert.deepEqual(packet.declaredSections, ['header', 'content']);
     assert.deepEqual(packet.sections, [
       { id: 'header', html: '<h1>Queue</h1>' },
@@ -227,86 +214,6 @@ describe('Ghost adapter', () => {
     ]);
     assert.equal(packet.tokenSource.kind, 'summon-default');
     assert.equal('css' in packet.tokenSource, false);
-  });
-
-  it('resolves caller-provided Ghost context without repo access', async () => {
-    const roots = parseGhostRoots('');
-    const parsed = parseGhostRequest({
-      source: 'resolved-context',
-      id: 'checkout',
-      product: 'Checkout',
-      prompt: 'You are working inside the Checkout product experience.',
-      provenance: { layers: ['portable'] },
-    }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
-
-    const ctx = await resolveGhostSteer(parsed.request, roots);
-
-    assert.equal(ctx.source, 'resolved-context');
-    assert.equal(ctx.prompt, 'You are working inside the Checkout product experience.');
-    assert.equal(ctx.product, 'Checkout');
-    assert.equal(ctx.root, null);
-    assert.equal(ctx.stack, null);
-    assert.equal(ctx.tokenSource.kind, 'summon-default');
-    assert.deepEqual(ctx.provenance, { layers: ['portable'] });
-  });
-
-  it('uses valid resolved-context tokens', async () => {
-    const tokens = await readDefaultTokensCss();
-    const roots = parseGhostRoots('');
-    const parsed = parseGhostRequest({
-      source: 'resolved-context',
-      prompt: 'Use portable Ghost fingerprint.',
-      tokensCss: tokens,
-      tokenSource: 'bundle/tokens.css',
-    }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
-
-    const ctx = await resolveGhostSteer(parsed.request, roots);
-
-    assert.equal(ctx.source, 'resolved-context');
-    assert.equal(ctx.tokenSource.kind, 'resolved-context');
-    assert.equal(ctx.tokenSource.source, 'bundle/tokens.css');
-    assert.equal(ctx.tokenSource.css, tokens);
-  });
-
-  it('falls back from invalid resolved-context tokens to base direction tokens', async () => {
-    const baseTokens = await readDefaultTokensCss();
-    const roots = parseGhostRoots('');
-    const parsed = parseGhostRequest({
-      source: 'resolved-context',
-      prompt: 'Use portable Ghost fingerprint.',
-      tokensCss: ':root { --color-bg: red; }',
-      tokenSource: 'bundle/tokens.css',
-      baseDirectionId: 'ghost',
-    }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
-
-    const ctx = await resolveGhostSteer(parsed.request, roots, {
-      id: 'ghost',
-      tokensCss: baseTokens,
-    });
-
-    assert.equal(ctx.source, 'resolved-context');
-    assert.equal(ctx.tokenSource.kind, 'base-direction');
-    assert.equal(ctx.tokenSource.source, 'direction:ghost/tokens.css');
-    assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('bundle/tokens.css failed token contract')));
-  });
-
-  it('rejects resolved-context requests without prompt', () => {
-    const roots = parseGhostRoots('');
-
-    assert.deepEqual(parseGhostRequest({ source: 'resolved-context' }, roots), {
-      ok: false,
-      error: 'ghost.prompt is required for resolved-context',
-    });
-    assert.deepEqual(parseGhostRequest({ source: 'resolved-context', prompt: '   ' }, roots), {
-      ok: false,
-      error: 'ghost.prompt is required for resolved-context',
-    });
   });
 });
 
@@ -449,46 +356,6 @@ libraries: []
   if (options.tokenCss !== undefined) {
     await writeFile(join(root, 'tokens.css'), options.tokenCss);
   }
-  return root;
-}
-
-async function makeLegacyGhostFixture(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-legacy-'));
-  fixtureRoots.push(root);
-  await mkdir(join(root, '.ghost'), { recursive: true });
-  await writeFile(
-    join(root, '.ghost', 'fingerprint.yml'),
-    `schema: ghost.fingerprint/v1
-summary:
-  product: Test Product
-  audience: [operators]
-  goals: [keep work legible]
-  tone: [quiet, exacting workflows]
-topology:
-  scopes:
-    - id: app
-      paths: [.]
-      surface_types: [dashboard]
-  surface_types: [dashboard]
-situations: []
-principles:
-  - id: calm-density
-    status: accepted
-    principle: Preserve quiet density and clear hierarchy.
-experience_contracts: []
-patterns:
-  - id: measured-surfaces
-    kind: visual
-    status: accepted
-    pattern: Surfaces are compact, rectangular, and information-first.
-implementation_vocabulary:
-  tokens: [--color-bg, --color-text]
-  components: []
-review_policy:
-  proposal_policy:
-    - Agents propose memory changes; humans promote durable truth.
-`,
-  );
   return root;
 }
 

@@ -132,7 +132,7 @@ test('runSurfaceGeneration forwards first-class Ghost context to the model contr
     modelProvider: provider,
     mode: 'static',
     ghost: {
-      source: 'resolved-context',
+      source: 'root',
       prompt: 'Portable Ghost context.',
     },
   }, () => {});

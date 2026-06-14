@@ -819,9 +819,7 @@ app.post('/api/generate', async (req, res) => {
 });
 
 function ghostLogId(context: ResolvedGhostSteer): string {
-  return context.source === 'root'
-    ? context.request.rootId
-    : (context.request.id ?? 'resolved-context');
+  return context.request.rootId;
 }
 
 app.listen(PORT, () => {

@@ -94,8 +94,6 @@ export interface SurfaceGenerationInput {
   mode?: 'static' | 'interactive';
   direction?: DirectionContractInput | null;
   ghost?: GhostGenerationContext | null;
-  /** @deprecated Use `ghost` with a first-class GhostGenerationContext. */
-  ghostPrompt?: string | null;
   layout?: SummonLayout | null;
   edit?: GenerateEditInput | null;
   editBlock?: string | null;

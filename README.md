@@ -60,11 +60,10 @@ Open `http://localhost:5173/generate`.
 
 To steer generation from a Ghost fingerprint, set `SUMMON_GHOST_ROOTS` in
 `apps/server/.env` before starting the demos. Each configured root should use
-the canonical `.ghost/fingerprint/manifest.yml` package layout; legacy
-`.ghost/fingerprint.yml` roots are bridged for compatibility. The Surface
+the canonical `.ghost/fingerprint/manifest.yml` package layout. The Surface
 Gallery adds a Ghost fingerprint preset for each root, and the Generate
 workbench adds a `Fingerprint · <id>` option. A fingerprint run is not a bundled
-visual direction: Summon consumes the Ghost context handoff as product design
+visual direction: Summon consumes the Ghost relay brief as product design
 direction, then applies host-owned policy, capabilities, and token CSS.
 
 The full guided path lives in

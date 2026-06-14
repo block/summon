@@ -391,31 +391,9 @@ test('api generate sends narrowed contract and stream meta shape through package
     }),
   });
   const ghostBody = await ghostResponse.text();
-  assert.equal(ghostResponse.status, 200, ghostBody);
-
-  assert.equal(anthropicRequests.length, 6);
-  const ghostRequest = anthropicRequests[5] as { system?: Array<{ text?: string }>; stream?: boolean };
-  const ghostSystemText = ghostRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
-  assert.match(ghostSystemText, /Checkout product experience/);
-
-  const ghostLines = ghostBody
-    .trim()
-    .split(/\n/)
-    .filter(Boolean)
-    .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(ghostLines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
-    'meta /ghost-context',
-    'meta /ghost-token-source',
-    'meta /surface-plan',
-    'meta /status',
-  ]);
-  const ghostContext = ghostLines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((ghostContext.value as { source?: unknown }).source, 'resolved-context');
-  assert.equal((ghostContext.value as { product?: unknown }).product, 'Checkout');
-  const ghostTokenSource = ghostLines.find((line) => line.path === '/ghost-token-source') as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((ghostTokenSource.value as { kind?: unknown }).kind, 'summon-default');
-  const ghostReviewPacket = ghostLines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((ghostReviewPacket.value as { source?: unknown }).source, 'resolved-context');
+  assert.equal(ghostResponse.status, 400);
+  assert.match(ghostBody, /resolved-context is no longer supported/);
+  assert.equal(anthropicRequests.length, 5);
 
   const ghostOverrideResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
@@ -431,8 +409,8 @@ test('api generate sends narrowed contract and stream meta shape through package
   });
   const ghostOverrideBody = await ghostOverrideResponse.text();
   assert.equal(ghostOverrideResponse.status, 400);
-  assert.match(ghostOverrideBody, /tokenOverrides are not supported with Ghost fingerprints/);
-  assert.equal(anthropicRequests.length, 6);
+  assert.match(ghostOverrideBody, /resolved-context is no longer supported/);
+  assert.equal(anthropicRequests.length, 5);
 });
 
 test('api generate emits Ghost fingerprint context for root contexts', async (t) => {
@@ -539,6 +517,8 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   const request = anthropicRequests[0] as { system?: Array<{ text?: string }>; stream?: boolean };
   assert.equal(request.stream, true);
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(systemText, /Ghost Relay Brief/);
+  assert.match(systemText, /Identity Capsule/);
   assert.match(systemText, /Summon Surface Brief/);
   assert.match(systemText, /product design direction package/);
   assert.match(systemText, /Status surfaces must foreground current state/);
@@ -556,17 +536,50 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     'meta /status',
   ]);
 
+  const ghostContext = lines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
+  const contextMeta = ghostContext.value as {
+    source?: unknown;
+    product?: unknown;
+    provenance?: { merge?: unknown; layers?: Array<{ relativeRoot?: unknown; memoryDir?: unknown; dir?: unknown }> };
+  };
+  assert.equal(contextMeta.source, 'root');
+  assert.equal(contextMeta.product, 'Checkout');
+  assert.equal(contextMeta.provenance?.merge, 'child-wins-by-id');
+  assert.deepEqual(contextMeta.provenance?.layers, [
+    { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
+  ]);
   const ghostReviewPacket = lines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
   const reviewPacket = ghostReviewPacket.value as {
     source?: unknown;
-    fingerprintProvenance?: { merge?: unknown };
+    fingerprintProvenance?: { merge?: unknown; layers?: unknown };
     sections?: Array<{ id?: unknown; html?: unknown }>;
   };
   assert.equal(reviewPacket.source, 'root');
   assert.equal(reviewPacket.fingerprintProvenance?.merge, 'child-wins-by-id');
+  assert.deepEqual(reviewPacket.fingerprintProvenance?.layers, [
+    { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
+  ]);
   assert.deepEqual(reviewPacket.sections, [
     { id: 'hero', html: '<section><h1>Checkout queue</h1></section>' },
   ]);
+
+  const overrideResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build checkout queue status',
+      mode: 'static',
+      ghost: {
+        rootId: 'checkout',
+        targetPath: '.',
+      },
+      tokenOverrides: { 'color-accent': 'red' },
+    }),
+  });
+  const overrideBody = await overrideResponse.text();
+  assert.equal(overrideResponse.status, 400);
+  assert.match(overrideBody, /tokenOverrides are not supported with Ghost fingerprints/);
+  assert.equal(anthropicRequests.length, 1);
 });
 
 test('api generate forwards Anthropic model overrides and speed options', async (t) => {

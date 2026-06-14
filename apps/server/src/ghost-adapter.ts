@@ -6,6 +6,11 @@ import {
   type SurfacePlan,
 } from '@anarchitecture/summon/engine';
 import type { GhostGenerationContext } from '@anarchitecture/summon-server';
+import { readOptionalPackageConfig } from '@anarchitecture/ghost/fingerprint';
+import {
+  gatherRelayContext,
+  type RelayGatherResult,
+} from '@anarchitecture/ghost/relay';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import {
   dirname,
@@ -14,14 +19,6 @@ import {
   resolve,
 } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  normalizeGhostMemoryDir,
-  readGhostPackageConfig,
-  resolveGhostRootCompat,
-  type GhostStackCompat,
-  type GhostStackLayerCompat,
-  type GhostContextCompat,
-} from './ghost-scan-compat.js';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
@@ -39,6 +36,9 @@ const DEFAULT_TOKENS_CSS = readFileSync(
   'utf-8',
 );
 
+type RelayStackSource = Extract<RelayGatherResult['source'], { kind: 'stack' }>;
+type RelayStackLayer = RelayStackSource['provenance']['layers'][number];
+
 export interface GhostRootRequest {
   source: 'root';
   rootId: string;
@@ -47,18 +47,7 @@ export interface GhostRootRequest {
   baseDirectionId: string | null;
 }
 
-export interface GhostResolvedContextRequest {
-  source: 'resolved-context';
-  id?: string;
-  product?: string;
-  prompt: string;
-  tokensCss?: string;
-  tokenSource?: string;
-  provenance?: unknown;
-  baseDirectionId: string | null;
-}
-
-export type GhostRequest = GhostRootRequest | GhostResolvedContextRequest;
+export type GhostRequest = GhostRootRequest;
 
 export interface GhostRoot {
   id: string;
@@ -68,7 +57,7 @@ export interface GhostRoot {
 export type GhostRoots = Map<string, string>;
 
 export interface GhostTokenSource {
-  kind: 'ghost-config' | 'resolved-context' | 'base-direction' | 'summon-default';
+  kind: 'ghost-config' | 'base-direction' | 'summon-default';
   source: string;
   css: string;
   warnings: string[];
@@ -84,28 +73,14 @@ export interface ResolvedRootGhostSteer extends GhostGenerationContext {
   source: 'root';
   request: GhostRootRequest;
   root: string;
-  stack: GhostStackCompat;
-  context: GhostContextCompat;
+  relay: RelayGatherResult & { source: RelayStackSource };
   prompt: string;
   tokenSource: GhostTokenSource;
   baseDirectionId: string | null;
   product: string;
 }
 
-export interface ResolvedContextGhostSteer extends GhostGenerationContext {
-  source: 'resolved-context';
-  request: GhostResolvedContextRequest;
-  root: null;
-  stack: null;
-  context: null;
-  prompt: string;
-  tokenSource: GhostTokenSource;
-  baseDirectionId: string | null;
-  product?: string;
-  provenance?: unknown;
-}
-
-export type ResolvedGhostSteer = ResolvedRootGhostSteer | ResolvedContextGhostSteer;
+export type ResolvedGhostSteer = ResolvedRootGhostSteer;
 
 export type ResolvedGhostContext = ResolvedGhostSteer;
 
@@ -120,20 +95,23 @@ export interface GhostSurfacePromptOptions {
 
 export interface GhostReviewPacket {
   schema: 'summon.ghost-fingerprint-generation/v1';
-  source: ResolvedGhostSteer['source'];
+  source: 'root';
   prompt: string;
-  rootId: string | null;
-  targetPath: string | null;
-  memoryDir: string | null;
+  rootId: string;
+  targetPath: string;
+  memoryDir: string;
   product: string;
   layers: string[];
   fingerprintProvenance: {
-    merge: GhostStackCompat['provenance']['merge'] | 'external';
+    merge: RelayStackSource['provenance']['merge'];
     layers: Array<{
       relativeRoot: string;
       memoryDir: string;
+      dir: string;
     }>;
-    provenance?: unknown;
+    layerDirs: string[];
+    targetPaths: string[];
+    match: RelayGatherResult['entrypoint']['match'];
   };
   tokenSource: Omit<GhostTokenSource, 'css'>;
   baseDirectionId: string | null;
@@ -196,44 +174,15 @@ export function parseGhostRequest(
   const source = obj.source === undefined || obj.source === null || obj.source === ''
     ? 'root'
     : obj.source;
-  if (source !== 'root' && source !== 'resolved-context') {
-    return { ok: false, error: 'ghost.source must be "root" or "resolved-context"' };
+  if (source !== 'root') {
+    return {
+      ok: false,
+      error: 'ghost.source must be "root"; resolved-context is no longer supported',
+    };
   }
 
   const baseDirectionId = parseBaseDirectionId(obj.baseDirectionId);
   if (!baseDirectionId.ok) return { ok: false, error: baseDirectionId.error };
-
-  if (source === 'resolved-context') {
-    const prompt = typeof obj.prompt === 'string' ? obj.prompt.trim() : '';
-    if (!prompt) {
-      return { ok: false, error: 'ghost.prompt is required for resolved-context' };
-    }
-    const request: GhostResolvedContextRequest = {
-      source: 'resolved-context',
-      prompt,
-      baseDirectionId: baseDirectionId.value,
-    };
-    if (obj.id !== undefined && (typeof obj.id !== 'string' || !obj.id.trim())) {
-      return { ok: false, error: 'ghost.id must be a non-empty string when provided' };
-    }
-    if (typeof obj.id === 'string') request.id = obj.id.trim();
-    if (obj.product !== undefined && (typeof obj.product !== 'string' || !obj.product.trim())) {
-      return { ok: false, error: 'ghost.product must be a non-empty string when provided' };
-    }
-    if (typeof obj.product === 'string') request.product = obj.product.trim();
-    if (obj.tokensCss !== undefined && typeof obj.tokensCss !== 'string') {
-      return { ok: false, error: 'ghost.tokensCss must be a string when provided' };
-    }
-    if (typeof obj.tokensCss === 'string' && obj.tokensCss.trim()) request.tokensCss = obj.tokensCss;
-    if (obj.tokenSource !== undefined && (typeof obj.tokenSource !== 'string' || !obj.tokenSource.trim())) {
-      return { ok: false, error: 'ghost.tokenSource must be a non-empty string when provided' };
-    }
-    if (typeof obj.tokenSource === 'string' && obj.tokenSource.trim()) {
-      request.tokenSource = obj.tokenSource.trim();
-    }
-    if (obj.provenance !== undefined) request.provenance = obj.provenance;
-    return { ok: true, request };
-  }
 
   if (typeof obj.rootId !== 'string' || !ROOT_ID_RE.test(obj.rootId)) {
     return { ok: false, error: 'ghost.rootId must be a configured root id' };
@@ -292,29 +241,6 @@ export async function resolveGhostGenerationContext(
   roots: GhostRoots,
   baseDirection: GhostBaseDirection | null = null,
 ): Promise<ResolvedGhostSteer> {
-  if (request.source === 'resolved-context') {
-    const tokenSource = resolveResolvedContextTokenSource(request, baseDirection);
-    return {
-      source: 'resolved-context',
-      request,
-      root: null,
-      stack: null,
-      context: null,
-      prompt: request.prompt,
-      product: request.product,
-      tokenSource,
-      provenance: request.provenance,
-      baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
-    };
-  }
-  return resolveRootGhostGenerationContext(request, roots, baseDirection);
-}
-
-async function resolveRootGhostGenerationContext(
-  request: GhostRootRequest,
-  roots: GhostRoots,
-  baseDirection: GhostBaseDirection | null,
-): Promise<ResolvedRootGhostSteer> {
   const root = roots.get(request.rootId);
   if (!root) throw new Error(`unknown Ghost root "${request.rootId}"`);
   const targetAbs = resolve(root, request.targetPath);
@@ -322,27 +248,25 @@ async function resolveRootGhostGenerationContext(
     throw new Error('ghost.targetPath must stay within the configured root');
   }
 
-  const resolved = await resolveGhostRootCompat({
-    root,
-    targetPath: request.targetPath,
+  const relay = await gatherRelayContext({
+    cwd: root,
+    target: request.targetPath,
     memoryDir: request.memoryDir,
   });
-  const { stack, context } = resolved;
-  if (resolve(stack.repoRoot) !== resolve(root)) {
+  if (relay.source.kind !== 'stack') {
+    throw new Error('Ghost relay did not resolve a fingerprint stack source');
+  }
+  if (resolve(relay.source.repoRoot) !== resolve(root)) {
     throw new Error('configured Ghost root must resolve to the fingerprint stack repo root');
   }
-  const product = stack.product ?? context.name;
-  const [prompt, tokenSource] = await Promise.all([
-    buildPromptFromContext(context),
-    resolveGhostTokenSource(stack, baseDirection),
-  ]);
+  const product = relay.entrypoint.identity.product || relay.name || request.rootId;
+  const tokenSource = await resolveGhostTokenSource(relay, baseDirection);
   return {
     source: 'root',
     request,
     root,
-    stack,
-    context,
-    prompt,
+    relay: relay as RelayGatherResult & { source: RelayStackSource },
+    prompt: relay.brief,
     product,
     tokenSource,
     baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
@@ -363,35 +287,16 @@ export function prepareGhostSurfacePrompt(
 }
 
 export function ghostContextMeta(ctx: ResolvedGhostContext) {
-  if (ctx.source === 'resolved-context') {
-    return {
-      source: ctx.source,
-      rootId: ctx.request.id ?? null,
-      targetPath: null,
-      memoryDir: null,
-      layers: [],
-      product: ctx.product ?? ctx.request.id ?? 'Ghost',
-      baseDirectionId: ctx.baseDirectionId,
-      styleSource: ctx.tokenSource.kind,
-      provenance: ctx.provenance ?? null,
-    };
-  }
   return {
     source: ctx.source,
     rootId: ctx.request.rootId,
-    targetPath: ctx.stack.targetPath,
-    memoryDir: ctx.stack.memoryDir,
-    layers: ctx.stack.layers.map((layer) => layer.relativeRoot),
+    targetPath: ctx.relay.source.targetPath,
+    memoryDir: ctx.relay.source.fingerprintDir,
+    layers: ctx.relay.source.provenance.layers.map((layer: RelayStackLayer) => layer.relative_root),
     product: ctx.product,
     baseDirectionId: ctx.baseDirectionId,
     styleSource: ctx.tokenSource.kind,
-    provenance: {
-      merge: ctx.stack.provenance.merge,
-      layers: ctx.stack.provenance.layers.map((layer) => ({
-        relativeRoot: layer.relativeRoot,
-        memoryDir: layer.memoryDir,
-      })),
-    },
+    provenance: fingerprintProvenance(ctx.relay),
   };
 }
 
@@ -419,38 +324,16 @@ export function buildGhostReviewPacket(input: {
     if (line.op !== 'add' || !line.path.startsWith('/section/')) continue;
     sectionsById.set(line.path.slice('/section/'.length), line.html ?? '');
   }
-  const rootFields = input.context.source === 'root'
-    ? {
-        rootId: input.context.request.rootId,
-        targetPath: input.context.stack.targetPath,
-        memoryDir: input.context.stack.memoryDir,
-        product: input.context.product,
-        layers: input.context.stack.layers.map((layer) => layer.relativeRoot),
-        fingerprintProvenance: {
-          merge: input.context.stack.provenance.merge,
-          layers: input.context.stack.provenance.layers.map((layer) => ({
-            relativeRoot: layer.relativeRoot,
-            memoryDir: layer.memoryDir,
-          })),
-        },
-      }
-    : {
-        rootId: input.context.request.id ?? null,
-        targetPath: null,
-        memoryDir: null,
-        product: input.context.product ?? input.context.request.id ?? 'Ghost',
-        layers: [],
-        fingerprintProvenance: {
-          merge: 'external' as const,
-          layers: [],
-          provenance: input.context.provenance ?? null,
-        },
-      };
   return {
     schema: 'summon.ghost-fingerprint-generation/v1',
     source: input.context.source,
     prompt: input.prompt,
-    ...rootFields,
+    rootId: input.context.request.rootId,
+    targetPath: input.context.relay.source.targetPath,
+    memoryDir: input.context.relay.source.fingerprintDir,
+    product: input.context.product,
+    layers: input.context.relay.source.provenance.layers.map((layer: RelayStackLayer) => layer.relative_root),
+    fingerprintProvenance: fingerprintProvenance(input.context.relay),
     tokenSource: {
       kind: input.context.tokenSource.kind,
       source: input.context.tokenSource.source,
@@ -467,25 +350,15 @@ export function buildGhostReviewPacket(input: {
   };
 }
 
-async function buildPromptFromContext(
-  context: GhostContextCompat,
-): Promise<string> {
-  return context.writePrompt();
-}
-
 function buildSummonFingerprintSurfaceBrief(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): string {
-  const product = context.product
-    ?? (context.source === 'resolved-context' ? context.request.id : context.request.rootId)
-    ?? 'Ghost fingerprint';
-  const targetPath = context.source === 'root' ? context.stack.targetPath : 'external-context';
   const capabilityNames = options.capabilities?.intents.map((intent) => intent.name) ?? [];
   const componentNames = options.components?.components.map((component) => component.name) ?? [];
   const details = [
-    `Product: ${product}`,
-    `Target path: ${targetPath}`,
+    `Product: ${context.product}`,
+    `Target path: ${context.relay.source.targetPath}`,
     `User request: ${oneLine(options.userPrompt, 600)}`,
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
     `Mode: ${options.mode}`,
@@ -511,18 +384,18 @@ function buildSummonFingerprintSurfaceBrief(
 }
 
 async function resolveGhostTokenSource(
-  stack: GhostStackCompat,
+  relay: RelayGatherResult & { source: RelayStackSource },
   baseDirection: GhostBaseDirection | null,
 ): Promise<GhostTokenSource> {
   const warnings: string[] = [];
-  for (const layer of [...stack.layers].reverse()) {
-    const configPath = resolve(layer.root, layer.memoryDir, 'config.yml');
+  for (const layer of [...relay.source.provenance.layers].reverse()) {
+    const configPath = resolve(layer.dir, 'config.yml');
     let config;
     try {
-      config = await readGhostPackageConfig(configPath);
+      config = await readOptionalPackageConfig(configPath);
     } catch (err) {
       warnings.push(
-        `${displayPath(stack, configPath)} could not be read: ${
+        `${displayPath(relay.source, configPath)} could not be read: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
@@ -539,7 +412,7 @@ async function resolveGhostTokenSource(
           continue;
         }
         if (!existsSync(tokenPath) || !statSync(tokenPath).isFile()) {
-          warnings.push(`${displayPath(stack, tokenPath)} not found`);
+          warnings.push(`${displayPath(relay.source, tokenPath)} not found`);
           continue;
         }
         const css = readFileSync(tokenPath, 'utf-8');
@@ -547,13 +420,13 @@ async function resolveGhostTokenSource(
         const blocking = validation.issues.filter((issue) => issue.severity === 'block');
         if (blocking.length > 0) {
           warnings.push(
-            `${displayPath(stack, tokenPath)} failed token contract: ${blocking.map((issue) => issue.message).join('; ')}`,
+            `${displayPath(relay.source, tokenPath)} failed token contract: ${blocking.map((issue) => issue.message).join('; ')}`,
           );
           continue;
         }
         return {
           kind: 'ghost-config',
-          source: displayPath(stack, tokenPath),
+          source: displayPath(relay.source, tokenPath),
           css,
           warnings: [
             ...warnings,
@@ -564,33 +437,6 @@ async function resolveGhostTokenSource(
         };
       }
     }
-  }
-  return resolveFallbackTokenSource(warnings, baseDirection);
-}
-
-function resolveResolvedContextTokenSource(
-  request: GhostResolvedContextRequest,
-  baseDirection: GhostBaseDirection | null,
-): GhostTokenSource {
-  const warnings: string[] = [];
-  if (request.tokensCss) {
-    const validation = compileTokenContract({ css: request.tokensCss });
-    const blocking = validation.issues.filter((issue) => issue.severity === 'block');
-    if (blocking.length === 0) {
-      return {
-        kind: 'resolved-context',
-        source: request.tokenSource ?? 'resolved-context:tokensCss',
-        css: request.tokensCss,
-        warnings: [
-          ...validation.issues
-            .filter((issue) => issue.severity === 'warn')
-            .map((issue) => issue.message),
-        ],
-      };
-    }
-    warnings.push(
-      `${request.tokenSource ?? 'resolved-context:tokensCss'} failed token contract: ${blocking.map((issue) => issue.message).join('; ')}`,
-    );
   }
   return resolveFallbackTokenSource(warnings, baseDirection);
 }
@@ -633,7 +479,7 @@ function resolveFallbackTokenSource(
 }
 
 function resolveTokenPath(
-  layer: GhostStackLayerCompat,
+  layer: RelayStackLayer,
   rawRef: string,
 ): string | null {
   const raw = rawRef.trim();
@@ -660,6 +506,33 @@ function resolveTokenPath(
   }
   const resolved = resolve(layer.root, normalized);
   return isWithinOrEqual(layer.root, resolved) ? resolved : null;
+}
+
+function fingerprintProvenance(relay: RelayGatherResult & { source: RelayStackSource }): GhostReviewPacket['fingerprintProvenance'] {
+  return {
+    merge: relay.source.provenance.merge,
+    layers: relay.source.provenance.layers.map((layer: RelayStackLayer) => ({
+      relativeRoot: layer.relative_root,
+      memoryDir: layer.fingerprint_dir,
+      dir: displayPath(relay.source, layer.dir),
+    })),
+    layerDirs: relay.layerDirs.map((dir: string) => displayPath(relay.source, dir)),
+    targetPaths: relay.targetPaths,
+    match: relay.entrypoint.match,
+  };
+}
+
+function normalizeGhostMemoryDir(raw: string): string {
+  const normalized = raw.trim().replaceAll('\\', '/').replace(/\/+/g, '/').replace(/\/$/g, '');
+  if (!normalized || normalized === '.') return '.ghost';
+  if (normalized.startsWith('/') || isAbsolute(normalized) || /^[A-Za-z]:/.test(normalized)) {
+    throw new Error('ghost.memoryDir must be relative');
+  }
+  const segments = normalized.split('/');
+  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    throw new Error('ghost.memoryDir must not contain path traversal segments');
+  }
+  return segments.join('/');
 }
 
 function parseBaseDirectionId(raw: unknown):
@@ -723,7 +596,7 @@ function isWithinOrEqual(root: string, child: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-function displayPath(stack: GhostStackCompat, absPath: string): string {
-  const rel = relative(stack.repoRoot, absPath);
+function displayPath(source: RelayStackSource, absPath: string): string {
+  const rel = relative(source.repoRoot, absPath);
   return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : absPath;
 }
