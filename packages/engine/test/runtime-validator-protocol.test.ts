@@ -35,6 +35,30 @@ test('blocks malformed screen declarations', () => {
   assert.deepEqual(codes(issues), ['duplicate-section-id']);
 });
 
+test('blocks malformed block declarations and paths', () => {
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      { op: 'set', path: '/section/hero', value: { blocks: ['headline', 'headline'] } },
+      baseContext,
+    )),
+    ['duplicate-block-id'],
+  );
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      { op: 'set', path: '/section/hero', value: { blocks: [] } },
+      baseContext,
+    )),
+    ['invalid-block-count'],
+  );
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      { op: 'add', path: '/section/hero/block/Bad_Block', html: '<p>Hi</p>' },
+      baseContext,
+    )),
+    ['invalid-block-path'],
+  );
+});
+
 test('blocks generated host-owned surface meta paths', () => {
   assert.deepEqual(
     codes(validateProtocolLine(

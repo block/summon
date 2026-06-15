@@ -10,6 +10,7 @@ const expectedRootExports = [
   'SURFACE_PERSISTENCE_VALUES',
   'SURFACE_PURPOSE_VALUES',
   'SURFACE_TIER_VALUES',
+  'compileArtifactHtml',
   'compileSurfaceContractView',
   'compileSurfacePolicy',
   'createCapabilityRegistry',

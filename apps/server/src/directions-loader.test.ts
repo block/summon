@@ -12,15 +12,14 @@ import { defaultDirectionId, loadDirections } from './directions-loader.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');
 
-test('bundled public directions load in Ghost-first order', () => {
+test('bundled public directions load with Workbench as default', () => {
   const directions = loadDirections();
 
   assert.deepEqual(directions.map((direction) => direction.id), [
-    'ghost',
-    'pulse',
     'workbench',
+    'pulse',
   ]);
-  assert.equal(defaultDirectionId(directions), 'ghost');
+  assert.equal(defaultDirectionId(directions), 'workbench');
 });
 
 test('public source has no bundled product-design references outside Ghost', () => {
@@ -66,7 +65,6 @@ function publicSourceFiles(): string[] {
 function collectFiles(path: string): string[] {
   const stat = statSync(path);
   if (stat.isFile()) {
-    if (path.endsWith('apps/server/directions/ghost/bucket.json')) return [];
     return [path];
   }
   if (!stat.isDirectory()) return [];

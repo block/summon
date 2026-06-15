@@ -33,6 +33,23 @@ function screen(sections: string[]): string {
   return JSON.stringify({ op: 'set', path: '/screen', value: { sections } });
 }
 
+function blockSet(section: string, blocks: string[]): string {
+  return JSON.stringify({ op: 'set', path: `/section/${section}`, value: { blocks } });
+}
+
+function blockAdd(section: string, block: string, html = '<p>Hi</p>'): string {
+  return JSON.stringify({ op: 'add', path: `/section/${section}/block/${block}`, html });
+}
+
+function nodeAdd(section: string, node: string, html: string, parent?: string): string {
+  return JSON.stringify({
+    op: 'add',
+    path: `/section/${section}/node/${node}`,
+    html,
+    ...(parent ? { parent } : {}),
+  });
+}
+
 function opPaths(result: ProtocolHardenerResult): string[] {
   return result.outboundLines.map((line) => `${line.op}:${line.path}`);
 }
@@ -249,4 +266,160 @@ test('accepted structural lines remain suitable for Ghost review packets', () =>
     'add:/section/hero',
   ]);
   assert.equal(result.acceptedLines.every((line) => line.op === 'set' || line.op === 'add'), true);
+});
+
+test('block fragments require declared section and block order before accepted adds', () => {
+  const hardener = createProtocolHardener({ validationContext: baseContext });
+  hardener.processRawLine(screen(['summary']));
+
+  const declaration = hardener.processRawLine(blockSet('summary', ['headline', 'metrics']));
+  assert.deepEqual(acceptedOpPaths(declaration), ['set:/section/summary']);
+
+  const addResult = hardener.processRawLine(blockAdd('summary', 'headline', '<h1>Ready</h1>'));
+  assert.equal(addResult.blocked, undefined);
+  assert.deepEqual(acceptedOpPaths(addResult), ['add:/section/summary/block/headline']);
+});
+
+test('block fragments reject undeclared blocks without blocking the stream', () => {
+  const hardener = createProtocolHardener({ validationContext: baseContext });
+  hardener.processRawLine(screen(['summary']));
+  hardener.processRawLine(blockSet('summary', ['headline']));
+
+  const result = hardener.processRawLine(blockAdd('summary', 'metrics', '<p>Wrong</p>'));
+  assert.equal(result.blocked, undefined);
+  assert.deepEqual(result.acceptedLines, []);
+  assert.equal(skipValue(result).code, 'undeclared-block');
+});
+
+test('unsafe block HTML blocks and can be repaired at the block path', () => {
+  const hardener = createProtocolHardener({ validationContext: baseContext });
+  hardener.processRawLine(screen(['summary']));
+  hardener.processRawLine(blockSet('summary', ['headline']));
+
+  const result = hardener.processRawLine(blockAdd('summary', 'headline', '<script>alert(1)</script>'));
+  assert.equal(result.blocked?.code, 'static-script');
+  assert.equal(result.repairFeedback?.[0]?.target, '/section/summary/block/headline');
+  assert.deepEqual(result.acceptedLines, []);
+});
+
+test('block fragments validate the recomposed parent section', () => {
+  const componentContext: ValidationContext = {
+    ...baseContext,
+    components: [{ name: 'MetricCard' }],
+  };
+  const hardener = createProtocolHardener({ validationContext: componentContext });
+  hardener.processRawLine(screen(['summary']));
+  hardener.processRawLine(blockSet('summary', ['metric-a', 'metric-b']));
+
+  const html = '<div data-summon-component="MetricCard" data-summon-component-id="metric" data-summon-props="{}"></div>';
+  assert.equal(hardener.processRawLine(blockAdd('summary', 'metric-a', html)).blocked, undefined);
+  const duplicate = hardener.processRawLine(blockAdd('summary', 'metric-b', html));
+  assert.equal(duplicate.blocked?.code, 'component-id-duplicate');
+  assert.equal(duplicate.repairFeedback?.[0]?.target, '/section/summary/block/metric-b');
+});
+
+test('html node fragments require experiment mode and a declared section', () => {
+  const disabled = createProtocolHardener({ validationContext: baseContext });
+  const disabledResult = disabled.processRawLine(
+    nodeAdd('main', 'root', '<div data-summon-node="root"></div>'),
+  );
+  assert.equal(skipValue(disabledResult).code, 'experimental-node-fragment-disabled');
+
+  const hardener = createProtocolHardener({
+    validationContext: { ...baseContext, experimentalFragmentMode: 'html-node-v0' },
+  });
+  const undeclared = hardener.processRawLine(
+    nodeAdd('main', 'root', '<div data-summon-node="root"></div>'),
+  );
+  assert.equal(skipValue(undeclared).code, 'undeclared-section');
+});
+
+test('html node fragments accept parented raw HTML patches', () => {
+  const hardener = createProtocolHardener({
+    validationContext: { ...baseContext, experimentalFragmentMode: 'html-node-v0' },
+  });
+  hardener.processRawLine(screen(['main']));
+
+  const root = hardener.processRawLine(
+    nodeAdd('main', 'root', '<div data-summon-node="root" class="dashboard"></div>'),
+  );
+  assert.equal(root.blocked, undefined);
+  assert.deepEqual(acceptedOpPaths(root), ['add:/section/main/node/root']);
+
+  const child = hardener.processRawLine(
+    nodeAdd('main', 'headline', '<header data-summon-node="headline"><h1>Ready</h1></header>', 'root'),
+  );
+  assert.equal(child.blocked, undefined);
+  assert.deepEqual(acceptedOpPaths(child), ['add:/section/main/node/headline']);
+});
+
+test('html node fragments reject missing parents without blocking the stream', () => {
+  const hardener = createProtocolHardener({
+    validationContext: { ...baseContext, experimentalFragmentMode: 'html-node-v0' },
+  });
+  hardener.processRawLine(screen(['main']));
+
+  const result = hardener.processRawLine(
+    nodeAdd('main', 'headline', '<header data-summon-node="headline"></header>', 'root'),
+  );
+  assert.equal(result.blocked, undefined);
+  assert.deepEqual(result.acceptedLines, []);
+  assert.equal(skipValue(result).code, 'undeclared-node-parent');
+});
+
+test('unsafe html node patch blocks and can be repaired at the node path', () => {
+  const hardener = createProtocolHardener({
+    validationContext: { ...baseContext, experimentalFragmentMode: 'html-node-v0' },
+  });
+  hardener.processRawLine(screen(['main']));
+
+  const result = hardener.processRawLine(
+    nodeAdd('main', 'root', '<div data-summon-node="root"><script>alert(1)</script></div>'),
+  );
+  assert.equal(result.blocked?.code, 'static-script');
+  assert.equal(result.repairFeedback?.[0]?.target, '/section/main/node/root');
+  assert.deepEqual(result.acceptedLines, []);
+});
+
+test('html node patches reject nested node ids', () => {
+  const hardener = createProtocolHardener({
+    validationContext: { ...baseContext, experimentalFragmentMode: 'html-node-v0' },
+  });
+  hardener.processRawLine(screen(['main']));
+
+  const result = hardener.processRawLine(
+    nodeAdd(
+      'main',
+      'root',
+      '<div data-summon-node="root"><p data-summon-node="nested">Wrong</p></div>',
+    ),
+  );
+  assert.equal(result.blocked?.code, 'nested-node-id');
+  assert.equal(result.repairFeedback?.[0]?.target, '/section/main/node/root');
+});
+
+test('html node fragments validate the recomposed parent section', () => {
+  const componentContext: ValidationContext = {
+    ...baseContext,
+    experimentalFragmentMode: 'html-node-v0',
+    components: [{ name: 'MetricCard' }],
+  };
+  const hardener = createProtocolHardener({ validationContext: componentContext });
+  hardener.processRawLine(screen(['main']));
+  hardener.processRawLine(
+    nodeAdd('main', 'root', '<div data-summon-node="root"></div>'),
+  );
+
+  const html = '<div data-summon-node="metric-a" data-summon-component="MetricCard" data-summon-component-id="metric" data-summon-props="{}"></div>';
+  assert.equal(hardener.processRawLine(nodeAdd('main', 'metric-a', html, 'root')).blocked, undefined);
+  const duplicate = hardener.processRawLine(
+    nodeAdd(
+      'main',
+      'metric-b',
+      '<div data-summon-node="metric-b" data-summon-component="MetricCard" data-summon-component-id="metric" data-summon-props="{}"></div>',
+      'root',
+    ),
+  );
+  assert.equal(duplicate.blocked?.code, 'component-id-duplicate');
+  assert.equal(duplicate.repairFeedback?.[0]?.target, '/section/main/node/metric-b');
 });

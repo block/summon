@@ -6,6 +6,8 @@ export {
 } from '@summon-internal/host/browser';
 export type {
   Artifact,
+  CompiledArtifactHtml,
+  CompiledHtmlNodePatch,
   ComponentIslandBounds,
   ComponentIslandDescriptor,
   ComponentIslandError,

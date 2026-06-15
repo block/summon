@@ -28,7 +28,7 @@ export default defineConfig({
   ],
   webServer: {
     command: `pnpm --filter @summon-internal/demo dev --host 127.0.0.1 --port ${safetyPort} --strictPort`,
-    url: `${safetyBaseUrl}/generate.html`,
+    url: `${safetyBaseUrl}/generate`,
     reuseExistingServer: false,
     timeout: 120_000,
   },

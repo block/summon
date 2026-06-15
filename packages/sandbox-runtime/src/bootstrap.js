@@ -1,7 +1,7 @@
 // Summon sandbox bootstrap — runs FIRST inside every sandbox iframe, before any
-// artifact HTML/JS. Installs window.sandbox (frozen) as the only way for the
-// sandboxed code to talk to the host. Capture parent reference and the message
-// constructor early so a later-injected script can't shadow them.
+// compiled artifact HTML. Installs window.sandbox (frozen) as the trusted
+// bridge for controlled test shells and legacy hosts. Generated artifacts do
+// not receive executable scripts.
 (() => {
   'use strict';
 
@@ -93,9 +93,13 @@
   // -------------------------------------------------------------------------
 
   let currentState = Object.freeze({});
+  const localState = Object.create(null);
   const subscribers = new Set();
   const mountedIntentKeys = new Set();
   let componentSyncScheduled = false;
+  let componentSyncFallbackTimer = 0;
+  let componentLayoutPollTimer = 0;
+  let componentLayoutSignature = '';
   let componentResizeObserver = null;
   const componentResizeObserved = new Set();
   const SAFE_ATTR_BINDINGS = Object.freeze(['src', 'alt', 'title', 'aria-label', 'value', 'placeholder', 'disabled']);
@@ -139,9 +143,9 @@
   //      function of (DOM, state); recomputing is idempotent and the cheapest
   //      possible model.
   //
-  // Scripts written via `sandbox.onState` keep working. The contract is: a
-  // script subscriber should NOT mutate elements that carry a `data-summon-bind`
-  // / `-show` / `-hide` — the binder runs after subscribers and will overwrite.
+  // Generated scripts are not an artifact capability. The `window.sandbox`
+  // object remains a narrow trusted bridge for host-owned tests and legacy
+  // shells, but generated UI should express local behavior with attributes.
 
   function walkPath(obj, path) {
     if (!path) return obj;
@@ -152,6 +156,17 @@
       cur = cur[parts[i]];
     }
     return cur;
+  }
+
+  function hasPath(obj, path) {
+    if (!path) return true;
+    let cur = obj;
+    const parts = path.split('.');
+    for (let i = 0; i < parts.length; i++) {
+      if (cur == null || !Object.prototype.hasOwnProperty.call(Object(cur), parts[i])) return false;
+      cur = cur[parts[i]];
+    }
+    return true;
   }
 
   // Walk up to find the nearest ancestor (inclusive) with a matching foreach
@@ -216,6 +231,7 @@
       const resource = findResourceScope(name, fromEl);
       return resourceStateValue(resource, rest);
     }
+    if (hasPath(localState, path)) return walkPath(localState, path);
     return walkPath(currentState, path);
   }
 
@@ -245,6 +261,57 @@
       return out;
     }
     return value;
+  }
+
+  function seedLocalState(root) {
+    const hosts = root.querySelectorAll('[data-summon-local]');
+    for (const host of hosts) {
+      const raw = host.getAttribute('data-summon-local') || '';
+      if (!raw.trim()) continue;
+      let parsed;
+      try { parsed = JSON.parse(raw); }
+      catch (_) { continue; }
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
+      for (const key in parsed) {
+        if (!Object.prototype.hasOwnProperty.call(parsed, key)) continue;
+        if (!/^[A-Za-z_$][\w$]{0,39}$/.test(key)) continue;
+        if (!Object.prototype.hasOwnProperty.call(localState, key)) {
+          localState[key] = parsed[key];
+        }
+      }
+    }
+  }
+
+  function parseConditionLiteral(raw) {
+    const trimmed = String(raw || '').trim();
+    if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
+      try { return JSON.parse(trimmed); } catch (_) { return trimmed.slice(1, -1); }
+    }
+    if (trimmed.length >= 2 && trimmed[0] === "'" && trimmed[trimmed.length - 1] === "'") {
+      return trimmed.slice(1, -1);
+    }
+    return trimmed;
+  }
+
+  function evalCondition(expr, fromEl) {
+    const raw = String(expr || '').trim();
+    if (!raw) return false;
+    const match = raw.match(/^(!)?(\$?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?:\s*(==|!=)\s*("[^"]*"|'[^']*'))?$/);
+    if (!match) return truthy(resolveKey(raw, fromEl));
+    const negated = !!match[1];
+    const path = match[2];
+    const op = match[3];
+    const literal = match[4];
+    const value = resolveKey(path, fromEl);
+    let result;
+    if (op) {
+      const expected = parseConditionLiteral(literal);
+      result = String(value ?? '') === String(expected);
+      if (op === '!=') result = !result;
+    } else {
+      result = truthy(value);
+    }
+    return negated ? !result : result;
   }
 
   function applyResourceScopes(root) {
@@ -304,7 +371,8 @@
       const selector = '[data-summon-attr-' + attr + ']';
       const els = root.querySelectorAll(selector);
       for (const el of els) {
-        const v = resolveKey(el.getAttribute('data-summon-attr-' + attr), el);
+        const raw = el.getAttribute('data-summon-attr-' + attr);
+        const v = attr === 'disabled' ? evalCondition(raw, el) : resolveKey(raw, el);
         applySafeAttribute(el, attr, v);
       }
     }
@@ -348,9 +416,69 @@
     }
   }
 
+  function applyClassBindings(root) {
+    const els = root.querySelectorAll('*');
+    for (const el of els) {
+      for (const attr of Array.from(el.attributes)) {
+        if (!attr.name.startsWith('data-summon-class-')) continue;
+        const className = attr.name.slice('data-summon-class-'.length);
+        if (!/^[A-Za-z][\w-]{0,63}$/.test(className)) continue;
+        el.classList.toggle(className, evalCondition(attr.value, el));
+      }
+    }
+  }
+
+  function parseMotionEntries(value) {
+    const out = [];
+    for (const part of String(value || '').split(';')) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const bits = trimmed.split(':');
+      if (bits.length !== 2) continue;
+      const phase = bits[0].trim();
+      const recipe = bits[1].trim();
+      if (!/^(enter|update)$/.test(phase)) continue;
+      if (!/^[a-z][a-z0-9-]{0,31}$/.test(recipe)) continue;
+      out.push({ phase, recipe });
+    }
+    return out;
+  }
+
+  function applyMotion(root) {
+    const motionEls = root.querySelectorAll('[data-summon-motion]');
+    for (const el of motionEls) {
+      const entries = parseMotionEntries(el.getAttribute('data-summon-motion'));
+      for (const entry of entries) {
+        if (entry.phase === 'enter') {
+          el.classList.add('summon-motion-enter-' + entry.recipe);
+        }
+      }
+    }
+    const transitionEls = root.querySelectorAll('[data-summon-transition]');
+    for (const el of transitionEls) {
+      const recipe = (el.getAttribute('data-summon-transition') || '').trim();
+      if (/^[a-z][a-z0-9-]{0,31}$/.test(recipe)) {
+        el.classList.add('summon-transition-' + recipe);
+      }
+    }
+  }
+
+  function triggerUpdateMotion(root) {
+    const motionEls = root.querySelectorAll('[data-summon-motion]');
+    for (const el of motionEls) {
+      const entries = parseMotionEntries(el.getAttribute('data-summon-motion'));
+      for (const entry of entries) {
+        if (entry.phase === 'update') {
+          markTransientClass(el, 'summon-motion-update-' + entry.recipe, 560);
+        }
+      }
+    }
+  }
+
   function applyBindings() {
     const root = document.getElementById('summon-root');
     if (!root) return;
+    seedLocalState(root);
     // Resource scopes must exist before foreach resolution; foreach must stamp
     // clones before bind/show/hide queries run.
     applyResourceScopes(root);
@@ -362,14 +490,16 @@
     }
     const shows = root.querySelectorAll('[data-summon-show]');
     for (const el of shows) {
-      el.hidden = !truthy(resolveKey(el.getAttribute('data-summon-show'), el));
+      el.hidden = !evalCondition(el.getAttribute('data-summon-show'), el);
     }
     const hides = root.querySelectorAll('[data-summon-hide]');
     for (const el of hides) {
-      el.hidden = truthy(resolveKey(el.getAttribute('data-summon-hide'), el));
+      el.hidden = evalCondition(el.getAttribute('data-summon-hide'), el);
     }
     applyAttrBindings(root);
-    scheduleComponentSync();
+    applyClassBindings(root);
+    applyMotion(root);
+    syncComponents();
   }
 
   function parseArgs(raw) {
@@ -384,10 +514,19 @@
   function scheduleComponentSync() {
     if (componentSyncScheduled) return;
     componentSyncScheduled = true;
-    requestAnimationFrame(() => {
+    const run = () => {
+      if (!componentSyncScheduled) return;
       componentSyncScheduled = false;
+      if (componentSyncFallbackTimer) {
+        clearTimeout(componentSyncFallbackTimer);
+        componentSyncFallbackTimer = 0;
+      }
       syncComponents();
-    });
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(run);
+    }
+    componentSyncFallbackTimer = setTimeout(run, 50);
   }
 
   function syncComponents() {
@@ -395,6 +534,7 @@
     if (!root) return;
     const els = Array.from(root.querySelectorAll('[data-summon-component]'));
     const components = [];
+    const layoutParts = [];
     for (const el of els) {
       const name = el.getAttribute('data-summon-component') || '';
       const id = el.getAttribute('data-summon-component-id') || '';
@@ -404,6 +544,7 @@
         ? interpolate(parsed, el)
         : {};
       const rect = el.getBoundingClientRect();
+      layoutParts.push(componentLayoutPart(el, rect));
       components.push({
         id,
         name,
@@ -417,7 +558,9 @@
       });
       if (components.length >= 64) break;
     }
+    componentLayoutSignature = layoutParts.join('|');
     refreshComponentResizeObservers(root, els);
+    updateComponentLayoutPolling(els.length > 0);
     PARENT.postMessage({
       type: 'SUMMON_COMPONENTS',
       sandbox_id: SANDBOX_ID,
@@ -447,6 +590,46 @@
       observer.observe(el);
       componentResizeObserved.add(el);
     }
+  }
+
+  function componentLayoutPart(el, rect) {
+    return [
+      el.getAttribute('data-summon-component-id') || '',
+      el.getAttribute('data-summon-component') || '',
+      rect.left,
+      rect.top,
+      rect.width,
+      rect.height,
+    ].join(':');
+  }
+
+  function readComponentLayoutSignature() {
+    const root = document.getElementById('summon-root');
+    if (!root) return '';
+    const els = Array.from(root.querySelectorAll('[data-summon-component]'));
+    const parts = [];
+    for (const el of els.slice(0, 64)) {
+      parts.push(componentLayoutPart(el, el.getBoundingClientRect()));
+    }
+    return parts.join('|');
+  }
+
+  function updateComponentLayoutPolling(enabled) {
+    if (!enabled) {
+      if (componentLayoutPollTimer) {
+        clearInterval(componentLayoutPollTimer);
+        componentLayoutPollTimer = 0;
+      }
+      componentLayoutSignature = '';
+      return;
+    }
+    if (componentLayoutPollTimer) return;
+    componentLayoutPollTimer = setInterval(() => {
+      const next = readComponentLayoutSignature();
+      if (next === componentLayoutSignature) return;
+      componentLayoutSignature = next;
+      scheduleComponentSync();
+    }, 100);
   }
 
   // Collect named form controls into a flat args object. Multi-step thinking:
@@ -493,6 +676,52 @@
     emit(resource.name, args);
   }
 
+  function parseLocalValue(raw) {
+    const value = String(raw || '').trim();
+    if (!value) return '';
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    if (value === 'null') return null;
+    if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) return Number(value);
+    if (value.length >= 2 && value[0] === '"' && value[value.length - 1] === '"') {
+      try { return JSON.parse(value); } catch (_) { return value.slice(1, -1); }
+    }
+    if (value.length >= 2 && value[0] === "'" && value[value.length - 1] === "'") {
+      return value.slice(1, -1);
+    }
+    return value;
+  }
+
+  function applyLocalAction(el) {
+    const setValue = el.getAttribute('data-summon-set');
+    const toggleValue = el.getAttribute('data-summon-toggle');
+    let changed = false;
+    if (setValue) {
+      const idx = setValue.indexOf('=');
+      const key = idx === -1 ? '' : setValue.slice(0, idx).trim();
+      const rawValue = idx === -1 ? '' : setValue.slice(idx + 1);
+      if (/^[A-Za-z_$][\w$]{0,39}$/.test(key)) {
+        const next = parseLocalValue(rawValue);
+        if (localState[key] !== next) {
+          localState[key] = next;
+          changed = true;
+        }
+      }
+    }
+    if (toggleValue) {
+      const key = toggleValue.trim();
+      if (/^[A-Za-z_$][\w$]{0,39}$/.test(key)) {
+        localState[key] = !truthy(localState[key]);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    applyBindings();
+    const root = document.getElementById('summon-root');
+    if (root) triggerUpdateMotion(root);
+    scheduleComponentSync();
+  }
+
   function mountKeyFor(el, intent, rawArgs) {
     const section = el.closest('[data-summon-section]');
     const sectionId = section ? section.getAttribute('data-summon-section') || 'root' : 'root';
@@ -534,6 +763,12 @@
   document.addEventListener('click', (event) => {
     const t = event.target;
     if (!(t instanceof Element)) return;
+    const localEl = t.closest('[data-summon-set],[data-summon-toggle]');
+    if (localEl) {
+      event.preventDefault();
+      applyLocalAction(localEl);
+      return;
+    }
     const resourceEl = t.closest('[data-summon-resource-trigger="click"]');
     if (resourceEl) {
       event.preventDefault();
@@ -611,9 +846,9 @@
    * Otherwise (raw artifact HTML, no sections), fall back to a full
    * innerHTML replace.
    *
-   * Inline <script> tags don't execute via innerHTML — clone them into fresh
-   * script elements so they run, but only inside the parts of the tree that
-   * actually changed.
+   * Generated scripts are not an artifact capability. innerHTML-inserted
+   * script tags stay inert, and the sandbox CSP only trusts nonce-authorized
+   * bootstrap scripts.
    */
   function renderRoot(html) {
     const root = document.getElementById('summon-root');
@@ -636,7 +871,6 @@
       sectionEls.clear();
       subscribers.clear();
       root.innerHTML = incoming;
-      rerunScripts(root);
       applyBindings();
       applyMountIntents();
       return;
@@ -656,15 +890,15 @@
         // Same section, possibly updated content. Replace innerHTML on the
         // existing element so the entrance animation does NOT re-fire.
         if (existingEl.innerHTML !== incomingEl.innerHTML) {
-          existingEl.innerHTML = incomingEl.innerHTML;
-          rerunScripts(existingEl);
+          if (!patchSectionBlocks(existingEl, incomingEl)) {
+            existingEl.innerHTML = incomingEl.innerHTML;
+          }
         }
       } else {
         // New section — appending to #summon-root mounts it for the first time,
         // which triggers the CSS entrance animation declared on the
         // [data-summon-section] selector.
         root.appendChild(incomingEl);
-        rerunScripts(incomingEl);
         sectionEls.set(id, incomingEl);
       }
     }
@@ -690,23 +924,192 @@
     applyMountIntents();
   }
 
-  function rerunScripts(scope) {
-    const scripts = scope.querySelectorAll('script');
-    for (const old of scripts) {
-      const s = document.createElement('script');
-      for (const attr of Array.from(old.attributes)) {
-        s.setAttribute(attr.name, attr.value);
-      }
-      s.textContent = old.textContent;
-      old.parentNode.replaceChild(s, old);
+  function patchSectionBlocks(existingSection, incomingSection) {
+    var existingBlocks = directBlockChildren(existingSection);
+    var incomingBlocks = directBlockChildren(incomingSection);
+    if (existingBlocks.length === 0 || incomingBlocks.length === 0) return false;
+
+    var existingById = new Map();
+    for (var i = 0; i < existingBlocks.length; i++) {
+      var existingId = existingBlocks[i].getAttribute('data-summon-block');
+      if (existingId) existingById.set(existingId, existingBlocks[i]);
     }
+
+    var wantedIds = new Set();
+    for (var j = 0; j < incomingBlocks.length; j++) {
+      var incomingBlock = incomingBlocks[j];
+      var id = incomingBlock.getAttribute('data-summon-block');
+      if (!id) continue;
+      wantedIds.add(id);
+      var existingBlock = existingById.get(id);
+      if (existingBlock) {
+        if (existingBlock.innerHTML !== incomingBlock.innerHTML) {
+          existingBlock.innerHTML = incomingBlock.innerHTML;
+        }
+      } else {
+        existingSection.appendChild(incomingBlock);
+        existingById.set(id, incomingBlock);
+      }
+    }
+
+    for (var _i = 0; _i < existingBlocks.length; _i++) {
+      var stale = existingBlocks[_i];
+      var staleId = stale.getAttribute('data-summon-block');
+      if (staleId && !wantedIds.has(staleId)) stale.remove();
+    }
+
+    for (var k = 0; k < incomingBlocks.length; k++) {
+      var wantedId = incomingBlocks[k].getAttribute('data-summon-block');
+      if (!wantedId) continue;
+      var desired = existingById.get(wantedId);
+      if (!desired) continue;
+      if (existingSection.children[k] !== desired) {
+        existingSection.insertBefore(desired, existingSection.children[k] || null);
+      }
+    }
+
+    return true;
+  }
+
+  function directBlockChildren(section) {
+    var out = [];
+    for (var i = 0; i < section.children.length; i++) {
+      var child = section.children[i];
+      if (child.hasAttribute('data-summon-block')) out.push(child);
+    }
+    return out;
+  }
+
+  function patchHtmlNode(patch) {
+    if (!patch || typeof patch !== 'object') return;
+    var sectionId = typeof patch.sectionId === 'string' ? patch.sectionId : '';
+    var nodeId = typeof patch.nodeId === 'string' ? patch.nodeId : '';
+    var parentId = typeof patch.parentId === 'string' ? patch.parentId : '';
+    var html = typeof patch.html === 'string' ? patch.html : '';
+    if (!sectionId || !nodeId) return;
+
+    var root = document.getElementById('summon-root');
+    if (!root) return;
+    indexExistingSections(root);
+
+    var section = sectionEls.get(sectionId);
+    if (!section) {
+      section = document.createElement('section');
+      section.setAttribute('data-summon-section', sectionId);
+      root.appendChild(section);
+      sectionEls.set(sectionId, section);
+    }
+
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    var incoming = tmp.firstElementChild;
+    if (!incoming || incoming.getAttribute('data-summon-node') !== nodeId) return;
+
+    var parent = parentId ? findSummonNode(section, parentId) : section;
+    if (!parent) return;
+
+    var existing = findSummonNode(section, nodeId);
+    if (existing) {
+      var preservedChildren = directNodeChildren(existing);
+      var incomingChildHost = nodeChildrenHost(incoming);
+      var replacementSlotChanged = false;
+      if (preservedChildren.length > 0) {
+        replacementSlotChanged = prepareNodeChildHost(incomingChildHost);
+      }
+      for (var i = 0; i < preservedChildren.length; i++) {
+        incomingChildHost.appendChild(preservedChildren[i]);
+      }
+      markTransientClass(incoming, 'summon-node-update', 520);
+      existing.replaceWith(incoming);
+      if (replacementSlotChanged) markSlotFilled(incomingChildHost);
+    } else {
+      var childHost = nodeChildrenHost(parent);
+      var slotChanged = prepareNodeChildHost(childHost);
+      markTransientClass(incoming, 'summon-node-enter', 520);
+      childHost.appendChild(incoming);
+      if (slotChanged) markSlotFilled(childHost);
+    }
+
+    applyBindings();
+    applyMountIntents();
+  }
+
+  function findSummonNode(section, nodeId) {
+    var nodes = section.querySelectorAll('[data-summon-node]');
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute('data-summon-node') === nodeId) return nodes[i];
+    }
+    return null;
+  }
+
+  function directNodeChildren(parent) {
+    var out = [];
+    var childHost = nodeChildrenHost(parent);
+    for (var i = 0; i < childHost.children.length; i++) {
+      var child = childHost.children[i];
+      if (child.hasAttribute('data-summon-node')) out.push(child);
+    }
+    return out;
+  }
+
+  function nodeChildrenHost(parent) {
+    if (!parent || typeof parent.querySelector !== 'function') return parent;
+    return parent.querySelector('[data-summon-node-children]') || parent;
+  }
+
+  function prepareNodeChildHost(host) {
+    if (!isNodeChildrenSlot(host)) return false;
+    var hadNodeChildren = directSummonNodeChildCount(host) > 0;
+    var removedSkeletons = removeDirectSkeletons(host);
+    return removedSkeletons > 0 || !hadNodeChildren;
+  }
+
+  function directSummonNodeChildCount(host) {
+    if (!host || !host.children) return 0;
+    var count = 0;
+    for (var i = 0; i < host.children.length; i++) {
+      if (host.children[i].hasAttribute('data-summon-node')) count += 1;
+    }
+    return count;
+  }
+
+  function removeDirectSkeletons(host) {
+    if (!host || !host.children) return 0;
+    var removed = 0;
+    var children = Array.from(host.children);
+    for (var i = 0; i < children.length; i++) {
+      if (children[i].hasAttribute('data-summon-skeleton')) {
+        children[i].remove();
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
+  function isNodeChildrenSlot(el) {
+    return !!(el && el.hasAttribute && el.hasAttribute('data-summon-node-children'));
+  }
+
+  function markSlotFilled(slot) {
+    if (!isNodeChildrenSlot(slot)) return;
+    markTransientClass(slot, 'summon-slot-filled', 560);
+  }
+
+  function markTransientClass(el, className, durationMs) {
+    if (!el || !el.classList) return;
+    el.classList.remove(className);
+    // Force a style flush so repeated replacements retrigger the animation.
+    void el.offsetWidth;
+    el.classList.add(className);
+    window.setTimeout(function () {
+      if (el && el.classList) el.classList.remove(className);
+    }, durationMs);
   }
 
   window.addEventListener('message', (event) => {
-    // Only accept messages from our parent window. Other frames or workers ignored.
-    if (event.source !== PARENT) return;
     const data = event.data;
     if (!data || typeof data !== 'object') return;
+    if (data.sandbox_id !== SANDBOX_ID) return;
 
     if (data.type === 'SUMMON_STATE') {
       const next = data.state && typeof data.state === 'object' ? data.state : {};
@@ -716,6 +1119,10 @@
       // bound element.
       notify();
       applyBindings();
+      {
+        const root = document.getElementById('summon-root');
+        if (root) triggerUpdateMotion(root);
+      }
       return;
     }
 
@@ -727,11 +1134,15 @@
       return;
     }
 
+    if (data.type === 'SUMMON_NODE_PATCH') {
+      patchHtmlNode(data.patch);
+      return;
+    }
+
     if (data.type === 'SUMMON_CHROME') {
       // Mirror host-declared chrome attributes onto <html>. Host-controlled —
-      // we still validate keys/values defensively because the listener is
-      // bound to `window` and other frames' messages can land here even
-      // though the sandbox_id gate filtered the major culprits.
+      // we still validate keys/values defensively because the listener is bound
+      // to `window` and the sandbox_id gate filters ambient frame messages.
       var attrs = data.attrs;
       if (!attrs || typeof attrs !== 'object') return;
       var root = document.documentElement;
@@ -763,6 +1174,29 @@
     enumerable: true,
   });
 
-  // Signal ready so the host can push initial state.
-  PARENT.postMessage({ type: 'SUMMON_READY', sandbox_id: SANDBOX_ID }, '*');
+  let readySent = false;
+  function signalReady() {
+    if (readySent) return;
+    if (!document.getElementById('summon-root')) return;
+    readySent = true;
+    try { delete window.__SUMMON_SIGNAL_READY__; } catch (_) { /* non-critical cleanup */ }
+    // Signal ready only after the render root exists, so the host can safely
+    // flush queued initial renders and state pushes.
+    PARENT.postMessage({ type: 'SUMMON_READY', sandbox_id: SANDBOX_ID }, '*');
+  }
+
+  Object.defineProperty(window, '__SUMMON_SIGNAL_READY__', {
+    value: signalReady,
+    writable: false,
+    configurable: true,
+    enumerable: false,
+  });
+
+  if (document.getElementById('summon-root')) {
+    signalReady();
+  } else if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', signalReady, { once: true });
+  } else {
+    window.setTimeout(signalReady, 0);
+  }
 })();

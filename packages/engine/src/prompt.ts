@@ -89,18 +89,21 @@ export const SUMMON_FIXED_INSTRUCTIONS = `You generate self-contained web UIs as
 
 ## Your job — interpret intent, then design the response
 
-The user types a request in natural language: "help me plan…", "I want to…", "can you compare…", "explain how…". Your job is to pick a response shape that actually helps, then render it.
+The user types a request in natural language: "help me plan…", "I want to…", "can you compare…", "explain how…". Your job is to settle on a rich composition that actually helps, then render it.
 
-Pick the shape that fits the intent. Not every response is a card. Examples:
+Pick the composition that fits the intent. Cards are only one option, not the default. Examples:
 
-- **Plan / itinerary** — a narrative with stages, a timeline, or a numbered walkthrough
-- **Comparison / decision** — side-by-side layout, pros/cons, or a table + verdict
-- **Explainer / summary** — long-form reading with hierarchy, pull quotes, or a TL;DR + details
-- **Tracker / dashboard** — one big number + breakdown, progress visual, or grouped stats
-- **Recommendation** — a single focused card/spread with reasoning, not a page of chrome
-- **Reflection / worksheet** — guided prompts, stepped entries, or a journal shape
+- **Plan / itinerary** — staged narrative, timeline, route, calendar, or numbered walkthrough.
+- **Comparison / decision** — table, matrix, split view, scorecard, annotated verdict, or pros/cons only when useful.
+- **Explainer / summary** — readable article, field guide, pull quotes, marginal notes, or TL;DR with deeper sections.
+- **Tracker / dashboard** — dominant number, progress rail, status map, chart, ledger, or compact stats only when the user asked for metrics.
+- **Recommendation** — focused brief, poster, memo, ranked list, or one composed spread with reasoning.
+- **Reflection / worksheet** — guided prompts, stepped entries, rubric, checklist, journal, or fill-in plan.
+- **Operational view** — queue, table, kanban-like lanes, timeline, incident log, roster, checklist, or command strip.
 
-**Resist the default "big header + cards + footer".** That's one shape among many. Pick what the specific intent actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline card. A tracker wants a dominant number, not a title. A recommendation might be one self-contained block with no header.
+Before using a card grid, ask what job the boxes are doing. Use cards when the content is truly a set of separate comparable objects, selectable choices, or repeated records with distinct evidence. If most groups would become anonymous rounded boxes, redesign as an article, table, timeline, checklist, matrix, ledger, map, split view, or typographic composition instead.
+
+**Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific intent actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
 
 ## Output protocol — JSONL only
 
@@ -141,7 +144,7 @@ Keep each section's HTML on a single line. Escape double quotes inside the HTML 
 ## HTML/CSS rules
 
 - Plain HTML elements. Inline \`<style>\` blocks and \`style="..."\` attributes are the primary way to style.
-- \`<script>\` tags and event-handler attributes are forbidden **unless** a "## Capabilities" block below explicitly grants them. If there is no Capabilities block, the UI is static.
+- \`<script>\` tags and event-handler attributes are forbidden. If there is no Capabilities block, the UI is static. If there is a Capabilities block, use declarative \`data-summon-*\` attributes only.
 - No external URLs. No external images, no external fonts, no external stylesheets. Inline SVG is fine.
 - Use CSS custom properties for every color, space, radius, and type size. Do not hardcode hex colors, rgb(), pixel spacing, or specific font stacks.
 
@@ -157,6 +160,7 @@ The direction block specifies which tokens carry particular meaning for that dir
 - Be direct. No hedging, no "here's your…" preambles. The UI itself is the answer.
 - 3–5 items in lists. One is too few; eight is too many.
 - Lead with the most useful thing. Don't bury the answer under chrome.
+- Let the content determine its native structure: comparisons want tables or matrices, sequences want timelines, procedures want checklists, money wants ledgers, explanations want reading rhythm, and decisions want a clear verdict.
 
 ## How to think about this generation
 
@@ -207,7 +211,7 @@ export function buildDirectionBlock(input: DirectionInput): string {
       );
     } else {
       parts.push(
-        'These are hand-crafted HTML snippets demonstrating the design language across response shapes. Study their spacing rhythm, radii, typography, and color usage — match the same patterns when emitting your own HTML. They are not templates to copy; they show how the design language *feels* across card, article, comparison, and tracker shapes.'
+        'These are hand-crafted HTML snippets demonstrating the design language across response shapes. Study their spacing rhythm, radii, typography, and color usage — match the same patterns when emitting your own HTML. They are not templates to copy; they show how the design language *feels* across articles, comparisons, trackers, focused recommendations, and other compositions.'
       );
     }
     for (const ex of shapeExemplars) {
@@ -230,7 +234,7 @@ export function buildLayoutBlock(layout: SummonLayout): string {
 
   return `## Host layout — this generation
 
-The host has supplied a strict layout contract named **${layout.id}**. This contract overrides the generic instruction to choose your own section structure.
+The host has supplied a strict layout contract named **${layout.id}**. This contract overrides the generic instruction to invent your own section structure.
 
 The host has already declared this section order:
 
@@ -435,7 +439,7 @@ export interface DataResourceSpec extends IntentSpec {
 export interface CapabilityPattern {
   /** Short title shown above the code snippet in the prompt. */
   name: string;
-  /** HTML + <script> code block the LLM sees as an example. */
+  /** HTML code block the LLM sees as an example. Script examples are filtered. */
   code: string;
   /** Optional owner intent. SurfacePolicy narrowing uses this to keep examples
    * aligned with the grants selected for a generation. */
@@ -486,11 +490,10 @@ export interface CapabilitiesBlockOptions {
 
 export function buildCapabilitiesBlock(
   pack: CapabilityPack,
-  options: CapabilitiesBlockOptions = {},
+  _options: CapabilitiesBlockOptions = {},
 ): string {
   if (pack.intents.length === 0) return '';
 
-  const scriptPolicy = options.scriptPolicy ?? 'forbid';
   const actions = pack.intents.filter((intent) => (intent.kind ?? 'action') === 'action');
   const resources = pack.intents.filter((intent) => intent.kind === 'resource');
 
@@ -527,42 +530,21 @@ export function buildCapabilitiesBlock(
   ].filter(Boolean).join('\n\n');
 
   const promptPatterns = (pack.patterns ?? []).filter(
-    (pattern) => scriptPolicy === 'allow' || !/<\s*script\b/i.test(pattern.code),
+    (pattern) => !/<\s*script\b/i.test(pattern.code),
   );
   const patternsBlock =
     promptPatterns.length > 0
       ? `\n\n### Patterns\n\n${promptPatterns
           .map((p) => `**${p.name}:**\n\`\`\`html\n${p.code.trim()}\n\`\`\``)
-          .join('\n\n')}${scriptPolicy === 'allow'
-            ? '\n\nPlace `<script>` tags at the END of the section that uses them, after the DOM they bind to. Keep scripts scoped — they should only touch elements inside their own section.'
-            : ''}`
+          .join('\n\n')}`
       : '';
-  const scriptPolicyBlock = scriptPolicy === 'allow'
-    ? `### Rules for scripts (when the attributes don't fit)
-
-The sandbox SDK at \`window.sandbox\` is still available:
-
-- \`sandbox.emit(intent, args)\` — fire a typed intent.
-- \`sandbox.onState(callback)\` — subscribe to state updates.
-
-Rules:
-
-- Scripts can use \`sandbox.emit\` and \`sandbox.onState\`. Everything else (fetch, XHR, WebSocket, eval, external scripts, localStorage, cookies) is blocked by CSP.
-- A script subscriber must NOT mutate elements that already carry \`data-summon-bind\` / \`-show\` / \`-hide\`. The binder runs after subscribers and will overwrite. Reach for one paradigm per element.
-- Use \`addEventListener\` inside your section's DOM. **Do not** attach listeners to \`document\` or \`window\` — they leak across re-renders.
-- Do not use inline event-handler attributes like \`onclick="..."\`. Use the declarative \`data-summon-on-click\` attribute, or \`addEventListener\` from your \`<script>\`.
-- Use optional chaining on \`getElementById\` / \`querySelector\` in case the element was streamed in later: \`document.getElementById('x')?.addEventListener(...)\`.
-- Scripts may re-execute on re-render. Write them idempotently.
-- Local UI-only ephemeral state (which tab is open, dropdown expanded) can live in your DOM. Anything meaningful must go through an intent.`
-    : `### Script policy — declarative only
+  const scriptPolicyBlock = `### Script policy — declarative only
 
 This host has NOT granted custom artifact scripts. Do not emit \`<script>\` tags. Do not rely on \`sandbox.emit\`, \`sandbox.onState\`, custom event listeners, timers, computed DOM mutations, or local script state.
 
-All interactivity for this generation must use the declarative \`data-summon-*\` attributes above. If the requested behavior cannot be expressed with those attributes and the granted capabilities, leave that control out or state the limitation in the UI.`;
+All interactivity for this generation must use declarative \`data-summon-*\` attributes. Use \`data-summon-local\`, \`data-summon-set\`, \`data-summon-toggle\`, \`data-summon-show\`, \`data-summon-hide\`, \`data-summon-class-*\`, \`data-summon-motion\`, and \`data-summon-transition\` for tabs, disclosures, selection, staged reveal, local visual state, and simple motion. If the requested behavior cannot be expressed with those attributes and the granted capabilities, leave that control out or state the limitation in the UI.`;
 
-  const actionWiring = scriptPolicy === 'allow'
-    ? 'via `data-summon-on-click` / `data-summon-on-submit` or via `sandbox.emit` from a script'
-    : 'via `data-summon-on-click`, `data-summon-on-submit`, or `data-summon-resource-trigger`';
+  const actionWiring = 'via `data-summon-on-click`, `data-summon-on-submit`, or `data-summon-resource-trigger`';
   const intentNames = new Set(pack.intents.map((intent) => intent.name));
   const examples: string[] = [];
   if (intentNames.has('counter')) {
@@ -598,9 +580,7 @@ All interactivity for this generation must use the declarative \`data-summon-*\`
 
   return `## Capabilities — this generation is INTERACTIVE
 
-${scriptPolicy === 'allow'
-  ? '**Prefer declarative attributes over `<script>`.** The sandbox runtime binds a small set of `data-summon-*` attributes to host state and intents — most interactive UIs need no script tags at all. Reach for `<script>` only for cases the attributes don\'t cover (per-item highlighting in a list, computed/formatted text, custom keyboard handling).'
-  : '**Declarative-only interactivity.** The sandbox runtime binds a small set of `data-summon-*` attributes to host state and intents. Custom artifact scripts are not granted for this generation.'}
+**Declarative-only interactivity.** The sandbox runtime binds a small set of \`data-summon-*\` attributes to host state, local ephemeral state, motion recipes, and intents. Custom artifact scripts are not granted for this generation.
 
 Do NOT build CSS-only state machines using \`:has()\`, \`:checked\` sibling selectors, \`<details>\` chained to other elements, or \`:target\` URL hash tricks for state. Those patterns are clever but fragile; the declarative attributes below are shorter and more reliable.
 
@@ -618,7 +598,7 @@ ${scriptPolicyBlock}
 **Every clickable, tappable, or focusable element in your generated UI MUST be wired to one of the declared intents — ${actionWiring}. If you cannot wire an element, do not show it.**
 
 - No button unless you've decided which intent it fires.
-- No clickable result cards unless clicking them emits something.
+- No clickable result tiles, rows, or cards unless clicking them emits something.
 - No pagination, no sorting, no filtering controls unless you've decided which intent they fire.
 
 Dead buttons are worse than no buttons. When in doubt, leave it out.

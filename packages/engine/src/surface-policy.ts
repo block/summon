@@ -21,12 +21,11 @@ import {
   type SurfacePurpose,
 } from './surface-plan.js';
 
-export type SurfaceTier = 'static' | 'declarative' | 'scripted' | 'worker' | 'approval';
+export type SurfaceTier = 'static' | 'declarative' | 'worker' | 'approval';
 
 export const SURFACE_TIER_VALUES = [
   'static',
   'declarative',
-  'scripted',
   'worker',
   'approval',
 ] as const satisfies readonly SurfaceTier[];
@@ -151,7 +150,7 @@ export function compileSurfacePolicy(
     capabilities: narrowCapabilityPack(capabilityPack, selectedIntents, effective.grants),
     components: selectedComponents.length > 0 ? { components: selectedComponents } : null,
     mode: surfacePlan.runtime === 'static' ? 'static' : 'interactive',
-    scriptPolicy: surfacePlan.runtime === 'scripted' ? 'allow' : 'forbid',
+    scriptPolicy: 'forbid',
     surfacePlan,
     surfaceCeiling: exactCeiling(surfacePlan),
     issues,
@@ -172,13 +171,13 @@ function validateIntentForTier(
     ));
     return;
   }
-  if ((tier === 'declarative' || tier === 'scripted') && data === 'worker') {
+  if (tier === 'declarative' && data === 'worker') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
       `${tier} SurfacePolicy cannot use worker-backed grant "${intent.name}"`,
     ));
   }
-  if ((tier === 'declarative' || tier === 'scripted') && authority === 'approval-gated') {
+  if (tier === 'declarative' && authority === 'approval-gated') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
       `${tier} SurfacePolicy cannot use approval-gated grant "${intent.name}"`,
@@ -212,13 +211,13 @@ function validateComponentForTier(
       `Static SurfacePolicy can only use embedded display components; "${name}" requires ${data}/${authority}`,
     ));
   }
-  if ((tier === 'declarative' || tier === 'scripted') && data === 'worker') {
+  if (tier === 'declarative' && data === 'worker') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
       `${tier} SurfacePolicy cannot use worker-backed component "${name}"`,
     ));
   }
-  if ((tier === 'declarative' || tier === 'scripted') && authority === 'approval-gated') {
+  if (tier === 'declarative' && authority === 'approval-gated') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
       `${tier} SurfacePolicy cannot use approval-gated component "${name}"`,
@@ -295,9 +294,7 @@ function planForPolicy(
 
   return {
     purpose: policy.purpose,
-    runtime: policy.tier === 'scripted'
-      ? 'scripted'
-      : policy.tier === 'worker'
+    runtime: policy.tier === 'worker'
         ? 'worker'
         : 'declarative',
     data,

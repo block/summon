@@ -50,6 +50,46 @@ test('section adds mark nodes present and increment revisions on replacement', (
   assert.deepEqual(graph.snapshot().health.missingDeclared, []);
 });
 
+test('block fragments add optional diagnostics under section nodes', () => {
+  const graph = new StreamGraph();
+  graph.applyLine({ op: 'set', path: '/screen', value: { sections: ['summary'] } });
+  graph.applyLine({ op: 'set', path: '/section/summary', value: { blocks: ['headline', 'metrics'] } });
+  graph.applyLine({ op: 'add', path: '/section/summary/block/headline', html: '<h1>Ready</h1>' });
+
+  const summary = graph.snapshot().sections[0]!;
+  assert.equal(summary.present, true);
+  assert.equal(summary.revision, 1);
+  assert.equal(summary.declaredBlockCount, 2);
+  assert.equal(summary.presentBlockCount, 1);
+  assert.deepEqual(
+    summary.blocks?.map(({ id, declared, present, revision }) => ({ id, declared, present, revision })),
+    [
+      { id: 'headline', declared: true, present: true, revision: 1 },
+      { id: 'metrics', declared: true, present: false, revision: 0 },
+    ],
+  );
+});
+
+test('block path issues attach to parent section and block diagnostics', () => {
+  const graph = new StreamGraph();
+  const issue: ContractIssue = {
+    source: 'protocol',
+    severity: 'warn',
+    code: 'undeclared-block',
+    message: 'Block was not declared',
+    path: '/section/summary/block/metrics',
+  };
+
+  graph.recordIssue(issue);
+
+  const summary = graph.snapshot().sections[0]!;
+  assert.equal(summary.id, 'summary');
+  assert.equal(summary.lastIssue?.code, 'undeclared-block');
+  assert.equal(summary.lastBlockIssue?.code, 'undeclared-block');
+  assert.equal(summary.blocks?.[0]?.id, 'metrics');
+  assert.equal(summary.blocks?.[0]?.lastIssue?.code, 'undeclared-block');
+});
+
 test('add-before-screen records undeclared present state', () => {
   const graph = new StreamGraph();
   graph.applyLine({ op: 'add', path: '/section/hero', html: '<p>Hero</p>' });

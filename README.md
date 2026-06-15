@@ -49,23 +49,27 @@ For the maintainer workbench:
 pnpm dev:all
 ```
 
-Open `http://localhost:5173/generate.html`.
+Open `http://localhost:5173/generate`.
 
 1. Choose the **Host Data Search** showcase scenario.
-2. Confirm the run is interactive and only the `search` host tool is allowed.
+2. Confirm the agent broker selects an interactive run with only the `search`
+   host tool allowed.
 3. Run it, then submit a generated search such as `chicken pasta`.
-4. Open `http://localhost:5173/adversarial.html` and confirm the sandbox
+4. Open `http://localhost:5173/adversarial` and confirm the sandbox
    boundary still holds.
 
 To steer generation from a Ghost fingerprint, set `SUMMON_GHOST_ROOTS` in
 `apps/server/.env` before starting the demos. Each configured root should use
-the canonical `.ghost/fingerprint/manifest.yml` package layout; legacy
-`.ghost/fingerprint.yml` roots are bridged for compatibility. The Surface
-Gallery adds a Ghost preset for each root, and the Generate workbench adds both
-the Ghost scenario and the `Ghost · <id>` direction option.
+the canonical `.ghost/fingerprint/manifest.yml` package layout. The Surface
+Gallery adds a Ghost fingerprint preset for each root, and the Generate
+workbench adds a `Fingerprint · <id>` option. A fingerprint run is not a bundled
+visual direction: Summon consumes the Ghost relay brief as product design
+direction, then applies host-owned policy, capabilities, and token CSS.
 
 The full guided path lives in
 [docs/adoption/quickstart.md](docs/adoption/quickstart.md).
+The architecture boundary is documented in
+[docs/ghost-fingerprint-architecture.md](docs/ghost-fingerprint-architecture.md).
 
 ## How It Fits Together
 
@@ -86,16 +90,17 @@ registered host tools.
 - `examples/surface-gallery` - primary adopter gallery with curated live
   presets, compact host tools, Ghost-root presets when configured, a sandboxed
   surface, and a small event strip.
-- `/generate.html` - diagnostic maintainer workbench for surface configs, allowed host
-  tools, trusted host components, token overrides, validation retries,
-  edit/replay, Ghost steering, Devtools, and stream diagnostics.
-- `/batch.html` - parallel prompt harness for prompt coverage, host tool wiring,
-  direction-token visual coverage, throughput, and consistency checks.
-- `/adversarial.html` - sandbox boundary checks for network, storage, parent
+- `/generate` - diagnostic maintainer workbench for broker-selected
+  surface configs, allowed host tools, trusted host components, token
+  overrides, validation retries, edit/replay, Ghost steering, Devtools, and
+  stream diagnostics.
+- `/batch` - parallel broker harness for prompt coverage, host tool
+  wiring, direction-token visual coverage, throughput, and consistency checks.
+- `/adversarial` - sandbox boundary checks for network, storage, parent
   access, and unallowed host tool requests.
-- `/strict.html` - trusted host overlay for sensitive input inside a generated
+- `/strict` - trusted host overlay for sensitive input inside a generated
   sandbox description.
-- `/fatal.html` - sandbox startup failure handling.
+- `/fatal` - sandbox startup failure handling.
 
 ## Public Packages
 

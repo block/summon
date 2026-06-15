@@ -128,15 +128,15 @@ test('compiles declarative policy and narrows grants, components, and patterns',
   });
 });
 
-test('compiles scripted policy with scripts enabled', () => {
+test('rejects removed scripted policy tier', () => {
   const compiled = compileSurfacePolicy({
     tier: 'scripted',
     grants: ['choose'],
-  }, { capabilities });
-  assert.deepEqual(compiled.issues, []);
-  assert.equal(compiled.mode, 'interactive');
-  assert.equal(compiled.scriptPolicy, 'allow');
-  assert.equal(compiled.surfacePlan.runtime, 'scripted');
+  } as never, { capabilities });
+  assert.deepEqual(compiled.issues.map((issue) => issue.code), ['surface-policy-invalid']);
+  assert.equal(compiled.mode, 'static');
+  assert.equal(compiled.scriptPolicy, 'forbid');
+  assert.equal(compiled.surfacePlan.runtime, 'static');
 });
 
 test('compiles worker policy and requires worker-backed surface area', () => {

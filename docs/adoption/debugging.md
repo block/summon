@@ -7,7 +7,7 @@ needed.
 
 ## Generation Failed
 
-Open the **Stream** drawer on `/generate.html` and check:
+Open the **Stream** drawer on `/generate` and check:
 
 - `/error` - server-side generation error or blocked-generation message.
 - `/validation-blocked` - a blocking issue stopped generation or validation
@@ -21,10 +21,12 @@ Common fixes:
 
 - `external-url` - inline assets as data URLs or remove the reference.
 - `unsafe-tag` - remove iframe, object, embed, link, meta, or base-like tags.
-- `inline-handler` - use `data-summon-on-*` or scoped `addEventListener`.
+- `inline-handler` - use `data-summon-on-*`, `data-summon-set`, or
+  `data-summon-toggle`.
 - `static-script` - remove scripts or choose an interactive surface config.
-- `script-not-granted` - use only declarative `data-summon-*` bindings, or
-  select `SurfacePolicy.tier: "scripted"` for a scripted surface type.
+- `script-not-granted` / `surface-script-policy-removed` - use declarative
+  `data-summon-*` bindings, local state, and motion primitives instead of
+  generated scripts.
 - `surface-policy-*` - fix the host-selected surface config. The compiler
   blocks unknown allowed tools/components and authority above the selected
   surface type before the model is called.
@@ -109,7 +111,7 @@ Common fixes:
 1. Run `pnpm test:safety`.
 2. If it fails, inspect the Playwright trace/screenshot.
 3. For manual inspection, run `pnpm dev:all` and open
-   `http://localhost:5173/adversarial.html`.
+   `http://localhost:5173/adversarial`.
 4. Confirm network, storage, parent DOM, and unallowed host tool request checks
    still pass.
 5. Inspect `spawnSandbox` before changing iframe sandbox attributes or CSP.
@@ -139,6 +141,8 @@ These names are useful when maintaining Summon or writing a deeper adapter:
 
 | Path | Meaning |
 | --- | --- |
+| `/agent-intent` | Broker-advisory intent inferred from the prompt before host policy narrowing. |
+| `/agent-policy-resolution` | Brokered proposed/effective surface config, host policy source, intent source, and rejected tools/components. |
 | `/surface-policy` | Host-owned public surface config selected for this run. |
 | `/surface-plan` | Host-owned compiled safety plan selected for this run. |
 | `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, trusted components, optional layout, and compile issues. |

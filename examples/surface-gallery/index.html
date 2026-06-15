@@ -5,106 +5,139 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Summon Surface Gallery</title>
   </head>
-  <body class="gallery-page">
-    <main id="app" class="gallery-shell">
-      <header class="gallery-masthead" aria-label="Gallery masthead">
-        <a class="wordmark" href="/">Summon</a>
-        <div class="masthead-meta" aria-label="Environment status">
-          <span id="provider-summary">Provider pending</span>
-          <span id="topbar-run-status">Idle</span>
+  <body class="bg-gallery-bg font-sans text-gallery-ink antialiased max-[1119px]:min-w-0">
+    <main
+      id="app"
+      class="mx-auto my-12 grid min-h-[calc(100vh-96px)] w-[min(calc(100%_-_96px),1600px)] grid-cols-[270px_minmax(0,1fr)_310px] grid-rows-[auto_minmax(0,1fr)] gap-x-[clamp(28px,3vw,56px)] bg-transparent max-[1119px]:my-0 max-[1119px]:min-h-screen max-[1119px]:w-full max-[1119px]:grid-cols-1 max-[1119px]:grid-rows-none max-[1119px]:gap-x-0"
+    >
+      <header class="col-span-full mb-[42px] flex min-h-9 items-center justify-between gap-6 bg-transparent max-[1119px]:mb-0 max-[1119px]:grid max-[1119px]:gap-2.5 max-[1119px]:p-4" aria-label="Gallery masthead">
+        <div class="grid min-w-0 gap-1.5">
+          <a class="text-lg font-bold text-gallery-ink no-underline" href="/">Summon</a>
+          <p class="m-0 max-w-[560px] text-sm leading-normal text-gallery-muted"><strong class="text-gallery-ink">Tiny authority. Huge expression.</strong> Generated product surfaces where the model owns composition and the host owns data, actions, components, and approval.</p>
         </div>
-        <div class="gallery-model-controls" aria-label="Model selection">
-          <label>
-            <span>Provider</span>
-            <select id="model-provider"></select>
+        <div class="flex min-w-0 items-center justify-start gap-2 max-[1119px]:flex-wrap" aria-label="Environment status">
+          <span
+            id="provider-summary"
+            class="inline-flex min-w-0 items-center gap-[7px] overflow-hidden text-ellipsis whitespace-nowrap border border-gallery-line bg-transparent px-2.5 py-[7px] font-mono text-[10px] font-bold uppercase leading-none tracking-normal text-gallery-muted before:block before:size-1.5 before:flex-none before:rounded-full before:bg-gallery-line-strong"
+          >Provider pending</span>
+          <span
+            id="topbar-run-status"
+            class="inline-flex min-w-0 items-center gap-[7px] overflow-hidden text-ellipsis whitespace-nowrap border border-gallery-line bg-transparent px-2.5 py-[7px] font-mono text-[10px] font-bold uppercase leading-none tracking-normal text-gallery-muted before:block before:size-1.5 before:flex-none before:rounded-full before:bg-gallery-line-strong"
+          >Idle</span>
+        </div>
+        <div class="grid min-w-0 grid-cols-[minmax(110px,0.9fr)_minmax(160px,1.2fr)_minmax(150px,1fr)_minmax(150px,1fr)] items-end gap-2 max-[1119px]:grid-cols-1" aria-label="Model selection">
+          <label class="grid min-w-0 gap-1">
+            <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Provider</span>
+            <select id="model-provider" class="h-7 w-full min-w-0 rounded-[6px] border border-gallery-line bg-transparent px-2 text-xs text-gallery-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gallery-info"></select>
           </label>
-          <label>
-            <span>Model</span>
-            <select id="generation-model"></select>
+          <label class="grid min-w-0 gap-1">
+            <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Model</span>
+            <select id="generation-model" class="h-7 w-full min-w-0 rounded-[6px] border border-gallery-line bg-transparent px-2 text-xs text-gallery-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gallery-info"></select>
           </label>
-          <label id="custom-model-field" hidden>
-            <span>Custom</span>
-            <input id="custom-model" type="text" placeholder="provider-model-id" />
+          <label id="custom-model-field" class="grid min-w-0 gap-1" hidden>
+            <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Custom</span>
+            <input id="custom-model" class="h-7 w-full min-w-0 rounded-[6px] border border-gallery-line bg-transparent px-2 text-xs text-gallery-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gallery-info" type="text" placeholder="provider-model-id" />
           </label>
-          <label>
-            <span>Utility</span>
-            <select id="utility-model"></select>
+          <label class="grid min-w-0 gap-1">
+            <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Utility</span>
+            <select id="utility-model" class="h-7 w-full min-w-0 rounded-[6px] border border-gallery-line bg-transparent px-2 text-xs text-gallery-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gallery-info"></select>
           </label>
         </div>
       </header>
 
-      <aside class="preset-rail" aria-label="Surface presets">
-        <div class="rail-heading">
-          <span>Presets</span>
-          <strong id="preset-count">0</strong>
+      <aside class="min-h-0 min-w-0 overflow-auto bg-transparent max-[1119px]:row-start-3 max-[1119px]:overflow-visible max-[1119px]:px-[18px]" aria-label="Surface presets">
+        <div class="mb-5 flex items-center justify-between gap-3 border-b border-gallery-line pb-3.5">
+          <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Presets</span>
+          <strong id="preset-count" class="font-mono text-[11px] font-extrabold leading-none text-gallery-ink">0</strong>
         </div>
-        <div id="preset-list" class="preset-list"></div>
+        <div id="preset-list" class="grid content-start gap-[18px] overflow-auto pr-0.5"></div>
       </aside>
 
-      <section class="surface-stage" aria-label="Generated surface">
-        <header class="stage-header">
+      <section class="grid min-h-0 min-w-0 grid-rows-[auto_auto_auto_minmax(420px,1fr)_auto] gap-[26px] overflow-auto bg-transparent p-0 max-[1119px]:row-start-2 max-[1119px]:overflow-visible max-[1119px]:p-[26px_18px]" aria-label="Generated surface">
+        <header class="grid gap-3.5 border-b border-gallery-line pb-7">
           <div>
-            <p class="eyebrow" id="preset-category">Gallery</p>
-            <h2 id="preset-title">Static Brief</h2>
-            <p id="preset-description">
+            <p class="m-0 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted" id="preset-category">Gallery</p>
+            <h2 id="preset-title" class="m-0 mt-2 max-w-full break-words text-[112px] font-bold leading-[0.86] tracking-normal text-gallery-ink max-[1119px]:text-[56px] max-[1119px]:leading-[0.9]">Static Brief</h2>
+            <p id="preset-description" class="m-0 mt-3.5 max-w-[52ch] text-base leading-normal text-gallery-muted">
               Choose a preset to see a focused Summon surface.
+            </p>
+            <p id="preset-claim" class="m-0 mt-4 max-w-[58ch] border-l-2 border-gallery-line-strong pl-4 text-[15px] font-semibold leading-normal text-gallery-ink">
+              The gallery proves Summon's boundary by making authority visible.
             </p>
           </div>
         </header>
 
-        <div class="surface-meta" aria-label="Selected surface contract">
-          <span id="surface-policy-pill">policy pending</span>
-          <span id="surface-tools-pill">0 host tools</span>
-          <span id="surface-components-pill">0 components</span>
+        <div class="grid gap-4" aria-label="Selected surface contract">
+          <div class="grid grid-cols-[minmax(0,1.45fr)_minmax(140px,0.85fr)_minmax(140px,0.85fr)] overflow-hidden bg-transparent max-[1119px]:grid-cols-1">
+            <span id="surface-policy-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">policy pending</span>
+            <span id="surface-tools-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">0 host tools</span>
+            <span id="surface-components-pill" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-b border-gallery-line py-[11px] font-mono text-[11px] font-bold leading-tight text-gallery-soft max-[1119px]:whitespace-normal">0 components</span>
+          </div>
+          <section class="grid gap-3 rounded-[8px] border border-gallery-line bg-gallery-panel-muted p-3.5" aria-label="Authority surface">
+            <div class="flex items-start justify-between gap-4 max-[1119px]:grid">
+              <div class="min-w-0">
+                <p class="m-0 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Authority surface</p>
+                <p id="authority-boundary" class="m-0 mt-2 max-w-[68ch] text-[13px] leading-normal text-gallery-soft">The host-selected policy decides what can run.</p>
+              </div>
+              <button id="try-boundary" class="h-9 min-w-[116px] cursor-pointer rounded-full border border-gallery-line-strong bg-transparent px-3 text-xs font-extrabold text-gallery-ink hover:border-gallery-accent hover:bg-gallery-accent hover:text-black disabled:cursor-not-allowed disabled:opacity-45" type="button" hidden>Try boundary</button>
+            </div>
+            <div id="authority-meter" class="grid grid-cols-2 overflow-hidden rounded-[6px] border border-gallery-line bg-gallery-bg max-[1119px]:grid-cols-1"></div>
+          </section>
         </div>
 
-        <section class="prompt-panel" aria-label="Prompt">
-          <div class="prompt-panel-header">
-            <label class="prompt-label" for="prompt">Prompt</label>
-            <span id="prompt-length">0 chars</span>
+        <section class="min-w-0 overflow-hidden bg-transparent" aria-label="Prompt">
+          <div class="flex items-center justify-between gap-4 border-b border-gallery-line py-2.5">
+            <label class="m-0 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted" for="prompt">Prompt</label>
+            <span id="prompt-length" class="font-mono text-[10.5px] leading-none text-gallery-muted">0 chars</span>
           </div>
-          <div class="prompt-composer">
+          <div id="preset-notes" class="grid gap-2.5 border-b border-gallery-line py-3 text-[13px] leading-normal text-gallery-muted" hidden></div>
+          <div class="relative block min-h-[136px] max-[1119px]:grid max-[1119px]:gap-2.5">
             <textarea
               id="prompt"
-              class="prompt-box"
+              class="block min-h-[136px] w-full min-w-0 resize-y rounded-[6px] border border-gallery-line bg-gallery-panel p-[20px_132px_76px_20px] leading-normal text-gallery-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gallery-info max-[1119px]:p-5"
               spellcheck="false"
             ></textarea>
-            <button id="run" type="button">Run</button>
+            <button
+              id="run"
+              class="absolute bottom-3.5 right-3.5 h-12 min-w-[92px] cursor-pointer rounded-full border-0 bg-gallery-accent px-3.5 text-sm font-bold text-black hover:bg-gallery-accent-hover disabled:cursor-wait disabled:opacity-55 max-[1119px]:static max-[1119px]:w-auto"
+              type="button"
+            >Run</button>
           </div>
         </section>
 
-        <div class="sandbox-frame">
-          <div class="sandbox-toolbar" aria-label="Sandbox status">
-            <span>Sandbox</span>
-            <strong id="sandbox-mode">isolated</strong>
+        <div class="grid min-h-[620px] min-w-0 grid-rows-[36px_minmax(0,1fr)] overflow-hidden rounded-[8px] border border-gallery-line bg-black max-[1119px]:min-h-[520px]">
+          <div class="flex min-w-0 items-center justify-between gap-4 border-b border-gallery-line bg-gallery-panel-muted px-3 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted" aria-label="Sandbox status">
+            <span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">Sandbox</span>
+            <strong id="sandbox-mode" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-extrabold text-gallery-ink">isolated</strong>
           </div>
-          <div class="iframe-shell">
+          <div class="relative min-h-[420px] min-w-0">
             <iframe
               id="sandbox"
+              class="block h-full min-h-[420px] w-full border-0 bg-black"
               title="Summon surface gallery sandbox"
             ></iframe>
-            <div id="welcome" class="welcome">
-              <div class="welcome-panel">
-                <span class="welcome-kicker">Ready to run</span>
-                <strong id="welcome-title">Static Brief</strong>
-                <span id="welcome-detail">Surface stream standing by.</span>
+            <div id="welcome" class="absolute inset-0 grid place-items-center bg-black p-7 text-gallery-muted">
+              <div class="w-[min(520px,100%)] border-y border-gallery-line-strong py-6">
+                <span id="welcome-kicker" class="block font-mono text-[10.5px] font-extrabold uppercase leading-none tracking-normal text-gallery-accent">Ready to run</span>
+                <strong id="welcome-title" class="mt-[11px] block break-words text-[28px] font-bold leading-tight text-gallery-ink">Static Brief</strong>
+                <span id="welcome-detail" class="mt-2.5 block max-w-[440px] text-sm leading-normal text-gallery-muted">Surface stream standing by.</span>
               </div>
             </div>
           </div>
         </div>
-        <div id="setup-note" class="setup-note" hidden></div>
+        <div id="setup-note" class="rounded-[6px] border border-gallery-warning/40 bg-gallery-warning/10 p-3 text-[13px] leading-normal text-gallery-warning" hidden></div>
       </section>
 
-      <aside class="contract-panel" aria-label="Surface inspector">
-        <div class="inspector-header">
-          <span>Inspector</span>
-          <strong id="inspector-status">Contract</strong>
+      <aside class="grid min-h-0 min-w-0 content-start gap-3.5 overflow-auto bg-transparent max-[1119px]:row-start-4 max-[1119px]:px-[18px] max-[1119px]:pb-4" aria-label="Surface inspector">
+        <div class="mb-1.5 flex items-center justify-between gap-3 border-b border-gallery-line pb-3.5">
+          <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Inspector</span>
+          <strong id="inspector-status" class="font-mono text-[11px] font-extrabold leading-none text-gallery-ink">Contract</strong>
         </div>
 
-        <div class="inspector-tabs" role="tablist" aria-label="Inspector views">
+        <div class="grid grid-cols-3 overflow-hidden rounded-[8px] border border-gallery-line bg-gallery-panel-muted" role="tablist" aria-label="Inspector views">
           <button
             id="tab-contract"
-            class="active"
+            class="min-w-0 cursor-pointer rounded-[6px] border-r border-gallery-line bg-gallery-accent px-1.5 py-2.5 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gallery-info"
             type="button"
             role="tab"
             aria-selected="true"
@@ -115,6 +148,7 @@
           </button>
           <button
             id="tab-stream"
+            class="min-w-0 cursor-pointer rounded-[6px] border-r border-gallery-line bg-transparent px-1.5 py-2.5 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted hover:bg-gallery-accent hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gallery-info"
             type="button"
             role="tab"
             aria-selected="false"
@@ -125,6 +159,7 @@
           </button>
           <button
             id="tab-state"
+            class="min-w-0 cursor-pointer rounded-[6px] bg-transparent px-1.5 py-2.5 font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted hover:bg-gallery-accent hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gallery-info"
             type="button"
             role="tab"
             aria-selected="false"
@@ -137,59 +172,59 @@
 
         <section
           id="panel-contract"
-          class="inspector-panel active"
+          class="grid min-w-0 gap-3"
           role="tabpanel"
           aria-labelledby="tab-contract"
           data-inspector-panel="contract"
         >
-          <div id="contract-summary" class="contract-summary"></div>
+          <div id="contract-summary" class="grid border-t border-gallery-line-strong"></div>
         </section>
 
         <section
           id="panel-stream"
-          class="inspector-panel"
+          class="min-w-0 gap-3"
           role="tabpanel"
           aria-labelledby="tab-stream"
           data-inspector-panel="stream"
           hidden
         >
-          <div class="health-grid" aria-label="Stream counters">
-            <div>
-              <span>Status</span>
-              <strong id="status">idle</strong>
+          <div class="grid grid-cols-2 overflow-hidden rounded-[6px] border border-gallery-line bg-transparent" aria-label="Stream counters">
+            <div class="grid min-w-0 gap-[7px] border-b border-r border-gallery-line p-[11px]">
+              <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Status</span>
+              <strong id="status" class="min-w-0 break-words font-mono text-[17px] font-bold leading-none text-gallery-ink">idle</strong>
             </div>
-            <div>
-              <span>Accepted</span>
-              <strong id="accepted-count">0</strong>
+            <div class="grid min-w-0 gap-[7px] border-b border-gallery-line p-[11px]">
+              <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Accepted</span>
+              <strong id="accepted-count" class="min-w-0 break-words font-mono text-[17px] font-bold leading-none text-gallery-ink">0</strong>
             </div>
-            <div>
-              <span>Skipped</span>
-              <strong id="skipped-count">0</strong>
+            <div class="grid min-w-0 gap-[7px] border-r border-gallery-line p-[11px]">
+              <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Skipped</span>
+              <strong id="skipped-count" class="min-w-0 break-words font-mono text-[17px] font-bold leading-none text-gallery-ink">0</strong>
             </div>
-            <div>
-              <span>Blocked</span>
-              <strong id="blocked-count">0</strong>
+            <div class="grid min-w-0 gap-[7px] p-[11px]">
+              <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Blocked</span>
+              <strong id="blocked-count" class="min-w-0 break-words font-mono text-[17px] font-bold leading-none text-gallery-ink">0</strong>
             </div>
           </div>
 
-          <div class="event-panel">
-            <div class="event-heading">
-              <span>Latest events</span>
-              <strong id="event-count">0</strong>
+          <div class="overflow-hidden rounded-[6px] border border-gallery-line bg-transparent">
+            <div class="flex items-center justify-between gap-3 border-b border-gallery-line p-[10px_11px]">
+              <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Latest events</span>
+              <strong id="event-count" class="font-mono text-[11px] font-extrabold leading-none text-gallery-ink">0</strong>
             </div>
-            <div id="event-log" class="event-log"></div>
+            <div id="event-log" class="grid max-h-[270px] gap-px overflow-auto bg-gallery-line"></div>
           </div>
         </section>
 
         <section
           id="panel-state"
-          class="inspector-panel"
+          class="min-w-0 gap-3"
           role="tabpanel"
           aria-labelledby="tab-state"
           data-inspector-panel="state"
           hidden
         >
-          <pre id="state-preview">{}</pre>
+          <pre id="state-preview" class="m-0 max-h-[calc(100vh-170px)] min-w-0 overflow-auto rounded-[6px] border border-gallery-line bg-transparent p-3 font-mono text-xs leading-normal text-gallery-soft">{}</pre>
         </section>
       </aside>
     </main>

@@ -148,7 +148,7 @@ test('system compiler returns deterministic prompt block order and validation co
       layout,
     },
     ghost: {
-      source: 'resolved-context',
+      source: 'root',
       prompt: 'Ghost context block.',
       product: 'Ghost Product',
     },
@@ -353,7 +353,6 @@ test('surface plan host control helpers expose values and derive defaults', () =
   assert.deepEqual([...SURFACE_RUNTIME_VALUES], [
     'static',
     'declarative',
-    'scripted',
     'worker',
   ]);
   assert.deepEqual([...SURFACE_DATA_VALUES], [
@@ -391,10 +390,6 @@ test('surface plan host control helpers expose values and derive defaults', () =
     mode: 'interactive',
     scriptPolicy: 'forbid',
   });
-  assert.deepEqual(deriveSurfacePlanControls({ ...base, runtime: 'scripted' }), {
-    mode: 'interactive',
-    scriptPolicy: 'allow',
-  });
 });
 
 test('system compiler validates against explicit active tokens when direction is layered', () => {
@@ -412,23 +407,13 @@ test('system compiler validates against explicit active tokens when direction is
       opts: {},
     },
     ghost: {
-      source: 'resolved-context',
+      source: 'root',
       prompt: 'Ghost context block.',
     },
     activeTokensCss: activeTokens,
   });
 
   assert.equal(compiled.validationContext.definedTokens?.has('ghost-config-only'), true);
-});
-
-test('system compiler keeps deprecated ghostPrompt compatibility', () => {
-  const compiled = compileSystemContracts({
-    mode: 'static',
-    ghostPrompt: 'Legacy Ghost context block.',
-  });
-
-  const ghostBlock = compiled.promptBlocks.find((block) => block.id === 'ghost');
-  assert.equal(ghostBlock?.text, 'Legacy Ghost context block.');
 });
 
 test('system compiler can produce declarative-only interactive contracts', () => {
@@ -466,7 +451,7 @@ test('system compiler can produce declarative-only interactive contracts', () =>
   assert.match(capabilitiesBlock?.text ?? '', /data-summon-on-click="choose"/);
 });
 
-test('system compiler requires a scripted surface plan for script policy allow', () => {
+test('system compiler rejects removed script policy allow', () => {
   const missingPlan = compileSystemContracts({
     mode: 'interactive',
     scriptPolicy: 'allow',
@@ -485,8 +470,7 @@ test('system compiler requires a scripted surface plan for script policy allow',
 
   assert.equal(missingPlan.validationContext.scriptPolicy, 'forbid');
   assert.ok(missingPlan.issues.some((issue) =>
-    issue.code === 'surface-script-policy-mismatch' &&
-    issue.message === 'scriptPolicy: "allow" requires a scripted SurfacePlan'
+    issue.code === 'surface-script-policy-removed'
   ));
 
   const declarativePlan = compileSystemContracts({
@@ -502,12 +486,11 @@ test('system compiler requires a scripted surface plan for script policy allow',
   });
 
   assert.ok(declarativePlan.issues.some((issue) =>
-    issue.code === 'surface-script-policy-mismatch' &&
-    issue.message === 'scriptPolicy: "allow" requires a scripted SurfacePlan'
+    issue.code === 'surface-script-policy-removed'
   ));
 });
 
-test('system compiler accepts explicit scripted surface plan with script policy allow', () => {
+test('system compiler rejects legacy scripted surface plan with script policy allow', () => {
   const compiled = compileSystemContracts({
     mode: 'interactive',
     scriptPolicy: 'allow',
@@ -517,7 +500,7 @@ test('system compiler accepts explicit scripted surface plan with script policy 
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',
-    },
+    } as never,
     capabilities: {
       intents: [
         {
@@ -531,8 +514,8 @@ test('system compiler accepts explicit scripted surface plan with script policy 
     },
   });
 
-  assert.equal(compiled.validationContext.scriptPolicy, 'allow');
-  assert.equal(compiled.issues.some((issue) => issue.code === 'surface-script-policy-mismatch'), false);
+  assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
+  assert.equal(compiled.issues.some((issue) => issue.code === 'surface-script-policy-removed'), true);
   const capabilitiesBlock = compiled.promptBlocks.find((block) => block.id === 'capabilities');
-  assert.match(capabilitiesBlock?.text ?? '', /Rules for scripts/);
+  assert.match(capabilitiesBlock?.text ?? '', /Script policy — declarative only/);
 });

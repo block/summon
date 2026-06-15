@@ -64,9 +64,9 @@ export class SurfaceGenerationSession {
       mode: this.surfacePolicy?.mode ?? input.mode ?? 'static',
       direction: input.direction ?? null,
       ghost: input.ghost ?? null,
-      ghostPrompt: input.ghostPrompt ?? null,
       layout: input.layout ?? null,
       editBlock,
+      experimentalPromptBlock: input.experimentalPromptBlock ?? null,
       capabilities: this.surfacePolicy?.capabilities ?? input.capabilities ?? null,
       components: this.surfacePolicy?.components ?? input.components ?? null,
       scriptPolicy: this.surfacePolicy?.scriptPolicy ?? input.scriptPolicy,
@@ -77,7 +77,10 @@ export class SurfaceGenerationSession {
     });
 
     this.hardener = createProtocolHardener({
-      validationContext: this.systemContracts.validationContext,
+      validationContext: {
+        ...this.systemContracts.validationContext,
+        experimentalFragmentMode: input.experimentalFragmentMode ?? 'section',
+      },
       layout: input.layout ?? null,
       initialScreenSections: input.initialScreenSections ?? input.edit?.sections.map((section) => section.id),
       allowedSectionIds: input.allowedSectionIds ?? input.edit?.targetSections,

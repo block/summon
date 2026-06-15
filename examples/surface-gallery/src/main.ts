@@ -1,4 +1,5 @@
 import {
+  compileArtifactHtml,
   compileSurfacePolicy,
   PolicyEngine,
   type ApprovalDecision,
@@ -15,7 +16,7 @@ import {
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import { SectionAccumulator, type ProtocolLine, type SurfaceContractView } from '@anarchitecture/summon/engine';
+import { SectionAccumulator, type ProtocolLine, type SurfaceContractView, type ValidationContext } from '@anarchitecture/summon/engine';
 import { bootstrapSource, tokensSource } from '@anarchitecture/summon/assets';
 import { createGalleryCapabilityRegistry } from './capabilities.js';
 import {
@@ -32,6 +33,35 @@ import {
   type GalleryPreset,
   type GhostRootInfo,
 } from './presets.js';
+import {
+  approvalActionsClass,
+  approvalButtonClass,
+  approvalCardClass,
+  approvalDetailsClass,
+  approvalEyebrowClass,
+  approvalMetaClass,
+  approvalStackClass,
+  approvalTitleClass,
+  contractLabelClass,
+  contractRowClass,
+  contractValueClass,
+  eventRowClass,
+  inspectorPanelClass,
+  inspectorTabClass,
+  authorityCellClass,
+  authorityLabelClass,
+  authorityValueClass,
+  notesKickerClass,
+  notesListClass,
+  presetCardClass,
+  presetCategoryClass,
+  presetClaimClass,
+  presetIndexClass,
+  presetMainClass,
+  presetMetaClass,
+  presetTitleClass,
+  statusBadgeClass,
+} from './ui.js';
 import './styles.css';
 
 interface ModelProviderInfo {
@@ -86,6 +116,11 @@ const customModelEl = document.getElementById('custom-model') as HTMLInputElemen
 const presetCategory = document.getElementById('preset-category')!;
 const presetTitle = document.getElementById('preset-title')!;
 const presetDescription = document.getElementById('preset-description')!;
+const presetClaim = document.getElementById('preset-claim')!;
+const authorityBoundary = document.getElementById('authority-boundary')!;
+const authorityMeter = document.getElementById('authority-meter')!;
+const tryBoundaryButton = document.getElementById('try-boundary') as HTMLButtonElement;
+const presetNotes = document.getElementById('preset-notes')!;
 const surfacePolicyPill = document.getElementById('surface-policy-pill')!;
 const surfaceToolsPill = document.getElementById('surface-tools-pill')!;
 const surfaceComponentsPill = document.getElementById('surface-components-pill')!;
@@ -142,6 +177,13 @@ void initGallery();
 runButton.addEventListener('click', () => {
   void generateSelectedSurface();
 });
+tryBoundaryButton.addEventListener('click', () => {
+  if (!selectedPreset.adversarialPrompt) return;
+  promptEl.value = selectedPreset.adversarialPrompt;
+  renderPromptLength();
+  selectInspectorTab('stream');
+  void generateSelectedSurface();
+});
 promptEl.addEventListener('input', renderPromptLength);
 modelProviderSel.addEventListener('change', () => {
   customModelEl.value = '';
@@ -167,14 +209,15 @@ function renderPresetCards(): void {
   for (const [index, preset] of galleryPresets.entries()) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'preset-card';
+    button.className = presetCardClass(preset.id === selectedPreset.id);
     button.dataset.presetId = preset.id;
     button.innerHTML = `
-      <span class="preset-index">${String(index + 1).padStart(2, '0')}</span>
-      <span class="preset-main">
-        <strong>${preset.title}</strong>
-        <span>${preset.category}</span>
-        <em>${compactPolicyText(preset)}</em>
+      <span class="${presetIndexClass}">${String(index + 1).padStart(2, '0')}</span>
+      <span class="${presetMainClass}">
+        <strong class="${presetTitleClass}">${preset.title}</strong>
+        <span class="${presetCategoryClass}">${preset.category}${preset.featured ? ' · featured' : ''}</span>
+        <span class="${presetClaimClass}">${preset.claim}</span>
+        <em class="${presetMetaClass}">${compactPolicyText(preset)}</em>
       </span>
     `;
     button.addEventListener('click', () => selectPreset(preset.id));
@@ -186,21 +229,26 @@ function selectPreset(id: string): void {
   selectedPreset = galleryPresets.find((preset) => preset.id === id) ?? findPreset(id);
   activeTokensSourceOverride = null;
   currentSurfaceContractView = null;
-  for (const card of presetList.querySelectorAll<HTMLButtonElement>('.preset-card')) {
-    card.classList.toggle('active', card.dataset.presetId === selectedPreset.id);
+  for (const card of presetList.querySelectorAll<HTMLButtonElement>('[data-preset-id]')) {
+    card.className = presetCardClass(card.dataset.presetId === selectedPreset.id);
   }
   presetCategory.textContent = selectedPreset.category;
   presetTitle.textContent = selectedPreset.title;
   presetDescription.textContent = selectedPreset.description;
+  presetClaim.textContent = selectedPreset.claim;
   promptEl.value = selectedPreset.prompt;
+  tryBoundaryButton.hidden = !selectedPreset.adversarialPrompt;
+  tryBoundaryButton.disabled = !selectedPreset.adversarialPrompt;
   renderPromptLength();
   resetCounters();
   respawnSandbox();
   renderContract();
+  renderAuthorityMeter(compiledPolicyFor(selectedPreset));
+  renderPresetNotes();
   renderHealth('idle');
   selectInspectorTab('contract');
   setSetupNote(null);
-  welcome.classList.remove('hidden');
+  welcome.hidden = false;
 }
 
 function respawnSandbox(initialHtml = ''): void {
@@ -236,6 +284,13 @@ function respawnSandbox(initialHtml = ''): void {
   const initialState = compiledPolicy.mode === 'interactive'
     ? capabilityContract.initialState
     : {};
+  const validationContext = validationContextForPolicy(
+    compiledPolicy,
+    capabilityRegistry.intents(),
+    capabilityContract.validationCapabilities,
+    componentContract?.validationComponents,
+  );
+  const compiledInitialHtml = compileArtifactHtml(initialHtml, validationContext).html;
   renderState(initialState);
 
   if (compiledPolicy.mode === 'interactive') {
@@ -256,7 +311,7 @@ function respawnSandbox(initialHtml = ''): void {
   handle = spawnSandbox({
     iframe,
     artifact: {
-      html: initialHtml,
+      html: compiledInitialHtml,
       intents: [],
       capabilities: capabilityContract.validationCapabilities,
       components: componentContract?.validationComponents,
@@ -305,6 +360,7 @@ async function generateSelectedSurface(): Promise<void> {
 
   const compiledPolicy = compiledPolicyFor(selectedPreset);
   const capabilityPack = createGalleryCapabilityRegistry().toContract().pack;
+  const validationContract = createGalleryCapabilityRegistry(compiledPolicy.policy.grants).toContract();
   const componentPack = componentCeilingFor(selectedPreset);
 
   try {
@@ -341,11 +397,17 @@ async function generateSelectedSurface(): Promise<void> {
       mode: compiledPolicy.mode,
       renderMode: 'live',
       accumulator,
+      validationContext: validationContextForPolicy(
+        compiledPolicy,
+        compiledPolicy.policy.grants,
+        validationContract.validationCapabilities,
+        componentPack?.components.map((component) => ({ name: component.name, surface: component.surface })),
+      ),
       onLine: (line, context) => handleLine(line, context),
       onMeta: (line) => handleMeta(line),
       onRenderHtml: (html) => {
         surfaceRenderedDuringRun = true;
-        welcome.classList.add('hidden');
+        welcome.hidden = true;
         handle?.render(html);
       },
       onParseError: (raw) => {
@@ -381,6 +443,22 @@ function compiledPolicyFor(preset: GalleryPreset): CompiledSurfacePolicy {
     capabilities: createGalleryCapabilityRegistry().toContract().pack,
     components: createGalleryComponentRegistry().toContract().pack,
   });
+}
+
+function validationContextForPolicy(
+  compiledPolicy: CompiledSurfacePolicy,
+  grantedIntents: string[],
+  capabilities: ValidationContext['capabilities'],
+  components: ValidationContext['components'],
+): ValidationContext {
+  return {
+    mode: compiledPolicy.mode,
+    scriptPolicy: compiledPolicy.scriptPolicy,
+    allowedIntents: grantedIntents,
+    capabilities,
+    components,
+    surfacePlan: compiledPolicy.surfacePlan,
+  };
 }
 
 function handleLine(line: ProtocolLine, context: SurfaceStreamContext): void {
@@ -431,6 +509,51 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
   blockedCountEl.textContent = String(blockedLines);
 }
 
+function renderAuthorityMeter(compiled: CompiledSurfacePolicy): void {
+  const plan = compiled.surfacePlan;
+  const grants = compiled.policy.grants;
+  const components = compiled.policy.components;
+  authorityBoundary.textContent = selectedPreset.boundary ?? 'The host-selected policy decides what can run.';
+  authorityMeter.innerHTML = '';
+  const rows: Array<[string, string]> = [
+    ['Runtime', plan.runtime],
+    ['Data', plan.data],
+    ['Authority', plan.authority],
+    ['Scripts', compiled.scriptPolicy],
+    ['Network', 'blocked'],
+    ['Storage', 'blocked'],
+    ['Parent DOM', 'blocked'],
+    ['External assets', 'blocked'],
+    ['Host tools', grants.length ? grants.join(', ') : 'none'],
+    ['Components', components.length ? components.join(', ') : 'none'],
+    ['Persistence', plan.persistence],
+    ['Approval', plan.authority === 'approval-gated' ? 'host UI required' : 'not granted'],
+  ];
+  for (const [label, value] of rows) {
+    const cell = document.createElement('div');
+    cell.className = authorityCellClass;
+    cell.innerHTML = `<span class="${authorityLabelClass}">${label}</span><strong class="${authorityValueClass}">${value}</strong>`;
+    authorityMeter.append(cell);
+  }
+}
+
+function renderPresetNotes(): void {
+  const notes = selectedPreset.notes;
+  presetNotes.innerHTML = '';
+  presetNotes.hidden = !notes;
+  if (!notes) return;
+  const setup = document.createElement('p');
+  setup.className = 'm-0 text-gallery-soft';
+  setup.innerHTML = `<span class="${notesKickerClass}">Setup</span><br>${notes.setup}`;
+  const watch = document.createElement('div');
+  const items = notes.watchFor.map((item) => `<li>${item}</li>`).join('');
+  watch.innerHTML = `<span class="${notesKickerClass}">Watch for</span><ul class="${notesListClass}">${items}</ul>`;
+  const takeaway = document.createElement('p');
+  takeaway.className = 'm-0 font-semibold text-gallery-ink';
+  takeaway.innerHTML = `<span class="${notesKickerClass}">Takeaway</span><br>${notes.takeaway}`;
+  presetNotes.append(setup, watch, takeaway);
+}
+
 function renderContract(): void {
   const contract = currentSurfaceContractView;
   const componentNames = policyComponents(selectedPreset.surfacePolicy);
@@ -464,6 +587,7 @@ function renderContract(): void {
   surfaceComponentsPill.textContent = `${componentCount} component${componentCount === 1 ? '' : 's'}`;
   welcomeTitle.textContent = selectedPreset.title;
   welcomeDetail.textContent = selectedPreset.description;
+  renderAuthorityMeter(compiledPolicyFor(selectedPreset));
   contractSummary.innerHTML = '';
   const rows: Array<[string, string, string]> = [
     ['provider', 'Model provider', provider ? `${provider.name} - ${generationModel}` : modelProviderLabel],
@@ -481,9 +605,9 @@ function renderContract(): void {
   ];
   for (const [key, label, value] of rows) {
     const row = document.createElement('div');
-    row.className = 'contract-row';
+    row.className = contractRowClass;
     row.dataset.contractRow = key;
-    row.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+    row.innerHTML = `<span class="${contractLabelClass}">${label}</span><strong class="${contractValueClass}">${value}</strong>`;
     contractSummary.append(row);
   }
 }
@@ -528,15 +652,18 @@ async function loadModelProviderSummary(): Promise<void> {
         ? `${selected.name} - ${selected.model}`
         : `${selected.name} - missing ${selected.missingEnv ?? 'key'}`;
       providerSummaryEl.dataset.providerState = selected.configured ? 'ready' : 'missing';
+      providerSummaryEl.className = statusBadgeClass(selected.configured ? 'ready' : 'missing');
     } else {
       modelProviderLabel = 'server default';
       providerSummaryEl.dataset.providerState = 'unknown';
+      providerSummaryEl.className = statusBadgeClass('unknown');
     }
   } catch {
     defaultModelProviderId = null;
     modelProviders = [];
     modelProviderLabel = 'server offline';
     providerSummaryEl.dataset.providerState = 'offline';
+    providerSummaryEl.className = statusBadgeClass('offline');
   }
   providerSummaryEl.textContent = modelProviderLabel;
   populateModelProviderSelect();
@@ -677,10 +804,10 @@ function showStreamingWelcome(status: string): void {
   const lineText = acceptedStructuralLines === 0
     ? 'Waiting for validated surface lines.'
     : `${acceptedStructuralLines} validated surface line${acceptedStructuralLines === 1 ? '' : 's'} received.`;
-  welcome.querySelector<HTMLElement>('.welcome-kicker')!.textContent = label;
+  document.getElementById('welcome-kicker')!.textContent = label;
   welcomeTitle.textContent = selectedPreset.title;
   welcomeDetail.textContent = `${lineText} The sandbox updates as structure arrives.`;
-  welcome.classList.remove('hidden');
+  welcome.hidden = false;
 }
 
 function renderPromptLength(): void {
@@ -700,7 +827,7 @@ function renderEvents(): void {
   eventLog.innerHTML = '';
   for (const event of rows) {
     const row = document.createElement('div');
-    row.className = 'event-row';
+    row.className = eventRowClass;
     row.textContent = event;
     eventLog.append(row);
   }
@@ -710,12 +837,12 @@ function selectInspectorTab(tab: InspectorTab): void {
   inspectorStatusEl.textContent = inspectorTabLabel(tab);
   for (const button of inspectorTabButtons) {
     const active = button.dataset.inspectorTab === tab;
-    button.classList.toggle('active', active);
+    button.className = inspectorTabClass(active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   }
   for (const panel of inspectorPanels) {
     const active = panel.dataset.inspectorPanel === tab;
-    panel.classList.toggle('active', active);
+    panel.className = inspectorPanelClass(active);
     panel.hidden = !active;
   }
 }
@@ -779,16 +906,20 @@ function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision
   pushHostMessage(`approval pending: ${request.summary}`, { attention: true });
   return new Promise((resolve) => {
     const card = document.createElement('section');
-    card.className = 'approval-card';
+    card.className = approvalCardClass;
     card.dataset.approvalId = request.id;
+    card.dataset.approvalCard = '';
 
     const eyebrow = document.createElement('span');
+    eyebrow.className = approvalEyebrowClass;
     eyebrow.textContent = request.capability;
 
     const title = document.createElement('strong');
+    title.className = approvalTitleClass;
     title.textContent = request.summary;
 
     const meta = document.createElement('p');
+    meta.className = approvalMetaClass;
     meta.textContent = `Request ${request.id}`;
 
     card.append(eyebrow, title, meta);
@@ -796,18 +927,20 @@ function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision
     const details = formatApprovalDetails(request.details);
     if (details) {
       const detailsEl = document.createElement('pre');
+      detailsEl.className = approvalDetailsClass;
       detailsEl.textContent = details;
       card.appendChild(detailsEl);
     }
 
     const actions = document.createElement('div');
-    actions.className = 'approval-actions';
+    actions.className = approvalActionsClass;
     const approve = document.createElement('button');
     approve.type = 'button';
-    approve.className = 'approval-approve';
+    approve.className = approvalButtonClass('approve');
     approve.textContent = 'Approve';
     const deny = document.createElement('button');
     deny.type = 'button';
+    deny.className = approvalButtonClass('deny');
     deny.textContent = 'Deny';
     actions.append(deny, approve);
     card.appendChild(actions);
@@ -842,7 +975,7 @@ function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision
 function ensureApprovalStack(): HTMLElement {
   if (approvalStack) return approvalStack;
   approvalStack = document.createElement('div');
-  approvalStack.className = 'approval-stack';
+  approvalStack.className = approvalStackClass;
   document.body.appendChild(approvalStack);
   return approvalStack;
 }

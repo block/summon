@@ -111,6 +111,7 @@ test('planAgentSurface proposes and compiles a declarative policy', async () => 
     grants: ['search'],
     persistence: 'replayable',
   });
+  assert.equal(plan.intentSource, 'deterministic');
   assert.deepEqual(plan.compiledPolicy.issues, []);
   assert.deepEqual(plan.compiledPolicy.surfacePlan, {
     purpose: 'explore',
@@ -234,9 +235,30 @@ test('model-assisted intent can narrow to known names but cannot add unknown gra
   });
 
   assert.equal(plan.surfacePolicy.tier, 'approval');
+  assert.equal(plan.intentSource, 'model');
   assert.deepEqual(plan.surfacePolicy.grants, ['publish_summary']);
   assert.equal(plan.surfacePolicy.components, undefined);
   assert.deepEqual(plan.policyResolution.rejectedCapabilities, []);
+});
+
+test('provided intent is reported separately from model and deterministic sources', async () => {
+  const plan = await planAgentSurface({
+    prompt: 'show the matching recipes',
+    capabilities,
+    intent: {
+      purpose: 'explore',
+      interaction: 'search',
+      dataNeed: 'host-resource',
+      sideEffect: 'none',
+      requestedCapabilities: ['search'],
+      requestedComponents: [],
+      confidence: 1,
+    },
+  });
+
+  assert.equal(plan.intentSource, 'provided');
+  assert.equal(plan.surfacePolicy.tier, 'declarative');
+  assert.deepEqual(plan.surfacePolicy.grants, ['search']);
 });
 
 test('host policy resolver can force a static fallback', async () => {
@@ -278,5 +300,8 @@ test('runAgentSurfaceGeneration emits agent diagnostics before policy metadata',
     'meta /surface-contract',
   ]);
   assert.equal(summary.agent.surfacePolicy.tier, 'declarative');
+  assert.equal(summary.agent.intentSource, 'deterministic');
+  const policyResolution = lines[1] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((policyResolution.value as { intentSource?: unknown }).intentSource, 'deterministic');
   assert.equal(summary.blocked, false);
 });

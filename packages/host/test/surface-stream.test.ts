@@ -177,6 +177,40 @@ test('consumeSurfaceStream live render mode renders interactive section replacem
   assert.equal(renders[1], result.html);
 });
 
+test('consumeSurfaceStream emits live html node patches when a hook is provided', async () => {
+  const renders: string[] = [];
+  const patches: string[] = [];
+  const result = await consumeSurfaceStream([
+    '{"op":"set","path":"/screen","value":{"sections":["main"]}}\n',
+    '{"op":"add","path":"/section/main/node/root","html":"<div data-summon-node=\\"root\\"></div>"}\n',
+    '{"op":"add","path":"/section/main/node/headline","parent":"root","html":"<header data-summon-node=\\"headline\\"><h1>Ready</h1></header>"}\n',
+  ], {
+    mode: 'static',
+    renderMode: 'live',
+    onRenderHtml: (html) => renders.push(html),
+    onNodePatch: (patch) => patches.push(`${patch.sectionId}/${patch.nodeId}/${patch.parentId ?? ''}`),
+  });
+
+  assert.deepEqual(renders, []);
+  assert.deepEqual(patches, ['main/root/', 'main/headline/root']);
+  assert.match(result.html, /data-summon-node="headline"/);
+});
+
+test('consumeSurfaceStream falls back to composed html for node patches without a hook', async () => {
+  const renders: string[] = [];
+  await consumeSurfaceStream([
+    '{"op":"set","path":"/screen","value":{"sections":["main"]}}\n',
+    '{"op":"add","path":"/section/main/node/root","html":"<div data-summon-node=\\"root\\"></div>"}\n',
+  ], {
+    mode: 'static',
+    renderMode: 'live',
+    onRenderHtml: (html) => renders.push(html),
+  });
+
+  assert.equal(renders.length, 1);
+  assert.match(renders[0]!, /data-summon-node="root"/);
+});
+
 test('consumeSurfaceStream manual render mode does not call render callback', async () => {
   let renderCount = 0;
   const result = await consumeSurfaceStream([

@@ -22,7 +22,7 @@ afterEach(async () => {
 });
 
 describe('Ghost adapter', () => {
-  it('parses trusted roots and rejects unsafe request paths', async () => {
+  it('parses trusted roots and rejects unsafe or unsupported request paths', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
 
@@ -42,6 +42,10 @@ describe('Ghost adapter', () => {
     assert.deepEqual(parseGhostRequest({ rootId: 'checkout', targetPath: 'a/../b' }, roots), {
       ok: false,
       error: 'ghost.targetPath must not contain path traversal segments',
+    });
+    assert.deepEqual(parseGhostRequest({ source: 'resolved-context', prompt: 'legacy' }, roots), {
+      ok: false,
+      error: 'ghost.source must be "root"; resolved-context is no longer supported',
     });
 
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -68,16 +72,13 @@ describe('Ghost adapter', () => {
       memoryDir: '.ghost',
       baseDirectionId: 'ghost',
     });
-    const explicitRoot = parseGhostRequest({ source: 'root', rootId: 'checkout' }, roots);
-    assert.equal(explicitRoot.ok, true);
-    assert.equal(explicitRoot.ok ? explicitRoot.request?.source : null, 'root');
     assert.deepEqual(parseGhostRequest({ rootId: 'checkout', baseDirectionId: '../ghost' }, roots), {
       ok: false,
       error: 'ghost.baseDirectionId must be a valid direction id',
     });
   });
 
-  it('resolves a Ghost stack into prompt intent and valid token CSS', async () => {
+  it('resolves Ghost relay context into prompt intent and valid token CSS', async () => {
     const root = await makeGhostFixture({ tokenCss: await readDefaultTokensCss() });
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -87,76 +88,29 @@ describe('Ghost adapter', () => {
     const ctx = await resolveGhostContext(parsed.request, roots);
 
     assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
+    assert.equal(ctx.relay.schema, 'ghost.relay.gather/v1');
+    assert.equal(ctx.relay.source.kind, 'stack');
+    assert.equal(ctx.relay.source.repoRoot, resolve(root));
+    assert.equal(ctx.relay.source.fingerprintDir, '.ghost');
+    assert.deepEqual(
+      ctx.relay.source.provenance.layers.map((layer: { relative_root: string }) => layer.relative_root),
+      ['.'],
+    );
     assert.equal(ctx.tokenSource.kind, 'ghost-config');
     assert.equal(ctx.tokenSource.source, 'tokens.css');
     assert.equal(ctx.tokenSource.css, await readDefaultTokensCss());
     assert.equal(ctx.product, 'Test Product');
-    assert.ok(ctx.capsule);
-    assert.equal(ctx.capsule.prompt, ctx.prompt);
-    assert.equal(ctx.capsule.mode, 'capsule');
-    assert.ok(ctx.prompt.length <= 4000);
-    assert.match(ctx.prompt, /Test Product/);
-    assert.match(ctx.prompt, /Ghost Capsule/);
+    assert.match(ctx.prompt, /# Ghost Relay Brief/);
+    assert.match(ctx.prompt, /## Identity Capsule/);
+    assert.match(ctx.prompt, /Product: Test Product/);
     assert.match(ctx.prompt, /Preserve quiet density/);
     assert.match(ctx.prompt, /Status surfaces must foreground current state/);
     assert.match(ctx.prompt, /Surfaces are compact/);
     assert.match(ctx.prompt, /exacting workflows/);
-    assert.match(ctx.prompt, /Human-approved test intent/);
-    assert.doesNotMatch(ctx.prompt, /## Manifest/);
-    assert.doesNotMatch(ctx.prompt, /```yaml/);
-    assert.deepEqual(ctx.capsule.selectedRefs.principles, ['calm-density']);
-    assert.deepEqual(ctx.capsule.selectedRefs.experienceContracts, ['queue-trust']);
-    assert.deepEqual(ctx.capsule.selectedRefs.patterns, ['measured-surfaces']);
-    assert.deepEqual(ctx.capsule.selectedRefs.checks, ['no-rainbow']);
+    assert.match(ctx.prompt, /fingerprint\/memory\/intent\.md/);
   });
 
-  it('preserves raw Ghost prompt behavior when requested', async () => {
-    const previousMode = process.env.SUMMON_GHOST_CONTEXT_MODE;
-    process.env.SUMMON_GHOST_CONTEXT_MODE = 'raw';
-    try {
-      const root = await makeGhostFixture();
-      const roots = parseGhostRoots(`checkout=${root}`);
-      const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
-      assert.equal(parsed.ok, true);
-      if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
-
-      const ctx = await resolveGhostContext(parsed.request, roots);
-
-      assert.equal(ctx.source, 'root');
-      if (ctx.source !== 'root') assert.fail('expected root context');
-      assert.equal(ctx.capsule, undefined);
-      assert.match(ctx.prompt, /## Manifest/);
-      assert.match(ctx.prompt, /```yaml/);
-      assert.match(ctx.prompt, /fingerprint-prose/);
-    } finally {
-      if (previousMode === undefined) {
-        delete process.env.SUMMON_GHOST_CONTEXT_MODE;
-      } else {
-        process.env.SUMMON_GHOST_CONTEXT_MODE = previousMode;
-      }
-    }
-  });
-
-  it('bridges legacy fingerprint.yml roots', async () => {
-    const root = await makeLegacyGhostFixture();
-    const roots = parseGhostRoots(`checkout=${root}`);
-    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
-
-    const ctx = await resolveGhostContext(parsed.request, roots);
-
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
-    assert.equal(ctx.product, 'Test Product');
-    assert.ok(ctx.capsule);
-    assert.match(ctx.prompt, /Ghost Capsule/);
-    assert.match(ctx.prompt, /Preserve quiet density/);
-    assert.doesNotMatch(ctx.prompt, /```yaml/);
-  });
-
-  it('keeps large Ghost capsules under the hard static budget', async () => {
+  it('appends a Summon surface brief without recompiling the fingerprint', async () => {
     const root = await makeGhostFixture({ large: true });
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -164,9 +118,6 @@ describe('Ghost adapter', () => {
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
     const ctx = await resolveGhostContext(parsed.request, roots);
-
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
     const prepared = prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
@@ -179,12 +130,14 @@ describe('Ghost adapter', () => {
       },
       shape: 'card',
     });
+
     assert.equal(prepared.source, 'root');
-    if (prepared.source !== 'root') assert.fail('expected root context');
-    assert.ok(prepared.capsule);
-    assert.equal(prepared.capsule.budgetChars, 4000);
-    assert.ok(prepared.prompt.length <= prepared.capsule.budgetChars);
-    assert.doesNotMatch(prepared.prompt, /```yaml/);
+    assert.match(prepared.prompt, /# Ghost Relay Brief/);
+    assert.match(prepared.prompt, /## Summon Surface Brief/);
+    assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=static; data=embedded; authority=none; persistence=replayable/);
+    assert.match(prepared.prompt, /The agent broker controls host authority and capabilities/);
+    assert.match(prepared.prompt, /Compose from the fingerprint prose, inventory, and composition layers/);
+    assert.match(prepared.prompt, /Preserve quiet density/);
   });
 
   it('falls back to Summon default tokens when Ghost token CSS is missing or invalid', async () => {
@@ -196,8 +149,6 @@ describe('Ghost adapter', () => {
 
     const ctx = await resolveGhostContext(parsed.request, roots);
 
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
     assert.equal(ctx.tokenSource.kind, 'summon-default');
     assert.equal(ctx.tokenSource.source, '@anarchitecture/summon/tokens.css');
     assert.match(ctx.tokenSource.css, /--color-bg:/);
@@ -217,24 +168,20 @@ describe('Ghost adapter', () => {
       tokensCss: baseTokens,
     });
 
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
     assert.equal(ctx.baseDirectionId, 'ghost');
     assert.equal(ctx.tokenSource.kind, 'base-direction');
     assert.equal(ctx.tokenSource.source, 'direction:ghost/tokens.css');
     assert.equal(ctx.tokenSource.css, baseTokens);
-    assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('using the base Summon direction tokens')));
+    assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('using the fallback Summon direction tokens')));
   });
 
-  it('builds review packet metadata from accepted protocol lines', async () => {
+  it('builds review packet metadata from relay context and accepted protocol lines', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
     const ctx = await resolveGhostContext(parsed.request, roots);
-    assert.equal(ctx.source, 'root');
-    if (ctx.source !== 'root') assert.fail('expected root context');
 
     const packet = buildGhostReviewPacket({
       context: ctx,
@@ -249,16 +196,17 @@ describe('Ghost adapter', () => {
       ],
     });
 
-    assert.equal(packet.schema, 'summon.ghost-generation/v1');
+    assert.equal(packet.schema, 'summon.ghost-fingerprint-generation/v1');
     assert.equal(packet.source, 'root');
     assert.equal(packet.rootId, 'checkout');
     assert.equal(packet.product, 'Test Product');
     assert.equal(packet.baseDirectionId, null);
     assert.equal(packet.styleSource, 'summon-default');
-    assert.deepEqual(packet.memoryProvenance, {
-      merge: 'child-wins-by-id',
-      layers: [{ relativeRoot: '.', memoryDir: '.ghost' }],
-    });
+    assert.equal(packet.fingerprintProvenance.merge, 'child-wins-by-id');
+    assert.deepEqual(
+      packet.fingerprintProvenance.layers.map(({ relativeRoot, memoryDir, dir }) => ({ relativeRoot, memoryDir, dir })),
+      [{ relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' }],
+    );
     assert.deepEqual(packet.declaredSections, ['header', 'content']);
     assert.deepEqual(packet.sections, [
       { id: 'header', html: '<h1>Queue</h1>' },
@@ -266,86 +214,6 @@ describe('Ghost adapter', () => {
     ]);
     assert.equal(packet.tokenSource.kind, 'summon-default');
     assert.equal('css' in packet.tokenSource, false);
-  });
-
-  it('resolves caller-provided Ghost context without repo access', async () => {
-    const roots = parseGhostRoots('');
-    const parsed = parseGhostRequest({
-      source: 'resolved-context',
-      id: 'checkout',
-      product: 'Checkout',
-      prompt: 'You are working inside the Checkout product experience.',
-      provenance: { layers: ['portable'] },
-    }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
-
-    const ctx = await resolveGhostSteer(parsed.request, roots);
-
-    assert.equal(ctx.source, 'resolved-context');
-    assert.equal(ctx.prompt, 'You are working inside the Checkout product experience.');
-    assert.equal(ctx.product, 'Checkout');
-    assert.equal(ctx.root, null);
-    assert.equal(ctx.stack, null);
-    assert.equal(ctx.tokenSource.kind, 'summon-default');
-    assert.deepEqual(ctx.provenance, { layers: ['portable'] });
-  });
-
-  it('uses valid resolved-context tokens', async () => {
-    const tokens = await readDefaultTokensCss();
-    const roots = parseGhostRoots('');
-    const parsed = parseGhostRequest({
-      source: 'resolved-context',
-      prompt: 'Use portable Ghost memory.',
-      tokensCss: tokens,
-      tokenSource: 'bundle/tokens.css',
-    }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
-
-    const ctx = await resolveGhostSteer(parsed.request, roots);
-
-    assert.equal(ctx.source, 'resolved-context');
-    assert.equal(ctx.tokenSource.kind, 'resolved-context');
-    assert.equal(ctx.tokenSource.source, 'bundle/tokens.css');
-    assert.equal(ctx.tokenSource.css, tokens);
-  });
-
-  it('falls back from invalid resolved-context tokens to base direction tokens', async () => {
-    const baseTokens = await readDefaultTokensCss();
-    const roots = parseGhostRoots('');
-    const parsed = parseGhostRequest({
-      source: 'resolved-context',
-      prompt: 'Use portable Ghost memory.',
-      tokensCss: ':root { --color-bg: red; }',
-      tokenSource: 'bundle/tokens.css',
-      baseDirectionId: 'ghost',
-    }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid resolved context request');
-
-    const ctx = await resolveGhostSteer(parsed.request, roots, {
-      id: 'ghost',
-      tokensCss: baseTokens,
-    });
-
-    assert.equal(ctx.source, 'resolved-context');
-    assert.equal(ctx.tokenSource.kind, 'base-direction');
-    assert.equal(ctx.tokenSource.source, 'direction:ghost/tokens.css');
-    assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('bundle/tokens.css failed token contract')));
-  });
-
-  it('rejects resolved-context requests without prompt', () => {
-    const roots = parseGhostRoots('');
-
-    assert.deepEqual(parseGhostRequest({ source: 'resolved-context' }, roots), {
-      ok: false,
-      error: 'ghost.prompt is required for resolved-context',
-    });
-    assert.deepEqual(parseGhostRequest({ source: 'resolved-context', prompt: '   ' }, roots), {
-      ok: false,
-      error: 'ghost.prompt is required for resolved-context',
-    });
   });
 });
 
@@ -356,7 +224,6 @@ async function makeGhostFixture(options: { tokenCss?: string; large?: boolean } 
   await mkdir(join(root, '.ghost', 'fingerprint', 'memory'), { recursive: true });
   const extraPrinciples = options.large
     ? Array.from({ length: 30 }, (_, index) => `  - id: extra-principle-${index}
-    status: accepted
     principle: Extra accepted principle ${index} ${'keeps operational hierarchy clear '.repeat(12)}
     guidance:
       - Extra guidance ${index} ${'keeps the surface compact and legible '.repeat(10)}
@@ -364,8 +231,7 @@ async function makeGhostFixture(options: { tokenCss?: string; large?: boolean } 
     : [];
   const extraPatterns = options.large
     ? Array.from({ length: 30 }, (_, index) => `  - id: extra-pattern-${index}
-    kind: composition
-    status: accepted
+    kind: structure
     pattern: Extra composition pattern ${index} ${'uses restrained blocks and clear state '.repeat(12)}
     guidance:
       - Extra pattern guidance ${index} ${'prevents ornamental layout from hiding work '.repeat(10)}
@@ -379,8 +245,7 @@ id: test-product
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'prose.yml'),
-    `schema: ghost.fingerprint-prose/v1
-summary:
+    `summary:
   product: Test Product
   audience: [operators]
   goals: [keep work legible]
@@ -391,15 +256,13 @@ situations:
     user_intent: Show the current checkout queue state.
     product_obligation: Keep operator status legible before secondary detail.
     surface_type: dashboard
-    paths: [.]
-    principles: [principle:calm-density]
-    experience_contracts: [experience_contract:queue-trust]
-    patterns: [pattern:measured-surfaces]
+    principles: [prose.principle:calm-density]
+    experience_contracts: [prose.experience_contract:queue-trust]
+    patterns: [composition.pattern:measured-surfaces]
     refuses:
       - Decorative chrome that hides operational state.
 principles:
   - id: calm-density
-    status: accepted
     principle: Preserve quiet density and clear hierarchy.
     applies_to:
       paths: [.]
@@ -411,7 +274,6 @@ principles:
     check_refs: [check:no-rainbow]
 ${extraPrinciples.join('')}experience_contracts:
   - id: queue-trust
-    status: accepted
     contract: Status surfaces must foreground current state.
     applies_to:
       paths: [.]
@@ -423,8 +285,7 @@ ${extraPrinciples.join('')}experience_contracts:
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'inventory.yml'),
-    `schema: ghost.fingerprint-inventory/v1
-topology:
+    `topology:
   scopes:
     - id: app
       paths: [.]
@@ -438,11 +299,9 @@ building_blocks:
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'composition.yml'),
-    `schema: ghost.fingerprint-composition/v1
-patterns:
+    `patterns:
   - id: measured-surfaces
-    kind: composition
-    status: accepted
+    kind: structure
     pattern: Surfaces are compact, rectangular, and information-first.
     applies_to:
       paths: [.]
@@ -461,9 +320,19 @@ ${extraPatterns.join('')}
 id: test-product
 checks:
   - id: no-rainbow
-    active: true
-    summary: Avoid rainbow decorative color.
-    pattern: rainbow
+    title: Avoid rainbow decorative color
+    status: active
+    severity: serious
+    applies_to:
+      paths: [.]
+    detector:
+      type: forbidden-regex
+      pattern: rainbow
+    evidence:
+      support: 1
+      observed_count: 1
+      examples:
+        - queue fixture avoids rainbow decorative color
 `,
   );
   await writeFile(
@@ -487,46 +356,6 @@ libraries: []
   if (options.tokenCss !== undefined) {
     await writeFile(join(root, 'tokens.css'), options.tokenCss);
   }
-  return root;
-}
-
-async function makeLegacyGhostFixture(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-legacy-'));
-  fixtureRoots.push(root);
-  await mkdir(join(root, '.ghost'), { recursive: true });
-  await writeFile(
-    join(root, '.ghost', 'fingerprint.yml'),
-    `schema: ghost.fingerprint/v1
-summary:
-  product: Test Product
-  audience: [operators]
-  goals: [keep work legible]
-  tone: [quiet, exacting workflows]
-topology:
-  scopes:
-    - id: app
-      paths: [.]
-      surface_types: [dashboard]
-  surface_types: [dashboard]
-situations: []
-principles:
-  - id: calm-density
-    status: accepted
-    principle: Preserve quiet density and clear hierarchy.
-experience_contracts: []
-patterns:
-  - id: measured-surfaces
-    kind: visual
-    status: accepted
-    pattern: Surfaces are compact, rectangular, and information-first.
-implementation_vocabulary:
-  tokens: [--color-bg, --color-text]
-  components: []
-review_policy:
-  proposal_policy:
-    - Agents propose memory changes; humans promote durable truth.
-`,
-  );
   return root;
 }
 

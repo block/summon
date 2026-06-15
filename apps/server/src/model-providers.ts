@@ -461,7 +461,7 @@ function parseEffort(raw: unknown, fallback: ModelEffort): ModelEffort {
 
 function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
   const apiKey = env.ANTHROPIC_API_KEY?.trim();
-  const model = env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-6';
+  const model = env.ANTHROPIC_MODEL ?? 'claude-opus-4-8';
   const utilityModel = env.ANTHROPIC_SMALL_MODEL ?? 'claude-haiku-4-5';
   const defaults = createProviderDefaults({
     env,
@@ -831,7 +831,7 @@ function promptBlocksToText(blocks: ContractPromptBlock[]): string {
 }
 
 function repairModeSystemText(): string {
-  return '## Repair mode\n\nYou are repairing one blocked Summon section. Return exactly one safe replacement `add /section/<same-id>` JSONL line and nothing else.';
+  return '## Repair mode\n\nYou are repairing one blocked Summon target. Return exactly one safe replacement `add` JSONL line for the same target path and nothing else.';
 }
 
 function extractAnthropicText(content: Anthropic.Message['content']): string {

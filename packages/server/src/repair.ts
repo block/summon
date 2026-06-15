@@ -69,9 +69,7 @@ export async function runRepairForTarget(args: {
   repair: Extract<NormalizedRepairOptions, { enabled: true }>;
 }): Promise<boolean> {
   const { target, input, promptBlocks, hardenRawLine, acceptRepairResult, writeProtocolLine, writeRepairFeedback, repair } = args;
-  const sectionId = target.target.startsWith('/section/')
-    ? target.target.slice('/section/'.length)
-    : target.target;
+  const sectionId = sectionIdFromTarget(target.target);
   for (let attempt = 1; attempt <= repair.maxAttempts; attempt++) {
     await writeProtocolLine({ op: 'meta', path: '/status', value: `repairing ${sectionId}` });
     try {
@@ -113,7 +111,7 @@ export async function runRepairForTarget(args: {
           rawPreview: previewText(lines[0]!),
           hints: result.blocked
             ? [`Repair still failed validation: ${result.blocked.message}`]
-            : ['Repair must target the same section path.'],
+            : ['Repair must target the same path.'],
         });
         continue;
       }
@@ -124,7 +122,7 @@ export async function runRepairForTarget(args: {
         status: 'repaired',
         attempt,
         retryable: false,
-        hints: ['Replacement section accepted.'],
+        hints: ['Replacement target accepted.'],
       });
       return true;
     } catch (err) {
@@ -142,7 +140,7 @@ export async function runRepairForTarget(args: {
 }
 
 function buildRepairPrompt(target: QueuedRepairTarget): string {
-  return `A previous section patch was blocked by Summon validation.
+  return `A previous Summon patch was blocked by validation.
 
 Target path: ${target.target}
 Issue: ${target.issue.code} — ${target.issue.message}
@@ -151,6 +149,12 @@ Output exactly one JSONL protocol line: a complete replacement add line for the 
 
 Blocked original line:
 ${JSON.stringify(target.line)}`;
+}
+
+function sectionIdFromTarget(target: string): string {
+  if (!target.startsWith('/section/')) return target;
+  const suffix = target.slice('/section/'.length);
+  return suffix.split('/', 1)[0] || target;
 }
 
 async function collectRepairText(

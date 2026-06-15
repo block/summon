@@ -9,7 +9,7 @@
  *   - Watch state for filled/tokenized signals; gate submit on them.
  *   - Emit `submit_strict_input` when the user clicks Pay.
  *
- * Host's role (in strict-main.ts):
+ * Host's role (in the React StrictPage):
  *   - Position a host-trusted card input over the placeholder.
  *   - Tokenize on submit; push back a state patch with last4 + token.
  */

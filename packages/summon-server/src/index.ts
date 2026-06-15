@@ -44,6 +44,7 @@ export type {
   SurfaceIntentDataNeed,
   SurfaceIntentInteraction,
   SurfaceIntentSideEffect,
+  SurfaceIntentSource,
   SurfaceGenerationInput,
   SurfaceGenerationSummary,
 } from '@summon-internal/server';

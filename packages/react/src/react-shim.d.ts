@@ -7,11 +7,22 @@ declare module 'react' {
   export interface RefObject<T> {
     current: T | null;
   }
+  export type RefCallback<T> = (instance: T | null) => void;
+  export type Ref<T> = RefCallback<T> | RefObject<T> | null;
+  export type ForwardedRef<T> = Ref<T>;
   export function createElement(
     type: string | ComponentType<any>,
     props: Record<string, unknown> | null,
     ...children: ReactNode[]
   ): unknown;
+  export function forwardRef<T, P = object>(
+    render: (props: P, ref: ForwardedRef<T>) => ReactNode,
+  ): ComponentType<P & { ref?: Ref<T> }>;
+  export function useImperativeHandle<T, R extends T>(
+    ref: Ref<T> | undefined,
+    init: () => R,
+    deps?: readonly unknown[],
+  ): void;
   export function useEffect(
     effect: () => void | (() => void),
     deps?: readonly unknown[],

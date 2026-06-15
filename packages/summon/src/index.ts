@@ -21,6 +21,7 @@ export {
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   SURFACE_TIER_VALUES,
+  compileArtifactHtml,
 } from '@summon-internal/engine';
 
 export type {
@@ -74,4 +75,7 @@ export type {
   SurfacePolicy,
   SurfacePurpose,
   SurfaceTier,
+  ArtifactCompileResult,
+  CompiledArtifactHtml,
+  CompiledHtmlNodePatch,
 } from '@summon-internal/engine';

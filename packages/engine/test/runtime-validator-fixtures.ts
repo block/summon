@@ -7,14 +7,6 @@ export const baseContext = {
   definedTokens: new Set(['color-text', 'space-2', 'radius-pill']),
 };
 
-export const scriptedSurfacePlan = {
-  purpose: 'explore',
-  runtime: 'scripted',
-  data: 'embedded',
-  authority: 'host-action',
-  persistence: 'replayable',
-} as const;
-
 export function codes(issues: ContractIssue[]): string[] {
   return issues.map((issue) => issue.code).sort();
 }

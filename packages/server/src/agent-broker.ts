@@ -31,6 +31,7 @@ export type SurfaceIntentSideEffect =
   | 'local-state'
   | 'external-action'
   | 'approval-required';
+export type SurfaceIntentSource = 'provided' | 'model' | 'deterministic';
 
 export interface SurfaceIntent {
   purpose: SurfacePurpose;
@@ -106,6 +107,7 @@ export interface AgentSurfacePlanningInput extends AgentSurfacePlanningOptions {
 
 export interface AgentSurfacePlanResult {
   intent: SurfaceIntent;
+  intentSource: SurfaceIntentSource;
   proposedSurfacePolicy: SurfacePolicy;
   surfacePolicy: SurfacePolicy;
   compiledPolicy: CompiledSurfacePolicy;
@@ -149,10 +151,14 @@ export async function planAgentSurface(
     capabilities: input.capabilities ?? null,
     components: input.components ?? null,
   });
-  const inferredIntent = input.intent
-    ? normalizeSurfaceIntent(input.intent, deterministicIntent)
+  const inferred = input.intent
+    ? {
+        intent: normalizeSurfaceIntent(input.intent, deterministicIntent),
+        source: 'provided' as const,
+      }
     : await inferProvidedIntent(input, deterministicIntent);
-  const intent = sanitizeSurfaceIntent(inferredIntent ?? deterministicIntent, {
+  const intentSource = inferred?.source ?? 'deterministic';
+  const intent = sanitizeSurfaceIntent(inferred?.intent ?? deterministicIntent, {
     capabilities: input.capabilities ?? null,
     components: input.components ?? null,
     fallback: deterministicIntent,
@@ -174,6 +180,7 @@ export async function planAgentSurface(
   });
   return {
     intent,
+    intentSource,
     proposedSurfacePolicy,
     surfacePolicy: policyResolution.surfacePolicy,
     compiledPolicy,
@@ -315,6 +322,7 @@ function agentPreludeLines(agent: AgentSurfacePlanResult): ProtocolLine[] {
       path: '/agent-policy-resolution',
       value: {
         source: agent.policyResolution.source,
+        intentSource: agent.intentSource,
         proposedSurfacePolicy: agent.policyResolution.proposedSurfacePolicy,
         surfacePolicy: agent.policyResolution.surfacePolicy,
         rejectedCapabilities: agent.policyResolution.rejectedCapabilities,
@@ -328,18 +336,19 @@ function agentPreludeLines(agent: AgentSurfacePlanResult): ProtocolLine[] {
 async function inferProvidedIntent(
   input: AgentSurfacePlanningInput,
   deterministicIntent: SurfaceIntent,
-): Promise<SurfaceIntent | null> {
+): Promise<{ intent: SurfaceIntent; source: SurfaceIntentSource } | null> {
   if (input.intentProvider) {
-    return input.intentProvider({
+    const intent = await input.intentProvider({
       prompt: input.prompt,
       capabilities: input.capabilities ?? null,
       components: input.components ?? null,
       deterministicIntent,
       signal: input.signal,
     });
+    return intent ? { intent, source: 'provided' } : null;
   }
   if (!input.intentModel) return null;
-  return inferIntentWithModel(input.intentModel, {
+  const intent = await inferIntentWithModel(input.intentModel, {
     prompt: input.prompt,
     capabilities: input.capabilities ?? null,
     components: input.components ?? null,
@@ -347,6 +356,7 @@ async function inferProvidedIntent(
     timeoutMs: input.intentTimeoutMs,
     signal: input.signal,
   });
+  return intent ? { intent, source: 'model' } : null;
 }
 
 async function inferIntentWithModel(
@@ -558,7 +568,7 @@ function strongestTier(
     components.some((component) => componentSurfaceData(component) === 'worker')) {
     return 'worker';
   }
-  return proposedTier === 'scripted' ? 'declarative' : proposedTier;
+  return proposedTier;
 }
 
 function staticFallbackPolicy(policy: SurfacePolicy): SurfacePolicy {

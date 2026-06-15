@@ -37,6 +37,7 @@ export interface ActiveContract {
   mode: Mode;
   capabilityNames: string[];
   componentNames?: string[];
+  agentBroker?: boolean;
   surfacePolicy?: SurfacePolicy;
   surfacePlan: SurfacePlan;
   scriptPolicy: ScriptPolicy;
@@ -109,7 +110,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     id: 'component-islands',
     label: 'Trusted Components',
     prompt:
-      'build a compact launch-readiness dashboard that uses host-rendered component islands for the key metrics, a sparkline, and the approval gate while writing the surrounding analysis and actions yourself',
+      'build a compact launch-readiness dashboard that uses host-rendered MetricCard, TrendSparkline, and ApprovalStatus component islands, plus a choose control for the final launch recommendation',
     mode: 'interactive',
     capabilityNames: ['choose'],
     componentNames: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
@@ -178,7 +179,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     id: 'worker-analysis',
     label: 'Worker Analysis',
     prompt:
-      'analyze and score a product launch readiness topic with a host-owned background worker and visible loading, error, and result states',
+      'run host analysis for a product launch readiness topic, compute a score with a host-owned background worker, and show loading, error, and result states',
     mode: 'interactive',
     capabilityNames: ['analysis', 'compute_score'],
     surfacePolicy: { tier: 'worker', purpose: 'review', grants: ['analysis', 'compute_score'] },
@@ -207,17 +208,16 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   },
   {
-    id: 'scripted-interactive',
-    label: 'Scripted interactive',
+    id: 'local-state-motion',
+    label: 'Local state + motion',
     prompt:
-      'build a keyboard-friendly scoring picker with local highlighted selection plus host-backed choose and counter controls',
+      'build a scoring picker with tabs, disclosure, local highlighted selection, state-driven styling, and subtle motion using only declarative local state plus host-backed choose and counter controls',
     mode: 'interactive',
     capabilityNames: ['choose', 'counter'],
-    surfacePolicy: { tier: 'scripted', purpose: 'explore', grants: ['choose', 'counter'] },
-    scriptPolicy: 'allow',
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },
     surfacePlan: {
       purpose: 'explore',
-      runtime: 'scripted',
+      runtime: 'declarative',
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',
@@ -227,7 +227,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     id: 'token-override',
     label: 'Token override',
     prompt:
-      'build a compact option picker with a prominent accent action and status badge, using only direction tokens for color',
+      'build a compact option picker where I can choose an option with a prominent accent action and status badge, using only direction tokens for color',
     mode: 'interactive',
     capabilityNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose'] },
@@ -248,7 +248,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     id: 'layout-card',
     label: 'Layout-constrained card',
     prompt:
-      'create a compact project intake card with a crisp header, useful content, and one or two validated action controls',
+      'create a compact project intake card where I can submit validated details, with a crisp header, useful content, and one or two action controls',
     mode: 'interactive',
     capabilityNames: ['submit'],
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
@@ -299,9 +299,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
 export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
   return {
     id: `ghost-${rootId}`,
-    label: `Ghost steer: ${rootId}`,
+    label: `Fingerprint: ${rootId}`,
     prompt:
-      'generate a compact review surface that follows this Ghost memory root and keeps all controls host-allowed',
+      'generate a review surface that follows this Ghost fingerprint package and lets me choose an approved direction with host-allowed controls',
     mode: 'interactive',
     capabilityNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'review', grants: ['choose'] },

@@ -157,7 +157,7 @@ test('parsed worker capability resolves to worker surface when explicitly reques
   });
 });
 
-test('scripted surface resolves to allow only when explicitly requested within ceiling', () => {
+test('legacy scripted surface plan falls back to declarative defaults', () => {
   const resolved = resolveSurfaceGenerationPlan({
     prompt: 'build keyboard shortcuts with local highlighted selection',
     mode: 'interactive',
@@ -177,19 +177,19 @@ test('scripted surface resolves to allow only when explicitly requested within c
     },
   });
 
-  assert.equal(resolved.explicitAccepted, true);
-  assert.equal(resolved.source, 'explicit');
-  assert.equal(resolved.scriptPolicy, 'allow');
+  assert.equal(resolved.explicitAccepted, false);
+  assert.equal(resolved.source, 'default');
+  assert.equal(resolved.scriptPolicy, 'forbid');
   assert.deepEqual(resolved.surfacePlan, {
-    purpose: 'explore',
-    runtime: 'scripted',
+    purpose: 'inform',
+    runtime: 'declarative',
     data: 'embedded',
-    authority: 'host-action',
+    authority: 'none',
     persistence: 'replayable',
   });
 });
 
-test('scripted request falls back to forbid when ceiling excludes scripted runtime', () => {
+test('legacy script allow falls back to forbid when plan is invalid', () => {
   const resolved = resolveSurfaceGenerationPlan({
     prompt: 'build keyboard shortcuts with local highlighted selection',
     mode: 'interactive',

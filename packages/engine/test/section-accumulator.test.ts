@@ -66,3 +66,173 @@ test('repeated section add replaces existing html without changing order', () =>
   assert.match(acc.compose(), /Final answer/);
   assert.deepEqual(acc.snapshot().sections.map((section) => section.id), ['hero']);
 });
+
+test('block fragments compose inside stable section wrappers', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['summary'] } });
+  assert.deepEqual(
+    acc.applyDetailed({ op: 'set', path: '/section/summary', value: { blocks: ['headline', 'metrics'] } }),
+    { changed: true, kind: 'section', sectionId: 'summary', orderChanged: true },
+  );
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/summary/block/headline',
+    html: '<h1>Closeout</h1>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/summary/block/metrics',
+    html: '<p>42 orders</p>',
+  });
+
+  assert.equal(acc.compose(), [
+    '<section data-summon-section="summary">',
+    '<div data-summon-block="headline">',
+    '<h1>Closeout</h1>',
+    '</div>',
+    '<div data-summon-block="metrics">',
+    '<p>42 orders</p>',
+    '</div>',
+    '</section>',
+  ].join('\n'));
+});
+
+test('block replacement updates one block and whole-section add clears block state', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['summary'] } });
+  acc.applyDetailed({ op: 'set', path: '/section/summary', value: { blocks: ['a', 'b'] } });
+  acc.applyDetailed({ op: 'add', path: '/section/summary/block/a', html: '<p>A</p>' });
+  acc.applyDetailed({ op: 'add', path: '/section/summary/block/b', html: '<p>Draft</p>' });
+
+  const replacement = acc.applyDetailed({
+    op: 'add',
+    path: '/section/summary/block/b',
+    html: '<p>Final</p>',
+  });
+  assert.equal(replacement.changed, true);
+  assert.equal(replacement.blockId, 'b');
+  assert.match(acc.compose(), /<p>A<\/p>/);
+  assert.match(acc.compose(), /<p>Final<\/p>/);
+  assert.doesNotMatch(acc.compose(), /Draft/);
+
+  acc.applyDetailed({ op: 'add', path: '/section/summary', html: '<article>Opaque</article>' });
+  assert.equal(
+    acc.compose(),
+    '<section data-summon-section="summary">\n<article>Opaque</article>\n</section>',
+  );
+});
+
+test('html node patches compose into nested section HTML', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/root',
+    html: '<div data-summon-node="root" class="dashboard"></div>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/headline',
+    parent: 'root',
+    html: '<header data-summon-node="headline"><h1>Closeout</h1></header>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/metric',
+    parent: 'root',
+    html: '<article data-summon-node="metric"><strong>42</strong></article>',
+  });
+
+  assert.equal(acc.compose(), [
+    '<section data-summon-section="main">',
+    '<div data-summon-node="root" class="dashboard">',
+    '<header data-summon-node="headline"><h1>Closeout</h1></header>',
+    '<article data-summon-node="metric"><strong>42</strong></article>',
+    '</div>',
+    '</section>',
+  ].join('\n'));
+});
+
+test('html node patches compose children into explicit node slots', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/root',
+    html: '<div data-summon-node="root"></div>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/card',
+    parent: 'root',
+    html: '<article data-summon-node="card"><h2>Sales</h2><div class="card-body" data-summon-node-children><div data-summon-skeleton></div><div data-summon-skeleton><span>Loading</span></div></div></article>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/card-value',
+    parent: 'card',
+    html: '<p data-summon-node="card-value">$1,240</p>',
+  });
+
+  assert.equal(acc.compose(), [
+    '<section data-summon-section="main">',
+    '<div data-summon-node="root">',
+    '<article data-summon-node="card"><h2>Sales</h2><div class="card-body" data-summon-node-children>',
+    '<p data-summon-node="card-value">$1,240</p>',
+    '</div></article>',
+    '</div>',
+    '</section>',
+  ].join('\n'));
+  assert.doesNotMatch(acc.compose(), /data-summon-skeleton/);
+});
+
+test('html node replacement updates only that node in composed HTML', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/root',
+    html: '<div data-summon-node="root"></div>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/a',
+    parent: 'root',
+    html: '<p data-summon-node="a">A</p>',
+  });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/b',
+    parent: 'root',
+    html: '<p data-summon-node="b">Draft</p>',
+  });
+
+  const replacement = acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/b',
+    parent: 'root',
+    html: '<p data-summon-node="b">Final</p>',
+  });
+  assert.equal(replacement.changed, true);
+  assert.equal(replacement.nodeId, 'b');
+  assert.equal(replacement.nodePatch?.parentId, 'root');
+  assert.match(acc.compose(), /data-summon-node="a">A/);
+  assert.match(acc.compose(), /data-summon-node="b">Final/);
+  assert.doesNotMatch(acc.compose(), /Draft/);
+});
+
+test('whole-section add clears html node state', () => {
+  const acc = new SectionAccumulator();
+  acc.applyDetailed({ op: 'set', path: '/screen', value: { sections: ['main'] } });
+  acc.applyDetailed({
+    op: 'add',
+    path: '/section/main/node/root',
+    html: '<div data-summon-node="root"></div>',
+  });
+
+  acc.applyDetailed({ op: 'add', path: '/section/main', html: '<article>Opaque</article>' });
+  assert.equal(
+    acc.compose(),
+    '<section data-summon-section="main">\n<article>Opaque</article>\n</section>',
+  );
+});

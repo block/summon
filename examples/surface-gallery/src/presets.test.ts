@@ -15,12 +15,24 @@ test('gallery presets are explicit, valid, and policy-complete', () => {
   const capabilityNames = new Set(allGalleryCapabilityNames());
   const componentNames = new Set(allGalleryComponentNames());
   const seen = new Set<string>();
+  const requiredIds = [
+    'static-summary',
+    'host-resource-search',
+    'decision-picker',
+    'approval-refund',
+    'component-islands',
+    'worker-analysis',
+    'boundary-stress',
+  ];
 
-  assert.equal(GALLERY_PRESETS.length, 6);
+  for (const id of requiredIds) {
+    assert.equal(GALLERY_PRESETS.some((preset) => preset.id === id), true, `missing preset ${id}`);
+  }
 
   for (const preset of GALLERY_PRESETS) {
     assert.equal(seen.has(preset.id), false, `duplicate preset ${preset.id}`);
     seen.add(preset.id);
+    assert.equal(Boolean(preset.claim), true, `${preset.id} needs a claim`);
     assert.deepEqual(normalizeSurfacePolicy(preset.surfacePolicy), {
       tier: preset.surfacePolicy.tier,
       purpose: preset.surfacePolicy.purpose ?? 'inform',
@@ -50,6 +62,16 @@ test('gallery presets are explicit, valid, and policy-complete', () => {
       preset.surfacePolicy.components ?? [],
     );
   }
+});
+
+test('featured gallery presets cover the main surface policy story', () => {
+  const featured = GALLERY_PRESETS.filter((preset) => preset.featured);
+  assert.equal(featured.length >= 6, true);
+  assert.equal(featured.some((preset) => preset.surfacePolicy.tier === 'static'), true);
+  assert.equal(featured.some((preset) => preset.surfacePolicy.tier === 'declarative'), true);
+  assert.equal(featured.some((preset) => preset.surfacePolicy.tier === 'approval'), true);
+  assert.equal(featured.some((preset) => preset.surfacePolicy.tier === 'worker'), true);
+  assert.equal(featured.some((preset) => Boolean(preset.adversarialPrompt)), true);
 });
 
 test('surface gallery source imports public Summon packages only', () => {

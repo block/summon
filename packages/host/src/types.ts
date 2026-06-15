@@ -1,9 +1,33 @@
-import type { ValidationCapability, ValidationComponent } from '@summon-internal/engine';
+import type {
+  CompiledArtifactHtml,
+  CompiledHtmlNodePatch,
+  ValidationCapability,
+  ValidationComponent,
+} from '@summon-internal/engine';
+
+export type {
+  CompiledArtifactHtml,
+  CompiledHtmlNodePatch,
+  HtmlNodePatch,
+} from '@summon-internal/engine';
 
 /** Messages from host into the sandbox iframe. */
 export interface StateMessage {
   type: 'SUMMON_STATE';
+  sandbox_id: string;
   state: Record<string, unknown>;
+}
+
+export interface NodePatchMessage {
+  type: 'SUMMON_NODE_PATCH';
+  sandbox_id: string;
+  patch: CompiledHtmlNodePatch;
+}
+
+export interface RenderMessage {
+  type: 'SUMMON_RENDER';
+  sandbox_id: string;
+  html: CompiledArtifactHtml;
 }
 
 /**
@@ -78,8 +102,10 @@ export interface SandboxHandle {
   iframe: HTMLIFrameElement;
   /** Push new state into the sandbox. Replaces current state on the sandbox side. */
   pushState(state: Record<string, unknown>): void;
-  /** Replace the HTML inside #summon-root. Scripts in the new HTML will execute. */
-  render(html: string): void;
+  /** Replace the compiled HTML inside #summon-root. */
+  render(html: CompiledArtifactHtml): void;
+  /** Patch one validated data-summon-node subtree in place. Experimental. */
+  patchNode(patch: CompiledHtmlNodePatch): void;
   /**
    * Declare chrome attributes that should appear on the sandbox document's
    * `<html>` element. Each entry becomes `data-summon-<key>="<value>"` and is
@@ -101,8 +127,8 @@ export interface Artifact {
   capabilities?: ValidationCapability[];
   /** Advisory components the artifact claims to use. Host registry remains the rendering grant. */
   components?: ValidationComponent[];
-  /** Full HTML body to render inside the sandbox. */
-  html: string;
+  /** Compiled canonical HTML body to render inside the sandbox. */
+  html: CompiledArtifactHtml;
   /** Optional initial state pushed after SANDBOX_READY. */
   initialState?: Record<string, unknown>;
 }

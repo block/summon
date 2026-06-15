@@ -17,12 +17,13 @@ export interface GalleryCapabilityOptions {
   onStatePreview?: (state: Record<string, unknown>) => void;
   modelSelection?: () => object;
   onApprovalRequest?: (
-    request: ApprovalRequest<PublishArgs, PublishSummaryPlan>,
+    request: ApprovalRequest<any, any>,
   ) => Promise<ApprovalDecision> | ApprovalDecision;
 }
 
 const chooseArgsSchema = z.object({ option: z.string().trim().min(1) });
 const publishArgsSchema = z.object({ title: z.string().trim().min(1) });
+const refundArgsSchema = z.object({ title: z.string().trim().min(1), amount: z.string().trim().optional() });
 const searchArgsSchema = z.object({ query: z.string().trim().min(1) });
 const analysisArgsSchema = z.object({ topic: z.string().trim().min(1) });
 const searchResultSchema = z.array(
@@ -41,10 +42,17 @@ const analysisResultSchema = z.object({
 
 type SearchResult = z.infer<typeof searchResultSchema>;
 type PublishArgs = z.infer<typeof publishArgsSchema>;
+type RefundArgs = z.infer<typeof refundArgsSchema>;
 
 interface PublishSummaryPlan {
   title: string;
   channel: string;
+}
+
+interface RefundPlan {
+  title: string;
+  amount: string;
+  rail: string;
 }
 
 export function createGalleryCapabilityRegistry(
@@ -175,6 +183,50 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
         const title = plan?.title ?? args.title;
         log(`published: ${title}`);
         push({ published: true, publishedTitle: title });
+      },
+    }),
+    defineApprovalAction({
+      name: 'issue_refund',
+      description:
+        'Request host approval, then issue a refund only if the host approves. Use for refund, reversal, or customer-remediation flows that must not self-approve.',
+      argsSchema: refundArgsSchema,
+      stateShape:
+        '{refundIssued: boolean, refundTitle: string | null, refundAmount: string | null, refundApprovalRequestId: string | null, refundApprovalPending: boolean, refundApprovalApproved: boolean, refundApprovalDenied: boolean, refundApprovalError: string | null}',
+      approval: {
+        stateKeys: {
+          requestId: 'refundApprovalRequestId',
+          pending: 'refundApprovalPending',
+          approved: 'refundApprovalApproved',
+          denied: 'refundApprovalDenied',
+          error: 'refundApprovalError',
+        },
+        prepare: ({ title, amount }) => ({
+          summary: `Issue refund: ${title}`,
+          details: { title, amount: amount ?? '$842.15', rail: 'card-presentment' },
+          plan: { title, amount: amount ?? '$842.15', rail: 'card-presentment' },
+        }),
+        request: ({ title }, request) => {
+          log(`refund approval requested: ${title}`);
+          if (request && opts.onApprovalRequest) return opts.onApprovalRequest(request);
+          return 'approved';
+        },
+      },
+      patterns: [
+        {
+          name: 'Approval-gated refund',
+          code: `<button data-summon-on-click="issue_refund" data-summon-args='{"title":"Refund disputed transaction","amount":"$842.15"}' data-summon-attr-disabled="refundApprovalPending">Request refund approval</button>
+<p data-summon-show="refundApprovalPending">Waiting for host approval...</p>
+<p data-summon-show="refundApprovalDenied">Refund denied by host.</p>
+<p data-summon-show="refundApprovalError" data-summon-bind="refundApprovalError"></p>
+<p data-summon-show="refundIssued">Refund issued: <span data-summon-bind="refundAmount"></span></p>`,
+        },
+      ],
+      handler: ({ args, approval, push }) => {
+        const plan = approval?.plan as RefundPlan | undefined;
+        const title = plan?.title ?? args.title;
+        const amount = plan?.amount ?? args.amount ?? '$842.15';
+        log(`refund issued: ${title} ${amount}`);
+        push({ refundIssued: true, refundTitle: title, refundAmount: amount });
       },
     }),
     defineWorkerResource({

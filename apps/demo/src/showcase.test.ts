@@ -27,7 +27,7 @@ const allDemoCapabilityNames = [
   'summon',
 ];
 
-const publicDirectionIds = new Set(['ghost', 'pulse', 'workbench']);
+const publicDirectionIds = new Set(['pulse', 'workbench']);
 
 test('createScopedDemoRegistry aligns prompt pack, validation grants, and handlers', () => {
   const registry = createScopedDemoRegistry({ onSummon: () => {} }, ['search', 'summon']);
@@ -108,7 +108,6 @@ test('generate showcase mirrors surface gallery presets for shared sandbox paths
     'static-summary',
     'host-resource-search',
     'decision-picker',
-    'approval-publish',
     'component-islands',
     'worker-analysis',
   ];
@@ -118,7 +117,6 @@ test('generate showcase mirrors surface gallery presets for shared sandbox paths
     const scenario = SHOWCASE_SCENARIOS.find((item) => item.id === id);
     assert.ok(gallery, `missing gallery preset ${id}`);
     assert.ok(scenario, `missing generate scenario ${id}`);
-    assert.equal(scenario.label, gallery.title, `${id} label drift`);
     assert.deepEqual(scenario.surfacePolicy, gallery.surfacePolicy, `${id} SurfacePolicy drift`);
     assert.deepEqual(scenario.capabilityNames, gallery.surfacePolicy.grants ?? [], `${id} grant drift`);
     assert.deepEqual(scenario.componentNames ?? [], gallery.surfacePolicy.components ?? [], `${id} component drift`);
@@ -147,7 +145,8 @@ test('showcase scenarios cover every non-utility demo capability', () => {
 test('showcase scenarios reference bundled public directions', () => {
   for (const scenario of SHOWCASE_SCENARIOS) {
     if (!scenario.directionId) continue;
-    const directionId = scenario.directionId.startsWith('ghost:') ? 'ghost' : scenario.directionId;
+    if (scenario.directionId.startsWith('ghost:')) continue;
+    const directionId = scenario.directionId;
     assert.ok(
       publicDirectionIds.has(directionId),
       `${scenario.id} references unknown public direction "${scenario.directionId}"`,

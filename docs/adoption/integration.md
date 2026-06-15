@@ -209,11 +209,13 @@ await runAgentSurfaceGeneration({
 ```
 
 The broker emits `/agent-intent` and `/agent-policy-resolution` diagnostics,
-then generation continues through the normal `/surface-policy`,
-`/surface-plan`, and `/surface-contract` path. `SurfaceIntent` is an
-experimental planning shape, not an authority contract. The inferred intent is
-advisory: the host resolver and `compileSurfacePolicy()` still decide which
-tools, components, runtime, and approval paths are actually available.
+including whether the intent came from a provided value, model classifier, or
+deterministic fallback. Generation then continues through the normal
+`/surface-policy`, `/surface-plan`, and `/surface-contract` path.
+`SurfaceIntent` is an experimental planning shape, not an authority contract.
+The inferred intent is advisory: the host resolver and `compileSurfacePolicy()`
+still decide which tools, components, runtime, and approval paths are actually
+available.
 
 ### Surface Contract View
 

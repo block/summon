@@ -41,6 +41,8 @@ export type {
 } from './component-islands.js';
 export type {
   Artifact,
+  CompiledArtifactHtml,
+  CompiledHtmlNodePatch,
   ComponentIslandBounds,
   ComponentIslandDescriptor,
   ComponentsMessage,

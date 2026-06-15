@@ -55,7 +55,27 @@ test('api generate sends narrowed contract and stream meta shape through package
       res.end();
       return;
     }
-    anthropicRequests.push(JSON.parse(await readBody(req)));
+    const request = JSON.parse(await readBody(req));
+    anthropicRequests.push(request);
+    const systemText = Array.isArray(request.system)
+      ? request.system.map((block: { text?: unknown }) => typeof block.text === 'string' ? block.text : '').join('\n')
+      : '';
+    const generatedText = systemText.includes('Experimental HTML node patches')
+      ? [
+          '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+          '{"op":"add","path":"/section/hero/node/root","html":"<div data-summon-node=\\"root\\"></div>"}\n',
+          '{"op":"add","path":"/section/hero/node/headline","parent":"root","html":"<h1 data-summon-node=\\"headline\\">Dinner finder</h1>"}\n',
+        ]
+      : systemText.includes('Experimental block fragments')
+        ? [
+            '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+            '{"op":"set","path":"/section/hero","value":{"blocks":["headline"]}}\n',
+            '{"op":"add","path":"/section/hero/block/headline","html":"<h1>Dinner finder</h1><p>Ready.</p>"}\n',
+          ]
+        : [
+            '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+            '{"op":"add","path":"/section/hero","html":"<section><h1>Dinner finder</h1><p>Ready.</p></section>"}\n',
+          ];
     res.writeHead(200, {
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache',
@@ -68,7 +88,7 @@ test('api generate sends narrowed contract and stream meta shape through package
           id: 'msg_test',
           type: 'message',
           role: 'assistant',
-          model: 'claude-sonnet-4-6',
+          model: 'claude-opus-4-8',
           content: [],
           stop_reason: null,
           stop_sequence: null,
@@ -85,7 +105,7 @@ test('api generate sends narrowed contract and stream meta shape through package
         index: 0,
         delta: {
           type: 'text_delta',
-          text: '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+          text: generatedText[0],
         },
       }),
       sse('content_block_delta', {
@@ -93,7 +113,7 @@ test('api generate sends narrowed contract and stream meta shape through package
         index: 0,
         delta: {
           type: 'text_delta',
-          text: '{"op":"add","path":"/section/hero","html":"<section><h1>Dinner finder</h1><p>Ready.</p></section>"}\n',
+          text: generatedText.slice(1).join(''),
         },
       }),
       sse('content_block_stop', {
@@ -128,7 +148,7 @@ test('api generate sends narrowed contract and stream meta shape through package
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -157,7 +177,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(anthropicRequests.length, 1);
   const request = anthropicRequests[0] as { model?: string; system?: Array<{ text?: string }>; stream?: boolean };
   assert.equal(request.stream, true);
-  assert.equal(request.model, 'claude-sonnet-4-6');
+  assert.equal(request.model, 'claude-opus-4-8');
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(systemText, /Search host-owned dinner data/);
   assert.match(systemText, /host-resource/);
@@ -274,6 +294,8 @@ test('api generate sends narrowed contract and stream meta shape through package
   ]);
   const agentIntent = agentLines[1] as Extract<ProtocolLine, { op: 'meta' }>;
   assert.equal((agentIntent.value as { interaction?: unknown }).interaction, 'search');
+  const agentResolution = agentLines[2] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((agentResolution.value as { intentSource?: unknown }).intentSource, 'deterministic');
   const agentPolicy = agentLines[3] as Extract<ProtocolLine, { op: 'meta' }>;
   assert.deepEqual(agentPolicy.value, {
     tier: 'declarative',
@@ -282,6 +304,79 @@ test('api generate sends narrowed contract and stream meta shape through package
     components: [],
     persistence: 'replayable',
   });
+
+  const blockResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a dinner finder in blocks',
+      mode: 'interactive',
+      capabilities: searchCapability,
+      surfacePlan,
+      surfaceCeiling,
+      scriptPolicy: 'forbid',
+      fragmentMode: 'block-v0',
+    }),
+  });
+  const blockBody = await blockResponse.text();
+  assert.equal(blockResponse.status, 200, blockBody);
+
+  assert.equal(anthropicRequests.length, 4);
+  const blockRequest = anthropicRequests[3] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(blockRequest.stream, true);
+  const blockSystemText = blockRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(blockSystemText, /Experimental block fragments/);
+  assert.match(blockSystemText, /add \/section\/<section-id>\/block\/<block-id>/);
+
+  const blockLines = blockBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.equal(blockLines.some((line) => line.path === '/experimental-fragments'), true);
+  assert.equal(blockLines.some((line) => line.path === '/section/hero'), true);
+  assert.equal(blockLines.some((line) => line.path === '/section/hero/block/headline'), true);
+  const blockSummary = blockLines.find((line) => line.path === '/stream-graph-summary') as
+    | Extract<ProtocolLine, { op: 'meta' }>
+    | undefined;
+  assert.match(JSON.stringify(blockSummary?.value), /declaredBlockCount/);
+
+  const nodeResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a dinner finder in html nodes',
+      mode: 'interactive',
+      capabilities: searchCapability,
+      surfacePlan,
+      surfaceCeiling,
+      scriptPolicy: 'forbid',
+      fragmentMode: 'html-node-v0',
+    }),
+  });
+  const nodeBody = await nodeResponse.text();
+  assert.equal(nodeResponse.status, 200, nodeBody);
+
+  assert.equal(anthropicRequests.length, 5);
+  const nodeRequest = anthropicRequests[4] as { system?: Array<{ text?: string }>; stream?: boolean };
+  assert.equal(nodeRequest.stream, true);
+  const nodeSystemText = nodeRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(nodeSystemText, /Experimental HTML node patches/);
+  assert.match(nodeSystemText, /add \/section\/<section-id>\/node\/<node-id>/);
+
+  const nodeLines = nodeBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.equal(nodeLines.some((line) => line.path === '/experimental-fragments'), true);
+  assert.equal(nodeLines.some((line) => line.path === '/section/hero/node/root'), true);
+  assert.equal(nodeLines.some((line) => line.path === '/section/hero/node/headline'), true);
+  const nodeSummary = nodeLines.find((line) => line.path === '/stream-graph-summary') as
+    | Extract<ProtocolLine, { op: 'meta' }>
+    | undefined;
+  assert.match(JSON.stringify(nodeSummary?.value), /presentNodeCount/);
+
   const ghostResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -298,31 +393,9 @@ test('api generate sends narrowed contract and stream meta shape through package
     }),
   });
   const ghostBody = await ghostResponse.text();
-  assert.equal(ghostResponse.status, 200, ghostBody);
-
-  assert.equal(anthropicRequests.length, 4);
-  const ghostRequest = anthropicRequests[3] as { system?: Array<{ text?: string }>; stream?: boolean };
-  const ghostSystemText = ghostRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
-  assert.match(ghostSystemText, /Checkout product experience/);
-
-  const ghostLines = ghostBody
-    .trim()
-    .split(/\n/)
-    .filter(Boolean)
-    .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(ghostLines.slice(0, 4).map((line) => `${line.op} ${line.path}`), [
-    'meta /ghost-context',
-    'meta /ghost-token-source',
-    'meta /surface-plan',
-    'meta /status',
-  ]);
-  const ghostContext = ghostLines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((ghostContext.value as { source?: unknown }).source, 'resolved-context');
-  assert.equal((ghostContext.value as { product?: unknown }).product, 'Checkout');
-  const ghostTokenSource = ghostLines.find((line) => line.path === '/ghost-token-source') as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((ghostTokenSource.value as { kind?: unknown }).kind, 'base-direction');
-  const ghostReviewPacket = ghostLines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((ghostReviewPacket.value as { source?: unknown }).source, 'resolved-context');
+  assert.equal(ghostResponse.status, 400);
+  assert.match(ghostBody, /resolved-context is no longer supported/);
+  assert.equal(anthropicRequests.length, 5);
 
   const ghostOverrideResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
@@ -338,11 +411,11 @@ test('api generate sends narrowed contract and stream meta shape through package
   });
   const ghostOverrideBody = await ghostOverrideResponse.text();
   assert.equal(ghostOverrideResponse.status, 400);
-  assert.match(ghostOverrideBody, /tokenOverrides are not supported with Ghost product memory/);
-  assert.equal(anthropicRequests.length, 4);
+  assert.match(ghostOverrideBody, /resolved-context is no longer supported/);
+  assert.equal(anthropicRequests.length, 5);
 });
 
-test('api generate emits compact Ghost capsule for root contexts', async (t) => {
+test('api generate emits Ghost fingerprint context for root contexts', async (t) => {
   const root = await makeRouteGhostFixture();
   t.after(async () => {
     await rm(root, { recursive: true, force: true });
@@ -368,7 +441,7 @@ test('api generate emits compact Ghost capsule for root contexts', async (t) => 
           id: 'msg_ghost',
           type: 'message',
           role: 'assistant',
-          model: 'claude-sonnet-4-6',
+          model: 'claude-opus-4-8',
           content: [],
           stop_reason: null,
           stop_sequence: null,
@@ -416,8 +489,7 @@ test('api generate emits compact Ghost capsule for root contexts', async (t) => 
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
       SUMMON_GHOST_ROOTS: `checkout=${root}`,
-      SUMMON_GHOST_CONTEXT_MODE: '',
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -447,56 +519,75 @@ test('api generate emits compact Ghost capsule for root contexts', async (t) => 
   const request = anthropicRequests[0] as { system?: Array<{ text?: string }>; stream?: boolean };
   assert.equal(request.stream, true);
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
-  assert.match(systemText, /Ghost Capsule/);
+  assert.match(systemText, /Ghost Relay Brief/);
+  assert.match(systemText, /Identity Capsule/);
+  assert.match(systemText, /Summon Surface Brief/);
+  assert.match(systemText, /product design direction package/);
   assert.match(systemText, /Status surfaces must foreground current state/);
   assert.match(systemText, /Surfaces are compact/);
-  assert.doesNotMatch(systemText, /## Manifest/);
-  assert.doesNotMatch(systemText, /```yaml/);
 
   const lines = body
     .trim()
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 8).map((line) => `${line.op} ${line.path}`), [
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-capsule',
+    'meta /agent-intent',
+    'meta /agent-policy-resolution',
+    'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'meta /status',
   ]);
+  const ghostAgentResolution = lines[3] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((ghostAgentResolution.value as { intentSource?: unknown }).intentSource, 'deterministic');
 
-  const capsuleLine = lines.find((line) => line.path === '/ghost-capsule') as Extract<ProtocolLine, { op: 'meta' }>;
-  const capsule = capsuleLine.value as {
-    mode?: unknown;
-    prompt?: unknown;
-    promptChars?: number;
-    budgetChars?: number;
-    selectedRefs?: {
-      principles?: string[];
-      experienceContracts?: string[];
-      patterns?: string[];
-    };
+  const ghostContext = lines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
+  const contextMeta = ghostContext.value as {
+    source?: unknown;
+    product?: unknown;
+    provenance?: { merge?: unknown; layers?: Array<{ relativeRoot?: unknown; memoryDir?: unknown; dir?: unknown }> };
   };
-  assert.equal(capsule.mode, 'capsule');
-  assert.equal(capsule.prompt, undefined);
-  assert.ok((capsule.promptChars ?? 0) > 0);
-  assert.ok((capsule.promptChars ?? 0) <= (capsule.budgetChars ?? 0));
-  assert.deepEqual(capsule.selectedRefs?.principles, ['calm-density']);
-  assert.deepEqual(capsule.selectedRefs?.experienceContracts, ['queue-trust']);
-  assert.deepEqual(capsule.selectedRefs?.patterns, ['measured-surfaces']);
-
+  assert.equal(contextMeta.source, 'root');
+  assert.equal(contextMeta.product, 'Checkout');
+  assert.equal(contextMeta.provenance?.merge, 'child-wins-by-id');
+  assert.deepEqual(contextMeta.provenance?.layers, [
+    { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
+  ]);
   const ghostReviewPacket = lines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
   const reviewPacket = ghostReviewPacket.value as {
     source?: unknown;
-    memoryProvenance?: { merge?: unknown };
+    fingerprintProvenance?: { merge?: unknown; layers?: unknown };
     sections?: Array<{ id?: unknown; html?: unknown }>;
   };
   assert.equal(reviewPacket.source, 'root');
-  assert.equal(reviewPacket.memoryProvenance?.merge, 'child-wins-by-id');
+  assert.equal(reviewPacket.fingerprintProvenance?.merge, 'child-wins-by-id');
+  assert.deepEqual(reviewPacket.fingerprintProvenance?.layers, [
+    { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
+  ]);
   assert.deepEqual(reviewPacket.sections, [
     { id: 'hero', html: '<section><h1>Checkout queue</h1></section>' },
   ]);
+
+  const overrideResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build checkout queue status',
+      mode: 'static',
+      ghost: {
+        rootId: 'checkout',
+        targetPath: '.',
+      },
+      tokenOverrides: { 'color-accent': 'red' },
+    }),
+  });
+  const overrideBody = await overrideResponse.text();
+  assert.equal(overrideResponse.status, 400);
+  assert.match(overrideBody, /tokenOverrides are not supported with Ghost fingerprints/);
+  assert.equal(anthropicRequests.length, 1);
 });
 
 test('api generate forwards Anthropic model overrides and speed options', async (t) => {
@@ -582,7 +673,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -706,7 +797,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
       OPENAI_BASE_URL: `http://127.0.0.1:${openAIPort}/v1`,
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -843,7 +934,7 @@ test('api generate can stream with Gemini provider', async (t) => {
       GEMINI_API_KEY: 'test-gemini-key',
       GOOGLE_API_KEY: '',
       GEMINI_BASE_URL: `http://127.0.0.1:${geminiPort}`,
-      SUMMON_INFER_CAPABILITIES: '0',
+      SUMMON_AGENT_INTENT_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -917,8 +1008,7 @@ id: checkout
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'prose.yml'),
-    `schema: ghost.fingerprint-prose/v1
-summary:
+    `summary:
   product: Checkout
   tone: [quiet, exacting workflows]
 situations:
@@ -927,13 +1017,11 @@ situations:
     user_intent: Show the current checkout queue state.
     product_obligation: Keep operator status legible before secondary detail.
     surface_type: dashboard
-    paths: [.]
-    principles: [principle:calm-density]
-    experience_contracts: [experience_contract:queue-trust]
-    patterns: [pattern:measured-surfaces]
+    principles: [prose.principle:calm-density]
+    experience_contracts: [prose.experience_contract:queue-trust]
+    patterns: [composition.pattern:measured-surfaces]
 principles:
   - id: calm-density
-    status: accepted
     principle: Preserve quiet density and clear hierarchy.
     applies_to:
       paths: [.]
@@ -943,7 +1031,6 @@ principles:
     check_refs: [check:no-rainbow]
 experience_contracts:
   - id: queue-trust
-    status: accepted
     contract: Status surfaces must foreground current state.
     obligations:
       - Show current queue state before secondary context.
@@ -952,8 +1039,7 @@ experience_contracts:
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'inventory.yml'),
-    `schema: ghost.fingerprint-inventory/v1
-topology:
+    `topology:
   scopes:
     - id: app
       paths: [.]
@@ -965,11 +1051,9 @@ building_blocks:
   );
   await writeFile(
     join(root, '.ghost', 'fingerprint', 'composition.yml'),
-    `schema: ghost.fingerprint-composition/v1
-patterns:
+    `patterns:
   - id: measured-surfaces
-    kind: composition
-    status: accepted
+    kind: structure
     pattern: Surfaces are compact, rectangular, and information-first.
     guidance:
       - Use one clear status block before supporting details.
@@ -984,9 +1068,19 @@ patterns:
 id: checkout
 checks:
   - id: no-rainbow
-    active: true
-    summary: Avoid rainbow decorative color.
-    pattern: rainbow
+    title: Avoid rainbow decorative color
+    status: active
+    severity: serious
+    applies_to:
+      paths: [.]
+    detector:
+      type: forbidden-regex
+      pattern: rainbow
+    evidence:
+      support: 1
+      observed_count: 1
+      examples:
+        - checkout fixture avoids rainbow decorative color
 `,
   );
   await writeFile(

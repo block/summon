@@ -5,6 +5,21 @@ import {
   type ComponentRegistry,
 } from '@anarchitecture/summon';
 import { z } from 'zod';
+import {
+  hostApprovalBadgeClass,
+  hostApprovalClass,
+  hostApprovalDetailClass,
+  hostApprovalTitleClass,
+  hostMetricClass,
+  hostMetricDeltaClass,
+  hostMetricLabelClass,
+  hostMetricValueClass,
+  hostTrendCaptionClass,
+  hostTrendClass,
+  hostTrendHeaderClass,
+  hostTrendMetaClass,
+  hostTrendSvgClass,
+} from './ui.js';
 
 const metricCardPropsSchema = z.object({
   label: z.string(),
@@ -62,10 +77,10 @@ function galleryComponentDefinitions(): ComponentDefinition<any>[] {
         const bg = tone === 'warn' ? '#fff7ed' : tone === 'good' ? '#f0fdf4' : '#ffffff';
         const accent = tone === 'warn' ? '#b45309' : tone === 'good' ? '#15803d' : '#555555';
         container.innerHTML = `
-          <div class="host-metric" style="height:100%;border-color:${border};background:${bg};">
-            <span>${esc(props.label)}</span>
-            <strong>${esc(props.value)}</strong>
-            ${props.delta ? `<em style="color:${accent};">${esc(props.delta)}</em>` : ''}
+          <div class="${hostMetricClass}" style="border-color:${border};background:${bg};">
+            <span class="${hostMetricLabelClass}">${esc(props.label)}</span>
+            <strong class="${hostMetricValueClass}">${esc(props.value)}</strong>
+            ${props.delta ? `<em class="${hostMetricDeltaClass}" style="color:${accent};">${esc(props.delta)}</em>` : ''}
           </div>`;
       },
     }),
@@ -92,13 +107,13 @@ function galleryComponentDefinitions(): ComponentDefinition<any>[] {
           return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
         }).join(' ');
         container.innerHTML = `
-          <div class="host-trend">
-            <div><strong>${esc(props.label)}</strong><span>${points.length} pts</span></div>
-            <svg viewBox="0 0 240 96" role="img" aria-label="${esc(props.label)}">
+          <div class="${hostTrendClass}">
+            <div class="${hostTrendHeaderClass}"><strong>${esc(props.label)}</strong><span class="${hostTrendMetaClass}">${points.length} pts</span></div>
+            <svg class="${hostTrendSvgClass}" viewBox="0 0 240 96" role="img" aria-label="${esc(props.label)}">
               <path d="M10 84 H230" stroke="#e5e7eb" stroke-width="1"></path>
               <path d="${d}" fill="none" stroke="#111827" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
             </svg>
-            ${props.caption ? `<p>${esc(props.caption)}</p>` : ''}
+            ${props.caption ? `<p class="${hostTrendCaptionClass}">${esc(props.caption)}</p>` : ''}
           </div>`;
       },
     }),
@@ -122,10 +137,10 @@ function galleryComponentDefinitions(): ComponentDefinition<any>[] {
         } as const;
         const [bg, fg, label] = colors[props.status];
         container.innerHTML = `
-          <div class="host-approval" style="background:${bg};border-color:${fg};">
-            <span style="background:${fg};">${label}</span>
-            <strong>${esc(props.title)}</strong>
-            ${props.detail ? `<p>${esc(props.detail)}</p>` : ''}
+          <div class="${hostApprovalClass}" style="background:${bg};border-color:${fg};">
+            <span class="${hostApprovalBadgeClass}" style="background:${fg};">${label}</span>
+            <strong class="${hostApprovalTitleClass}">${esc(props.title)}</strong>
+            ${props.detail ? `<p class="${hostApprovalDetailClass}">${esc(props.detail)}</p>` : ''}
           </div>`;
       },
     }),

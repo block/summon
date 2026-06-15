@@ -26,13 +26,11 @@ import { fileURLToPath } from 'node:url';
 import {
   defaultDirectionId,
   loadDirections,
-  PREFERRED_DEFAULT_DIRECTION_ID,
   type Direction,
 } from './directions-loader.js';
 import { registerDemoRoutes } from './demo-routes.js';
 import {
   buildGhostReviewPacket,
-  ghostCapsuleMeta,
   ghostContextMeta,
   ghostTokenSourceMeta,
   parseGhostRequest,
@@ -42,7 +40,6 @@ import {
   resolveGhostGenerationContext,
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
-import { inferPack } from './infer-capabilities.js';
 import { inferShape, type ResponseShape } from './infer-shape.js';
 import { parseCapabilityPack } from './capability-pack.js';
 import { parseComponentPack } from './component-pack.js';
@@ -72,6 +69,38 @@ const PORT = Number(process.env.PORT) || 3001;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 const modelProviders = createModelProviderRegistry(process.env);
 const defaultModelProvider = modelProviders.defaultProvider;
+
+const EXPERIMENTAL_BLOCK_FRAGMENT_PROMPT = `## Experimental block fragments
+
+This run is using Summon's experimental block-fragment protocol. Keep sections as the outer structure, but stream complete blocks inside each section.
+
+Rules:
+
+- Emit \`set /screen\` first with the stable section ids.
+- For each section, emit \`set /section/<section-id>\` with \`{"blocks":["block-id"]}\` before adding blocks.
+- Emit complete block replacement lines at \`add /section/<section-id>/block/<block-id>\`.
+- Use lowercase kebab-case ids. Each section may declare 1 to 8 blocks.
+- Treat every block as a complete subtree. Do not split a form, table, data resource scope, component placeholder, script lifecycle, or closely coupled control group across blocks.
+- For perceived streaming, emit cheap block placeholders first, then final replacement \`add\` lines for the same block ids.
+- Do not emit whole-section \`add /section/<section-id>\` lines unless you cannot satisfy the block contract.`;
+
+const EXPERIMENTAL_HTML_NODE_PROMPT = `## Experimental HTML node patches
+
+This run is using Summon's experimental html-node-v0 protocol. Keep sections as the outer structure, but stream small complete raw-HTML DOM nodes inside each section.
+
+Rules:
+
+- Emit \`set /screen\` first with stable section ids.
+- Then emit \`add /section/<section-id>/node/<node-id>\` lines. Each node line must include one complete raw HTML element with \`data-summon-node="<node-id>"\` on that root element.
+- Use lowercase kebab-case ids for sections and nodes.
+- Omit \`parent\` to append a node directly under the section wrapper. Set \`parent\` to an earlier node id to append inside that parent node.
+- Emit a root composition container first, then useful child nodes such as headers, table sections, rows, list items, timeline steps, action groups, chart shells, callouts, notes, and metric blocks when appropriate.
+- Emit useful shells early. When a purposeful container, list, table, timeline, or chart shell will receive child node patches, include a child slot inside it, such as \`<div data-summon-node-children></div>\`, and set those child lines' \`parent\` to that shell's node id.
+- Shell slots may include 1-3 direct lightweight placeholders with \`data-summon-skeleton\`; later real child node patches will replace those placeholders automatically.
+- Do not orphan content that belongs inside a declared parent container. Choose parent containers because the layout needs them, not as decoration.
+- Each node patch should usually be 500-2000 bytes and visually meaningful immediately. Prefer many small useful patches over one large section.
+- Do not put \`data-summon-node\` on nested elements inside a node patch. Child nodes must arrive as their own later protocol lines.
+- Do not emit scripts, inline event handlers, external URLs, or whole-section \`add /section/<section-id>\` lines unless you cannot satisfy the node-patch contract.`;
 
 if (!defaultModelProvider) {
   console.error(
@@ -296,23 +325,6 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
   return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
-/**
- * Conservative two-signal heuristic for "this static-mode prompt actually wants
- * interactivity". Requires BOTH an interactive verb AND user-action framing,
- * so passive list requests like "pick a name for my puppy" don't trip it.
- *
- * Tunable knob: tighten ACTION_FRAMING for false-positives; loosen for
- * false-negatives.
- */
-const INTERACTIVE_VERBS =
-  /\b(pick|choose|select|submit|filter|toggle|track|count|tally|vote|rate|swipe|drag|search\s+for|let\s+me\s+(pick|choose|search|filter|select))\b/i;
-const ACTION_FRAMING =
-  /\b(let\s+me|i\s+can|lets?\s+the\s+user|so\s+i\s+can|that\s+i\s+can|where\s+i\s+can|i\s+(want\s+to|need\s+to)\s+(pick|choose|select|filter|track|count|search|toggle)|with\s+\d+\s+(options?|choices?|cards?|tabs?)|from\s+\d+\s+(options?|choices?|cards?|tabs?)|help\s+me\s+(pick|choose|select|filter|find|track|count|toggle))\b/i;
-
-function detectsInteractiveIntent(prompt: string): boolean {
-  return INTERACTIVE_VERBS.test(prompt) && ACTION_FRAMING.test(prompt);
-}
-
 // Simple concurrency cap for /api/generate — protects against a runaway batch
 // page firing too many parallel streams at the selected model API.
 const MAX_CONCURRENT_GENERATIONS = 12;
@@ -374,9 +386,7 @@ app.get('/api/ghost-roots', (_req, res) => {
     publicGhostRoots(ghostRoots).map(({ id }) => ({
       id,
       defaultTargetPath: '.',
-      defaultBaseDirectionId: directionsById.has(PREFERRED_DEFAULT_DIRECTION_ID)
-        ? PREFERRED_DEFAULT_DIRECTION_ID
-        : DEFAULT_DIRECTION_ID ?? null,
+      defaultBaseDirectionId: null,
     })),
   );
 });
@@ -410,19 +420,19 @@ app.post('/api/generate', async (req, res) => {
     req.body?.tokenOverrides !== undefined &&
     req.body.tokenOverrides !== null
   ) {
-    res.status(400).json({ error: 'tokenOverrides are not supported with Ghost product memory' });
+    res.status(400).json({ error: 'tokenOverrides are not supported with Ghost fingerprints' });
     return;
   }
 
   const requestedGhostBaseDirectionId =
     ghostRequest
-      ? (ghostRequest.baseDirectionId ?? (directionsById.has(PREFERRED_DEFAULT_DIRECTION_ID) ? PREFERRED_DEFAULT_DIRECTION_ID : null))
+      ? ghostRequest.baseDirectionId
       : null;
   const ghostBaseDirection = requestedGhostBaseDirectionId
     ? directionsById.get(requestedGhostBaseDirectionId)
     : undefined;
   if (ghostRequest && requestedGhostBaseDirectionId && !ghostBaseDirection) {
-    res.status(400).json({ error: `unknown Ghost base direction "${requestedGhostBaseDirectionId}"` });
+    res.status(400).json({ error: `unknown fingerprint token fallback direction "${requestedGhostBaseDirectionId}"` });
     return;
   }
 
@@ -443,11 +453,11 @@ app.post('/api/generate', async (req, res) => {
   }
 
   const directionId = ghostContext
-    ? ghostContext.baseDirectionId ?? undefined
+    ? undefined
     : ((typeof req.body?.directionId === 'string' ? req.body.directionId : undefined) ??
       DEFAULT_DIRECTION_ID);
   const direction = ghostContext
-    ? ghostBaseDirection
+    ? undefined
     : directionId
       ? directionsById.get(directionId)
       : undefined;
@@ -467,15 +477,22 @@ app.post('/api/generate', async (req, res) => {
     return;
   }
   const edit = parsedEdit.edit;
+  const fragmentMode =
+    req.body?.fragmentMode === 'block-v0'
+      ? 'block-v0'
+      : req.body?.fragmentMode === 'html-node-v0'
+        ? 'html-node-v0'
+        : 'section';
   const repairOptions = parseRepairOptions(req.body?.repair);
   const rawAgentOptions = req.body?.agent;
   const agentOptions = rawAgentOptions && typeof rawAgentOptions === 'object'
     ? rawAgentOptions as Record<string, unknown>
     : null;
-  const agentPlanningEnabled = agentOptions?.enabled === true;
 
   const hasSurfacePolicy =
     req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
+  const hasSurfacePlan =
+    req.body?.surfacePlan !== undefined && req.body.surfacePlan !== null;
   const requestedMode: 'static' | 'interactive' =
     req.body?.mode === 'interactive' ? 'interactive' : 'static';
   let scriptPolicy: ScriptPolicy | undefined =
@@ -486,7 +503,6 @@ app.post('/api/generate', async (req, res) => {
   let mode: 'static' | 'interactive' = requestedMode;
   let pack: CapabilityPack | null = null;
   let modeUpgraded = false;
-  let inferenceUsed = false;
   let surfacePlan: SurfacePlan;
   let agentPlan: AgentSurfacePlanResult | null = null;
 
@@ -497,7 +513,7 @@ app.post('/api/generate', async (req, res) => {
   // are no exemplars to filter. Also skipped when the host supplies a layout:
   // the layout is the composition anchor, and exemplars become visual-only.
   let shape: ResponseShape | null = null;
-  if (!layout && direction && process.env.SUMMON_INFER_SHAPE !== '0') {
+  if (!layout && (direction || ghostContext) && process.env.SUMMON_INFER_SHAPE !== '0') {
     shape = await inferShape({
       completeText: (request) => modelProvider.completeText(request, modelSelection),
     }, prompt);
@@ -512,7 +528,24 @@ app.post('/api/generate', async (req, res) => {
     scriptPolicy = compiledPolicy.scriptPolicy;
     pack = compiledPolicy.capabilities;
     surfacePlan = compiledPolicy.surfacePlan;
-  } else if (agentPlanningEnabled) {
+  } else if (hasSurfacePlan) {
+    pack = requestedMode === 'interactive' ? capabilityCeiling : null;
+    const resolvedSurface = resolveSurfaceGenerationPlan({
+      prompt,
+      mode,
+      scriptPolicy,
+      capabilities: pack,
+      rawSurfacePlan: req.body?.surfacePlan,
+      rawSurfaceCeiling: req.body?.surfaceCeiling,
+    });
+    if (mode !== resolvedSurface.mode) {
+      modeUpgraded = mode === 'static' && resolvedSurface.mode === 'interactive' ? true : modeUpgraded;
+      mode = resolvedSurface.mode;
+      pack = mode === 'interactive' ? pack ?? capabilityCeiling : null;
+    }
+    scriptPolicy = resolvedSurface.scriptPolicy;
+    surfacePlan = resolvedSurface.surfacePlan;
+  } else {
     agentPlan = await planAgentSurface({
       prompt,
       capabilities: capabilityCeiling,
@@ -529,56 +562,6 @@ app.post('/api/generate', async (req, res) => {
     pack = agentPlan.compiledPolicy.capabilities;
     surfacePlan = agentPlan.compiledPolicy.surfacePlan;
     modeUpgraded = requestedMode === 'static' && mode === 'interactive';
-  } else {
-    // Layer 3: utility-model capability inference. Decides mode + narrows the
-    // pack to the minimal subset of intents the prompt actually needs. The
-    // pack is treated as a ceiling — inference can only narrow, never expand.
-    // Falls through to the Layer 2 regex on timeout or error.
-    if (process.env.SUMMON_INFER_CAPABILITIES === '1' && capabilityCeiling) {
-      const inferred = await inferPack({
-        completeText: (request) => modelProvider.completeText(request, modelSelection),
-      }, prompt, capabilityCeiling);
-      if (inferred) {
-        inferenceUsed = true;
-        if (requestedMode === 'interactive') {
-          // Respect the user's explicit interactive choice. Inference may narrow
-          // the pack, but won't downgrade to static.
-          mode = 'interactive';
-          pack = inferred.pack ?? capabilityCeiling;
-        } else {
-          mode = inferred.mode;
-          pack = inferred.pack;
-          modeUpgraded = mode === 'interactive';
-        }
-      }
-    }
-
-    // Layer 2 regex fallback — runs when inference is disabled, ceiling is
-    // missing, or inference returned null (timeout/parse failure). Only upgrades
-    // when a ceiling exists; without one there's no Capabilities block to emit.
-    if (!inferenceUsed) {
-      if (requestedMode === 'static' && capabilityCeiling && detectsInteractiveIntent(prompt)) {
-        mode = 'interactive';
-        modeUpgraded = true;
-      }
-      pack = mode === 'interactive' ? capabilityCeiling : null;
-    }
-
-    const resolvedSurface = resolveSurfaceGenerationPlan({
-      prompt,
-      mode,
-      scriptPolicy,
-      capabilities: pack,
-      rawSurfacePlan: req.body?.surfacePlan,
-      rawSurfaceCeiling: req.body?.surfaceCeiling,
-    });
-    if (mode !== resolvedSurface.mode) {
-      modeUpgraded = mode === 'static' && resolvedSurface.mode === 'interactive' ? true : modeUpgraded;
-      mode = resolvedSurface.mode;
-      pack = mode === 'interactive' ? pack ?? capabilityCeiling : null;
-    }
-    scriptPolicy = resolvedSurface.scriptPolicy;
-    surfacePlan = resolvedSurface.surfacePlan;
   }
 
   if (ghostContext) {
@@ -613,13 +596,6 @@ app.post('/api/generate', async (req, res) => {
       path: '/ghost-token-source',
       value: ghostTokenSourceMeta(ghostContext.tokenSource),
     });
-    if (ghostContext.source === 'root' && ghostContext.capsule) {
-      preludeLines.push({
-        op: 'meta',
-        path: '/ghost-capsule',
-        value: ghostCapsuleMeta(ghostContext.capsule),
-      });
-    }
   }
   // Emit the mode-upgrade signal before agent diagnostics. The client respawns
   // its sandbox into interactive mode in response, so this should land before
@@ -638,6 +614,7 @@ app.post('/api/generate', async (req, res) => {
       path: '/agent-policy-resolution',
       value: {
         source: agentPlan.policyResolution.source,
+        intentSource: agentPlan.intentSource,
         proposedSurfacePolicy: agentPlan.policyResolution.proposedSurfacePolicy,
         surfacePolicy: agentPlan.policyResolution.surfacePolicy,
         rejectedCapabilities: agentPlan.policyResolution.rejectedCapabilities,
@@ -651,6 +628,13 @@ app.post('/api/generate', async (req, res) => {
   }
   if (layout) {
     preludeLines.push({ op: 'meta', path: '/layout', value: layout.id });
+  }
+  if (fragmentMode !== 'section' && !edit) {
+    preludeLines.push({
+      op: 'meta',
+      path: '/experimental-fragments',
+      value: { mode: fragmentMode },
+    });
   }
   if (edit) {
     preludeLines.push({
@@ -698,8 +682,19 @@ app.post('/api/generate', async (req, res) => {
             }
           : null,
         ghost: ghostContext ?? null,
+        activeTokensCss: ghostContext?.tokenSource.css ?? null,
         layout,
         edit,
+        experimentalPromptBlock: fragmentMode !== 'section' && !edit
+          ? {
+              id: `experimental-fragments:${fragmentMode}`,
+              text: fragmentMode === 'html-node-v0'
+                ? EXPERIMENTAL_HTML_NODE_PROMPT
+                : EXPERIMENTAL_BLOCK_FRAGMENT_PROMPT,
+              cache: 'ephemeral',
+            }
+          : null,
+        experimentalFragmentMode: !edit ? fragmentMode : 'section',
         capabilities: hasSurfacePolicy || agentPlan ? capabilityCeiling : pack,
         components: componentPack,
         surfacePolicy: hasSurfacePolicy
@@ -710,7 +705,6 @@ app.post('/api/generate', async (req, res) => {
         scriptPolicy: hasSurfacePolicy || agentPlan ? undefined : scriptPolicy,
         surfacePlan: hasSurfacePolicy || agentPlan ? null : surfacePlan,
         tokenOverrides: overrides.applied,
-        activeTokensCss: ghostContext?.tokenSource.css ?? direction?.tokensCss ?? null,
         preludeLines,
         repair,
         modelProvider: (request) => modelProvider.streamSurfaceGeneration(request, (nextUsage) => {
@@ -742,7 +736,7 @@ app.post('/api/generate', async (req, res) => {
         cache_creation_input_tokens: 0,
       };
       const stats = summary.repairStats ?? { queued: 0, cancelled: 0, repaired: 0, failed: 0 };
-      const upgradeTag = modeUpgraded ? ` (upgraded ${inferenceUsed ? 'via inference' : 'via regex'})` : '';
+      const upgradeTag = modeUpgraded ? ` (upgraded via ${agentPlan ? 'broker' : 'surface plan'})` : '';
       console.log(
         `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
           ` shape=${shape ?? 'all'}` +
@@ -775,9 +769,7 @@ app.post('/api/generate', async (req, res) => {
 });
 
 function ghostLogId(context: ResolvedGhostSteer): string {
-  return context.source === 'root'
-    ? context.request.rootId
-    : (context.request.id ?? 'resolved-context');
+  return context.request.rootId;
 }
 
 app.listen(PORT, () => {

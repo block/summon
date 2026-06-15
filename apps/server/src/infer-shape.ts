@@ -5,8 +5,10 @@ import type { TextCompletionClient } from './model-providers.js';
  * 1:1 to the shape exemplars a direction may carry — picking a shape selects
  * the matching exemplar to ship in the per-direction prompt block.
  *
- * Shapes that don't have a dedicated exemplar (plan/itinerary, reflection)
- * collapse onto the closest match: "plan" → article, "reflection" → card.
+ * Shapes that don't have a dedicated exemplar should collapse onto the richest
+ * structural match: plan/itinerary/reflection → article, status metrics →
+ * tracker, side-by-side choices → comparison. The "card" shape is intentionally
+ * narrow for a single focused brief or object profile.
  * The classifier emits null when ambiguous; the caller then ships all shape
  * exemplars (current behavior) instead of guessing wrong.
  */
@@ -29,15 +31,15 @@ export async function inferShape(
   const systemText = `Classify a generative-UI prompt into the response shape that best fits the user's intent.
 
 Shapes:
-- article — long-form explainer, walkthrough, plan/itinerary. Lead is body copy under a heading.
-- card — focused single-block summary, recommendation, status readout, weekly digest.
-- comparison — side-by-side options, decision support, A vs B, pros/cons.
-- tracker — dashboard, dominant number with breakdown, progress, stats grid.
+- article — long-form explainer, walkthrough, plan/itinerary, reflection, memo, guide, or readable summary.
+- card — single focused brief, recommendation, object profile, or compact standalone answer. Use only when the response is truly one bounded object.
+- comparison — side-by-side options, decision support, A vs B, pros/cons, matrix, table, or verdict.
+- tracker — dashboard, status readout, weekly digest, dominant number with breakdown, progress, operational queue, or stats grid.
 
 Respond with ONLY a single JSON object on one line. No markdown fences, no prose. Shape:
 {"shape":"article"} or {"shape":"card"} or {"shape":"comparison"} or {"shape":"tracker"} or {"shape":null}
 
-Use null ONLY when the prompt genuinely fits none of the above OR when two shapes are equally plausible. When in doubt between two shapes, pick the more specific one (comparison > article, tracker > card).`;
+Use null ONLY when the prompt genuinely fits none of the above OR when two shapes are equally plausible. Avoid using "card" as a fallback for summaries, dashboards, recaps, or multi-part briefs; prefer article, tracker, or comparison. When in doubt between two shapes, pick the more specific one (comparison > tracker > article > card).`;
 
   try {
     const callPromise = client.completeText({

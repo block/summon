@@ -94,11 +94,10 @@ export interface SurfaceGenerationInput {
   mode?: 'static' | 'interactive';
   direction?: DirectionContractInput | null;
   ghost?: GhostGenerationContext | null;
-  /** @deprecated Use `ghost` with a first-class GhostGenerationContext. */
-  ghostPrompt?: string | null;
   layout?: SummonLayout | null;
   edit?: GenerateEditInput | null;
   editBlock?: string | null;
+  experimentalPromptBlock?: ContractPromptBlock | null;
   capabilities?: CapabilityPack | null;
   components?: ComponentPack | null;
   surfacePolicy?: SurfacePolicy | null;
@@ -106,6 +105,7 @@ export interface SurfaceGenerationInput {
   surfacePlan?: SurfacePlan | null;
   tokenOverrides?: TokenOverride[];
   activeTokensCss?: string | null;
+  experimentalFragmentMode?: 'section' | 'block-v0' | 'html-node-v0';
   preludeLines?: ProtocolLine[];
   repair?: RepairOptions | null;
   initialScreenSections?: string[];
