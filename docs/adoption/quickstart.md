@@ -35,7 +35,7 @@ generation and replay.
 ## Run The Workbench
 
 ```sh
-pnpm dev:all
+pnpm dev:workbench
 ```
 
 Open `http://localhost:5173/generate`.
@@ -82,7 +82,7 @@ Then start the gallery or the workbench:
 ```sh
 pnpm dev:gallery
 # or
-pnpm dev:all
+pnpm dev:workbench
 ```
 
 Open `http://localhost:5174` for the adopter-facing gallery preset, or
@@ -159,6 +159,8 @@ declarative forms, host AI calls, GitHub lookup, trusted host components,
 background host work, approval-required publish, local state and motion,
 token overrides, layout constraints, sibling summon, Ghost steering when
 configured, and validation retry diagnostics.
+
+To run the gallery and workbench side by side, use `pnpm dev:demos`.
 
 Open `http://localhost:5173/strict` to see the trusted host overlay pattern
 for sensitive input. The generated sandbox describes the slot; the host owns the

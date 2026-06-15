@@ -110,7 +110,7 @@ Common fixes:
 
 1. Run `pnpm test:safety`.
 2. If it fails, inspect the Playwright trace/screenshot.
-3. For manual inspection, run `pnpm dev:all` and open
+3. For manual inspection, run `pnpm dev:workbench` and open
    `http://localhost:5173/adversarial`.
 4. Confirm network, storage, parent DOM, and unallowed host tool request checks
    still pass.

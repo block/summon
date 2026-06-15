@@ -46,7 +46,7 @@ background host work without exposing the maintainer workbench.
 For the maintainer workbench:
 
 ```sh
-pnpm dev:all
+pnpm dev:workbench
 ```
 
 Open `http://localhost:5173/generate`.
@@ -85,9 +85,15 @@ The model can propose UI, but it cannot give itself permissions. Generated
 requests are advisory until the host validates them and dispatches them through
 registered host tools.
 
+To run both demo apps at once:
+
+```sh
+pnpm dev:demos
+```
+
 ## Demo Map
 
-- `examples/surface-gallery` - primary adopter gallery with curated live
+- `apps/surface-gallery` - primary adopter gallery with curated live
   presets, compact host tools, Ghost-root presets when configured, a sandboxed
   surface, and a small event strip.
 - `/generate` - diagnostic maintainer workbench for broker-selected
@@ -118,9 +124,9 @@ registered host tools.
 - `packages/engine`, `packages/host`, `packages/devtools`,
   `packages/sandbox-runtime`, `packages/server`, `packages/react` - private
   implementation workspaces published only through the public facades.
-- `examples/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/server` - multi-provider demo server for Anthropic, OpenAI, and Gemini,
   direction loading, validation retry feedback, and demo backing routes.
+- `apps/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/demo` - Vite maintainer workbench for generation, batch runs,
   adversarial checks, strict input, Ghost steering, diagnostics, and fatal
   sandbox testing.
@@ -166,7 +172,8 @@ pnpm check:public-api
 pnpm smoke:public-packages
 pnpm pack:dry-run
 pnpm dev:gallery
-pnpm dev:all
+pnpm dev:workbench
+pnpm dev:demos
 pnpm port-direction <path-to-expression.md> [id]
 pnpm eval-directions [--prompts N] [--directions id,id] [--seed N] [--dry]
 ```

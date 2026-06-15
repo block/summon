@@ -93,7 +93,9 @@ pnpm test
 pnpm test:safety
 pnpm build
 pnpm pack:dry-run
-pnpm dev:all
+pnpm dev:gallery
+pnpm dev:workbench
+pnpm dev:demos
 pnpm port-direction <path-to-expression.md> [id]
 pnpm eval-directions [--prompts N] [--directions id,id] [--seed N] [--dry]
 ```
@@ -103,11 +105,11 @@ sandbox containment, bootstrap fatal checks, strict input, and generate-page
 boot. It starts only the Vite demo app and does not require
 `ANTHROPIC_API_KEY`.
 
-Manual smoke path: open `http://localhost:5173/generate.html`, choose the
+Manual smoke path: run `pnpm dev:workbench`, open `http://localhost:5173/generate`, choose the
 **Host-resource search** showcase scenario, keep **Free layout**, confirm the
 contract cockpit shows `explore/declarative/host-resource/read/replayable` and
 `Grants 1: search`, run the scenario, submit a generated search such as
 `chicken pasta`, inspect the Stream and Devtools drawers, replay from Saved
-surfaces, then open `http://localhost:5173/adversarial.html`. Use `batch.html`,
-`strict.html`, and `fatal.html` for prompt/token health, trusted input overlay,
+surfaces, then open `http://localhost:5173/adversarial`. Use `/batch`,
+`/strict`, and `/fatal` for prompt/token health, trusted input overlay,
 and sandbox startup failure checks.

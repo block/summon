@@ -46,11 +46,11 @@ const cards = [
 function LandingCard({ card }: { card: (typeof cards)[number] }) {
   return (
     <Link
-      className="group flex flex-col gap-4 rounded-card border border-line bg-surface-raised p-5 text-inherit no-underline transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:shadow-card"
+      className="group flex flex-col gap-4 rounded-card bg-surface-raised p-5 text-inherit no-underline transition-all duration-200 hover:-translate-y-1 hover:shadow-card"
       to={card.href}
     >
       <div
-        className="flex size-10 items-center justify-center rounded-control bg-surface text-ink transition-colors duration-150 group-hover:bg-ink group-hover:text-ink-inverse"
+        className="flex size-10 items-center justify-center rounded-control bg-surface text-ink transition-colors duration-200 group-hover:bg-ink group-hover:text-ink-inverse"
         aria-hidden="true"
       >
         <svg
@@ -77,7 +77,7 @@ function LandingCard({ card }: { card: (typeof cards)[number] }) {
 
 export function LandingPage() {
   return (
-    <main className="flex flex-1 p-16">
+    <main className="flex flex-1 p-8">
       <div className="w-full ">
         <header className="mb-24">
           <h1 className="m-0 mb-2.5 text-[clamp(64px,9vw,116px)] font-bold leading-[0.88] tracking-normal text-ink">

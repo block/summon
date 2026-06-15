@@ -7,7 +7,7 @@ import { cn } from '../../../lib/cn.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
 import { formatDevtoolsEvent } from '../devtools.js';
 import { compactPlanText } from '../surfaceHelpers.js';
-import type { LogEntry } from '../types.js';
+import type { DiagnosticsTab, LogEntry } from '../types.js';
 
 export function DiagnosticsDock({
   diagnosticsTab,
@@ -18,21 +18,23 @@ export function DiagnosticsDock({
   devEvents,
   savedSurfaces,
   replaySurface,
+  embedded = false,
 }: {
-  diagnosticsTab: 'stream' | 'devtools' | 'history' | 'safety';
-  setDiagnosticsTab: Dispatch<SetStateAction<'stream' | 'devtools' | 'history' | 'safety'>>;
+  diagnosticsTab: DiagnosticsTab;
+  setDiagnosticsTab: Dispatch<SetStateAction<DiagnosticsTab>>;
   statusText: string;
   devtoolsTally: string;
   logs: LogEntry[];
   devEvents: Array<DevtoolsEvent | ExtraDevtoolsEvent>;
   savedSurfaces: SurfaceEnvelope[];
   replaySurface: (envelope: SurfaceEnvelope) => void;
+  embedded?: boolean;
 }) {
   const firstEventAt = devEvents[0]?.at ?? null;
   const tabClass = (active: boolean) => buttonClass({ variant: active ? 'primary' : 'ghost', size: 'xs', className: 'rounded-card' });
 
   return (
-    <section className={cn(pageWidthClass, panelClass, 'mt-9 overflow-hidden')} aria-label="Diagnostics">
+    <section className={cn(embedded ? 'overflow-hidden bg-surface' : cn(pageWidthClass, panelClass, 'mt-9 overflow-hidden'))} aria-label="Diagnostics">
       <div className="flex flex-wrap gap-1.5 border-b border-line bg-surface p-2.5" role="tablist" aria-label="Diagnostics tabs">
         <button id="tab-stream" type="button" className={tabClass(diagnosticsTab === 'stream')} data-diagnostics-tab="stream" aria-selected={diagnosticsTab === 'stream'} onClick={() => setDiagnosticsTab('stream')}>Stream <span id="stream-tail" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{statusText}</span></button>
         <button id="tab-devtools" type="button" className={tabClass(diagnosticsTab === 'devtools')} data-diagnostics-tab="devtools" aria-selected={diagnosticsTab === 'devtools'} onClick={() => setDiagnosticsTab('devtools')}>Devtools <span id="devtools-tally" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{devtoolsTally}</span></button>

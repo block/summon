@@ -14,13 +14,14 @@ const StrictPage = lazy(() => import('./pages/StrictPage.js').then((module) => (
 function AppRoutes() {
   const { pathname } = useLocation();
   const isLanding = pathname === '/';
+  const isGenerate = pathname === '/generate';
 
   return (
     <div className={cn(
       'min-h-screen bg-surface text-ink transition-colors duration-150',
-      isLanding ? 'flex flex-col' : 'px-10 pb-[72px] pt-12 max-[820px]:px-4 max-[820px]:pb-14 max-[820px]:pt-7',
+      isLanding ? 'flex flex-col' : isGenerate ? 'overflow-hidden' : 'px-10 pb-[72px] pt-12 max-[820px]:px-4 max-[820px]:pb-14 max-[820px]:pt-7',
     )}>
-      <ThemeToggle />
+      {isGenerate ? null : <ThemeToggle />}
       <Suspense fallback={<div className="mx-auto w-[min(100%,var(--dev-page-width))] text-ink-soft">Loading...</div>}>
         <Routes>
           <Route path="/" element={<LandingPage />} />

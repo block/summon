@@ -11,8 +11,7 @@ import {
 import type { ApprovalDecision, ApprovalRequest } from '@anarchitecture/summon';
 import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
-import { AppNav } from '../../components/chrome.js';
-import { pageWidthClass } from '../../components/ui.js';
+import { Button, compactSelectClass } from '../../components/ui.js';
 import { cn } from '../../lib/cn.js';
 import {
   createGhostShowcaseScenario,
@@ -26,7 +25,6 @@ import { ApprovalStack } from './components/ApprovalStack.js';
 import { ContractInspector } from './components/ContractInspector.js';
 import { DiagnosticsDock } from './components/DiagnosticsDock.js';
 import { GenerationStage } from './components/GenerationStage.js';
-import { ScenarioRail } from './components/ScenarioRail.js';
 import { baseComponentPack, layoutPresets } from './constants.js';
 import { displayEventKind, type ExtraDevtoolsEvent } from './devtools.js';
 import { useGenerationRuns } from './hooks/useGenerationRuns.js';
@@ -37,7 +35,6 @@ import { fallbackCatalog } from './modelProviders.js';
 import { loadSavedSurfaces } from './savedSurfaces.js';
 import {
   buildContractRows,
-  describeScenario,
   ghostRootFromSelection,
   groupScenarios,
   scenarioUsesFixedPolicy,
@@ -46,6 +43,7 @@ import {
 import type {
   ApprovalCard,
   ChildSurfaceModel,
+  DiagnosticsTab,
   FragmentMode,
   LogEntry,
   ModelOptions,
@@ -103,9 +101,11 @@ export function GeneratePage() {
   const [currentAgentPolicySummary, setCurrentAgentPolicySummary] = useState<string | null>(null);
   const [artifactRevision, setArtifactRevision] = useState(0);
   const artifactRevisionRef = useRef(0);
-  const [editTargets, setEditTargets] = useState('');
-  const [editPrompt, setEditPrompt] = useState('');
-  const [diagnosticsTab, setDiagnosticsTab] = useState<'stream' | 'devtools' | 'history' | 'safety'>('stream');
+  const editTargets = '';
+  const editPrompt = '';
+  const [diagnosticsTab, setDiagnosticsTab] = useState<DiagnosticsTab>('stream');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [approvalCards, setApprovalCards] = useState<ApprovalCard[]>([]);
   const [children, setChildren] = useState<ChildSurfaceModel[]>([]);
   const [running, setRunning] = useState(false);
@@ -469,7 +469,7 @@ export function GeneratePage() {
     updateSavedSurfaces,
   ]);
 
-  const { generate, editArtifact, replaySurface } = useGenerationRuns({
+  const { generate, replaySurface } = useGenerationRuns({
     surfaceRef,
     accRef,
     abortRef,
@@ -518,7 +518,6 @@ export function GeneratePage() {
 
   const groupedScenarios = useMemo(() => groupScenarios(showcaseScenarios), [showcaseScenarios]);
 
-  const scenarioPresentation = describeScenario(selectedScenario);
   const providerModels = selectedProvider?.models.length
     ? selectedProvider.models
     : selectedProvider
@@ -531,7 +530,6 @@ export function GeneratePage() {
       : [];
   const scriptPolicy = deriveSurfacePlanControls(surfacePlan).scriptPolicy;
   const statusText = bytes ? `${status} · ${bytes.toLocaleString()} B` : status;
-  const hasArtifact = artifactRevision > 0 || accRef.current.hasAnySection();
   const contractRows = buildContractRows({
     active: activeContract,
     selectedScenario,
@@ -557,40 +555,56 @@ export function GeneratePage() {
 
   return (
     <>
-      <AppNav active="generate" />
       <div className="sr-only">
         <h1>Generate</h1>
-        <p>Scenario-led generative UI workbench</p>
+        <p>Scenario-led generative UI generation</p>
       </div>
 
-      <div className={cn(
-        pageWidthClass,
-        'grid grid-cols-[minmax(210px,260px)_minmax(0,1fr)_minmax(260px,320px)] items-start gap-[clamp(24px,3vw,52px)] max-[1180px]:grid-cols-[minmax(220px,260px)_minmax(0,1fr)] max-[820px]:grid-cols-1 max-[820px]:gap-6',
-      )}>
-        <ScenarioRail
-          groupedScenarios={groupedScenarios}
-          selectedScenario={selectedScenario}
-          showcaseScenarios={showcaseScenarios}
-          onApplyScenario={applyScenario}
-        />
+      <div className="relative h-screen overflow-hidden bg-surface px-6 py-5 max-[820px]:px-4 max-[820px]:py-4">
+        <header className="relative z-40 flex min-w-0 items-center justify-between gap-3">
+          <a
+            className="shrink-0 text-[15px] font-bold text-ink no-underline transition-opacity hover:opacity-60"
+            href="/"
+          >
+            summon
+          </a>
+          <Button
+            type="button"
+            variant={advancedOpen ? 'primary' : 'ghost'}
+            size="sm"
+            className="rounded-full"
+            aria-expanded={advancedOpen}
+            onClick={() => setAdvancedOpen((open) => !open)}
+          >
+            Options
+          </Button>
+        </header>
 
         <GenerationStage
-          selectedScenario={selectedScenario}
-          scenarioPresentation={scenarioPresentation}
           prompt={prompt}
+          scenarioPicker={(
+            <>
+              <label className="sr-only" htmlFor="scenario">Sample</label>
+              <select
+                id="scenario"
+                className={cn(compactSelectClass, '!h-11 w-full rounded-full !bg-surface-muted px-4 text-[13px] text-ink')}
+                title="Sample"
+                value={selectedScenario.id}
+                onChange={(event) => applyScenario(event.target.value)}
+              >
+                {groupedScenarios.map((group) => (
+                  <optgroup key={group.category} label={group.category}>
+                    {group.scenarios.map((scenario) => (
+                      <option key={scenario.id} value={scenario.id}>{scenario.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </>
+          )}
           setPrompt={setPrompt}
           running={running}
           onGenerate={generate}
-          hasArtifact={hasArtifact}
-          status={status}
-          currentEffectiveSurfacePlan={currentEffectiveSurfacePlan}
-          surfacePlan={surfacePlan}
-          setDiagnosticsTab={setDiagnosticsTab}
-          editTargets={editTargets}
-          setEditTargets={setEditTargets}
-          editPrompt={editPrompt}
-          setEditPrompt={setEditPrompt}
-          onEditArtifact={editArtifact}
           statusText={statusText}
           surfaceRef={surfaceRef}
           surfaceTokensSource={surfaceTokensSource}
@@ -606,72 +620,127 @@ export function GeneratePage() {
           childSurfaces={children}
           onCloseChild={(id) => setChildren((items) => items.filter((item) => item.id !== id))}
         />
-
-        <ContractInspector
-          contractRows={contractRows}
-          currentSurfaceContractView={currentSurfaceContractView}
-          currentEffectiveSurfacePlan={currentEffectiveSurfacePlan}
-          modelProviderId={modelProviderId}
-          setModelProviderId={setModelProviderId}
-          modelProviders={modelProviders}
-          selectedProvider={selectedProvider}
-          providerModels={providerModels}
-          utilityModels={utilityModels}
-          generationModel={generationModel}
-          setGenerationModel={setGenerationModel}
-          customModel={customModel}
-          setCustomModel={setCustomModel}
-          utilityModel={utilityModel}
-          setUtilityModel={setUtilityModel}
-          maxOutputTokens={maxOutputTokens}
-          setMaxOutputTokens={setMaxOutputTokens}
-          repairMaxOutputTokens={repairMaxOutputTokens}
-          setRepairMaxOutputTokens={setRepairMaxOutputTokens}
-          anthropicThinking={anthropicThinking}
-          setAnthropicThinking={setAnthropicThinking}
-          modelEffort={modelEffort}
-          setModelEffort={setModelEffort}
-          directions={directions}
-          ghostRoots={ghostRoots}
-          directionId={directionId}
-          setDirectionId={setDirectionId}
-          setActiveTokensSourceOverride={setActiveTokensSourceOverride}
-          setShowWelcome={setShowWelcome}
-          layoutId={layoutId}
-          setLayoutId={setLayoutId}
-          fragmentMode={fragmentMode}
-          setFragmentMode={setFragmentMode}
-          scriptPolicy={scriptPolicy}
-          tokenPreset={tokenPreset}
-          setTokenPreset={setTokenPreset}
-          mode={mode}
-          setMode={setMode}
-          agentBrokerEnabled={agentBrokerEnabled}
-          setAgentBrokerEnabled={setAgentBrokerEnabled}
-          repairEnabled={repairEnabled}
-          setRepairEnabled={setRepairEnabled}
-          customContractEnabled={customContractEnabled}
-          setCustomContractEnabled={setCustomContractEnabled}
-          selectedScenario={selectedScenario}
-          ghostTarget={ghostTarget}
-          setGhostTarget={setGhostTarget}
-          ghostBaseDirectionId={ghostBaseDirectionId}
-          setGhostBaseDirectionId={setGhostBaseDirectionId}
-          surfacePlan={surfacePlan}
-          setSurfacePlan={setSurfacePlan}
-        />
       </div>
 
-      <DiagnosticsDock
-        diagnosticsTab={diagnosticsTab}
-        setDiagnosticsTab={setDiagnosticsTab}
-        statusText={statusText}
-        devtoolsTally={devtoolsTally}
-        logs={logs}
-        devEvents={devEvents}
-        savedSurfaces={savedSurfaces}
-        replaySurface={replaySurface}
-      />
+      <div
+        className={cn(
+          'fixed right-6 top-[76px] z-50 max-h-[calc(100vh-96px)] w-[min(440px,calc(100vw-48px))] overflow-auto rounded-card border border-line bg-surface-raised shadow-elevated max-[820px]:left-4 max-[820px]:right-4 max-[820px]:top-[68px] max-[820px]:w-auto',
+          !advancedOpen && 'hidden',
+        )}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-line bg-surface-muted px-3.5 py-3">
+          <div>
+            <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">Options</div>
+            <div className="mt-0.5 font-mono text-[11px] text-ink-muted">{modelProviderId || 'server default'} · {mode}</div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-ink-soft transition-colors hover:bg-surface hover:text-ink"
+              onClick={() => {
+                setAdvancedOpen(false);
+                setDiagnosticsOpen(true);
+              }}
+            >
+              Diagnostics
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-ink-soft transition-colors hover:bg-surface hover:text-ink"
+              onClick={() => setAdvancedOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+        <div className="p-4 max-[820px]:p-3">
+          <ContractInspector
+            contractRows={contractRows}
+            currentSurfaceContractView={currentSurfaceContractView}
+            currentEffectiveSurfacePlan={currentEffectiveSurfacePlan}
+            modelProviderId={modelProviderId}
+            setModelProviderId={setModelProviderId}
+            modelProviders={modelProviders}
+            selectedProvider={selectedProvider}
+            providerModels={providerModels}
+            utilityModels={utilityModels}
+            generationModel={generationModel}
+            setGenerationModel={setGenerationModel}
+            customModel={customModel}
+            setCustomModel={setCustomModel}
+            utilityModel={utilityModel}
+            setUtilityModel={setUtilityModel}
+            maxOutputTokens={maxOutputTokens}
+            setMaxOutputTokens={setMaxOutputTokens}
+            repairMaxOutputTokens={repairMaxOutputTokens}
+            setRepairMaxOutputTokens={setRepairMaxOutputTokens}
+            anthropicThinking={anthropicThinking}
+            setAnthropicThinking={setAnthropicThinking}
+            modelEffort={modelEffort}
+            setModelEffort={setModelEffort}
+            directions={directions}
+            ghostRoots={ghostRoots}
+            directionId={directionId}
+            setDirectionId={setDirectionId}
+            setActiveTokensSourceOverride={setActiveTokensSourceOverride}
+            setShowWelcome={setShowWelcome}
+            layoutId={layoutId}
+            setLayoutId={setLayoutId}
+            fragmentMode={fragmentMode}
+            setFragmentMode={setFragmentMode}
+            scriptPolicy={scriptPolicy}
+            tokenPreset={tokenPreset}
+            setTokenPreset={setTokenPreset}
+            mode={mode}
+            setMode={setMode}
+            agentBrokerEnabled={agentBrokerEnabled}
+            setAgentBrokerEnabled={setAgentBrokerEnabled}
+            repairEnabled={repairEnabled}
+            setRepairEnabled={setRepairEnabled}
+            customContractEnabled={customContractEnabled}
+            setCustomContractEnabled={setCustomContractEnabled}
+            selectedScenario={selectedScenario}
+            ghostTarget={ghostTarget}
+            setGhostTarget={setGhostTarget}
+            ghostBaseDirectionId={ghostBaseDirectionId}
+            setGhostBaseDirectionId={setGhostBaseDirectionId}
+            surfacePlan={surfacePlan}
+            setSurfacePlan={setSurfacePlan}
+          />
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          'fixed right-6 top-[76px] z-50 max-h-[calc(100vh-96px)] w-[min(720px,calc(100vw-48px))] overflow-hidden rounded-card border border-line bg-surface-raised shadow-elevated max-[820px]:left-4 max-[820px]:right-4 max-[820px]:top-[68px] max-[820px]:w-auto',
+          !diagnosticsOpen && 'hidden',
+        )}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-line bg-surface-muted px-3.5 py-3">
+          <div>
+            <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">Diagnostics</div>
+            <div className="mt-0.5 font-mono text-[11px] text-ink-muted">{statusText}</div>
+          </div>
+          <button
+            type="button"
+            className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-ink-soft transition-colors hover:bg-surface hover:text-ink"
+            onClick={() => setDiagnosticsOpen(false)}
+          >
+            Close
+          </button>
+        </div>
+        <DiagnosticsDock
+          diagnosticsTab={diagnosticsTab}
+          setDiagnosticsTab={setDiagnosticsTab}
+          statusText={statusText}
+          devtoolsTally={devtoolsTally}
+          logs={logs}
+          devEvents={devEvents}
+          savedSurfaces={savedSurfaces}
+          replaySurface={replaySurface}
+          embedded
+        />
+      </div>
 
       <ApprovalStack
         approvalCards={approvalCards}

@@ -119,7 +119,7 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
-  examples/surface-gallery:
+  apps/surface-gallery:
     dependencies:
       '@anarchitecture/summon':
         specifier: workspace:*

@@ -1,5 +1,5 @@
 {
-  "name": "@summon-example/surface-gallery",
+  "name": "@summon-internal/surface-gallery",
   "version": "0.0.1",
   "private": true,
   "type": "module",

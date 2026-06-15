@@ -23,7 +23,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm --filter @summon-example/surface-gallery dev',
+    command: 'pnpm --filter @summon-internal/surface-gallery dev',
     url: galleryBaseUrl,
     env: {
       ...process.env,

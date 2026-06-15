@@ -5,7 +5,7 @@ import {
   normalizeSurfacePolicy,
 } from '@anarchitecture/summon';
 import { deriveSurfacePlanControls } from '@anarchitecture/summon/engine';
-import { GALLERY_PRESETS } from '../../../examples/surface-gallery/src/presets.js';
+import { GALLERY_PRESETS } from '../../surface-gallery/src/presets.js';
 import { baseDemoComponentPack } from './components.js';
 import {
   createScopedDemoRegistry,

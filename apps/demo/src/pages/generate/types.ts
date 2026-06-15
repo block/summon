@@ -70,6 +70,8 @@ export interface ModelSelectionPayload {
 
 export type FragmentMode = 'section' | 'block-v0' | 'html-node-v0';
 
+export type DiagnosticsTab = 'stream' | 'devtools' | 'history' | 'safety';
+
 export interface StreamOptions {
   prompt: string;
   active: ActiveContract;
