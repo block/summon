@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  existsSync,
   readdirSync,
   readFileSync,
   statSync,
@@ -50,16 +51,23 @@ test('public source has no bundled product-design references outside Ghost', () 
 
 function publicSourceFiles(): string[] {
   const roots = [
-    'README.md',
-    'docs',
-    'scripts',
-    'apps/demo/public',
-    'apps/demo/src',
-    'apps/server/src',
-    'apps/server/directions',
-    'packages',
+    { path: 'README.md' },
+    { path: 'docs' },
+    { path: 'scripts' },
+    { path: 'apps/demo/public', optional: true },
+    { path: 'apps/demo/src' },
+    { path: 'apps/server/src' },
+    { path: 'apps/server/directions' },
+    { path: 'packages' },
   ];
-  return roots.flatMap((root) => collectFiles(join(repoRoot, root)));
+  return roots.flatMap((root) => {
+    const absolutePath = join(repoRoot, root.path);
+    if (!existsSync(absolutePath)) {
+      if (root.optional) return [];
+      throw new Error(`Expected public source root to exist: ${root.path}`);
+    }
+    return collectFiles(absolutePath);
+  });
 }
 
 function collectFiles(path: string): string[] {
