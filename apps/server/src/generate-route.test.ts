@@ -176,9 +176,17 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(response.status, 200, body);
 
   assert.equal(anthropicRequests.length, 1);
-  const request = anthropicRequests[0] as { model?: string; system?: Array<{ text?: string }>; stream?: boolean };
+  const request = anthropicRequests[0] as {
+    model?: string;
+    system?: Array<{ text?: string; cache_control?: unknown }>;
+    stream?: boolean;
+  };
   assert.equal(request.stream, true);
   assert.equal(request.model, 'claude-opus-4-8');
+  assert.ok(
+    (request.system ?? []).filter((block) => block.cache_control !== undefined).length <= 4,
+    'Anthropic accepts at most four system blocks with cache_control',
+  );
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(systemText, /Search host-owned dinner data/);
   assert.match(systemText, /host-resource/);

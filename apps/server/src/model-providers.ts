@@ -512,7 +512,7 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         ...(selection.options.effort
           ? { output_config: { effort: selection.options.effort } }
           : {}),
-        system: request.promptBlocks.map(anthropicSystemBlock),
+        system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: request.prompt }],
       });
 
@@ -541,14 +541,10 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       const repairMessage = await ensureClient().messages.create({
         model: selection.generationModel,
         max_tokens: selection.options.repairMaxOutputTokens,
-        system: [
-          ...request.promptBlocks.map(anthropicSystemBlock),
-          {
-            type: 'text',
-            text: repairModeSystemText(),
-            cache_control: { type: 'ephemeral' },
-          },
-        ],
+        system: anthropicSystemBlocks([
+          ...request.promptBlocks,
+          { id: 'repair-mode', text: repairModeSystemText(), cache: 'ephemeral' },
+        ]),
         messages: [{ role: 'user', content: request.prompt }],
       });
       return extractAnthropicText(repairMessage.content);
@@ -812,8 +808,19 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
   };
 }
 
-function anthropicSystemBlock(block: ContractPromptBlock): Anthropic.TextBlockParam {
-  if (block.cache === 'ephemeral') {
+const ANTHROPIC_MAX_CACHE_CONTROL_BLOCKS = 4;
+
+function anthropicSystemBlocks(blocks: ContractPromptBlock[]): Anthropic.TextBlockParam[] {
+  let cacheBlocksRemaining = ANTHROPIC_MAX_CACHE_CONTROL_BLOCKS;
+  return blocks.map((block) => {
+    const shouldCache = block.cache === 'ephemeral' && cacheBlocksRemaining > 0;
+    if (shouldCache) cacheBlocksRemaining -= 1;
+    return anthropicSystemBlock(block, shouldCache);
+  });
+}
+
+function anthropicSystemBlock(block: ContractPromptBlock, cache: boolean): Anthropic.TextBlockParam {
+  if (cache) {
     return {
       type: 'text',
       text: block.text,
