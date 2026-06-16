@@ -1,4 +1,6 @@
 import type {
+  ArrowNetworkPolicy,
+  ArrowSurfaceArtifact,
   CompiledArtifactHtml,
   CompiledHtmlNodePatch,
   ValidationCapability,
@@ -6,6 +8,8 @@ import type {
 } from '@summon-internal/engine';
 
 export type {
+  ArrowNetworkPolicy,
+  ArrowSurfaceArtifact,
   CompiledArtifactHtml,
   CompiledHtmlNodePatch,
   HtmlNodePatch,
@@ -27,7 +31,8 @@ export interface NodePatchMessage {
 export interface RenderMessage {
   type: 'SUMMON_RENDER';
   sandbox_id: string;
-  html: CompiledArtifactHtml;
+  html?: CompiledArtifactHtml;
+  artifact?: ArrowSurfaceArtifact;
 }
 
 /**
@@ -52,6 +57,16 @@ export interface IntentMessage {
   sandbox_id: string;
   intent: string;
   args: Record<string, unknown>;
+  request_id?: string;
+}
+
+export interface IntentResultMessage {
+  type: 'SUMMON_INTENT_RESULT';
+  sandbox_id: string;
+  request_id: string;
+  ok: boolean;
+  state: Record<string, unknown>;
+  error?: string;
 }
 
 export interface ComponentIslandBounds {
@@ -104,6 +119,8 @@ export interface SandboxHandle {
   pushState(state: Record<string, unknown>): void;
   /** Replace the compiled HTML inside #summon-root. */
   render(html: CompiledArtifactHtml): void;
+  /** Replace the Arrow source artifact inside #summon-root. */
+  renderArtifact(artifact: ArrowSurfaceArtifact): void;
   /** Patch one validated data-summon-node subtree in place. Experimental. */
   patchNode(patch: CompiledHtmlNodePatch): void;
   /**
@@ -121,6 +138,7 @@ export interface SandboxHandle {
 
 /** Artifact — generated HTML plus advisory declarations used for diagnostics and replay. */
 export interface Artifact {
+  runtime?: 'html' | 'arrow';
   /** Intents the artifact declares it may emit. Execution is governed by host grants. */
   intents: string[];
   /** Advisory capabilities the artifact claims to use. Execution is still governed by grants. */
@@ -128,7 +146,9 @@ export interface Artifact {
   /** Advisory components the artifact claims to use. Host registry remains the rendering grant. */
   components?: ValidationComponent[];
   /** Compiled canonical HTML body to render inside the sandbox. */
-  html: CompiledArtifactHtml;
+  html?: CompiledArtifactHtml;
+  /** Arrow source artifact to render inside the sandbox. */
+  arrow?: ArrowSurfaceArtifact;
   /** Optional initial state pushed after SANDBOX_READY. */
   initialState?: Record<string, unknown>;
 }

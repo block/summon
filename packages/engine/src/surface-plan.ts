@@ -9,11 +9,12 @@ export type SurfacePurpose =
   | 'review'
   | 'export';
 
-export type SurfaceRuntime = 'static' | 'declarative' | 'worker';
+export type SurfaceRuntime = 'arrow' | 'static' | 'declarative' | 'worker';
 export type SurfaceData = 'embedded' | 'host-resource' | 'worker';
 export type SurfaceAuthority = 'none' | 'read' | 'host-action' | 'approval-gated';
 export type SurfacePersistence = 'ephemeral' | 'replayable';
 export type SurfacePlanMode = 'static' | 'interactive';
+export type SurfaceNetwork = 'none' | 'restricted-fetch';
 
 export const SURFACE_PURPOSE_VALUES = [
   'inform',
@@ -26,10 +27,16 @@ export const SURFACE_PURPOSE_VALUES = [
 ] as const satisfies readonly SurfacePurpose[];
 
 export const SURFACE_RUNTIME_VALUES = [
+  'arrow',
   'static',
   'declarative',
   'worker',
 ] as const satisfies readonly SurfaceRuntime[];
+
+export const SURFACE_NETWORK_VALUES = [
+  'none',
+  'restricted-fetch',
+] as const satisfies readonly SurfaceNetwork[];
 
 export const SURFACE_DATA_VALUES = [
   'embedded',
@@ -55,6 +62,7 @@ export interface SurfacePlan {
   data: SurfaceData;
   authority: SurfaceAuthority;
   persistence: SurfacePersistence;
+  network?: SurfaceNetwork;
 }
 
 export interface CapabilitySurface {
@@ -73,6 +81,7 @@ export interface SurfaceCeiling {
   data?: SurfaceData[];
   authorities?: SurfaceAuthority[];
   persistences?: SurfacePersistence[];
+  networks?: SurfaceNetwork[];
 }
 
 export interface SurfacePlanInferenceInput {
@@ -90,18 +99,20 @@ export interface SurfacePlanControls {
 
 export const DEFAULT_SURFACE_PLAN: SurfacePlan = {
   purpose: 'inform',
-  runtime: 'static',
+  runtime: 'arrow',
   data: 'embedded',
   authority: 'none',
   persistence: 'replayable',
+  network: 'none',
 };
 
 export const DEFAULT_SURFACE_CEILING: Required<SurfaceCeiling> = {
   purposes: [...SURFACE_PURPOSE_VALUES],
-  runtimes: ['static', 'declarative'],
+  runtimes: ['arrow'],
   data: ['embedded', 'host-resource'],
   authorities: ['none', 'read', 'host-action'],
   persistences: ['ephemeral', 'replayable'],
+  networks: ['none'],
 };
 
 const PURPOSES = new Set<SurfacePurpose>(SURFACE_PURPOSE_VALUES);
@@ -109,6 +120,7 @@ const RUNTIMES = new Set<SurfaceRuntime>(SURFACE_RUNTIME_VALUES);
 const DATA = new Set<SurfaceData>(SURFACE_DATA_VALUES);
 const AUTHORITIES = new Set<SurfaceAuthority>(SURFACE_AUTHORITY_VALUES);
 const PERSISTENCES = new Set<SurfacePersistence>(SURFACE_PERSISTENCE_VALUES);
+const NETWORKS = new Set<SurfaceNetwork>(SURFACE_NETWORK_VALUES);
 
 export function normalizeSurfacePlan(raw: unknown): SurfacePlan | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -118,8 +130,9 @@ export function normalizeSurfacePlan(raw: unknown): SurfacePlan | null {
   const data = enumValue(input.data, DATA);
   const authority = enumValue(input.authority, AUTHORITIES);
   const persistence = enumValue(input.persistence, PERSISTENCES);
+  const network = enumValue(input.network, NETWORKS) ?? 'none';
   if (!purpose || !runtime || !data || !authority || !persistence) return null;
-  return { purpose, runtime, data, authority, persistence };
+  return { purpose, runtime, data, authority, persistence, network };
 }
 
 export function normalizeSurfaceCeiling(raw: unknown): SurfaceCeiling | null {
@@ -131,6 +144,7 @@ export function normalizeSurfaceCeiling(raw: unknown): SurfaceCeiling | null {
     data: enumList(input.data, DATA),
     authorities: enumList(input.authorities, AUTHORITIES),
     persistences: enumList(input.persistences, PERSISTENCES),
+    networks: enumList(input.networks, NETWORKS),
   };
 }
 
@@ -140,7 +154,8 @@ export function surfacePlanWithinCeiling(plan: SurfacePlan, ceiling: SurfaceCeil
     allowed(plan.runtime, ceiling.runtimes, DEFAULT_SURFACE_CEILING.runtimes) &&
     allowed(plan.data, ceiling.data, DEFAULT_SURFACE_CEILING.data) &&
     allowed(plan.authority, ceiling.authorities, DEFAULT_SURFACE_CEILING.authorities) &&
-    allowed(plan.persistence, ceiling.persistences, DEFAULT_SURFACE_CEILING.persistences)
+    allowed(plan.persistence, ceiling.persistences, DEFAULT_SURFACE_CEILING.persistences) &&
+    allowed(plan.network ?? 'none', ceiling.networks, DEFAULT_SURFACE_CEILING.networks)
   );
 }
 
@@ -155,6 +170,7 @@ export function constrainSurfacePlan(plan: SurfacePlan, ceiling: SurfaceCeiling)
       ceiling.persistences,
       DEFAULT_SURFACE_CEILING.persistences,
     ),
+    network: constrain(plan.network ?? 'none', ceiling.networks, DEFAULT_SURFACE_CEILING.networks),
   };
 }
 
@@ -162,10 +178,11 @@ export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePla
   if (input.mode === 'static') {
     return {
       purpose: inferPurpose(input.prompt),
-      runtime: 'static',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'none',
       persistence: input.persistence ?? 'replayable',
+      network: 'none',
     };
   }
 
@@ -181,10 +198,11 @@ export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePla
 
   return {
     purpose: inferPurpose(input.prompt),
-    runtime: hasWorker ? 'worker' : 'declarative',
+    runtime: 'arrow',
     data: hasWorker ? 'worker' : hasResource ? 'host-resource' : 'embedded',
     authority: hasApproval ? 'approval-gated' : hasAction ? 'host-action' : hasResource ? 'read' : 'none',
     persistence: input.persistence ?? 'replayable',
+    network: 'none',
   };
 }
 
@@ -218,13 +236,15 @@ The host has selected this minimum safe surface plan:
 - Data: \`${plan.data}\`
 - Authority: \`${plan.authority}\`
 - Persistence: \`${plan.persistence}\`
+- Network: \`${plan.network ?? 'none'}\`
 
 This plan is a host decision, not part of your generated artifact. Do not emit a \`/surface-plan\` meta line and do not imply capabilities outside this plan.
 
 Runtime rules:
 
-- \`static\`: render read-only HTML. Do not emit scripts, intents, resources, forms, or controls that require host action.
-- \`declarative\`: use only \`data-summon-*\` bindings and host-granted capabilities.
+- \`arrow\`: emit one \`op: "artifact"\` line at \`/artifact\` containing an Arrow sandbox source tree with one \`main.ts\` or \`main.js\`.
+- \`static\`: legacy read-only HTML runtime; avoid for new generated surfaces.
+- \`declarative\`: legacy data-summon runtime; avoid for new generated surfaces.
 - \`worker\`: use only capabilities the host describes as worker-backed; the worker remains host-owned.
 
 Authority rules:

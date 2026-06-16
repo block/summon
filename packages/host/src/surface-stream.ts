@@ -6,6 +6,8 @@ import {
   type CompiledArtifactHtml,
   type CompiledHtmlNodePatch,
   type ContractIssue,
+  type ArrowSurfaceArtifact,
+  type ArtifactLine,
   type MetaLine,
   type ProtocolLine,
   type SectionApplyResult,
@@ -57,6 +59,11 @@ export interface SurfaceStreamOptions {
   ) => void | Promise<void>;
   onMeta?: (
     line: MetaLine,
+    context: SurfaceStreamContext,
+  ) => void | Promise<void>;
+  onArtifact?: (
+    artifact: ArrowSurfaceArtifact,
+    line: ArtifactLine,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
   onParseError?: (
@@ -164,7 +171,7 @@ export async function consumeSurfaceStream(
 
     graph.applyLine(acceptedLine);
     let applyResult: SectionApplyResult | undefined;
-    if (acceptedLine.op !== 'meta') {
+    if (acceptedLine.op !== 'meta' && acceptedLine.op !== 'artifact') {
       applyResult = accumulator.applyDetailed(acceptedLine);
       acceptedStructuralLines += 1;
     }
@@ -183,6 +190,13 @@ export async function consumeSurfaceStream(
     await options.onLine?.(acceptedLine, ctx);
     if (acceptedLine.op === 'meta') {
       await options.onMeta?.(acceptedLine, ctx);
+      return;
+    }
+    if (acceptedLine.op === 'artifact') {
+      await emitGraph(ctx);
+      if (isArrowSurfaceArtifactValue(acceptedLine.value)) {
+        await options.onArtifact?.(acceptedLine.value, acceptedLine, ctx);
+      }
       return;
     }
 
@@ -253,6 +267,18 @@ function compileAcceptedLine(
   }
   if (blocked) return null;
   return { ...line, html: result.html };
+}
+
+function isArrowSurfaceArtifactValue(value: unknown): value is ArrowSurfaceArtifact {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    (value as { runtime?: unknown }).runtime === 'arrow' &&
+    typeof (value as { source?: unknown }).source === 'object' &&
+    (value as { source?: unknown }).source !== null &&
+    !Array.isArray((value as { source?: unknown }).source)
+  );
 }
 
 async function* chunksFromSource(

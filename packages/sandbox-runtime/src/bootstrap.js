@@ -8,6 +8,9 @@
   const PARENT = window.parent;
   const SANDBOX_ID = window.__SUMMON_SANDBOX_ID__;
   const RESOURCE_MAP = normalizeResources(window.__SUMMON_RESOURCES__);
+  const NETWORK_POLICY = window.__SUMMON_NETWORK_POLICY__ === 'restricted-fetch'
+    ? 'restricted-fetch'
+    : 'none';
   if (!SANDBOX_ID || typeof SANDBOX_ID !== 'string') {
     // No ID means host didn't spawn this correctly. Refuse to install SDK.
     return;
@@ -17,6 +20,7 @@
   try {
     delete window.__SUMMON_SANDBOX_ID__;
     delete window.__SUMMON_RESOURCES__;
+    delete window.__SUMMON_NETWORK_POLICY__;
   } catch (_) { /* sealed elsewhere */ }
 
   function normalizeResources(raw) {
@@ -103,6 +107,8 @@
   let componentResizeObserver = null;
   const componentResizeObserved = new Set();
   const SAFE_ATTR_BINDINGS = Object.freeze(['src', 'alt', 'title', 'aria-label', 'value', 'placeholder', 'disabled']);
+  const pendingIntentResults = new Map();
+  let arrowTeardown = null;
 
   function notify() {
     const snapshot = currentState;
@@ -119,6 +125,96 @@
       intent,
       args: args == null ? {} : args,
     }, '*');
+  }
+
+  function emitFatal(reason) {
+    try {
+      PARENT.postMessage({
+        type: 'SUMMON_FATAL',
+        sandbox_id: SANDBOX_ID,
+        reason,
+      }, '*');
+    } catch (_) { /* parent gone */ }
+  }
+
+  function invokeIntent(intent, args) {
+    if (typeof intent !== 'string' || !intent) {
+      return Promise.resolve({ ok: false, state: currentState, error: 'intent not a non-empty string' });
+    }
+    const requestId = 'arrow-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+    return new Promise((resolve) => {
+      const timeout = window.setTimeout(function () {
+        pendingIntentResults.delete(requestId);
+        resolve({ ok: false, state: currentState, error: 'intent timed out' });
+      }, 15000);
+      pendingIntentResults.set(requestId, function (result) {
+        window.clearTimeout(timeout);
+        resolve(result);
+      });
+      PARENT.postMessage({
+        type: 'SUMMON_INTENT',
+        sandbox_id: SANDBOX_ID,
+        request_id: requestId,
+        intent,
+        args: args == null || typeof args !== 'object' ? {} : args,
+      }, '*');
+    });
+  }
+
+  function renderArrowArtifact(artifact) {
+    const root = document.getElementById('summon-root');
+    if (!root) return;
+    if (!artifact || artifact.runtime !== 'arrow' || !artifact.source || typeof artifact.source !== 'object') {
+      emitFatal('invalid Arrow artifact');
+      return;
+    }
+    if (artifact.network === 'restricted-fetch' && NETWORK_POLICY !== 'restricted-fetch') {
+      emitFatal('Arrow artifact requested restricted fetch without host network grant');
+      return;
+    }
+    if (typeof arrowTeardown === 'function') {
+      try { arrowTeardown(); } catch (_) { /* best effort */ }
+      arrowTeardown = null;
+    }
+    root.replaceChildren();
+    const runtime = window.__SUMMON_ARROW_SANDBOX__;
+    const sandbox = runtime && runtime.sandbox;
+    if (typeof sandbox !== 'function') {
+      emitFatal('Arrow runtime missing — expected window.__SUMMON_ARROW_SANDBOX__.sandbox');
+      return;
+    }
+    try {
+      const view = sandbox(
+        {
+          source: artifact.source,
+          shadowDOM: false,
+          onError: function (error) {
+            emitFatal('Arrow runtime error: ' + String(error && error.message ? error.message : error));
+          },
+        },
+        {
+          output: function (payload) {
+            if (payload && typeof payload === 'object' && payload.type === 'intent') {
+              void invokeIntent(payload.intent, payload.args);
+            }
+          },
+        },
+        {
+          'host-bridge:summon': {
+            getState: function () {
+              return currentState;
+            },
+            invoke: function (intent, args) {
+              return invokeIntent(intent, args);
+            },
+          },
+        },
+      );
+      const maybeTeardown = view(root);
+      if (typeof maybeTeardown === 'function') arrowTeardown = maybeTeardown;
+    } catch (err) {
+      emitFatal('Arrow runtime failed to mount: ' + String(err && err.message ? err.message : err));
+    }
   }
 
   function onState(cb) {
@@ -1127,10 +1223,28 @@
     }
 
     if (data.type === 'SUMMON_RENDER') {
+      if (data.artifact) {
+        renderArrowArtifact(data.artifact);
+        return;
+      }
       // renderRoot decides whether to wipe subscribers: a full innerHTML
       // replace clears them, but a section-by-section diff leaves alive
       // sections (and their onState subscribers) in place.
       renderRoot(data.html);
+      return;
+    }
+
+    if (data.type === 'SUMMON_INTENT_RESULT') {
+      var requestId = data.request_id;
+      if (typeof requestId !== 'string') return;
+      var resolve = pendingIntentResults.get(requestId);
+      if (!resolve) return;
+      pendingIntentResults.delete(requestId);
+      resolve({
+        ok: data.ok === true,
+        state: data.state && typeof data.state === 'object' ? data.state : currentState,
+        error: typeof data.error === 'string' ? data.error : undefined,
+      });
       return;
     }
 

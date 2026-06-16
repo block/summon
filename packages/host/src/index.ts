@@ -6,6 +6,7 @@ export type {
   IntentEntry,
   IntentHandler,
   PolicyEngineOptions,
+  PolicyDispatchResult,
   TypedIntentEntry,
 } from './policy-engine.js';
 export {
@@ -97,6 +98,7 @@ export type {
   SandboxHandle,
   StateMessage,
   IntentMessage,
+  IntentResultMessage,
   ReadyMessage,
   FatalMessage,
   SandboxInboundMessage,

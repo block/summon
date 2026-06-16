@@ -30,7 +30,13 @@ export interface MetaLine {
   value?: unknown;
 }
 
-export type ProtocolLine = AddLine | SetLine | MetaLine;
+export interface ArtifactLine {
+  op: 'artifact';
+  path: '/artifact';
+  value?: unknown;
+}
+
+export type ProtocolLine = AddLine | SetLine | MetaLine | ArtifactLine;
 
 export const SUMMON_PROTOCOL_VERSION = 1;
 
@@ -58,7 +64,8 @@ export type ProtocolParseErrorCode =
   | 'invalid-shape'
   | 'invalid-op'
   | 'invalid-add-html'
-  | 'invalid-add-parent';
+  | 'invalid-add-parent'
+  | 'invalid-artifact-path';
 
 export class ProtocolParseError extends Error {
   readonly code: ProtocolParseErrorCode;
@@ -118,6 +125,12 @@ export function parseProtocolLineStrict(
     }
     return p as unknown as AddLine;
   }
+  if (p.op === 'artifact') {
+    if (p.path !== '/artifact') {
+      throw new ProtocolParseError('invalid-artifact-path', 'Artifact line path must be /artifact');
+    }
+    return p as unknown as ArtifactLine;
+  }
   if (p.op === 'set') return p as unknown as SetLine;
   if (p.op === 'meta') return p as unknown as MetaLine;
   throw new ProtocolParseError('invalid-op', `Unsupported protocol op "${p.op}"`);
@@ -141,6 +154,7 @@ export function isProtocolLine(value: unknown): value is ProtocolLine {
       (p.parent === undefined || typeof p.parent === 'string')
     );
   }
+  if (p.op === 'artifact') return p.path === '/artifact';
   return p.op === 'set' || p.op === 'meta';
 }
 

@@ -4,6 +4,7 @@ import {
   sectionIdFromSectionPath,
   type ProtocolLine,
 } from '../protocol.js';
+import { validateArrowSurfaceArtifact } from '../arrow-artifact.js';
 import { normalizeValidationLimits } from '../validation-limits.js';
 import { protocolBlock } from './issues.js';
 import { validateHtmlFragment } from './html.js';
@@ -36,6 +37,18 @@ export function validateProtocolLine(
         line.path,
       ));
     }
+    return issues;
+  }
+
+  if (line.op === 'artifact') {
+    if (!line.value || typeof line.value !== 'object') {
+      issues.push(protocolBlock('invalid-arrow-artifact', 'Artifact line value must be an Arrow artifact object', line.path));
+      return issues;
+    }
+    issues.push(...validateArrowSurfaceArtifact(line.value as never, {
+      maxSourceBytes: limits.maxProtocolLineBytes,
+      network: context.surfacePlan?.network ?? 'none',
+    }));
     return issues;
   }
 

@@ -18,6 +18,7 @@ export type {
   ComponentsMessage,
   FatalMessage,
   IntentMessage,
+  IntentResultMessage,
   ReadyMessage,
   SandboxHandle,
   SandboxInboundMessage,

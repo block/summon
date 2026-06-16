@@ -218,13 +218,14 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
     persistence: 'replayable',
   });
   assert.equal(lines[1]?.op, 'meta');
-  assert.deepEqual((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, {
-    purpose: 'compare',
-    runtime: 'declarative',
-    data: 'embedded',
-    authority: 'host-action',
-    persistence: 'replayable',
-  });
+    assert.deepEqual((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, {
+      purpose: 'compare',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+      network: 'none',
+    });
   assert.equal(lines[2]?.op, 'meta');
   const surfaceContract = (lines[2] as Extract<ProtocolLine, { op: 'meta' }>).value as {
     tools?: Array<{ name: string }>;
@@ -621,9 +622,10 @@ test('resolveSurfaceGenerationPlan preserves server surface resolution behavior'
   assert.equal(resolved.source, 'default');
   assert.deepEqual(resolved.surfacePlan, {
     purpose: 'inform',
-    runtime: 'static',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   });
 });

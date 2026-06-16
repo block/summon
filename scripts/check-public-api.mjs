@@ -23,8 +23,11 @@ const expectedRootExports = [
   'defineIntent',
   'defineWorkerAction',
   'defineWorkerResource',
+  'isArrowSurfaceArtifact',
+  'normalizeArrowSurfaceArtifact',
   'normalizeSurfacePolicy',
   'surfaceContractViewFromCompiledPolicy',
+  'validateArrowSurfaceArtifact',
 ].sort();
 
 const expectedServerExports = [
@@ -119,8 +122,12 @@ assertHas('@anarchitecture/summon/envelope', await importDist('summon', 'envelop
   'createSurfaceEnvelope',
 ]);
 const assets = await importDist('summon', 'assets.js');
-if (typeof assets.bootstrapSource !== 'string' || typeof assets.tokensSource !== 'string') {
-  throw new Error('@anarchitecture/summon/assets must export bootstrapSource and tokensSource strings');
+if (
+  typeof assets.arrowRuntimeSource !== 'string' ||
+  typeof assets.bootstrapSource !== 'string' ||
+  typeof assets.tokensSource !== 'string'
+) {
+  throw new Error('@anarchitecture/summon/assets must export arrowRuntimeSource, bootstrapSource, and tokensSource strings');
 }
 assertHas('@anarchitecture/summon/devtools', await importDist('summon', 'devtools.js'), [
   'createEventStore',

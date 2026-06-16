@@ -1,6 +1,7 @@
 import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   buildCapabilitiesBlock,
   buildComponentsBlock,
   buildDirectionBlock,
@@ -354,6 +355,11 @@ export function compileSystemContracts(
     {
       id: 'fixed',
       text: SUMMON_FIXED_INSTRUCTIONS,
+      cache: 'ephemeral',
+    },
+    {
+      id: 'arrow-artifact-runtime',
+      text: SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
       cache: 'ephemeral',
     },
   ];

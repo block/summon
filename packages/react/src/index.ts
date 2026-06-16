@@ -5,11 +5,15 @@ import {
 } from '@anarchitecture/summon';
 import {
   compileArtifactHtml,
+  isArrowSurfaceArtifact,
   SectionAccumulator,
+  type ArtifactLine,
+  type ArrowNetworkPolicy,
   type CompiledArtifactHtml,
   type CompiledHtmlNodePatch,
   type HtmlNodePatch,
   type ProtocolLine,
+  type ArrowSurfaceArtifact,
   type ValidationContext,
 } from '@anarchitecture/summon/engine';
 import {
@@ -24,6 +28,7 @@ import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/dev
 import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
 import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
+  arrowRuntimeSource as defaultArrowRuntimeSource,
   bootstrapSource as defaultBootstrapSource,
   tokensSource as defaultTokensSource,
 } from '@anarchitecture/summon/assets';
@@ -45,6 +50,7 @@ export interface SummonSurfaceChrome {
 
 export interface SummonSurfaceProps {
   envelope?: SurfaceEnvelope | null;
+  artifact?: ArrowSurfaceArtifact | null;
   html?: string;
   protocolLines?: ProtocolLine[];
   artifactIntents?: string[];
@@ -54,6 +60,8 @@ export interface SummonSurfaceProps {
   capabilityRegistry?: CapabilityRegistry | null;
   componentRegistry?: ComponentRegistry | null;
   bootstrapSource?: string;
+  arrowRuntimeSource?: string;
+  arrowNetworkPolicy?: ArrowNetworkPolicy;
   tokensSource?: string;
   initialState?: Record<string, unknown>;
   chrome?: SummonSurfaceChrome;
@@ -73,6 +81,7 @@ export interface SummonSurfaceHandle {
   iframe: HTMLIFrameElement | null;
   sandboxId: string | null;
   render(html: string): void;
+  renderArtifact(artifact: ArrowSurfaceArtifact): void;
   patchNode(patch: HtmlNodePatch): void;
   pushState(state: Record<string, unknown>): void;
   setChrome(chrome: SummonSurfaceChrome): void;
@@ -107,6 +116,9 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       );
       handleRef.current?.render(compiled);
     },
+    renderArtifact(artifact: ArrowSurfaceArtifact) {
+      handleRef.current?.renderArtifact(artifact);
+    },
     patchNode(patch: HtmlNodePatch) {
       const compiled = compilePatchForRender(patch, validationContextRef.current ?? defaultValidationContext());
       if (compiled) {
@@ -130,7 +142,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
 
   useEffect(() => {
     lastRenderedHtmlRef.current = null;
-  }, [props.envelope, props.html, props.protocolLines]);
+  }, [props.envelope, props.artifact, props.html, props.protocolLines]);
 
   useEffect(() => {
     if (!props.onEvent) return;
@@ -160,6 +172,8 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       componentContract?.validationComponents ?? props.artifactComponents ?? props.envelope?.grants.components,
     );
     validationContextRef.current = validationContext;
+    const arrowArtifact = resolveArrowArtifact(props);
+    const arrowNetworkPolicy = props.arrowNetworkPolicy ?? props.envelope?.surfacePlan.network ?? 'none';
 
     let handle: SandboxHandle | null = null;
     let islands: ComponentIslandRegistry | null = props.componentRegistry
@@ -181,11 +195,14 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     });
 
     const artifact: Artifact = {
+      runtime: arrowArtifact ? 'arrow' : 'html',
       // Advisory only. spawnSandbox receives host grants below.
       intents: props.artifactIntents ?? props.envelope?.grants.intents ?? grantedIntents,
       capabilities: props.envelope?.grants.capabilities ?? props.grantedCapabilities,
       components: props.artifactComponents ?? props.envelope?.grants.components ?? componentContract?.validationComponents,
-      html: resolveCompiledHtml(props, validationContext),
+      ...(arrowArtifact
+        ? { arrow: arrowArtifact }
+        : { html: resolveCompiledHtml(props, validationContext) }),
       initialState,
     };
     const grantedComponentNames = new Set((artifact.components ?? []).map((component) => component.name));
@@ -196,14 +213,17 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       grantedIntents,
       grantedCapabilities,
       bootstrapSource: props.bootstrapSource ?? defaultBootstrapSource,
+      arrowRuntimeSource: props.arrowRuntimeSource ?? defaultArrowRuntimeSource,
+      arrowNetworkPolicy,
       tokensSource: props.tokensSource ?? props.envelope?.tokenCss ?? defaultTokensSource,
       events,
       onSandboxFatal: props.onFatal,
       onIntent: (intent, args) => {
         props.onIntent?.(intent, args);
         if (Object.prototype.hasOwnProperty.call(handlers, intent)) {
-          void policy.dispatch(intent, args);
+          return policy.dispatch(intent, args).then((result) => result.state);
         }
+        return policy.getState();
       },
       onIntentRejected: props.onIntentRejected,
       onComponents: (components, sandboxId) => {
@@ -252,13 +272,15 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       },
     });
     handleRef.current = handle;
-    preflightComponentProps(
-      artifact.html,
-      props.componentRegistry,
-      handle.sandboxId,
-      events,
-      props.onComponentError,
-    );
+    if (artifact.html) {
+      preflightComponentProps(
+        artifact.html,
+        props.componentRegistry,
+        handle.sandboxId,
+        events,
+        props.onComponentError,
+      );
+    }
     if (props.chrome) handle.setChrome(props.chrome);
     if (lastRenderedHtmlRef.current !== null) {
       handle.render(lastRenderedHtmlRef.current);
@@ -275,10 +297,13 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
   }, [
     events,
     props.bootstrapSource,
+    props.arrowRuntimeSource,
+    props.arrowNetworkPolicy,
     props.capabilityRegistry,
     props.chrome,
     props.componentRegistry,
     props.envelope,
+    props.artifact,
     props.artifactIntents,
     props.grantedIntents,
     props.grantedCapabilities,
@@ -357,6 +382,21 @@ function resolveCompiledHtml(props: SummonSurfaceProps, context: ValidationConte
   const accumulator = new SectionAccumulator();
   for (const line of props.protocolLines) accumulator.apply(line);
   return compileForRender(accumulator.compose(), context);
+}
+
+function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact | null {
+  if (props.artifact) return props.artifact;
+  const lines = props.envelope?.protocolLines ?? props.protocolLines;
+  if (!lines) return null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line || line.op !== 'artifact' || line.path !== '/artifact') continue;
+    const value = (line as ArtifactLine).value;
+    if (isArrowSurfaceArtifact(value)) {
+      return value;
+    }
+  }
+  return null;
 }
 
 function compileForRender(html: string, context: ValidationContext): CompiledArtifactHtml {

@@ -56,6 +56,7 @@
       "import": "./dist/devtools.js"
     },
     "./bootstrap.js": "./dist/_internal/sandbox-runtime/bootstrap.js",
+    "./arrow-runtime.js": "./dist/_internal/sandbox-runtime/arrow-runtime.js",
     "./tokens.css": "./dist/_internal/sandbox-runtime/tokens.css",
     "./package.json": "./package.json"
   },

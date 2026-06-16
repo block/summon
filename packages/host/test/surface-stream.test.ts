@@ -48,6 +48,32 @@ test('consumeSurfaceStream accepts Uint8Array chunks', async () => {
   assert.match(result.html, /Bytes/);
 });
 
+test('consumeSurfaceStream delivers Arrow artifacts without HTML rendering', async () => {
+  const artifacts: string[] = [];
+  const renders: string[] = [];
+  const result = await consumeSurfaceStream([
+    `${JSON.stringify({
+      op: 'artifact',
+      path: '/artifact',
+      value: {
+        runtime: 'arrow',
+        source: {
+          'main.ts': 'export default html`<p>Arrow</p>`',
+        },
+      },
+    })}\n`,
+  ], {
+    mode: 'interactive',
+    onArtifact: (artifact) => artifacts.push(artifact.source['main.ts'] ?? ''),
+    onRenderHtml: (html) => renders.push(html),
+  });
+
+  assert.equal(result.protocolLines.length, 1);
+  assert.deepEqual(artifacts, ['export default html`<p>Arrow</p>`']);
+  assert.deepEqual(renders, []);
+  assert.equal(result.html, '');
+});
+
 test('consumeSurfaceStream accepts ReadableStream sources', async () => {
   const source = new ReadableStream<Uint8Array>({
     start(controller) {

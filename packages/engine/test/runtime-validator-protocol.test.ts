@@ -94,3 +94,69 @@ test('allows safe static markup', () => {
   );
   assert.deepEqual(issues, []);
 });
+
+test('accepts valid Arrow artifacts', () => {
+  const issues = validateProtocolLine(
+    {
+      op: 'artifact',
+      path: '/artifact',
+      value: {
+        runtime: 'arrow',
+        source: {
+          'main.ts': 'export default html`<button>Save</button>`',
+          'main.css': 'button { color: var(--color-text); }',
+        },
+      },
+    },
+    {
+      ...baseContext,
+      surfacePlan: {
+        purpose: 'operate',
+        runtime: 'arrow',
+        data: 'embedded',
+        authority: 'host-action',
+        persistence: 'replayable',
+        network: 'none',
+      },
+    },
+  );
+  assert.deepEqual(issues, []);
+});
+
+test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'export default html`<div>A</div>`',
+            'main.js': 'export default html`<div>B</div>`',
+          },
+        },
+      },
+      baseContext,
+    )),
+    ['invalid-arrow-entry'],
+  );
+
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          network: 'restricted-fetch',
+          source: {
+            'main.ts': 'export default html`<div>Weather</div>`',
+          },
+        },
+      },
+      baseContext,
+    )),
+    ['arrow-network-not-granted'],
+  );
+});

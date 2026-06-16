@@ -14,12 +14,23 @@ export type {
   AddLine,
   SetLine,
   MetaLine,
+  ArtifactLine,
   BlockTarget,
   HtmlNodePatch,
   HtmlNodeTarget,
   ProtocolParseErrorCode,
   ProtocolParseOptions,
 } from './protocol.js';
+export {
+  isArrowSurfaceArtifact,
+  normalizeArrowSurfaceArtifact,
+  validateArrowSurfaceArtifact,
+} from './arrow-artifact.js';
+export type {
+  ArrowNetworkPolicy,
+  ArrowSurfaceArtifact,
+  ArrowArtifactValidationOptions,
+} from './arrow-artifact.js';
 export {
   DEFAULT_VALIDATION_LIMITS,
   normalizeValidationLimits,
@@ -44,6 +55,7 @@ export type {
 export {
   SUMMON_SYSTEM_PROMPT,
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   buildDirectionBlock,
   buildLayoutBlock,
   buildCapabilitiesBlock,
@@ -163,6 +175,7 @@ export {
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   SURFACE_RUNTIME_VALUES,
+  SURFACE_NETWORK_VALUES,
   buildSurfacePlanBlock,
   constrainSurfacePlan,
   deriveSurfacePlanControls,
@@ -186,6 +199,7 @@ export type {
   SurfacePlanMode,
   SurfacePurpose,
   SurfaceRuntime,
+  SurfaceNetwork,
 } from './surface-plan.js';
 export {
   compileSurfacePolicy,

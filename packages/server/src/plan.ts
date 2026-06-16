@@ -31,18 +31,20 @@ function defaultSurfacePlanForMode(mode: ResolveSurfaceGenerationPlanInput['mode
   if (mode === 'static') {
     return {
       purpose: 'inform',
-      runtime: 'static',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'none',
       persistence: 'replayable',
+      network: 'none',
     };
   }
 
   return {
     purpose: 'inform',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   };
 }

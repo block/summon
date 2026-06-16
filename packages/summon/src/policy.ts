@@ -9,6 +9,7 @@ export type {
   IntentContext,
   IntentEntry,
   IntentHandler,
+  PolicyDispatchResult,
   PolicyEngineOptions,
   TypedIntentEntry,
 } from '@summon-internal/host/policy';

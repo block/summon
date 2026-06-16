@@ -38,6 +38,7 @@ const surfacePlan: SurfacePlan = {
   data: 'host-resource',
   authority: 'read',
   persistence: 'replayable',
+  network: 'none',
 };
 
 const surfaceCeiling: SurfaceCeiling = {

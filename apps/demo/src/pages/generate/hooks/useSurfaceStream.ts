@@ -2,6 +2,7 @@ import { useCallback, type MutableRefObject } from 'react';
 import { consumeSurfaceStream, type SurfaceStreamContext } from '@anarchitecture/summon/browser';
 import {
   normalizeSurfacePlan,
+  type ArrowSurfaceArtifact,
   type ProtocolLine,
   type SectionAccumulator,
   type SurfaceContractView,
@@ -234,6 +235,16 @@ export function useSurfaceStream({
       logLine('op-meta', `meta ${line.path} = ${JSON.stringify(line.value)}`);
       return;
     }
+    if (line.op === 'artifact') {
+      const artifact = line.value as ArrowSurfaceArtifact | undefined;
+      const files = artifact && artifact.runtime === 'arrow'
+        ? Object.keys(artifact.source).join(', ')
+        : 'invalid';
+      logLine('op-add', `artifact ${line.path} -> ${files}`);
+      artifactRevisionRef.current += 1;
+      setArtifactRevision(artifactRevisionRef.current);
+      return;
+    }
     if (line.op === 'set') {
       const changed = context.applyResult?.changed ?? false;
       logLine('op-set', `set ${line.path} = ${JSON.stringify(line.value)}`);
@@ -364,6 +375,9 @@ export function useSurfaceStream({
         if (line.path === '/surface-plan') surfacePlanFromStream = normalizeSurfacePlan(line.value);
         if (line.path === '/shape' && typeof line.value === 'string') shapeFromStream = line.value;
         applyLineTo(line, context);
+      },
+      onArtifact: (artifact, line, context) => {
+        surfaceRef.current?.renderArtifact(artifact);
       },
       onParseError: (raw) => {
         appendDevEvent({ kind: 'protocol-parse-error', at: Date.now(), raw });

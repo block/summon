@@ -276,6 +276,7 @@ function planForPolicy(
       data: 'embedded',
       authority: 'none',
       persistence: policy.persistence,
+      network: 'none',
     };
   }
 
@@ -300,6 +301,7 @@ function planForPolicy(
     data,
     authority,
     persistence: policy.persistence,
+    network: 'none',
   };
 }
 
@@ -349,6 +351,7 @@ function exactCeiling(plan: SurfacePlan): SurfaceCeiling {
     data: [plan.data],
     authorities: [plan.authority],
     persistences: [plan.persistence],
+    networks: [plan.network ?? 'none'],
   };
 }
 

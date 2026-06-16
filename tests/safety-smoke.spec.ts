@@ -91,10 +91,10 @@ test('generate page boots without server credentials', async ({ page }) => {
   await expect(page.locator('#sandbox')).toHaveAttribute('sandbox', 'allow-scripts');
   await expect(page.locator('#go')).toBeEnabled();
   await expect(page.locator('#welcome')).toBeVisible();
-  await expect(page.locator('#welcome')).toContainText('Host Data Search');
+  await expect(page.locator('#welcome')).toContainText('Describe a surface to generate.');
   await expect(page.locator('#scenario')).toContainText('Host Data Search');
-  await expect(page.locator('#scenario-list')).toBeVisible();
-  await expect(page.locator('[data-scenario-id="host-resource-search"][aria-pressed="true"]')).toContainText('Host Data Search');
+  await expect(page.locator('#scenario')).toHaveValue('host-resource-search');
+  await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.locator('#contract-summary [data-contract-row="requested"]')).toContainText(
     'Requested surface config',
   );
@@ -502,21 +502,22 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
   await page.goto('/generate');
   await expect(page.locator('#scenario')).toContainText('Validation Retry Diagnostics');
   await page.locator('#scenario').selectOption('repair-diagnostics');
+  await page.getByRole('button', { name: 'Options' }).click();
   await page.locator('#token-preset').selectOption('accent-blue');
 
   await expect(page.locator('#prompt')).toHaveValue(/onboarding checklist/);
-  await expect(page.locator('[data-scenario-id="repair-diagnostics"][aria-pressed="true"]')).toContainText('Validation Retry Diagnostics');
+  await expect(page.locator('#scenario')).toHaveValue('repair-diagnostics');
   await expect(page.locator('#repair-enabled')).toBeChecked();
   await expect(page.locator('#custom-contract-panel')).toBeHidden();
   await page.locator('#custom-contract-enabled').check();
   await expect(page.locator('#custom-contract-panel')).toBeVisible();
   await expect(page.locator('#surface-purpose')).toHaveValue('collect');
-  await expect(page.locator('#edit-card')).toBeHidden();
+  await page.getByRole('button', { name: 'Close' }).click();
 
   await page.locator('#go').click();
   await expect(page.locator('#iframe-status')).toContainText('done');
-  await expect(page.locator('#result-toolbar')).toBeVisible();
-  await expect(page.locator('#edit-card')).toBeVisible();
+  await expect(page.frameLocator('#sandbox').locator('form')).toBeVisible();
+  await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.locator('#contract-summary [data-contract-row="effective"]')).toContainText(
     'collect · declarative',
   );
@@ -531,6 +532,7 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
     data: 'embedded',
     authority: 'host-action',
     persistence: 'replayable',
+    network: 'none',
   });
   expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['submit']);
   expect(captured.capabilities.intents[0].surface).toEqual({ authority: 'host-action' });
@@ -742,6 +744,7 @@ test('component islands render in host overlay without widening the sandbox', as
   await page.locator('#scenario').selectOption('component-islands');
   await page.locator('#go').click();
 
+  await expect(page.locator('#iframe-status')).toContainText('done');
   await page.locator('#sandbox').scrollIntoViewIfNeeded();
   const sandbox = page.frameLocator('#sandbox');
   await expect(sandbox.locator('#sandbox-proof')).toContainText('Sandbox placeholder only');

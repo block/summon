@@ -3,6 +3,7 @@ export type {
   IntentContext,
   IntentEntry,
   IntentHandler,
+  PolicyDispatchResult,
   PolicyEngineOptions,
   TypedIntentEntry,
 } from './policy-engine.js';

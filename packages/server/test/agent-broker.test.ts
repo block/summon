@@ -113,13 +113,14 @@ test('planAgentSurface proposes and compiles a declarative policy', async () => 
   });
   assert.equal(plan.intentSource, 'deterministic');
   assert.deepEqual(plan.compiledPolicy.issues, []);
-  assert.deepEqual(plan.compiledPolicy.surfacePlan, {
-    purpose: 'explore',
-    runtime: 'declarative',
-    data: 'host-resource',
-    authority: 'read',
-    persistence: 'replayable',
-  });
+    assert.deepEqual(plan.compiledPolicy.surfacePlan, {
+      purpose: 'explore',
+      runtime: 'declarative',
+      data: 'host-resource',
+      authority: 'read',
+      persistence: 'replayable',
+      network: 'none',
+    });
 });
 
 test('planAgentSurface keeps passive summary prompts static despite powerful nouns', async () => {
@@ -206,13 +207,14 @@ test('planAgentSurface selects host actions only from explicit action phrasing',
   assert.equal(plan.surfacePolicy.tier, 'declarative');
   assert.equal(plan.surfacePolicy.purpose, 'operate');
   assert.deepEqual(plan.surfacePolicy.grants, ['choose']);
-  assert.deepEqual(plan.compiledPolicy.surfacePlan, {
-    purpose: 'operate',
-    runtime: 'declarative',
-    data: 'embedded',
-    authority: 'host-action',
-    persistence: 'replayable',
-  });
+    assert.deepEqual(plan.compiledPolicy.surfacePlan, {
+      purpose: 'operate',
+      runtime: 'declarative',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+      network: 'none',
+    });
 });
 
 test('model-assisted intent can narrow to known names but cannot add unknown grants', async () => {

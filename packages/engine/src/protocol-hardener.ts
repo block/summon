@@ -92,6 +92,7 @@ const STRUCTURAL_SKIP_CODES = new Set([
   'invalid-node-parent',
   'undeclared-node-parent',
   'undeclared-block',
+  'invalid-artifact-path',
 ]);
 
 interface BlockSectionState {
@@ -164,6 +165,14 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       return {
         outboundLines: [line],
         acceptedLines: [],
+        issues: validationIssues,
+      };
+    }
+
+    if (line.op === 'artifact') {
+      return {
+        outboundLines: [line],
+        acceptedLines: [line],
         issues: validationIssues,
       };
     }

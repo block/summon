@@ -6,13 +6,16 @@ import {
   compileSurfaceContractView,
   compileSystemContracts,
   compileTokenContract,
+  constrainSurfacePlan,
   deriveSurfacePlanControls,
   inferSurfacePlan,
   normalizeSurfacePlan,
   suggestSurfacePlan,
+  surfacePlanWithinCeiling,
   SUMMON_FIXED_INSTRUCTIONS,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
+  SURFACE_NETWORK_VALUES,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   SURFACE_RUNTIME_VALUES,
@@ -72,7 +75,7 @@ test('system compiler includes component island prompt and validation metadata',
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'components'],
+    ['fixed', 'arrow-artifact-runtime', 'components'],
   );
   const block = compiled.promptBlocks.find((promptBlock) => promptBlock.id === 'components');
   assert.match(block?.text ?? '', /Component islands/);
@@ -163,6 +166,7 @@ test('system compiler returns deterministic prompt block order and validation co
     compiled.promptBlocks.map((block) => block.id),
     [
       'fixed',
+      'arrow-artifact-runtime',
       'direction:demo',
       'ghost',
       'layout:two-slot',
@@ -212,7 +216,7 @@ test('system compiler includes a host-owned surface plan block', () => {
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'surface-plan', 'capabilities'],
+    ['fixed', 'arrow-artifact-runtime', 'surface-plan', 'capabilities'],
   );
   assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
   assert.deepEqual(compiled.validationContext.surfacePlan, {
@@ -269,7 +273,7 @@ test('system compiler includes compact surface contract view without dropping de
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'surface-contract', 'capabilities', 'components'],
+    ['fixed', 'arrow-artifact-runtime', 'surface-contract', 'capabilities', 'components'],
   );
   const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-contract');
   assert.match(surfaceBlock?.text ?? '', /compact, read-only view/);
@@ -296,6 +300,7 @@ test('surface plan normalization and suggestions are stable', () => {
     data: 'worker',
     authority: 'approval-gated',
     persistence: 'replayable',
+    network: 'none',
   });
 
   const suggestion = suggestSurfacePlan({
@@ -317,10 +322,11 @@ test('surface plan normalization and suggestions are stable', () => {
 
   assert.deepEqual(suggestion, {
     purpose: 'compare',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'host-action',
     persistence: 'replayable',
+    network: 'none',
   });
   assert.deepEqual(inferSurfacePlan({
     prompt: 'compare payment plans and help me pick one',
@@ -351,6 +357,7 @@ test('surface plan host control helpers expose values and derive defaults', () =
     'export',
   ]);
   assert.deepEqual([...SURFACE_RUNTIME_VALUES], [
+    'arrow',
     'static',
     'declarative',
     'worker',
@@ -370,13 +377,26 @@ test('surface plan host control helpers expose values and derive defaults', () =
     'ephemeral',
     'replayable',
   ]);
+  assert.deepEqual([...SURFACE_NETWORK_VALUES], [
+    'none',
+    'restricted-fetch',
+  ]);
 
   const base: Omit<SurfacePlan, 'runtime'> = {
     purpose: 'explore',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   };
+  assert.equal(surfacePlanWithinCeiling(
+    { ...base, runtime: 'arrow', network: 'restricted-fetch' },
+    { runtimes: ['arrow'], networks: ['none'] },
+  ), false);
+  assert.equal(constrainSurfacePlan(
+    { ...base, runtime: 'arrow', network: 'restricted-fetch' },
+    { runtimes: ['arrow'], networks: ['none'] },
+  ).network, 'none');
 
   assert.deepEqual(deriveSurfacePlanControls({ ...base, runtime: 'static' }), {
     mode: 'static',

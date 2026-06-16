@@ -102,6 +102,12 @@ export interface PolicyEngineOptions {
   events?: EventStore;
 }
 
+export interface PolicyDispatchResult {
+  ok: boolean;
+  state: Record<string, unknown>;
+  error?: string;
+}
+
 export class PolicyEngine {
   private state: Record<string, unknown>;
   private readonly handlers: Record<string, IntentEntry<any>>;
@@ -140,12 +146,13 @@ export class PolicyEngine {
     this.onStateChange(next);
   }
 
-  async dispatch(intent: string, args: Record<string, unknown>): Promise<void> {
+  async dispatch(intent: string, args: Record<string, unknown>): Promise<PolicyDispatchResult> {
     const entry = this.handlers[intent];
     if (!entry) {
       // The bridge should have rejected this already; defensive.
-      this.onHandlerError?.(intent, new Error(`No handler for intent "${intent}"`));
-      return;
+      const error = new Error(`No handler for intent "${intent}"`);
+      this.onHandlerError?.(intent, error);
+      return { ok: false, state: this.getState(), error: error.message };
     }
 
     const id = `${Date.now()}-${++this.dispatchSeq}`;
@@ -172,17 +179,19 @@ export class PolicyEngine {
           const err = new IntentArgsError(intent, parsed.error);
           settle(false, err.message);
           this.onHandlerError?.(intent, err);
-          return;
+          return { ok: false, state: this.getState(), error: err.message };
         }
         await entry.run({ args: parsed.data, push });
       } else {
         await entry({ args, push });
       }
       settle(true);
+      return { ok: true, state: this.getState() };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       settle(false, error.message);
       this.onHandlerError?.(intent, error);
+      return { ok: false, state: this.getState(), error: error.message };
     }
   }
 }

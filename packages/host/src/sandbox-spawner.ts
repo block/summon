@@ -1,6 +1,8 @@
 import type { EventStore } from '@summon-internal/devtools';
 import { hasCompleteResourceStateKeys, type ValidationCapability } from '@summon-internal/engine';
 import type {
+  ArrowNetworkPolicy,
+  ArrowSurfaceArtifact,
   Artifact,
   CompiledHtmlNodePatch,
   ComponentIslandDescriptor,
@@ -14,14 +16,17 @@ import type {
  * SUMMON_READY and never receives a script nonce. Generated CSS remains inline
  * because the compiler constrains it and visual richness is a core Summon goal.
  */
-function cspForNonce(nonce: string): string {
+function cspForNonce(nonce: string, networkPolicy: ArrowNetworkPolicy = 'none'): string {
+  const connectSrc = networkPolicy === 'restricted-fetch'
+    ? 'connect-src https: http://localhost:* http://127.0.0.1:* http://[::1]:*'
+    : "connect-src 'none'";
   return [
     "default-src 'none'",
-    `script-src 'nonce-${nonce}'`,
+    `script-src 'nonce-${nonce}' 'wasm-unsafe-eval'`,
     "style-src 'unsafe-inline'",
     "img-src data:",
     "font-src data:",
-    "connect-src 'none'",
+    connectSrc,
     "form-action 'none'",
     "base-uri 'none'",
     "frame-src 'none'",
@@ -54,8 +59,22 @@ export interface SpawnOptions {
   bootstrapSource: string;
   /** Raw token CSS source; published consumers can use `@anarchitecture/summon/assets`. */
   tokensSource: string;
+  /**
+   * Optional trusted Arrow runtime bundle. It must install
+   * `window.__SUMMON_ARROW_SANDBOX__ = { sandbox }` inside the iframe before
+   * the Summon Arrow adapter receives an artifact.
+   */
+  arrowRuntimeSource?: string;
+  /**
+   * Host-owned network grant for Arrow sandboxes. Defaults to `none`; do not
+   * derive this from generated artifact metadata.
+   */
+  arrowNetworkPolicy?: ArrowNetworkPolicy;
   /** Receives only intents that passed the bridge allowlist. */
-  onIntent?: (intent: string, args: Record<string, unknown>) => void;
+  onIntent?: (intent: string, args: Record<string, unknown>) =>
+    | void
+    | Record<string, unknown>
+    | Promise<void | Record<string, unknown>>;
   /** Receives intents that were rejected by the allowlist. Useful for logging / tests. */
   onIntentRejected?: (reason: string, raw: unknown) => void;
   /** Receives sandbox-measured component island placeholders. */
@@ -99,6 +118,8 @@ function buildSrcdoc(params: {
   bootstrapSource: string;
   tokensSource: string;
   resourceMap: ResourceMap;
+  networkPolicy: ArrowNetworkPolicy;
+  arrowRuntimeSource?: string;
 }): string {
   // The CSP meta must come FIRST in <head> — anything before it is unprotected.
   // Artifact HTML is deliberately absent from initial srcdoc. The trusted
@@ -112,10 +133,12 @@ function buildSrcdoc(params: {
   return `<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Security-Policy" content="${escapeHtml(cspForNonce(params.scriptNonce))}">
+<meta http-equiv="Content-Security-Policy" content="${escapeHtml(cspForNonce(params.scriptNonce, params.networkPolicy))}">
 <meta charset="utf-8">
 <script nonce="${params.scriptNonce}">window.__SUMMON_SANDBOX_ID__=${escapeScriptJson(params.sandboxId)};</script>
 <script nonce="${params.scriptNonce}">window.__SUMMON_RESOURCES__=${escapeScriptJson(params.resourceMap)};</script>
+<script nonce="${params.scriptNonce}">window.__SUMMON_NETWORK_POLICY__=${escapeScriptJson(params.networkPolicy)};</script>
+${params.arrowRuntimeSource ? `<script nonce="${params.scriptNonce}">${params.arrowRuntimeSource}</script>` : ''}
 <script nonce="${params.scriptNonce}">${params.bootstrapSource}</script>
 <style>${SUMMON_BASE_CSS}</style>
 <style>${params.tokensSource}</style>
@@ -346,6 +369,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
   const intentAllowlist = new Set(opts.grantedIntents);
   const grantedCapabilities = opts.grantedCapabilities ?? opts.artifact.capabilities ?? [];
   const resourceMap = resourceMapFromCapabilities(grantedCapabilities);
+  const arrowNetworkPolicy = opts.arrowNetworkPolicy ?? 'none';
 
   // Deliberately NOT adding allow-same-origin. That keeps the iframe null-origin:
   // no storage, no parent DOM access, cross-origin isolation applies.
@@ -355,6 +379,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
   const pendingStates: Record<string, unknown>[] = [];
   const pendingDomOps: Array<
     | { kind: 'render'; html: string }
+    | { kind: 'artifact'; artifact: ArrowSurfaceArtifact }
     | { kind: 'node-patch'; patch: CompiledHtmlNodePatch }
   > = [];
   // Chrome attributes are merged before flush so a flurry of setChrome calls
@@ -381,10 +406,28 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       const op = pendingDomOps.shift()!;
       if (op.kind === 'render') {
         opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', sandbox_id: sandboxId, html: op.html }, '*');
+      } else if (op.kind === 'artifact') {
+        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', sandbox_id: sandboxId, artifact: op.artifact }, '*');
       } else {
         opts.iframe.contentWindow.postMessage({ type: 'SUMMON_NODE_PATCH', sandbox_id: sandboxId, patch: op.patch }, '*');
       }
     }
+  }
+
+  function postIntentResult(requestId: string | undefined, result: {
+    ok: boolean;
+    state?: Record<string, unknown>;
+    error?: string;
+  }) {
+    if (!requestId || !opts.iframe.contentWindow) return;
+    opts.iframe.contentWindow.postMessage({
+      type: 'SUMMON_INTENT_RESULT',
+      sandbox_id: sandboxId,
+      request_id: requestId,
+      ok: result.ok,
+      state: result.state ?? {},
+      ...(result.error ? { error: result.error } : {}),
+    }, '*');
   }
 
   function handleMessage(event: MessageEvent) {
@@ -475,6 +518,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
           raw: data,
         });
         opts.onIntentRejected?.('intent not a non-empty string', data);
+        postIntentResult(data.request_id, { ok: false, error: 'intent not a non-empty string' });
         return;
       }
       if (!intentAllowlist.has(intent)) {
@@ -486,6 +530,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
           raw: data,
         });
         opts.onIntentRejected?.(`intent "${intent}" not granted`, data);
+        postIntentResult(data.request_id, { ok: false, error: `intent "${intent}" not granted` });
         return;
       }
       const safeArgs =
@@ -497,7 +542,17 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
         intent,
         args: safeArgs,
       });
-      opts.onIntent?.(intent, safeArgs);
+      void Promise.resolve(opts.onIntent?.(intent, safeArgs))
+        .then((state) => {
+          postIntentResult(data.request_id, {
+            ok: true,
+            state: state && typeof state === 'object' && !Array.isArray(state) ? state : {},
+          });
+        })
+        .catch((err) => {
+          const error = err instanceof Error ? err.message : String(err);
+          postIntentResult(data.request_id, { ok: false, error });
+        });
     }
   }
 
@@ -509,9 +564,14 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     bootstrapSource: opts.bootstrapSource,
     tokensSource: opts.tokensSource,
     resourceMap,
+    networkPolicy: arrowNetworkPolicy,
+    arrowRuntimeSource: opts.arrowRuntimeSource,
   });
   if (opts.artifact.html) {
     pendingDomOps.push({ kind: 'render', html: opts.artifact.html });
+  }
+  if (opts.artifact.arrow) {
+    pendingDomOps.push({ kind: 'artifact', artifact: opts.artifact.arrow });
   }
 
   opts.events?.push({
@@ -537,6 +597,16 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
         at: Date.now(),
         sandboxId,
         bytes: html.length,
+      });
+      flushPending();
+    },
+    renderArtifact(artifact) {
+      pendingDomOps.push({ kind: 'artifact', artifact });
+      opts.events?.push({
+        kind: 'render',
+        at: Date.now(),
+        sandboxId,
+        bytes: JSON.stringify(artifact.source).length,
       });
       flushPending();
     },

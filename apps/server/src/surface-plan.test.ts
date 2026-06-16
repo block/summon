@@ -61,6 +61,7 @@ test('explicit surface plan is honored when within ceiling', () => {
     data: 'worker',
     authority: 'approval-gated',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
@@ -77,14 +78,15 @@ test('missing surface plan returns inert interactive default despite capable gra
   assert.equal(resolved.scriptPolicy, 'forbid');
   assert.deepEqual(resolved.surfacePlan, {
     purpose: 'inform',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
-test('static mode stays static while preserving compatible surface metadata', () => {
+test('static mode defaults to inert Arrow surface metadata', () => {
   const resolved = resolveSurfaceGenerationPlan({
     prompt: 'search for recipes',
     mode: 'static',
@@ -93,14 +95,15 @@ test('static mode stays static while preserving compatible surface metadata', ()
 
   assert.equal(resolved.explicitAccepted, false);
   assert.equal(resolved.source, 'default');
-  assert.equal(resolved.mode, 'static');
+  assert.equal(resolved.mode, 'interactive');
   assert.equal(resolved.scriptPolicy, 'forbid');
   assert.deepEqual(resolved.surfacePlan, {
     purpose: 'inform',
-    runtime: 'static',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
@@ -154,10 +157,11 @@ test('parsed worker capability resolves to worker surface when explicitly reques
     data: 'worker',
     authority: 'host-action',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
-test('legacy scripted surface plan falls back to declarative defaults', () => {
+test('legacy scripted surface plan falls back to ceiling-constrained defaults', () => {
   const resolved = resolveSurfaceGenerationPlan({
     prompt: 'build keyboard shortcuts with local highlighted selection',
     mode: 'interactive',
@@ -182,14 +186,15 @@ test('legacy scripted surface plan falls back to declarative defaults', () => {
   assert.equal(resolved.scriptPolicy, 'forbid');
   assert.deepEqual(resolved.surfacePlan, {
     purpose: 'inform',
-    runtime: 'declarative',
+    runtime: 'static',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
-test('legacy script allow falls back to forbid when plan is invalid', () => {
+test('legacy script allow falls back to forbid and ceiling-constrained defaults', () => {
   const resolved = resolveSurfaceGenerationPlan({
     prompt: 'build keyboard shortcuts with local highlighted selection',
     mode: 'interactive',
@@ -214,10 +219,11 @@ test('legacy script allow falls back to forbid when plan is invalid', () => {
   assert.equal(resolved.scriptPolicy, 'forbid');
   assert.deepEqual(resolved.surfacePlan, {
     purpose: 'inform',
-    runtime: 'declarative',
+    runtime: 'static',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
@@ -263,5 +269,6 @@ test('parsed approval capability resolves to approval-gated authority', () => {
     data: 'embedded',
     authority: 'approval-gated',
     persistence: 'replayable',
+    network: 'none',
   });
 });

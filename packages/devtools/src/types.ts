@@ -91,7 +91,7 @@ export interface StatePushedEvent extends BaseEvent {
 /** A streaming protocol line was successfully parsed. */
 export interface ProtocolLineEvent extends BaseEvent {
   kind: 'protocol-line';
-  line: { op: 'add' | 'set' | 'meta'; path: string; html?: string; value?: unknown };
+  line: { op: 'add' | 'set' | 'meta' | 'artifact'; path: string; html?: string; value?: unknown };
 }
 
 /** A line in the LLM stream did not parse as a protocol line. */

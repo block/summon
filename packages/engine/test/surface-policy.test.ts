@@ -103,6 +103,7 @@ test('compiles static policy to static embedded plan with no packs', () => {
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
@@ -125,6 +126,7 @@ test('compiles declarative policy and narrows grants, components, and patterns',
     data: 'host-resource',
     authority: 'host-action',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
@@ -152,6 +154,7 @@ test('compiles worker policy and requires worker-backed surface area', () => {
     data: 'worker',
     authority: 'host-action',
     persistence: 'replayable',
+    network: 'none',
   });
 
   const missing = compileSurfacePolicy({ tier: 'worker' }, { capabilities });
@@ -172,6 +175,7 @@ test('compiles approval policy and requires approval-gated grant', () => {
     data: 'embedded',
     authority: 'approval-gated',
     persistence: 'replayable',
+    network: 'none',
   });
 
   const missing = compileSurfacePolicy({ tier: 'approval', grants: ['choose'] }, { capabilities });

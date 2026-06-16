@@ -170,6 +170,34 @@ Pick one structural approach and ship it. Reconsidering mid-stream is the wrong 
 
 Begin. Emit any host-required \`meta\` prelude lines first. Then emit the \`set /screen\` structural line unless a host layout block says not to, followed by one \`add\` line per section.`;
 
+export const SUMMON_ARROW_ARTIFACT_INSTRUCTIONS = `## Arrow sandbox artifact output
+
+For this runtime, ignore the legacy section HTML protocol. Emit exactly one renderable line:
+
+\`\`\`json
+{"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"...","main.css":"..."}}}
+\`\`\`
+
+Rules:
+
+- The \`value.runtime\` must be \`"arrow"\`.
+- \`source\` must contain exactly one entry file: \`main.ts\` or \`main.js\`.
+- \`main.css\` is optional and should contain all visual styling.
+- The default export from \`main.ts\` must be an Arrow template.
+- Use Arrow primitives from \`@arrow-js/core\` through normal imports or free identifiers: \`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`onCleanup\`, and \`nextTick\`.
+- For host actions and resources, import from \`host-bridge:summon\`:
+
+\`\`\`ts
+import { invoke, getState } from "host-bridge:summon"
+\`\`\`
+
+- Call \`await invoke(intentName, args)\` for granted host capabilities. The result is \`{ ok, state, error? }\`.
+- Call \`await getState()\` to read the latest host-pushed state.
+- Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
+- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host capabilities.
+- Do not emit \`set /screen\`, \`add /section/*\`, \`data-summon-*\` bindings, scripts, or host-owned meta lines.
+- Keep every JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.`;
+
 /**
  * Compose the direction-specific block that follows the fixed instructions:
  *
