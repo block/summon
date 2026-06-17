@@ -1,6 +1,6 @@
 /* Summon default design tokens.
  * This fallback must satisfy the same token contract advertised by
- * the Summon engine. Direction-specific tokens can still replace it per sandbox.
+ * the Summon engine. Direction-specific tokens can still replace it per surface.
  */
 :root {
   color-scheme: light;

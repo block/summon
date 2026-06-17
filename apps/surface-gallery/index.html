@@ -111,11 +111,12 @@
             <strong id="sandbox-mode" class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-extrabold text-gallery-ink">isolated</strong>
           </div>
           <div class="relative min-h-[420px] min-w-0">
-            <iframe
+            <div
               id="sandbox"
               class="block h-full min-h-[420px] w-full border-0 bg-black"
-              title="Summon surface gallery sandbox"
-            ></iframe>
+              role="region"
+              aria-label="Summon surface gallery sandbox"
+            ></div>
             <div id="welcome" class="absolute inset-0 grid place-items-center bg-black p-7 text-gallery-muted">
               <div class="w-[min(520px,100%)] border-y border-gallery-line-strong py-6">
                 <span id="welcome-kicker" class="block font-mono text-[10.5px] font-extrabold uppercase leading-none tracking-normal text-gallery-accent">Ready to run</span>

@@ -73,7 +73,7 @@ export interface PaneProps {
 
 export function Pane({ title, status, children, className }: PaneProps) {
   return (
-    <div className={cn(elevatedPanelClass, 'flex min-w-0 flex-col [&_iframe]:block [&_iframe]:w-full [&_iframe]:border-0 [&_iframe]:bg-surface-raised', className)}>
+    <div className={cn(elevatedPanelClass, 'flex min-w-0 flex-col', className)}>
       <header className={panelHeaderClass}>
         {title}
         {status ? <StatusText>{status}</StatusText> : null}

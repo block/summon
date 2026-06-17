@@ -3,30 +3,22 @@ import {
   PolicyEngine,
   type ApprovalDecision,
   type ApprovalRequest,
-  type ComponentPack,
   type CompiledSurfacePolicy,
 } from '@anarchitecture/summon';
 import {
   consumeSurfaceStream,
-  createComponentIslandRegistry,
-  spawnSandbox,
-  type ComponentIslandRegistry,
-  type SandboxHandle,
+  mountInlineSurface,
+  type InlineSurfaceHandle,
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import { type ProtocolLine, type SurfaceContractView, type ValidationContext } from '@anarchitecture/summon/engine';
-import { arrowRuntimeSource, bootstrapSource, tokensSource } from '@anarchitecture/summon/assets';
+import { tokensSource } from '@anarchitecture/summon/assets';
 import { createGalleryToolRegistry } from './tools.js';
-import {
-  allGalleryComponentNames,
-  createGalleryComponentRegistry,
-} from './components.js';
 import {
   GALLERY_PRESETS,
   createGhostGalleryPreset,
   findPreset,
-  policyComponents,
   policyGrants,
   policyText,
   type GalleryPreset,
@@ -126,7 +118,7 @@ const surfaceComponentsPill = document.getElementById('surface-components-pill')
 const promptEl = document.getElementById('prompt') as HTMLTextAreaElement;
 const promptLengthEl = document.getElementById('prompt-length')!;
 const runButton = document.getElementById('run') as HTMLButtonElement;
-const iframe = document.getElementById('sandbox') as HTMLIFrameElement;
+const surfaceRoot = document.getElementById('sandbox') as HTMLElement;
 const welcome = document.getElementById('welcome')!;
 const welcomeTitle = document.getElementById('welcome-title')!;
 const welcomeDetail = document.getElementById('welcome-detail')!;
@@ -150,8 +142,7 @@ const hostMessages: string[] = [];
 type InspectorTab = 'contract' | 'stream' | 'state';
 
 let selectedPreset = GALLERY_PRESETS[0]!;
-let handle: SandboxHandle | null = null;
-let islands: ComponentIslandRegistry | null = null;
+let handle: InlineSurfaceHandle | null = null;
 let policy: PolicyEngine | null = null;
 let abortController: AbortController | null = null;
 let galleryPresets: GalleryPreset[] = [...GALLERY_PRESETS];
@@ -239,7 +230,7 @@ function selectPreset(id: string): void {
   tryBoundaryButton.disabled = !selectedPreset.adversarialPrompt;
   renderPromptLength();
   resetCounters();
-  respawnSandbox();
+  remountSurface();
   renderContract();
   renderAuthorityMeter(compiledPolicyFor(selectedPreset));
   renderPresetNotes();
@@ -249,10 +240,8 @@ function selectPreset(id: string): void {
   welcome.hidden = false;
 }
 
-function respawnSandbox(): void {
+function remountSurface(): void {
   clearApprovalCards('Approval request was replaced');
-  islands?.destroy();
-  islands = null;
   handle?.dispose();
   handle = null;
   policy = null;
@@ -264,21 +253,6 @@ function respawnSandbox(): void {
     onApprovalRequest: requestHostApproval,
   });
   const toolContract = toolRegistry.toContract();
-  const componentRegistry = compiledPolicy.policy.components.length
-    ? createGalleryComponentRegistry(compiledPolicy.policy.components)
-    : null;
-  const componentContract = componentRegistry?.toContract();
-  if (componentRegistry) {
-    islands = createComponentIslandRegistry({
-      outerIframe: iframe,
-      registry: componentRegistry,
-      events,
-      onError: (error) => {
-        pushHostMessage(`component ${error.code}: ${error.reason}`, { attention: true });
-      },
-    });
-  }
-
   const initialState = compiledPolicy.mode === 'interactive'
     ? toolContract.initialState
     : {};
@@ -286,7 +260,6 @@ function respawnSandbox(): void {
     compiledPolicy,
     toolRegistry.tools(),
     toolContract.validationTools,
-    componentContract?.validationComponents,
   );
   renderState(initialState);
 
@@ -305,37 +278,21 @@ function respawnSandbox(): void {
     });
   }
 
-  handle = spawnSandbox({
-    iframe,
-    artifact: {
-      runtime: 'arrow',
-      tools: [],
-      validationTools: toolContract.validationTools,
-      components: componentContract?.validationComponents,
-      initialState,
-    },
+  handle = mountInlineSurface({
+    root: surfaceRoot,
     grantedTools: compiledPolicy.mode === 'interactive' ? toolRegistry.tools() : [],
     validationTools: compiledPolicy.mode === 'interactive'
       ? toolContract.validationTools
       : [],
-    bootstrapSource,
-    arrowRuntimeSource,
     tokensSource: activeTokensSourceOverride ?? tokensSource,
     events,
+    initialState,
     onToolCall: (tool, args) => {
       if (!policy) return {};
       return policy.dispatch(tool, args).then((result) => result.state);
     },
-    onComponents: (components, sandboxId) => {
-      islands?.sync(components, {
-        sandboxId,
-        callTool: (tool, args = {}) => {
-          void policy?.dispatch(tool, args);
-        },
-      });
-    },
-    onSandboxFatal: (reason) => {
-      setSetupNote(`Sandbox failed to boot: ${reason}`);
+    onRuntimeError: (reason) => {
+      setSetupNote(`Surface runtime failed: ${reason}`);
     },
   });
 }
@@ -347,7 +304,7 @@ async function generateSelectedSurface(): Promise<void> {
   hostMessages.length = 0;
   currentSurfaceContractView = null;
   resetCounters();
-  respawnSandbox();
+  remountSurface();
   generationInFlight = true;
   surfaceRenderedDuringRun = false;
   showStreamingWelcome('streaming');
@@ -359,7 +316,6 @@ async function generateSelectedSurface(): Promise<void> {
   const compiledPolicy = compiledPolicyFor(selectedPreset);
   const toolPack = createGalleryToolRegistry().toContract().pack;
   const validationContract = createGalleryToolRegistry(compiledPolicy.policy.grants).toContract();
-  const componentPack = componentCeilingFor(selectedPreset);
 
   try {
     const response = await fetch('/api/generate', {
@@ -371,7 +327,6 @@ async function generateSelectedSurface(): Promise<void> {
         ...readModelSelection(),
         surfacePolicy: selectedPreset.surfacePolicy,
         tools: toolPack,
-        ...(componentPack ? { components: componentPack } : {}),
         ...(selectedPreset.ghost
           ? {
               ghost: {
@@ -397,10 +352,14 @@ async function generateSelectedSurface(): Promise<void> {
         compiledPolicy,
         compiledPolicy.policy.grants,
         validationContract.validationTools,
-        componentPack?.components.map((component) => ({ name: component.name, surface: component.surface })),
       ),
       onLine: (line, context) => handleLine(line, context),
       onMeta: (line) => handleMeta(line),
+      onSurfaceEvent: (event) => {
+        surfaceRenderedDuringRun = true;
+        welcome.hidden = true;
+        handle?.applyPreviewEvent(event);
+      },
       onArtifact: (artifact) => {
         surfaceRenderedDuringRun = true;
         welcome.hidden = true;
@@ -429,15 +388,9 @@ async function generateSelectedSurface(): Promise<void> {
   }
 }
 
-function componentCeilingFor(preset: GalleryPreset): ComponentPack | null {
-  if (!policyComponents(preset.surfacePolicy).length) return null;
-  return createGalleryComponentRegistry().toContract().pack;
-}
-
 function compiledPolicyFor(preset: GalleryPreset): CompiledSurfacePolicy {
   return compileSurfacePolicy(preset.surfacePolicy, {
     tools: createGalleryToolRegistry().toContract().pack,
-    components: createGalleryComponentRegistry().toContract().pack,
   });
 }
 
@@ -445,13 +398,11 @@ function validationContextForPolicy(
   compiledPolicy: CompiledSurfacePolicy,
   grantedTools: string[],
   tools: ValidationContext['tools'],
-  components: ValidationContext['components'],
 ): ValidationContext {
   return {
     mode: compiledPolicy.mode,
     allowedTools: grantedTools,
     tools,
-    components,
     surfacePlan: compiledPolicy.surfacePlan,
   };
 }
@@ -496,7 +447,7 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
     const value = line.value as { css?: unknown };
     if (typeof value.css === 'string' && value.css.trim()) {
       activeTokensSourceOverride = value.css;
-      respawnSandbox();
+      remountSurface();
     }
   }
   skippedCountEl.textContent = String(skippedLines);
@@ -506,7 +457,6 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
 function renderAuthorityMeter(compiled: CompiledSurfacePolicy): void {
   const plan = compiled.surfacePlan;
   const grants = compiled.policy.grants;
-  const components = compiled.policy.components;
   authorityBoundary.textContent = selectedPreset.boundary ?? 'The host-selected policy decides what can run.';
   authorityMeter.innerHTML = '';
   const rows: Array<[string, string]> = [
@@ -518,7 +468,7 @@ function renderAuthorityMeter(compiled: CompiledSurfacePolicy): void {
     ['Parent DOM', 'blocked'],
     ['External assets', 'blocked'],
     ['Host tools', grants.length ? grants.join(', ') : 'none'],
-    ['Components', components.length ? components.join(', ') : 'none'],
+    ['Visual UI', 'Arrow source only'],
     ['Persistence', plan.persistence],
     ['Approval', plan.authority === 'approval-gated' ? 'host UI required' : 'not granted'],
   ];
@@ -549,13 +499,7 @@ function renderPresetNotes(): void {
 
 function renderContract(): void {
   const contract = currentSurfaceContractView;
-  const componentNames = policyComponents(selectedPreset.surfacePolicy);
   const grantNames = policyGrants(selectedPreset.surfacePolicy);
-  const components = contract
-    ? contract.components.map((component) => component.name).join(', ') || 'none'
-    : componentNames.length
-    ? componentNames.join(', ')
-    : 'none';
   const allowedHostTools = contract
     ? contract.tools.map((tool) => tool.name).join(', ') || 'none'
     : grantNames.length
@@ -575,9 +519,8 @@ function renderContract(): void {
   providerSummaryEl.textContent = provider ? `${provider.name} - ${generationModel}` : modelProviderLabel;
   surfacePolicyPill.textContent = centerPolicyText(selectedPreset);
   const toolCount = contract?.tools.length ?? grantNames.length;
-  const componentCount = contract?.components.length ?? componentNames.length;
   surfaceToolsPill.textContent = `${toolCount} host tool${toolCount === 1 ? '' : 's'}`;
-  surfaceComponentsPill.textContent = `${componentCount} component${componentCount === 1 ? '' : 's'}`;
+  surfaceComponentsPill.textContent = 'Arrow-only UI';
   welcomeTitle.textContent = selectedPreset.title;
   welcomeDetail.textContent = selectedPreset.description;
   renderAuthorityMeter(compiledPolicyFor(selectedPreset));
@@ -591,7 +534,7 @@ function renderContract(): void {
       ? [['runtime', 'Runtime', `${contract.surface.mode} - ${contract.surface.plan.runtime}`] as [string, string, string]]
       : []),
     ['grants', 'Allowed host tools', allowedHostTools],
-    ['components', 'Trusted components', components],
+    ['ui', 'Visual UI', 'Arrow source only'],
     ...(selectedPreset.ghost
       ? [['ghost', 'Ghost root', `${selectedPreset.ghost.rootId} - ${selectedPreset.ghost.targetPath}`] as [string, string, string]]
       : []),
@@ -860,7 +803,7 @@ function parseSurfaceContractView(value: unknown): SurfaceContractView | null {
   if (!value || typeof value !== 'object') return null;
   const contract = value as Partial<SurfaceContractView>;
   if (!contract.surface || typeof contract.surface !== 'object') return null;
-  if (!Array.isArray(contract.tools) || !Array.isArray(contract.components)) return null;
+  if (!Array.isArray(contract.tools)) return null;
   if (!Array.isArray(contract.issues)) return null;
   return contract as SurfaceContractView;
 }
@@ -877,14 +820,14 @@ function describeEvent(event: DevtoolsEvent): string {
       return `host settled ${event.tool} ${event.ok ? 'ok' : 'error'}`;
     case 'state-pushed':
       return `state ${Object.keys(event.patch).join(', ') || 'updated'}`;
-    case 'component-error':
-      return `component ${event.code}: ${event.reason}`;
     case 'rendered':
       return `rendered revision ${event.revision}`;
+    case 'surface-preview-event':
+      return `preview ${(event.event as { type?: unknown }).type ?? 'event'}`;
     case 'stream-lifecycle':
       return `stream ${event.phase}${event.ok === undefined ? '' : event.ok ? ' ok' : ' error'}`;
     case 'surface-contract':
-      return `contract ${(event.contract.tools?.length ?? 0)} tools / ${(event.contract.components?.length ?? 0)} components`;
+      return `contract ${(event.contract.tools?.length ?? 0)} tools`;
     default:
       return event.kind;
   }
@@ -1012,6 +955,6 @@ function setSetupNote(message: string | null): void {
 
 export const galleryTestApi = {
   presets: GALLERY_PRESETS,
-  allComponentNames: allGalleryComponentNames,
+  allComponentNames: [],
   selectPreset,
 };

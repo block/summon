@@ -1,7 +1,6 @@
 import {
   compileTokenContract,
   type ToolPack,
-  type ComponentPack,
   type ProtocolLine,
   type SurfacePlan,
 } from '@anarchitecture/summon/engine';
@@ -90,7 +89,6 @@ export interface GhostSurfacePromptOptions {
   surfacePlan: SurfacePlan;
   shape?: string | null;
   tools?: ToolPack | null;
-  components?: ComponentPack | null;
 }
 
 export interface GhostReviewPacket {
@@ -351,7 +349,6 @@ function buildSummonFingerprintSurfaceBrief(
   options: GhostSurfacePromptOptions,
 ): string {
   const toolNames = options.tools?.tools.map((tool) => tool.name) ?? [];
-  const componentNames = options.components?.components.map((component) => component.name) ?? [];
   const details = [
     `Product: ${context.product}`,
     `Target path: ${context.relay.source.targetPath}`,
@@ -360,7 +357,6 @@ function buildSummonFingerprintSurfaceBrief(
     `Mode: ${options.mode}`,
     options.shape ? `Response shape hint: ${options.shape}` : null,
     toolNames.length > 0 ? `Granted host tools: ${toolNames.join(', ')}` : 'Granted host tools: none',
-    componentNames.length > 0 ? `Granted host components: ${componentNames.join(', ')}` : null,
   ].filter((line): line is string => Boolean(line));
 
   return [

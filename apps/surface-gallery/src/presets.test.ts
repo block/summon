@@ -8,19 +8,17 @@ import {
   normalizeSurfacePolicy,
 } from '@anarchitecture/summon';
 import { allGalleryToolNames, createGalleryToolRegistry } from './tools.js';
-import { allGalleryComponentNames, createGalleryComponentRegistry } from './components.js';
 import { GALLERY_PRESETS } from './presets.js';
 
 test('gallery presets are explicit, valid, and policy-complete', () => {
   const toolNames = new Set(allGalleryToolNames());
-  const componentNames = new Set(allGalleryComponentNames());
   const seen = new Set<string>();
   const requiredIds = [
     'static-summary',
     'host-resource-search',
     'decision-picker',
     'approval-refund',
-    'component-islands',
+    'arrow-fidelity',
     'worker-analysis',
     'boundary-stress',
   ];
@@ -37,29 +35,19 @@ test('gallery presets are explicit, valid, and policy-complete', () => {
       tier: preset.surfacePolicy.tier,
       purpose: preset.surfacePolicy.purpose ?? 'inform',
       grants: preset.surfacePolicy.grants ?? [],
-      components: preset.surfacePolicy.components ?? [],
       persistence: preset.surfacePolicy.persistence ?? 'replayable',
     });
 
     for (const tool of preset.surfacePolicy.grants ?? []) {
       assert.equal(toolNames.has(tool), true, `${preset.id} references unknown tool ${tool}`);
     }
-    for (const component of preset.surfacePolicy.components ?? []) {
-      assert.equal(componentNames.has(component), true, `${preset.id} references unknown component ${component}`);
-    }
-
     const compiled = compileSurfacePolicy(preset.surfacePolicy, {
       tools: createGalleryToolRegistry().toContract().pack,
-      components: createGalleryComponentRegistry().toContract().pack,
     });
     assert.deepEqual(compiled.issues, []);
     assert.deepEqual(
       compiled.tools?.tools.map((tool) => tool.name) ?? [],
       preset.surfacePolicy.grants ?? [],
-    );
-    assert.deepEqual(
-      compiled.components?.components.map((component) => component.name) ?? [],
-      preset.surfacePolicy.components ?? [],
     );
   }
 });

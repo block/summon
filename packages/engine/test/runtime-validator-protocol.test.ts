@@ -102,7 +102,7 @@ test('blocks legacy data-summon binding attributes in Arrow artifacts', () => {
   assert.match(issues[0]?.message ?? '', /data-summon-show/);
 });
 
-test('allows trusted component placeholder attributes in Arrow artifacts', () => {
+test('blocks trusted component placeholder attributes in Arrow artifacts', () => {
   const issues = validateProtocolLine(
     {
       op: 'artifact',
@@ -121,7 +121,8 @@ test('allows trusted component placeholder attributes in Arrow artifacts', () =>
     },
     baseContext,
   );
-  assert.deepEqual(issues, []);
+  assert.deepEqual(codes(issues), ['unsupported-legacy-data-summon-binding']);
+  assert.match(issues[0]?.message ?? '', /data-summon-component/);
 });
 
 test('parser rejects legacy section protocol ops', () => {

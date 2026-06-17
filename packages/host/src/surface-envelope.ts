@@ -5,7 +5,6 @@ import type {
   StreamGraphSnapshot,
   SurfacePlan,
   ValidationTool,
-  ValidationComponent,
 } from '@summon-internal/engine';
 import {
   isArrowSurfaceArtifact,
@@ -29,7 +28,6 @@ export interface SurfaceEnvelope {
   grants: {
     tools: string[];
     validationTools?: ValidationTool[];
-    components?: ValidationComponent[];
   };
   metadata: {
     directionId?: string | null;
@@ -53,7 +51,6 @@ export interface CreateSurfaceEnvelopeInput {
   grants: {
     tools: string[];
     validationTools?: ValidationTool[];
-    components?: ValidationComponent[];
   };
   metadata?: SurfaceEnvelope['metadata'];
   tokenCss?: string | null;
@@ -85,7 +82,6 @@ export function createSurfaceEnvelope(input: CreateSurfaceEnvelopeInput): Surfac
     grants: {
       tools: [...input.grants.tools],
       validationTools: input.grants.validationTools?.map((tool) => ({ ...tool })),
-      components: input.grants.components?.map((component) => ({ ...component })),
     },
     metadata: input.metadata ?? {},
     tokenCss: input.tokenCss ?? null,
@@ -151,7 +147,6 @@ function validationContextForEnvelope(input: {
   return {
     mode: input.metadata?.mode ?? (input.grants.tools.length === 0 ? 'static' as const : 'interactive' as const),
     tools: input.grants.validationTools,
-    components: input.grants.components,
     allowedTools: input.grants.tools,
     surfacePlan: input.surfacePlan,
   };
@@ -193,13 +188,6 @@ function isGrants(value: unknown): value is SurfaceEnvelope['grants'] {
         Array.isArray(grants.validationTools) &&
         grants.validationTools.every(isValidationTool)
       )
-    ) &&
-    (
-      grants.components === undefined ||
-      (
-        Array.isArray(grants.components) &&
-        grants.components.every(isValidationComponent)
-      )
     )
   );
 }
@@ -208,12 +196,6 @@ function isValidationTool(value: unknown): value is ValidationTool {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const tool = value as Record<string, unknown>;
   return typeof tool.name === 'string' && tool.name.length > 0;
-}
-
-function isValidationComponent(value: unknown): value is ValidationComponent {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const component = value as Record<string, unknown>;
-  return typeof component.name === 'string' && component.name.length > 0;
 }
 
 function isMetadata(value: unknown): value is SurfaceEnvelope['metadata'] {

@@ -38,7 +38,6 @@ import {
 } from './ghost-adapter.js';
 import { inferShape, type ResponseShape } from './infer-shape.js';
 import { parseToolPack } from './tool-pack.js';
-import { parseComponentPack } from './component-pack.js';
 import {
   createModelProviderRegistry,
   type ProviderUsageSnapshot,
@@ -250,8 +249,8 @@ app.get('/api/model-providers', (_req, res) => {
 
 /**
  * Exposes the list of directions to the client. Tokens and exemplars are
- * included so the client can apply the right tokens.css when spawning its
- * sandbox iframe. Prompt text is NOT included — stays server-side.
+ * included so the client can apply the right tokens.css when mounting its
+ * inline Arrow surface. Prompt text is NOT included — stays server-side.
  */
 app.get('/api/directions', (_req, res) => {
   res.json(
@@ -378,7 +377,6 @@ app.post('/api/generate', async (req, res) => {
   const hasSurfacePolicy =
     req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
   const toolCeiling = parseToolPack(req.body?.tools);
-  const componentPack = parseComponentPack(req.body?.components);
 
   let mode: 'static' | 'interactive' = 'static';
   let pack: ToolPack | null = null;
@@ -401,7 +399,6 @@ app.post('/api/generate', async (req, res) => {
   if (hasSurfacePolicy) {
     const compiledPolicy = compileSurfacePolicy(req.body.surfacePolicy, {
       tools: toolCeiling,
-      components: componentPack,
     });
     mode = compiledPolicy.mode;
     pack = compiledPolicy.tools;
@@ -410,7 +407,6 @@ app.post('/api/generate', async (req, res) => {
     agentPlan = await planAgentSurface({
       prompt,
       tools: toolCeiling,
-      components: componentPack,
       goalModel: process.env.SUMMON_AGENT_GOAL_MODEL === '0' || agentOptions?.goalModel === 'off'
         ? null
         : {
@@ -434,7 +430,6 @@ app.post('/api/generate', async (req, res) => {
         : agentPlan
           ? agentPlan.compiledPolicy.tools
           : pack,
-      components: componentPack,
     });
   }
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -470,7 +465,6 @@ app.post('/api/generate', async (req, res) => {
         proposedSurfacePolicy: agentPlan.policyResolution.proposedSurfacePolicy,
         surfacePolicy: agentPlan.policyResolution.surfacePolicy,
         rejectedTools: agentPlan.policyResolution.rejectedTools,
-        rejectedComponents: agentPlan.policyResolution.rejectedComponents,
         fallback: agentPlan.policyResolution.fallback,
       },
     });
@@ -483,7 +477,7 @@ app.post('/api/generate', async (req, res) => {
   }
   if (overrides.applied.length > 0) {
     // Surface the resolved overrides so the client can paint them into the
-    // iframe stylesheet. Rejected entries are surfaced too — a host that
+    // inline surface stylesheet. Rejected entries are surfaced too — a host that
     // tried to override a non-allowlisted token gets a visible signal.
     preludeLines.push({
       op: 'meta',
@@ -515,7 +509,6 @@ app.post('/api/generate', async (req, res) => {
         activeTokensCss: ghostContext?.tokenSource.css ?? null,
         layout,
         tools: hasSurfacePolicy || agentPlan ? toolCeiling : pack,
-        components: componentPack,
         surfacePolicy: hasSurfacePolicy
           ? req.body.surfacePolicy
           : agentPlan
@@ -557,7 +550,6 @@ app.post('/api/generate', async (req, res) => {
           ` layout=${layout?.id ?? 'none'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +
           ` tools=${pack?.tools.length ?? 0}/${toolCeiling?.tools.length ?? 0}` +
-          ` components=${componentPack?.components.length ?? 0}` +
           ` overrides=${overrides.applied.length}` +
           ` options=max:${modelSelection.options.maxOutputTokens}` +
           (modelSelection.options.anthropicThinking ? ` thinking=${modelSelection.options.anthropicThinking}` : '') +

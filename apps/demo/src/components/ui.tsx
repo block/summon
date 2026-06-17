@@ -107,8 +107,8 @@ export function statusToneClass(status?: string): string {
 }
 
 export function devtoolsEventKindClass(kind: string): string {
-  if (kind === 'sandbox-spawned' || kind === 'sandbox-ready' || kind === 'rendered') return 'text-good';
-  if (kind === 'sandbox-fatal' || kind === 'sandbox-disposed' || kind === 'tool-rejected' || kind === 'protocol-parse-error') {
+  if (kind === 'surface-mounted' || kind === 'surface-preview-event' || kind === 'rendered') return 'text-good';
+  if (kind === 'surface-runtime-error' || kind === 'surface-disposed' || kind === 'tool-rejected' || kind === 'protocol-parse-error') {
     return 'text-danger';
   }
   if (kind === 'tool-called' || kind === 'tool-dispatched' || kind === 'state-pushed') return 'text-info';

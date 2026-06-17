@@ -5,7 +5,6 @@ import {
   normalizeSurfacePolicy,
 } from '@anarchitecture/summon';
 import { GALLERY_PRESETS } from '../../surface-gallery/src/presets.js';
-import { baseDemoComponentPack } from './components.js';
 import {
   createScopedDemoRegistry,
   narrowToolPack,
@@ -59,7 +58,6 @@ test('showcase scenarios declare contract-complete surfaces', () => {
     { onSummon: () => {} },
     allDemoToolNames,
   ).toContract().pack;
-  const components = baseDemoComponentPack();
 
   for (const scenario of SHOWCASE_SCENARIOS) {
     assert.ok(scenario.id);
@@ -69,13 +67,11 @@ test('showcase scenarios declare contract-complete surfaces', () => {
       tier: scenario.surfacePolicy.tier,
       purpose: scenario.surfacePolicy.purpose ?? 'inform',
       grants: scenario.surfacePolicy.grants ?? [],
-      components: scenario.surfacePolicy.components ?? [],
       persistence: scenario.surfacePolicy.persistence ?? 'replayable',
     });
 
     const compiled = compileSurfacePolicy(scenario.surfacePolicy, {
       tools,
-      components,
     });
     assert.deepEqual(compiled.issues, [], `${scenario.id} has invalid SurfacePolicy`);
     assert.deepEqual(compiled.surfacePlan, scenario.surfacePlan, `${scenario.id} policy does not compile to its SurfacePlan`);
@@ -83,11 +79,6 @@ test('showcase scenarios declare contract-complete surfaces', () => {
       compiled.tools?.tools.map((tool) => tool.name) ?? [],
       scenario.toolNames,
       `${scenario.id} grants do not match tool names`,
-    );
-    assert.deepEqual(
-      compiled.components?.components.map((component) => component.name) ?? [],
-      scenario.componentNames ?? [],
-      `${scenario.id} trusted components do not match component names`,
     );
 
     assert.ok(scenario.surfacePlan.purpose);
@@ -105,7 +96,7 @@ test('generate showcase mirrors surface gallery presets for shared sandbox paths
     'static-summary',
     'host-resource-search',
     'decision-picker',
-    'component-islands',
+    'arrow-fidelity',
     'worker-analysis',
   ];
 
@@ -116,7 +107,6 @@ test('generate showcase mirrors surface gallery presets for shared sandbox paths
     assert.ok(scenario, `missing generate scenario ${id}`);
     assert.deepEqual(scenario.surfacePolicy, gallery.surfacePolicy, `${id} SurfacePolicy drift`);
     assert.deepEqual(scenario.toolNames, gallery.surfacePolicy.grants ?? [], `${id} grant drift`);
-    assert.deepEqual(scenario.componentNames ?? [], gallery.surfacePolicy.components ?? [], `${id} component drift`);
   }
 });
 

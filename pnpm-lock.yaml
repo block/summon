@@ -177,15 +177,15 @@ importers:
 
   packages/host:
     dependencies:
+      '@arrow-js/sandbox':
+        specifier: 1.0.6
+        version: 1.0.6
       '@summon-internal/devtools':
         specifier: workspace:*
         version: link:../devtools
       '@summon-internal/engine':
         specifier: workspace:*
         version: link:../engine
-      '@summon-internal/sandbox-runtime':
-        specifier: workspace:*
-        version: link:../sandbox-runtime
       zod:
         specifier: ^3.23.0
         version: 3.25.76
@@ -219,15 +219,7 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
-  packages/sandbox-runtime:
-    dependencies:
-      '@arrow-js/sandbox':
-        specifier: 1.0.6
-        version: 1.0.6
-    devDependencies:
-      esbuild:
-        specifier: 0.27.7
-        version: 0.27.7
+  packages/sandbox-runtime: {}
 
   packages/server:
     dependencies:
@@ -244,6 +236,9 @@ importers:
 
   packages/summon:
     dependencies:
+      '@arrow-js/sandbox':
+        specifier: 1.0.6
+        version: 1.0.6
       parse5:
         specifier: ^8.0.1
         version: 8.0.1

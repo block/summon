@@ -3,12 +3,15 @@ import {
   normalizeValidationLimits,
   parseProtocolLine,
   StreamGraph,
+  validateProtocolLine,
   validateArrowSurfaceArtifact,
   type ContractIssue,
   type ArrowSurfaceArtifact,
   type ArtifactLine,
   type MetaLine,
   type ProtocolLine,
+  type SurfaceEvent,
+  type SurfaceEventLine,
   type StreamGraphSnapshot,
   type SurfacePlanMode,
   type ValidationContext,
@@ -54,6 +57,11 @@ export interface SurfaceStreamOptions {
     line: MetaLine,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
+  onSurfaceEvent?: (
+    event: SurfaceEvent,
+    line: SurfaceEventLine,
+    context: SurfaceStreamContext,
+  ) => void | Promise<void>;
   onArtifact?: (
     artifact: ArrowSurfaceArtifact,
     line: ArtifactLine,
@@ -76,6 +84,7 @@ export interface SurfaceStreamOptions {
 
 export interface SurfaceStreamResult {
   protocolLines: ProtocolLine[];
+  surfaceEvents: SurfaceEvent[];
   streamGraph: StreamGraphSnapshot;
   validationIssues: ContractIssue[];
   parseErrors: SurfaceStreamParseError[];
@@ -89,6 +98,7 @@ export async function consumeSurfaceStream(
 ): Promise<SurfaceStreamResult> {
   const graph = options.streamGraph ?? new StreamGraph();
   const protocolLines: ProtocolLine[] = [];
+  const surfaceEvents: SurfaceEvent[] = [];
   const validationIssues: ContractIssue[] = [];
   const parseErrors: SurfaceStreamParseError[] = [];
   const decoder = new TextDecoder();
@@ -161,6 +171,14 @@ export async function consumeSurfaceStream(
       await options.onMeta?.(acceptedLine, ctx);
       return;
     }
+    if (acceptedLine.op === 'event') {
+      await emitGraph(ctx);
+      if (isSurfaceEventValue(acceptedLine.value)) {
+        surfaceEvents.push(acceptedLine.value);
+        await options.onSurfaceEvent?.(acceptedLine.value, acceptedLine, ctx);
+      }
+      return;
+    }
     if (acceptedLine.op === 'artifact') {
       await emitGraph(ctx);
       if (isArrowSurfaceArtifactValue(acceptedLine.value)) {
@@ -199,6 +217,7 @@ export async function consumeSurfaceStream(
 
   return {
     protocolLines,
+    surfaceEvents,
     streamGraph: graph.snapshot(),
     validationIssues,
     parseErrors,
@@ -216,8 +235,32 @@ function compileAcceptedLine(
   if (line.op === 'artifact') {
     return compileAcceptedArtifactLine(line, validationContext, validationIssues, graph);
   }
+  if (line.op === 'event') {
+    return compileAcceptedEventLine(line, validationContext, validationIssues, graph);
+  }
   if (line.op === 'meta') return line;
   return null;
+}
+
+function compileAcceptedEventLine(
+  line: SurfaceEventLine,
+  validationContext: ValidationContext | undefined,
+  validationIssues: ContractIssue[],
+  graph: StreamGraph,
+): SurfaceEventLine | null {
+  const issues = validateProtocolLine(line, validationContext ?? {
+    mode: 'static',
+    allowedTools: [],
+    tools: [],
+  });
+  let blocked = false;
+  for (const issue of issues) {
+    pushValidationIssue(validationIssues, issue);
+    graph.recordIssue(issue);
+    if (issue.severity === 'block') blocked = true;
+  }
+  if (blocked || !isSurfaceEventValue(line.value)) return null;
+  return line;
 }
 
 function compileAcceptedArtifactLine(
@@ -256,6 +299,27 @@ function isArrowSurfaceArtifactValue(value: unknown): value is ArrowSurfaceArtif
     (value as { source?: unknown }).source !== null &&
     !Array.isArray((value as { source?: unknown }).source)
   );
+}
+
+function isSurfaceEventValue(value: unknown): value is SurfaceEvent {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const event = value as Record<string, unknown>;
+  switch (event.type) {
+    case 'surface.start':
+      return typeof event.id === 'string' && typeof event.kind === 'string';
+    case 'region.add':
+      return typeof event.id === 'string' && typeof event.role === 'string';
+    case 'node.add':
+      return typeof event.id === 'string' && typeof event.parent === 'string' && typeof event.kind === 'string';
+    case 'node.patch':
+      return typeof event.id === 'string' && !!event.props && typeof event.props === 'object' && !Array.isArray(event.props);
+    case 'surface.status':
+      return event.status === 'planning' || event.status === 'drafting' || event.status === 'validating' || event.status === 'finalizing';
+    case 'surface.finalize':
+      return event.artifactExpected === true;
+    default:
+      return false;
+  }
 }
 
 async function* chunksFromSource(

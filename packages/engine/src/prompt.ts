@@ -18,7 +18,7 @@ import {
   type ResourceStateKeys,
 } from './tool-contract.js';
 import type { SurfaceContractView } from './surface-contract.js';
-import type { ComponentSurface, ToolSurface } from './surface-plan.js';
+import type { ToolSurface } from './surface-plan.js';
 
 export interface Exemplar {
   name: string;
@@ -104,16 +104,26 @@ Before using a card grid, ask what job the boxes are doing. Use cards when the c
 
 **Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific tool actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
 
-## Output protocol — Arrow JSONL only
+## Output protocol — semantic preview events, then Arrow artifact
 
-Emit exactly one JSON object on one physical line. No markdown fences, no prose, no headings, no commentary. The line must be valid JSON.
+Emit JSONL only: one valid JSON object per physical line. No markdown fences, no prose outside JSON, no headings, no commentary.
 
-Emit exactly this shape with real source strings:
+First emit a short progressive preview stream. Preview events are non-executable and help the host show the surface forming:
+
+{"op":"event","path":"/surface","value":{"type":"surface.status","status":"planning","text":"Choosing the right surface shape"}}
+{"op":"event","path":"/surface","value":{"type":"surface.start","id":"main","kind":"comparison","title":"Rollout decision"}}
+{"op":"event","path":"/surface","value":{"type":"region.add","id":"verdict","parent":"main","role":"summary","label":"Verdict"}}
+{"op":"event","path":"/surface","value":{"type":"node.add","id":"verdict-copy","parent":"verdict","kind":"text","props":{"text":"Drafting the recommendation"}}}
+
+Then emit exactly one final Arrow artifact line with real source strings:
 
 {"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"...","main.css":"..."}}}
 
 Rules:
 
+- Emit 3–8 preview event lines before the final artifact. Keep them useful and compact.
+- Preview events must never include tool calls, credentials, generated JavaScript, native bridge names, or executable authority.
+- The final Arrow artifact is the only executable UI. It must stand alone even if preview events were ignored.
 - The \`value.runtime\` must be \`"arrow"\`.
 - \`source\` must contain exactly one entry file: \`main.ts\` or \`main.js\`.
 - \`main.css\` is optional and should contain all visual styling.
@@ -133,7 +143,7 @@ import { callTool, getState, onState } from "host-bridge:summon"
 - Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
 - Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
-- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, host-owned meta lines, HTML fragments, or multiple lines. The only prefixed attributes allowed in Arrow source are \`data-summon-component\`, \`data-summon-component-id\`, and \`data-summon-props\` from the Component islands block.
+- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, host-owned meta lines, HTML fragments, or any protocol op other than \`event\` and the final \`artifact\`.
 - Keep the JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.
 
 ## Arrow/CSS rules
@@ -159,19 +169,23 @@ The direction block specifies which tokens carry particular meaning for that dir
 
 ## How to think about this generation
 
-Decide your section structure and your styling approach BEFORE you start emitting. Once you've started emitting, commit. Don't re-evaluate selectors, layout primitives, color tokens, or section names mid-generation. If a constraint blocks the obvious approach (e.g. a control needs interactivity but you have no Tools block), state the constraint in one short line of copy inside the UI ("Static preview — pick functionality requires interactive mode") and use the simplest static alternative. Do not invent CSS-only state machines, \`:has()\` selector tricks, sibling-checked toggles, or \`<details>\` chains to simulate interactivity that the rules forbid. A static answer that names its limitation is better than an elaborate workaround.
+Decide your section structure and styling approach before the final artifact. Use preview events to reveal that decision progressively, then commit to it in the artifact. If a constraint blocks the obvious approach (e.g. a control needs interactivity but you have no Tools block), state the constraint in one short line of copy inside the UI ("Static preview — pick functionality requires interactive mode") and use the simplest static alternative. Do not invent CSS-only state machines, \`:has()\` selector tricks, sibling-checked toggles, or \`<details>\` chains to simulate interactivity that the rules forbid. A static answer that names its limitation is better than an elaborate workaround.
 
-Pick one structural approach and ship it. Reconsidering mid-stream is the wrong move — the user sees a half-rendered UI and a frozen status.
+Pick one structural approach and ship it. Preview events should make the UI feel like it is coming into focus; the final artifact should not contradict them.
 
-Begin. Emit exactly one Arrow artifact JSONL line.`;
+Begin. Emit semantic preview events followed by exactly one Arrow artifact JSONL line.`;
 
 export const SUMMON_ARROW_ARTIFACT_INSTRUCTIONS = `## Arrow sandbox artifact output
 
 This block is the output contract for Summon Arrow runtimes.
 
-Your entire response must be exactly one JSONL line. Do not wrap it in Markdown. Do not add prose before or after it. Do not emit code fences. Do not emit \`set /screen\`, \`add /section/*\`, or any other line.
+Your response must be JSONL. Emit a few \`event /surface\` preview lines, then exactly one final Arrow artifact line. Do not wrap it in Markdown. Do not add prose before or after it. Do not emit code fences. Do not emit \`set /screen\`, \`add /section/*\`, or any other protocol op.
 
-Emit exactly this shape with real source strings:
+Preview event shape:
+
+{"op":"event","path":"/surface","value":{"type":"surface.status","status":"drafting","text":"Drafting the surface"}}
+
+Final artifact shape:
 
 {"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"...","main.css":"..."}}}
 
@@ -196,7 +210,7 @@ import { callTool, getState, onState } from "host-bridge:summon"
 - Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
 - Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
-- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, or host-owned meta lines. The only prefixed attributes allowed in Arrow source are \`data-summon-component\`, \`data-summon-component-id\`, and \`data-summon-props\` from the Component islands block.
+- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, host-owned meta lines, or component island placeholders.
 - Keep every JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.`;
 
 /**
@@ -295,7 +309,7 @@ function pickShapeExemplars(shapes: Exemplar[], shape: string | null): Exemplar[
  * Token overrides — when a host (embedder) brand-shifts a direction at spawn
  * time, this block tells the model what changed so the prose it writes
  * matches what's actually rendering. Without it, the direction's prompt may
- * still assert "accent is achromatic" while the iframe paints saturated
+ * still assert "accent is achromatic" while the runtime paints saturated
  * indigo, and the copy drifts from the visual.
  *
  * Pass as an additional cacheable system block when overrides are present.
@@ -348,18 +362,6 @@ export function buildSurfaceContractBlock(contract: SurfaceContractView): string
         return `- \`${tool.name}\` (${tool.kind}) — ${tool.description} Triggers: ${tool.triggers.join(', ')}; args \`${tool.argsSchema}\`; state \`${tool.stateShape}\`${stateKeys}${actionState}${result}${defaultData}; surface data=${tool.surface.data}, authority=${tool.surface.authority}`;
       }).join('\n')
     : '- none';
-  const componentLines = contract.components.length
-    ? contract.components.map((component) => {
-        const sizing = component.sizing
-          ? `; sizing ${[
-              component.sizing.width ? `width=${component.sizing.width}` : '',
-              component.sizing.height ? `height=${component.sizing.height}` : '',
-              component.sizing.description ?? '',
-            ].filter(Boolean).join(', ')}`
-          : '';
-        return `- \`${component.name}\` — ${component.description} Props: \`${component.propsSchema}\`; surface data=${component.surface.data}, authority=${component.surface.authority}${sizing}`;
-      }).join('\n')
-    : '- none';
   const layoutLines = contract.layout
     ? contract.layout.slots
         .map((slot) => `- \`${slot.id}\` — ${slot.purpose}`)
@@ -373,7 +375,7 @@ export function buildSurfaceContractBlock(contract: SurfaceContractView): string
 
 This is a compact, read-only view of the host-selected \`SurfacePolicy\`. It tells you what this generated surface can do. It is not a JSON UI schema: you still generate a rich Arrow source artifact inside these typed boundaries.
 
-Do not emit \`/surface-contract\`, \`/surface-policy\`, or \`/surface-plan\` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, sandbox grants, and component prop validation.
+Do not emit \`/surface-contract\`, \`/surface-policy\`, or \`/surface-plan\` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and inline Arrow tool grants.
 
 ### Surface
 
@@ -384,10 +386,6 @@ Do not emit \`/surface-contract\`, \`/surface-policy\`, or \`/surface-plan\` met
 ### Tools
 
 ${toolLines}
-
-### Trusted components
-
-${componentLines}
 
 ### Host layout
 
@@ -472,35 +470,6 @@ export interface ToolPack {
   /** Example patterns shown under "### Patterns". Optional — without them the
    *  LLM gets only the tool list and the interactivity rules. */
   patterns?: ToolPattern[];
-}
-
-export interface ComponentExample {
-  /** Short label for the component example. */
-  name: string;
-  /** Valid placeholder HTML showing this component in context. */
-  code: string;
-}
-
-export interface ComponentSizing {
-  /** Suggested placeholder width, e.g. `320px`, `100%`, or `minmax(220px, 1fr)`. */
-  width?: string;
-  /** Suggested placeholder height, e.g. `120px`. */
-  height?: string;
-  /** One-sentence note about how much room the component needs. */
-  description?: string;
-}
-
-export interface ComponentSpec {
-  name: string;
-  description: string;
-  propsSchema: string;
-  surface?: ComponentSurface;
-  examples?: ComponentExample[];
-  sizing?: ComponentSizing;
-}
-
-export interface ComponentPack {
-  components: ComponentSpec[];
 }
 
 export function buildToolsBlock(
@@ -693,71 +662,6 @@ Controlled actions expose host-owned pending/done/error keys when listed under A
 Action-owned state starts empty unless the host declares controlled action state, in which case pending/done/error start false/false/null. Data-resource lifecycle keys start from the default state described above. Render defensively: show an empty-state message only from declared empty state or a form before data exists, never placeholder fetched data.${patternsBlock}`;
 }
 
-export function buildComponentsBlock(pack: ComponentPack | null | undefined): string {
-  if (!pack?.components.length) return '';
-
-  const componentRows = pack.components
-    .map((component) => {
-      const surface = component.surface ? `\n  Surface: ${formatComponentSurface(component.surface)}` : '';
-      const sizing = component.sizing
-        ? `\n  Sizing: ${[
-            component.sizing.width ? `width=${component.sizing.width}` : '',
-            component.sizing.height ? `height=${component.sizing.height}` : '',
-            component.sizing.description ?? '',
-          ].filter(Boolean).join(', ')}`
-        : '';
-      return `- \`${component.name}(${component.propsSchema})\` — ${component.description}${surface}${sizing}`;
-    })
-    .join('\n\n');
-
-  const examples = pack.components.flatMap((component) =>
-    (component.examples ?? []).map((example) => ({
-      name: `${component.name}: ${example.name}`,
-      code: example.code,
-    })),
-  );
-  const examplesBlock = examples.length > 0
-    ? `\n\n### Component examples\n\n${examples
-        .map((example) => `**${example.name}:**\n\`\`\`html\n${example.code.trim()}\n\`\`\``)
-        .join('\n\n')}`
-    : '';
-
-  return `## Component islands — host-rendered UI available
-
-The host has registered trusted UI components that can render above the sandbox as overlay islands. Use them only when they materially improve fidelity, such as charts, metrics, calendars, maps, data-dense controls, or product-native widgets. The Arrow artifact you generate is still the composition layer around them.
-
-Component islands are placeholders inside your HTML. The host validates the component name and props, measures the placeholder, and renders the real component outside the sandbox. The sandbox cannot read or mutate the host-rendered component DOM.
-
-### Available components
-
-${componentRows}
-
-### Placeholder syntax
-
-Use this exact pattern:
-
-\`\`\`html
-<div
-  data-summon-component="MetricCard"
-  data-summon-component-id="revenue-card"
-  data-summon-props='{"label":"Revenue","value":"$284,120","delta":"+3.2%"}'
-  style="min-height:var(--space-10);"
-></div>
-\`\`\`
-
-Rules:
-
-- \`data-summon-component\` must be one of the registered names above.
-- \`data-summon-component-id\` must be unique in the surface and stable across re-renders.
-- \`data-summon-props\` must be one valid JSON object matching the component's props schema.
-- Give the placeholder explicit visual space with CSS, usually \`height\`, \`min-height\`, or a grid track.
-- Do not nest component placeholders.
-- Do not use a component island for something your Arrow template and CSS can express well.
-- Component islands do not grant new host actions. If the component needs durable host behavior, it must route through an already-granted tool or host-owned component code.
-
-If props depend on Arrow state, compute the JSON from Arrow with a quoted attribute expression such as \`data-summon-props="\${() => JSON.stringify({ value: state.revenue })}"\` and keep \`data-summon-component-id\` stable across renders.${examplesBlock}`;
-}
-
 function normalizeTriggers(tool: ToolSpec): ToolTrigger[] {
   if (tool.triggers?.length) return tool.triggers;
   return defaultTriggersForKind(tool.kind ?? 'action');
@@ -781,11 +685,4 @@ function formatSurface(surface: ToolSurface): string {
   if (surface.data) parts.push(`data=${surface.data}`);
   if (surface.authority) parts.push(`authority=${surface.authority}`);
   return parts.length ? parts.join(', ') : 'default';
-}
-
-function formatComponentSurface(surface: ComponentSurface): string {
-  const parts: string[] = [];
-  if (surface.data) parts.push(`data=${surface.data}`);
-  if (surface.authority) parts.push(`authority=${surface.authority}`);
-  return parts.length ? parts.join(', ') : 'embedded/none';
 }

@@ -1,8 +1,6 @@
 export { createEventStore } from '@summon-internal/devtools';
 export type {
   BaseEvent,
-  ComponentErrorEvent,
-  ComponentSyncEvent,
   DevtoolsEvent,
   DevtoolsEventKind,
   EventStore,
@@ -14,13 +12,14 @@ export type {
   ProtocolLineEvent,
   ProtocolParseErrorEvent,
   RenderEvent,
-  SandboxDisposedEvent,
-  SandboxFatalEvent,
-  SandboxReadyEvent,
-  SandboxSpawnedEvent,
+  RenderedEvent,
   StatePushedEvent,
   StreamGraphEvent,
   StreamLifecycleEvent,
+  SurfaceDisposedEvent,
+  SurfaceMountedEvent,
+  SurfacePreviewEvent,
+  SurfaceRuntimeErrorEvent,
   SurfaceContractEvent,
   SurfacePlanEvent,
 } from '@summon-internal/devtools';

@@ -93,9 +93,11 @@ async function startProgressiveApiServer(): Promise<Server> {
       await delay(180);
       writeProtocolLine(res, { op: 'meta', path: '/status', value: 'writing' });
       await delay(250);
-      writeProtocolLine(res, arrowHtmlArtifact(
-        '<article style="padding:24px;font-family:system-ui;"><h1>Drafting surface</h1><p>Gathering the shape.</p></article>',
-      ));
+      writeProtocolLine(res, { op: 'event', path: '/surface', value: { type: 'surface.start', id: 'preview', kind: 'dashboard', title: 'Drafting surface' } });
+      writeProtocolLine(res, { op: 'event', path: '/surface', value: { type: 'surface.status', status: 'drafting', text: 'Gathering the shape.' } });
+      writeProtocolLine(res, { op: 'event', path: '/surface', value: { type: 'region.add', id: 'summary', parent: 'preview', role: 'summary', label: 'Drafting surface' } });
+      writeProtocolLine(res, { op: 'event', path: '/surface', value: { type: 'node.add', id: 'shape', parent: 'summary', kind: 'text', props: { text: 'Gathering the shape.' } } });
+      writeProtocolLine(res, { op: 'event', path: '/surface', value: { type: 'surface.finalize', artifactExpected: true } });
       await delay(900);
       writeProtocolLine(res, arrowHtmlArtifact(
         '<article style="padding:24px;font-family:system-ui;"><h1>Final answer</h1><p>Ready to inspect.</p></article>',
@@ -156,12 +158,14 @@ test('gallery shows progressive placeholder before final stream replacement', as
     await expect(page.locator('#welcome-kicker')).toHaveText(/Streaming|Writing/);
     await expect(page.locator('#welcome-detail')).toContainText('Waiting for validated surface lines');
 
-    const frame = page.frameLocator('#sandbox');
-    await expect(frame.locator('h1')).toContainText('Drafting surface');
-    await expect(page.locator('#accepted-count')).toContainText('1');
-    await expect(frame.locator('h1')).toContainText('Final answer');
-    await expect(frame.locator('text=Drafting surface')).toHaveCount(0);
-    await expect(page.locator('#accepted-count')).toContainText('2');
+    const preview = page.locator('#sandbox [data-summon-preview-root]');
+    await expect(preview).toContainText('Drafting surface');
+    await expect(preview).toContainText('Gathering the shape.');
+    await expect(page.locator('#accepted-count')).toContainText('5');
+    const surface = page.locator('#sandbox arrow-sandbox');
+    await expect(surface.locator('h1')).toContainText('Final answer');
+    await expect(preview).toHaveCount(0);
+    await expect(page.locator('#accepted-count')).toContainText('6');
     await expect(page.locator('#status')).toContainText('done');
     await expect(page.locator('#tab-contract')).toHaveAttribute('aria-selected', 'true');
   } finally {
@@ -274,9 +278,9 @@ export default html\`
   ]);
   expect(captured.components).toBeUndefined();
 
-  const frame = page.frameLocator('#sandbox');
-  await frame.locator('button').click();
-  await expect(frame.locator('#saved')).toBeVisible();
+  const surface = page.locator('#sandbox arrow-sandbox');
+  await surface.locator('button').click();
+  await expect(surface.locator('#saved')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('Balanced path');
   await expect(page.locator('#state-preview')).toContainText('chooseDone');
   await expect(page.locator('#event-log')).toContainText('host settled choose ok');
@@ -381,12 +385,12 @@ export default html\`
     grants: ['search'],
   });
 
-  const frame = page.frameLocator('#sandbox');
-  await expect(frame.locator('#empty')).toBeHidden();
-  await frame.locator('form').evaluate((form) => {
+  const surface = page.locator('#sandbox arrow-sandbox');
+  await expect(surface.locator('#empty')).toBeHidden();
+  await surface.locator('form').evaluate((form) => {
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
   });
-  await expect(frame.locator('#empty')).toBeVisible();
+  await expect(surface.locator('#empty')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('noResults');
 });
 
@@ -491,22 +495,22 @@ export default html\`
     grants: ['issue_refund'],
   });
 
-  const frame = page.frameLocator('#sandbox');
+  const surface = page.locator('#sandbox arrow-sandbox');
   const requestRefund = async () => {
-    await frame.getByRole('button', { name: 'Request refund' }).evaluate((button) => {
+    await surface.getByRole('button', { name: 'Request refund' }).evaluate((button) => {
       (button as HTMLButtonElement).click();
     });
   };
   await requestRefund();
   await expect(page.locator('[data-approval-card]')).toContainText('Issue refund: Approval smoke');
   await expect(page.locator('[data-approval-card]')).toContainText('card-presentment');
-  await expect(frame.locator('#waiting')).toBeVisible();
+  await expect(surface.locator('#waiting')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('issue_refund');
 
   await page.locator('[data-approval-card]').getByRole('button', { name: 'Approve' }).click();
   await expect(page.locator('[data-approval-card]')).toHaveCount(0);
-  await expect(frame.locator('#approved')).toBeVisible();
-  await expect(frame.locator('#refunded')).toContainText('$842.15');
+  await expect(surface.locator('#approved')).toBeVisible();
+  await expect(surface.locator('#refunded')).toContainText('$842.15');
 
   await page.locator('#run').click();
   await expect(page.locator('#status')).toContainText('done');
@@ -514,25 +518,16 @@ export default html\`
   await expect(page.locator('[data-approval-card]')).toContainText('Issue refund: Approval smoke');
   await page.locator('[data-approval-card]').getByRole('button', { name: 'Deny' }).click();
   await expect(page.locator('[data-approval-card]')).toHaveCount(0);
-  await expect(frame.locator('#denied')).toBeVisible();
-  await expect(frame.locator('#refunded')).toBeHidden();
+  await expect(surface.locator('#denied')).toBeVisible();
+  await expect(surface.locator('#refunded')).toBeHidden();
 });
 
-test('component island preset renders host overlays and reports invalid props', async ({ page }) => {
-  let invalid = false;
+test('Arrow fidelity preset renders generated visuals without component grants', async ({ page }) => {
   const requests: any[] = [];
 
   await page.route('**/api/generate', async (route) => {
     const captured = route.request().postDataJSON();
     requests.push(captured);
-    const html = invalid
-      ? `<section style="padding:24px;">
-          <div data-summon-component="MetricCard" data-summon-component-id="bad-props" data-summon-props='{"label":42,"value":"84"}' style="width:220px;height:112px;"></div>
-        </section>`
-      : `<section style="padding:24px;display:grid;gap:16px;">
-          <div data-summon-component="MetricCard" data-summon-component-id="launch-score" data-summon-props='{"label":"Launch score","value":"84","delta":"+6 pts","tone":"good"}' style="width:220px;height:112px;"></div>
-          <div data-summon-component="TrendSparkline" data-summon-component-id="quality-trend" data-summon-props='{"label":"Quality trend","points":[62,67,71,76,82,84],"caption":"Six-week readiness climb"}' style="width:260px;height:132px;"></div>
-        </section>`;
 
     await route.fulfill({
       status: 200,
@@ -550,7 +545,11 @@ test('component island preset renders host overlays and reports invalid props', 
             persistence: 'replayable',
           },
         },
-        arrowHtmlArtifact(html),
+        arrowHtmlArtifact(`<section style="padding:24px;display:grid;gap:16px;font-family:system-ui;">
+          <h1>Launch readiness</h1>
+          <article id="launch-score"><strong>Launch score</strong><p>84</p><small>+6 pts</small></article>
+          <article id="quality-trend"><strong>Quality trend</strong><p>62 -> 67 -> 71 -> 76 -> 82 -> 84</p><small>Six-week readiness climb</small></article>
+        </section>`),
         {
           op: 'meta',
           path: '/stream-graph-summary',
@@ -568,21 +567,13 @@ test('component island preset renders host overlays and reports invalid props', 
   });
 
   await page.goto('/');
-  await page.locator('[data-preset-id="component-islands"]').click();
+  await page.locator('[data-preset-id="arrow-fidelity"]').click();
   await page.locator('#run').click();
-  await expect(page.locator('[data-summon-component-id="launch-score"]')).toContainText('Launch score');
-  await expect(page.locator('[data-summon-component-id="quality-trend"]')).toContainText('Quality trend');
-
-  expect(requests[0].components.components.map((component: any) => component.name)).toEqual([
-    'MetricCard',
-    'TrendSparkline',
-    'ApprovalStatus',
-  ]);
-
-  invalid = true;
-  await page.locator('#run').click();
-  await expect(page.locator('[data-summon-component-id="bad-props"]')).toHaveCount(0);
-  await expect(page.locator('#event-log')).toContainText('component props-invalid');
+  const surface = page.locator('#sandbox arrow-sandbox');
+  await expect(surface.locator('#launch-score')).toContainText('Launch score');
+  await expect(surface.locator('#quality-trend')).toContainText('Quality trend');
+  expect(requests[0].components).toBeUndefined();
+  await expect(page.locator('#event-log')).toContainText('rendered');
 });
 
 test('gallery loads Ghost root preset and sends Ghost generation payload', async ({ page }) => {
@@ -675,7 +666,7 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
   await expect(page.locator('[data-preset-id="ghost-checkout"]')).toContainText('Ghost steer: checkout');
   await page.locator('[data-preset-id="ghost-checkout"]').click();
   await page.locator('#run').click();
-  await expect(page.frameLocator('#sandbox').locator('h1')).toContainText('Checkout Review');
+  await expect(page.locator('#sandbox arrow-sandbox').locator('h1')).toContainText('Checkout Review');
 
   expect(captured.ghost).toEqual({
     rootId: 'checkout',

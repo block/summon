@@ -248,16 +248,13 @@ test('api generate sends narrowed contract and stream meta shape through package
     tier: 'declarative',
     purpose: 'explore',
     grants: ['search'],
-    components: [],
     persistence: 'replayable',
   });
   assert.deepEqual((policyLines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, surfacePlan);
   const policyContract = (policyLines[2] as Extract<ProtocolLine, { op: 'meta' }>).value as {
     tools?: Array<{ name: string }>;
-    components?: Array<{ name: string }>;
   };
   assert.deepEqual(policyContract.tools?.map((tool) => tool.name), ['search']);
-  assert.deepEqual(policyContract.components, []);
 
   const agentResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
@@ -302,7 +299,6 @@ test('api generate sends narrowed contract and stream meta shape through package
     tier: 'declarative',
     purpose: 'explore',
     grants: ['search'],
-    components: [],
     persistence: 'replayable',
   });
 

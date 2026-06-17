@@ -20,12 +20,11 @@ import {
   type ActiveContract,
   type Mode,
 } from '../../showcase.js';
-import { createDemoComponentRegistry, narrowComponentPack } from '../../components.js';
 import { ApprovalStack } from './components/ApprovalStack.js';
 import { ContractInspector } from './components/ContractInspector.js';
 import { DiagnosticsDock } from './components/DiagnosticsDock.js';
 import { GenerationStage } from './components/GenerationStage.js';
-import { baseComponentPack, layoutPresets } from './constants.js';
+import { layoutPresets } from './constants.js';
 import { displayEventKind, type ExtraDevtoolsEvent } from './devtools.js';
 import { useGenerationRuns } from './hooks/useGenerationRuns.js';
 import { useSavedSurfaces } from './hooks/useSavedSurfaces.js';
@@ -82,7 +81,6 @@ export function GeneratePage() {
   const activeTokensSourceOverrideRef = useRef<string | null>(null);
   const [surfaceTokensSource, setSurfaceTokensSource] = useState(defaultTokensSource);
   const [runtimeToolNames, setRuntimeToolNames] = useState<string[] | null>(null);
-  const [runtimeComponentNames, setRuntimeComponentNames] = useState<string[] | null>(null);
   const [status, setStatus] = useState('idle');
   const [bytes, setBytes] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -187,10 +185,6 @@ export function GeneratePage() {
     logLine('op-error', `host handler error (${tool}): ${error.message}`);
   }, [logLine]);
 
-  const handleSurfaceComponentError = useCallback((error: { componentName?: string; componentId?: string; reason: string }) => {
-    logLine('op-error', `component ${error.componentName ?? error.componentId ?? '?'}: ${error.reason}`);
-  }, [logLine]);
-
   const clearRuntimeState = useCallback(() => {
     setArtifactRevision(0);
     artifactRevisionRef.current = 0;
@@ -273,14 +267,13 @@ export function GeneratePage() {
     const agentBroker = agentBrokerEnabled && !customContractEnabled && !scenarioUsesFixedPolicy(selectedScenario);
     const overrides = tokenOverridesFor(tokenPreset);
     const surfacePolicy = customContractEnabled
-      ? surfacePolicyForPlan(surfacePlan, selectedScenario.toolNames, selectedScenario.componentNames)
+      ? surfacePolicyForPlan(surfacePlan, selectedScenario.toolNames)
       : selectedScenario.surfacePolicy;
     return {
       scenarioId: selectedScenario.id,
       prompt: prompt.trim() || selectedScenario.prompt,
       mode,
       toolNames: runtimeToolNames ?? selectedScenario.toolNames,
-      componentNames: runtimeComponentNames ?? selectedScenario.componentNames,
       agentBroker,
       ...(!agentBroker ? { surfacePolicy } : {}),
       surfacePlan,
@@ -302,7 +295,6 @@ export function GeneratePage() {
     prompt,
     readModelSelection,
     runtimeToolNames,
-    runtimeComponentNames,
     selectedScenario,
     surfacePlan,
     tokenPreset,
@@ -345,13 +337,6 @@ export function GeneratePage() {
   ]);
 
   const toolContract = useMemo(() => toolRegistry?.toContract() ?? null, [toolRegistry]);
-  const componentRegistry = useMemo(() => createDemoComponentRegistry(), []);
-  const grantedComponents = useMemo(
-    () => activeContract.componentNames?.length
-      ? narrowComponentPack(baseComponentPack, activeContract.componentNames).components
-      : [],
-    [activeContract.componentNames],
-  );
 
   function resetForScenarioChange() {
     abortRef.current?.abort();
@@ -362,7 +347,6 @@ export function GeneratePage() {
     setBytes(0);
     setShowWelcome(true);
     setRuntimeToolNames(null);
-    setRuntimeComponentNames(null);
     setChildren([]);
     summonedCountRef.current = 0;
     clearRuntimeState();
@@ -430,7 +414,6 @@ export function GeneratePage() {
       grants: {
         tools: toolRegistry?.tools() ?? [],
         validationTools: toolContract?.validationTools,
-        components: grantedComponents,
       },
       metadata: {
         directionId,
@@ -449,7 +432,6 @@ export function GeneratePage() {
     toolContract,
     toolRegistry,
     directionId,
-    grantedComponents,
     mode,
     readLayout,
     tokensFor,
@@ -478,7 +460,6 @@ export function GeneratePage() {
     currentValidationSummary,
     setChildren,
     setRuntimeToolNames,
-    setRuntimeComponentNames,
     setLogs,
     setDevEvents,
     setSurfaceTokensSource,
@@ -621,13 +602,10 @@ export function GeneratePage() {
           surfaceRef={surfaceRef}
           surfaceTokensSource={surfaceTokensSource}
           toolRegistry={toolRegistry}
-          componentRegistry={componentRegistry}
           validationTools={toolContract?.validationTools}
-          grantedComponents={grantedComponents}
           appendDevEvent={appendDevEvent}
           onSurfaceGoalRejected={handleSurfaceGoalRejected}
           onSurfaceHandlerError={handleSurfaceHandlerError}
-          onSurfaceComponentError={handleSurfaceComponentError}
           showWelcome={showWelcome}
           childSurfaces={children}
           onCloseChild={(id) => setChildren((items) => items.filter((item) => item.id !== id))}

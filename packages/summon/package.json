@@ -55,8 +55,6 @@
       "types": "./dist/devtools.d.ts",
       "import": "./dist/devtools.js"
     },
-    "./bootstrap.js": "./dist/_internal/sandbox-runtime/bootstrap.js",
-    "./arrow-runtime.js": "./dist/_internal/sandbox-runtime/arrow-runtime.js",
     "./tokens.css": "./dist/_internal/sandbox-runtime/tokens.css",
     "./package.json": "./package.json"
   },
@@ -76,6 +74,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
+    "@arrow-js/sandbox": "1.0.6",
     "parse5": "^8.0.1",
     "postcss": "^8.5.15",
     "postcss-value-parser": "^4.2.0",

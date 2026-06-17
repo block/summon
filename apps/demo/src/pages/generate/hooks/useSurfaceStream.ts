@@ -17,14 +17,13 @@ import {
   agentGoalText,
   agentPolicyText,
   applyTokenOverrideCss,
-  toolPackFor,
-  componentPackFor,
   ghostRootFromSelection,
   parseAppliedTokenOverrides,
   parseSurfaceContractView,
   summarizeStreamGraphMeta,
   summarizeValidationMeta,
   surfaceRequestFor,
+  toolPackFor,
 } from '../surfaceHelpers.js';
 import type { StreamOptions, StreamResult } from '../types.js';
 
@@ -128,7 +127,7 @@ export function useSurfaceStream({
       if (contract) {
         setCurrentSurfaceContractView(contract);
         appendDevEvent({ kind: 'surface-contract', at: Date.now(), contract });
-        logLine('op-meta', `surface contract -> ${contract.tools.length} tools, ${contract.components.length} components`);
+        logLine('op-meta', `surface contract -> ${contract.tools.length} tools`);
       }
       return;
     }
@@ -245,14 +244,12 @@ export function useSurfaceStream({
     const active = opts.active;
     const ghostRootId = ghostRootFromSelection(opts.directionId);
     const toolPack = toolPackFor(active);
-    const components = componentPackFor(active);
     const surfaceRequest = surfaceRequestFor(active);
     const agent = agentBrokerRequestFor(active);
     const validationContext: ValidationContext = {
       mode: active.mode,
       allowedTools: toolPack.tools.map((tool) => tool.name),
       tools: toolPack.tools,
-      components: components?.components ?? [],
       surfacePlan: active.surfacePlan,
     };
 
@@ -276,7 +273,6 @@ export function useSurfaceStream({
             }
           : { directionId: opts.directionId }),
         tools: toolPack,
-        ...(components ? { components } : {}),
         ...(agent ? { agent } : {}),
         ...surfaceRequest,
         ...(active.tokenOverrides ? { tokenOverrides: active.tokenOverrides } : {}),
@@ -311,6 +307,15 @@ export function useSurfaceStream({
       },
       onArtifact: (artifact, line, context) => {
         surfaceRef.current?.renderArtifact(artifact);
+      },
+      onSurfaceEvent: (event) => {
+        surfaceRef.current?.applyPreviewEvent(event);
+        if (event.type === 'surface.status') {
+          setStatus(event.status);
+          logLine('op-meta', `preview -> ${event.status}${event.text ? `: ${event.text}` : ''}`);
+        } else {
+          logLine('op-meta', `preview -> ${event.type}`);
+        }
       },
       onParseError: (raw) => {
         appendDevEvent({ kind: 'protocol-parse-error', at: Date.now(), raw });

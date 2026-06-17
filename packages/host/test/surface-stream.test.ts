@@ -45,6 +45,48 @@ test('consumeSurfaceStream parses split chunks and delivers Arrow artifacts', as
   assert.ok(graphSnapshots.length >= 1);
 });
 
+test('consumeSurfaceStream delivers valid semantic preview events before artifacts', async () => {
+  const events: string[] = [];
+  const result = await consumeSurfaceStream([
+    `${JSON.stringify({
+      op: 'event',
+      path: '/surface',
+      value: { type: 'surface.status', status: 'drafting', text: 'Drafting layout' },
+    })}\n`,
+    artifactLine(),
+  ], {
+    mode: 'interactive',
+    onSurfaceEvent: (event) => events.push(event.type),
+  });
+
+  assert.deepEqual(events, ['surface.status']);
+  assert.equal(result.surfaceEvents.length, 1);
+  assert.equal(result.streamGraph.preview.events.count, 1);
+  assert.equal(result.streamGraph.preview.lastStatus, 'drafting');
+  assert.equal(result.protocolLines.map((line) => line.op).join(','), 'event,artifact');
+});
+
+test('consumeSurfaceStream skips invalid preview events without delivering executable UI', async () => {
+  const events: string[] = [];
+  const result = await consumeSurfaceStream([
+    `${JSON.stringify({
+      op: 'event',
+      path: '/surface',
+      value: { type: 'node.add', id: 'missing-parent', kind: 'text' },
+    })}\n`,
+    artifactLine(),
+  ], {
+    mode: 'interactive',
+    onSurfaceEvent: (event) => events.push(event.type),
+  });
+
+  assert.deepEqual(events, []);
+  assert.equal(result.surfaceEvents.length, 0);
+  assert.deepEqual(result.validationIssues.map((issue) => issue.code), ['invalid-surface-event']);
+  assert.equal(result.streamGraph.health.blockedCount, 1);
+  assert.deepEqual(result.protocolLines.map((line) => line.op), ['artifact']);
+});
+
 test('consumeSurfaceStream accepts Uint8Array and ReadableStream sources', async () => {
   const readable = new ReadableStream<Uint8Array>({
     start(controller) {

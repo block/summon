@@ -1,5 +1,10 @@
-export { spawnSandbox } from './sandbox-spawner.js';
-export type { SpawnOptions } from './sandbox-spawner.js';
+export { mountInlineSurface } from './inline-surface.js';
+export type {
+  InlineSurfaceHandle,
+  InlineSurfaceOptions,
+  SurfacePreviewNode,
+  SurfacePreviewSnapshot,
+} from './inline-surface.js';
 export { PolicyEngine, defineToolHandler, ToolArgsError } from './policy-engine.js';
 export type {
   ToolContext,
@@ -32,28 +37,6 @@ export type {
   ResourceStateKeys,
   StateShapeDescriptor,
 } from './tool-registry.js';
-export {
-  createComponentRegistry,
-  defineComponent,
-} from './component-registry.js';
-export type {
-  ComponentDefinition,
-  ComponentDestroyer,
-  ComponentPropsParseResult,
-  ComponentRegistry,
-  ComponentRenderContext,
-  ComponentRenderer,
-} from './component-registry.js';
-export {
-  createComponentIslandRegistry,
-} from './component-islands.js';
-export type {
-  ComponentIslandErrorCode,
-  ComponentIslandError,
-  ComponentIslandRegistry,
-  ComponentIslandRegistryOptions,
-  ComponentIslandSyncContext,
-} from './component-islands.js';
 export { bindEndpoint } from './bind-endpoint.js';
 export type {
   EndpointBinding,
@@ -78,25 +61,6 @@ export type {
   SurfaceStreamResult,
   SurfaceStreamSource,
 } from './surface-stream.js';
-export { createStrictInputRegistry } from './strict-input.js';
-export type {
-  StrictInputBounds,
-  StrictInputController,
-  StrictInputFactory,
-  StrictInputFactoryArgs,
-  StrictInputRegistry,
-  StrictInputRegistryOptions,
-} from './strict-input.js';
 export type {
   Artifact,
-  ComponentIslandBounds,
-  ComponentIslandDescriptor,
-  ComponentsMessage,
-  SandboxHandle,
-  StateMessage,
-  ToolCallMessage,
-  ToolResultMessage,
-  ReadyMessage,
-  FatalMessage,
-  SandboxInboundMessage,
 } from './types.js';

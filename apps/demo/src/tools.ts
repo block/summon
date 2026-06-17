@@ -455,9 +455,8 @@ export default html\`
           avatar_url?: string;
         };
 
-        // Proxy the avatar through the host as a data URL so the iframe's
-        // strict img-src CSP can stay locked down — the sandbox never
-        // reaches the network.
+        // Proxy the avatar through the host as a data URL so the generated
+        // Arrow surface never reaches the network directly.
         let avatar: string | null = null;
         if (data.avatar_url) {
           try {
@@ -611,12 +610,12 @@ export default html\`
       defineAction({
         name: 'summon',
         description:
-          'Ask the host to generate a NEW sibling UI in its own iframe with its own state. Use sparingly — only when the user benefits from a deeper, separately-stateful surface (e.g., "summon a prep guide for this recipe", "open this option as its own planner"). The `prompt` is the user-tool description for the new UI; the optional `title` labels the child card. Do NOT use summon for things you can render inline with the existing tools.',
+          'Ask the host to generate a NEW sibling UI in its own inline Arrow root with its own state. Use sparingly — only when the user benefits from a deeper, separately-stateful surface (e.g., "summon a prep guide for this recipe", "open this option as its own planner"). The `prompt` is the user-tool description for the new UI; the optional `title` labels the child card. Do NOT use summon for things you can render inline with the existing tools.',
         argsSchema: summonArgsSchema,
         stateShape: '{summonedCount: number, lastSummoned: string | null, summonError: string | null}',
         patterns: [
           {
-            name: 'Summon a sibling UI (new iframe, own state)',
+            name: 'Summon a sibling UI (new inline root, own state)',
             code: `import { html, reactive } from "@arrow-js/core";
 import { callTool, onState } from "host-bridge:summon";
 

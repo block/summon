@@ -20,13 +20,10 @@ export function GenerationStage({
   surfaceRef,
   surfaceTokensSource,
   toolRegistry,
-  componentRegistry,
   validationTools,
-  grantedComponents,
   appendDevEvent,
   onSurfaceGoalRejected,
   onSurfaceHandlerError,
-  onSurfaceComponentError,
   showWelcome,
   childSurfaces,
   onCloseChild,
@@ -42,13 +39,10 @@ export function GenerationStage({
   surfaceRef: RefObject<SummonSurfaceHandle>;
   surfaceTokensSource: string;
   toolRegistry: SummonSurfaceProps["toolRegistry"];
-  componentRegistry: SummonSurfaceProps["componentRegistry"];
   validationTools: SummonSurfaceProps["validationTools"];
-  grantedComponents: SummonSurfaceProps["artifactComponents"];
   appendDevEvent: SummonSurfaceProps["onEvent"];
   onSurfaceGoalRejected: SummonSurfaceProps["onToolRejected"];
   onSurfaceHandlerError: SummonSurfaceProps["onHandlerError"];
-  onSurfaceComponentError: SummonSurfaceProps["onComponentError"];
   showWelcome: boolean;
   childSurfaces: ChildSurfaceModel[];
   onCloseChild: (id: number) => void;
@@ -59,7 +53,7 @@ export function GenerationStage({
         className="absolute inset-x-6 bottom-32 top-20 overflow-hidden rounded-[28px] bg-surface-raised shadow-card max-[820px]:inset-x-4 max-[820px]:top-[72px] max-[700px]:bottom-44"
         aria-label="Generated surface"
       >
-        <span id="iframe-status" className="sr-only">
+        <span id="surface-status" className="sr-only">
           {statusText}
         </span>
         <SummonSurface
@@ -69,13 +63,10 @@ export function GenerationStage({
           title="Summon generate sandbox"
           tokensSource={surfaceTokensSource}
           toolRegistry={toolRegistry}
-          componentRegistry={componentRegistry}
           validationTools={validationTools}
-          artifactComponents={grantedComponents}
           onEvent={appendDevEvent}
           onToolRejected={onSurfaceGoalRejected}
           onHandlerError={onSurfaceHandlerError}
-          onComponentError={onSurfaceComponentError}
         />
         {showWelcome ? (
           <div

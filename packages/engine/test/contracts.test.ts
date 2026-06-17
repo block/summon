@@ -16,7 +16,6 @@ import {
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   type ToolPack,
-  type ComponentPack,
   type SummonLayout,
 } from '../src/index.ts';
 
@@ -26,7 +25,8 @@ const defaultTokens = readFileSync(
 );
 
 test('fixed prompt describes Arrow-only artifact output', () => {
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Output protocol — Arrow JSONL only/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Output protocol — semantic preview events, then Arrow artifact/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /"op":"event"/);
   assert.match(SUMMON_FIXED_INSTRUCTIONS, /"op":"artifact"/);
   assert.match(SUMMON_FIXED_INSTRUCTIONS, /"runtime":"arrow"/);
   assert.match(SUMMON_FIXED_INSTRUCTIONS, /Do not emit `set \/screen`, `add \/section\/\*`/);
@@ -44,41 +44,26 @@ test('token compiler emits prompt vocabulary and validates from the token contra
   assert.equal(bad.issues[0]?.source, 'token');
 });
 
-test('system compiler includes component island prompt and validation metadata', () => {
-  const components: ComponentPack = {
-    components: [
-      {
-        name: 'MetricCard',
-        description: 'Displays a KPI card.',
-        propsSchema: '{label: string, value: string}',
-        surface: { data: 'embedded', authority: 'none' },
-        sizing: { height: '112px' },
-        examples: [
-          {
-          name: 'Metric',
-          code: '<div data-summon-component="MetricCard" data-summon-component-id="metric" data-summon-props=\'{"label":"Revenue","value":"$284k"}\' style="min-height:var(--space-10);"></div>',
-        },
-      ],
-      },
-    ],
-  };
-
+test('system compiler ignores component island metadata in V2', () => {
   const compiled = compileSystemContracts({
     mode: 'static',
-    components,
+    components: {
+      components: [
+        {
+          name: 'MetricCard',
+          description: 'Displays a KPI card.',
+          propsSchema: '{label: string, value: string}',
+          surface: { data: 'embedded', authority: 'none' },
+        },
+      ],
+    },
   });
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'components'],
+    ['fixed'],
   );
-  const block = compiled.promptBlocks.find((promptBlock) => promptBlock.id === 'components');
-  assert.match(block?.text ?? '', /Component islands/);
-  assert.match(block?.text ?? '', /MetricCard\(\{label: string, value: string\}\)/);
-  assert.match(block?.text ?? '', /data-summon-component-id/);
-  assert.deepEqual(compiled.validationContext.components, [
-    { name: 'MetricCard', surface: { data: 'embedded', authority: 'none' } },
-  ]);
+  assert.equal('components' in compiled.validationContext, false);
 });
 
 test('direction compiler validates tokens and selects matching shape exemplars', () => {
@@ -231,42 +216,29 @@ test('system compiler includes compact surface contract view without dropping de
       },
     ],
   };
-  const components: ComponentPack = {
-    components: [
-      {
-        name: 'MetricCard',
-        description: 'Displays a KPI card.',
-        propsSchema: '{label: string, value: string}',
-        surface: { data: 'embedded', authority: 'none' },
-      },
-    ],
-  };
   const surfaceContract = compileSurfaceContractView({
     tier: 'declarative',
     purpose: 'explore',
     grants: ['search'],
-    components: ['MetricCard'],
-  }, { tools, components });
+  }, { tools });
   const compiled = compileSystemContracts({
     mode: surfaceContract.surface.mode,
     surfaceContract,
     tools: surfaceContract.tools.length ? tools : null,
-    components,
   });
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'surface-contract', 'tools', 'components'],
+    ['fixed', 'surface-contract', 'tools'],
   );
   const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-contract');
   assert.match(surfaceBlock?.text ?? '', /compact, read-only view/);
   assert.match(surfaceBlock?.text ?? '', /Arrow/);
   assert.match(surfaceBlock?.text ?? '', /Do not emit `\/surface-contract`, `\/surface-policy`, or `\/surface-plan`/);
   assert.match(surfaceBlock?.text ?? '', /`search` \(resource\)/);
-  assert.match(surfaceBlock?.text ?? '', /`MetricCard`/);
+  assert.doesNotMatch(surfaceBlock?.text ?? '', /Trusted components/);
   assert.equal(compiled.promptBlocks.some((block) => block.id === 'surface-plan'), false);
   assert.match(compiled.promptBlocks.find((block) => block.id === 'tools')?.text ?? '', /Available data resources/);
-  assert.match(compiled.promptBlocks.find((block) => block.id === 'components')?.text ?? '', /Component islands/);
   assert.deepEqual(compiled.validationContext.surfacePlan, surfaceContract.surface.plan);
 });
 

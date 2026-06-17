@@ -1,6 +1,5 @@
 import type {
   ToolPack,
-  ComponentPack,
   ContractIssue,
   ContractPromptBlock,
   DirectionContractInput,
@@ -37,7 +36,6 @@ export interface SurfaceGenerationInput {
   layout?: SummonLayout | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
   tools?: ToolPack | null;
-  components?: ComponentPack | null;
   surfacePolicy?: SurfacePolicy | null;
   tokenOverrides?: TokenOverride[];
   activeTokensCss?: string | null;

@@ -32,9 +32,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arrow-js/sandbox": "1.0.6",
     "@summon-internal/devtools": "workspace:*",
     "@summon-internal/engine": "workspace:*",
-    "@summon-internal/sandbox-runtime": "workspace:*",
     "zod": "^3.23.0"
   },
   "devDependencies": {

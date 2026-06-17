@@ -8,7 +8,8 @@
     "paths": {
       "@summon-internal/devtools": ["packages/devtools/dist/index.d.ts"],
       "@summon-internal/engine": ["packages/engine/dist/index.d.ts"],
-      "@summon-internal/sandbox-runtime/assets": ["packages/sandbox-runtime/dist/assets.d.ts"]
+      "@summon-internal/sandbox-runtime/assets": ["packages/sandbox-runtime/dist/assets.d.ts"],
+      "@arrow-js/sandbox": ["packages/host/src/arrow-sandbox-shim.d.ts"]
     },
     "rootDir": "./src",
     "sourceMap": true

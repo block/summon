@@ -1,7 +1,7 @@
 {
   "name": "@anarchitecture/summon-react",
   "version": "0.3.0",
-  "description": "React adapter for rendering Summon surfaces and component islands",
+  "description": "React adapter for rendering inline Summon Arrow surfaces",
   "license": "Apache-2.0",
   "author": "Block, Inc.",
   "repository": {

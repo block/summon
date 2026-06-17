@@ -1,5 +1,4 @@
 import type { SummonLayout } from '@anarchitecture/summon/engine';
-import { baseDemoComponentPack } from '../../components.js';
 import { createScopedDemoRegistry } from '../../showcase.js';
 
 export const savedSurfacesKey = 'summon.savedSurfaces.v1';
@@ -18,8 +17,6 @@ export const baseToolPack = createScopedDemoRegistry({ onSummon: () => {} }, [
   'publish_summary',
   'summon',
 ]).toContract().pack;
-
-export const baseComponentPack = baseDemoComponentPack();
 
 export const childToolNames = baseToolPack.tools
   .map((tool) => tool.name)

@@ -67,11 +67,6 @@ export interface ToolSurface {
   authority?: Extract<SurfaceAuthority, 'read' | 'host-action' | 'approval-gated'>;
 }
 
-export interface ComponentSurface {
-  data?: SurfaceData;
-  authority?: SurfaceAuthority;
-}
-
 export interface SurfacePlanInferenceInput {
   prompt: string;
   mode: 'static' | 'interactive';
