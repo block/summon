@@ -1,11 +1,11 @@
-import type { SummonLayout, SurfaceCeiling } from '@anarchitecture/summon/engine';
+import type { SummonLayout } from '@anarchitecture/summon/engine';
 import { baseDemoComponentPack } from '../../components.js';
 import { createScopedDemoRegistry } from '../../showcase.js';
 
 export const savedSurfacesKey = 'summon.savedSurfaces.v1';
 export const maxSavedSurfaces = 8;
 
-export const baseCapabilityPack = createScopedDemoRegistry({ onSummon: () => {} }, [
+export const baseToolPack = createScopedDemoRegistry({ onSummon: () => {} }, [
   'log',
   'counter',
   'choose',
@@ -21,8 +21,8 @@ export const baseCapabilityPack = createScopedDemoRegistry({ onSummon: () => {} 
 
 export const baseComponentPack = baseDemoComponentPack();
 
-export const childCapabilityNames = baseCapabilityPack.intents
-  .map((intent) => intent.name)
+export const childToolNames = baseToolPack.tools
+  .map((tool) => tool.name)
   .filter((name) => name !== 'summon');
 
 export const layoutPresets = new Map<string, SummonLayout>([
@@ -38,13 +38,6 @@ export const layoutPresets = new Map<string, SummonLayout>([
     },
   ],
 ]);
-
-export const demoSurfaceCeiling: SurfaceCeiling = {
-  runtimes: ['static', 'declarative', 'worker'],
-  data: ['embedded', 'host-resource', 'worker'],
-  authorities: ['none', 'read', 'host-action', 'approval-gated'],
-  persistences: ['replayable'],
-};
 
 export const scenarioCategoryOrder = [
   'Host data',

@@ -1,5 +1,5 @@
 import {
-  createCapabilityRegistry,
+  createToolRegistry,
   defineAction,
   defineApprovalAction,
   defineDataResource,
@@ -7,12 +7,12 @@ import {
   defineWorkerResource,
   type ApprovalDecision,
   type ApprovalRequest,
-  type CapabilityDefinition,
-  type CapabilityRegistry,
+  type ToolDefinition,
+  type ToolRegistry,
 } from '@anarchitecture/summon';
 import { z } from 'zod';
 
-export interface GalleryCapabilityOptions {
+export interface GalleryToolOptions {
   onLog?: (message: string) => void;
   onStatePreview?: (state: Record<string, unknown>) => void;
   modelSelection?: () => object;
@@ -55,23 +55,23 @@ interface RefundPlan {
   rail: string;
 }
 
-export function createGalleryCapabilityRegistry(
-  capabilityNames?: readonly string[],
-  opts: GalleryCapabilityOptions = {},
-): CapabilityRegistry {
-  const allowed = capabilityNames ? new Set(capabilityNames) : null;
-  return createCapabilityRegistry(
-    galleryCapabilityDefinitions(opts).filter((definition) =>
+export function createGalleryToolRegistry(
+  toolNames?: readonly string[],
+  opts: GalleryToolOptions = {},
+): ToolRegistry {
+  const allowed = toolNames ? new Set(toolNames) : null;
+  return createToolRegistry(
+    galleryToolDefinitions(opts).filter((definition) =>
       allowed ? allowed.has(definition.name) : true,
     ),
   );
 }
 
-export function allGalleryCapabilityNames(): string[] {
-  return galleryCapabilityDefinitions({}).map((definition) => definition.name);
+export function allGalleryToolNames(): string[] {
+  return galleryToolDefinitions({}).map((definition) => definition.name);
 }
 
-function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): CapabilityDefinition<any>[] {
+function galleryToolDefinitions(opts: GalleryToolOptions): ToolDefinition<any>[] {
   const log = opts.onLog ?? (() => {});
   const statePreview = opts.onStatePreview ?? (() => {});
   const choices: string[] = [];
@@ -91,23 +91,32 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
       patterns: [
         {
           name: 'Search resource',
-          code: `<div data-summon-resource="search" data-summon-resource-as="s">
-  <form data-summon-resource-trigger="submit">
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ searching: false, results: [] as Array<{ title: string; snippet: string }>, searchError: "", noResults: false });
+onState((hostState) => {
+  state.searching = Boolean(hostState.searching);
+  state.results = Array.isArray(hostState.results) ? hostState.results : [];
+  state.searchError = String(hostState.searchError ?? "");
+  state.noResults = Boolean(hostState.noResults);
+});
+
+async function search(event: SubmitEvent) {
+  event.preventDefault();
+  const query = String(new FormData(event.currentTarget as HTMLFormElement).get("query") ?? "");
+  await callTool("search", { query });
+}
+
+export default html\`
+  <form @submit="\${search}">
     <input name="query" placeholder="Search dinner ideas">
-    <button data-summon-attr-disabled="$s.loading">Search</button>
+    <button class="\${() => state.searching ? "loading" : ""}">\${() => state.searching ? "Searching..." : "Search"}</button>
   </form>
-  <p data-summon-show="$s.loading">Searching...</p>
-  <p data-summon-show="$s.error" data-summon-bind="$s.error"></p>
-  <p data-summon-show="$s.empty">No matching results.</p>
-  <ul data-summon-show="$s.data" data-summon-foreach="$s.data" data-summon-as="result">
-    <template>
-      <li>
-        <strong data-summon-bind="$result.title"></strong>
-        <p data-summon-bind="$result.snippet"></p>
-      </li>
-    </template>
-  </ul>
-</div>`,
+  <p>\${() => state.searchError}</p>
+  <p>\${() => state.noResults ? "No matching results." : ""}</p>
+  <ul>\${() => state.results.map((result) => html\`<li><strong>\${result.title}</strong><p>\${result.snippet}</p></li>\`)}</ul>
+\`;`,
         },
       ],
       onStart: ({ query }) => {
@@ -140,10 +149,25 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
       patterns: [
         {
           name: 'Save a choice',
-          code: `<button data-summon-on-click="choose" data-summon-args='{"option":"Balanced path"}' data-summon-attr-disabled="choosePending">Save this option</button>
-<p data-summon-show="choosePending">Saving...</p>
-<p data-summon-show="chooseError" data-summon-bind="chooseError"></p>
-<p data-summon-show="lastChoice">Saved: <span data-summon-bind="lastChoice"></span></p>`,
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ choosePending: false, chooseError: "", lastChoice: "" });
+onState((hostState) => {
+  state.choosePending = Boolean(hostState.choosePending);
+  state.chooseError = String(hostState.chooseError ?? "");
+  state.lastChoice = String(hostState.lastChoice ?? "");
+});
+
+async function choose() {
+  await callTool("choose", { option: "Balanced path" });
+}
+
+export default html\`
+  <button @click="\${choose}" class="\${() => state.choosePending ? "loading" : ""}">\${() => state.choosePending ? "Saving..." : "Save this option"}</button>
+  <p>\${() => state.chooseError}</p>
+  <p>\${() => state.lastChoice ? "Saved: " + state.lastChoice : ""}</p>
+\`;`,
         },
       ],
       handler: ({ args, push }) => {
@@ -214,11 +238,29 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
       patterns: [
         {
           name: 'Approval-gated refund',
-          code: `<button data-summon-on-click="issue_refund" data-summon-args='{"title":"Refund disputed transaction","amount":"$842.15"}' data-summon-attr-disabled="refundApprovalPending">Request refund approval</button>
-<p data-summon-show="refundApprovalPending">Waiting for host approval...</p>
-<p data-summon-show="refundApprovalDenied">Refund denied by host.</p>
-<p data-summon-show="refundApprovalError" data-summon-bind="refundApprovalError"></p>
-<p data-summon-show="refundIssued">Refund issued: <span data-summon-bind="refundAmount"></span></p>`,
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ refundApprovalPending: false, refundApprovalDenied: false, refundApprovalError: "", refundIssued: false, refundAmount: "" });
+onState((hostState) => {
+  state.refundApprovalPending = Boolean(hostState.refundApprovalPending);
+  state.refundApprovalDenied = Boolean(hostState.refundApprovalDenied);
+  state.refundApprovalError = String(hostState.refundApprovalError ?? "");
+  state.refundIssued = Boolean(hostState.refundIssued);
+  state.refundAmount = String(hostState.refundAmount ?? "");
+});
+
+async function refund() {
+  await callTool("issue_refund", { title: "Refund disputed transaction", amount: "$842.15" });
+}
+
+export default html\`
+  <button @click="\${refund}" class="\${() => state.refundApprovalPending ? "loading" : ""}">Request refund approval</button>
+  <p>\${() => state.refundApprovalPending ? "Waiting for host approval..." : ""}</p>
+  <p>\${() => state.refundApprovalDenied ? "Refund denied by host." : ""}</p>
+  <p>\${() => state.refundApprovalError}</p>
+  <p>\${() => state.refundIssued ? "Refund issued: " + state.refundAmount : ""}</p>
+\`;`,
         },
       ],
       handler: ({ args, approval, push }) => {
@@ -243,18 +285,36 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
       patterns: [
         {
           name: 'Background analysis',
-          code: `<div data-summon-resource="analysis" data-summon-resource-as="a">
-  <form data-summon-resource-trigger="submit">
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ analysisLoading: false, analysisResult: null as null | { topic: string; score: number; summary: string }, analysisError: "" });
+onState((hostState) => {
+  state.analysisLoading = Boolean(hostState.analysisLoading);
+  state.analysisResult = hostState.analysisResult as typeof state.analysisResult;
+  state.analysisError = String(hostState.analysisError ?? "");
+});
+
+async function analyze(event: SubmitEvent) {
+  event.preventDefault();
+  const topic = String(new FormData(event.currentTarget as HTMLFormElement).get("topic") ?? "");
+  await callTool("analysis", { topic });
+}
+
+export default html\`
+  <form @submit="\${analyze}">
     <input name="topic" placeholder="Topic">
-    <button data-summon-attr-disabled="$a.loading">Analyze</button>
+    <button class="\${() => state.analysisLoading ? "loading" : ""}">\${() => state.analysisLoading ? "Analyzing..." : "Analyze"}</button>
   </form>
-  <p data-summon-show="$a.loading">Analyzing...</p>
-  <article data-summon-show="$a.data">
-    <strong data-summon-bind="$a.data.topic"></strong>
-    <span data-summon-bind="$a.data.score"></span>
-    <p data-summon-bind="$a.data.summary"></p>
-  </article>
-</div>`,
+  <p>\${() => state.analysisError}</p>
+  \${() => state.analysisResult ? html\`
+    <article>
+      <strong>\${state.analysisResult.topic}</strong>
+      <span>\${state.analysisResult.score}</span>
+      <p>\${state.analysisResult.summary}</p>
+    </article>
+  \` : ""}
+\`;`,
         },
       ],
       onStart: ({ topic }) => {

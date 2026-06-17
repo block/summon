@@ -1,5 +1,4 @@
 import type { ContractIssue, ProtocolLine, StreamGraph } from '@summon-internal/engine';
-import type { RepairStats } from './types.js';
 
 const MAX_VALIDATION_EXAMPLES = 8;
 
@@ -30,16 +29,7 @@ export async function writeFinalSummaries(args: {
   writeProtocolLine: (line: ProtocolLine) => Promise<void>;
   validationIssues: ContractIssue[];
   streamGraph: StreamGraph;
-  repair: { enabled: boolean };
-  repairStats: RepairStats;
 }) {
-  if (args.repair.enabled) {
-    await args.writeProtocolLine({
-      op: 'meta',
-      path: '/repair-summary',
-      value: args.repairStats,
-    });
-  }
   if (args.validationIssues.length > 0) {
     await args.writeProtocolLine({
       op: 'meta',

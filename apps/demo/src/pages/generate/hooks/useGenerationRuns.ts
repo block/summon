@@ -2,8 +2,7 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import type { SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
 import {
-  deriveSurfacePlanControls,
-  SectionAccumulator,
+  isArrowSurfaceArtifact,
   type SummonLayout,
   type SurfaceContractView,
   type SurfacePlan,
@@ -12,11 +11,11 @@ import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import type { ActiveContract, Mode } from '../../../showcase.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
-import type { ChildSurfaceModel, FragmentMode, LogEntry, StreamOptions, StreamResult } from '../types.js';
+import { applyTokenOverrideCss } from '../surfaceHelpers.js';
+import type { ChildSurfaceModel, LogEntry, StreamOptions, StreamResult } from '../types.js';
 
 export function useGenerationRuns({
   surfaceRef,
-  accRef,
   abortRef,
   artifactRevisionRef,
   modeRef,
@@ -26,9 +25,6 @@ export function useGenerationRuns({
   directionId,
   ghostTarget,
   ghostBaseDirectionId,
-  fragmentMode,
-  editPrompt,
-  editTargets,
   tokensFor,
   clearApprovals,
   clearRuntimeState,
@@ -38,9 +34,8 @@ export function useGenerationRuns({
   appendDevEvent,
   logLine,
   currentValidationSummary,
-  currentRepairSummary,
   setChildren,
-  setRuntimeCapabilityNames,
+  setRuntimeToolNames,
   setRuntimeComponentNames,
   setLogs,
   setDevEvents,
@@ -50,7 +45,6 @@ export function useGenerationRuns({
   setStatus,
   setBytes,
   setCurrentValidationSummary,
-  setCurrentRepairSummary,
   setCurrentStreamHealth,
   setArtifactRevision,
   setActiveTokensSourceOverride,
@@ -61,7 +55,6 @@ export function useGenerationRuns({
   setCurrentSurfaceContractView,
 }: {
   surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
-  accRef: MutableRefObject<SectionAccumulator>;
   abortRef: MutableRefObject<AbortController | null>;
   artifactRevisionRef: MutableRefObject<number>;
   modeRef: MutableRefObject<Mode>;
@@ -71,9 +64,6 @@ export function useGenerationRuns({
   directionId: string | null;
   ghostTarget: string;
   ghostBaseDirectionId: string | null;
-  fragmentMode: FragmentMode;
-  editPrompt: string;
-  editTargets: string;
   tokensFor: (id: string | null) => string;
   clearApprovals: (reason: string) => void;
   clearRuntimeState: () => void;
@@ -83,9 +73,8 @@ export function useGenerationRuns({
   appendDevEvent: (event: DevtoolsEvent | ExtraDevtoolsEvent) => void;
   logLine: (cls: string, text: string) => void;
   currentValidationSummary: string | null;
-  currentRepairSummary: string | null;
   setChildren: Dispatch<SetStateAction<ChildSurfaceModel[]>>;
-  setRuntimeCapabilityNames: Dispatch<SetStateAction<string[] | null>>;
+  setRuntimeToolNames: Dispatch<SetStateAction<string[] | null>>;
   setRuntimeComponentNames: Dispatch<SetStateAction<string[] | null>>;
   setLogs: Dispatch<SetStateAction<LogEntry[]>>;
   setDevEvents: Dispatch<SetStateAction<Array<DevtoolsEvent | ExtraDevtoolsEvent>>>;
@@ -95,7 +84,6 @@ export function useGenerationRuns({
   setStatus: Dispatch<SetStateAction<string>>;
   setBytes: Dispatch<SetStateAction<number>>;
   setCurrentValidationSummary: Dispatch<SetStateAction<string | null>>;
-  setCurrentRepairSummary: Dispatch<SetStateAction<string | null>>;
   setCurrentStreamHealth: Dispatch<SetStateAction<string | null>>;
   setArtifactRevision: Dispatch<SetStateAction<number>>;
   setActiveTokensSourceOverride: Dispatch<SetStateAction<string | null>>;
@@ -105,22 +93,19 @@ export function useGenerationRuns({
   setCurrentShape: Dispatch<SetStateAction<string | null>>;
   setCurrentSurfaceContractView: Dispatch<SetStateAction<SurfaceContractView | null>>;
 }) {
-  const replayCurrentArtifact = useCallback(() => {
-    if (!accRef.current.hasAnySection()) return;
-    const html = accRef.current.compose();
-    window.setTimeout(() => surfaceRef.current?.render(html), 0);
-    window.setTimeout(() => surfaceRef.current?.render(html), 100);
-  }, [accRef, surfaceRef]);
-
   const generate = useCallback(async (runPrompt: string) => {
     abortRef.current?.abort();
     const abort = new AbortController();
-    const runTokensSource = activeTokensSourceOverride ?? tokensFor(directionId);
+    const baseTokensSource = tokensFor(directionId);
+    const runTokenOverrides = Object.entries(activeContract.tokenOverrides ?? {})
+      .map(([token, value]) => ({ token, value }));
+    const runTokensSource = activeTokensSourceOverride ??
+      (runTokenOverrides.length > 0 ? applyTokenOverrideCss(baseTokensSource, runTokenOverrides) : baseTokensSource);
     abortRef.current = abort;
     clearApprovals('Approval request was replaced');
     setChildren([]);
     summonedCountRef.current = 0;
-    setRuntimeCapabilityNames(null);
+    setRuntimeToolNames(null);
     setRuntimeComponentNames(null);
     setLogs([]);
     setDevEvents([]);
@@ -140,15 +125,12 @@ export function useGenerationRuns({
         ghostTargetPath: ghostTarget.trim() || '.',
         ghostBaseDirectionId,
         layout: readLayout(),
-        fragmentMode,
         signal: abort.signal,
       });
       if (!currentValidationSummary) setCurrentValidationSummary('0/0');
-      if (!currentRepairSummary) setCurrentRepairSummary(activeContract.repair?.enabled ? '0/0' : 'off');
-      setCurrentStreamHealth((current) => current ?? `${result.streamGraph.health.complete ? 'complete' : 'open'} · missing=${result.streamGraph.health.missingDeclared.length} blocked=${result.streamGraph.health.blockedCount} retried=${result.streamGraph.health.repairedCount}`);
+      setCurrentStreamHealth((current) => current ?? `${result.streamGraph.health.complete ? 'complete' : 'blocked'} · artifacts=${result.streamGraph.artifacts.length} blocked=${result.streamGraph.health.blockedCount}`);
       setStatus('done');
       saveSurfaceEnvelope(runPrompt, result);
-      replayCurrentArtifact();
       appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: true });
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
@@ -170,25 +152,21 @@ export function useGenerationRuns({
     appendDevEvent,
     clearApprovals,
     clearRuntimeState,
-    currentRepairSummary,
     currentValidationSummary,
     directionId,
-    fragmentMode,
     ghostBaseDirectionId,
     ghostTarget,
     logLine,
     readLayout,
-    replayCurrentArtifact,
     saveSurfaceEnvelope,
     setBytes,
     setChildren,
-    setCurrentRepairSummary,
     setCurrentStreamHealth,
     setCurrentValidationSummary,
     setDevEvents,
     setLogs,
     setRunning,
-    setRuntimeCapabilityNames,
+    setRuntimeToolNames,
     setRuntimeComponentNames,
     setShowWelcome,
     setStatus,
@@ -198,111 +176,44 @@ export function useGenerationRuns({
     tokensFor,
   ]);
 
-  const editArtifact = useCallback(async () => {
-    if (!accRef.current.hasAnySection() || !editPrompt.trim()) return;
-    abortRef.current?.abort();
-    const abort = new AbortController();
-    abortRef.current = abort;
-    const baseRevision = artifactRevisionRef.current;
-    const targets = editTargets
-      .split(/[,\s]+/)
-      .map((target) => target.trim())
-      .filter(Boolean);
-    setRunning(true);
-    setStatus('editing');
-    setBytes(0);
-    appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'start' });
-    try {
-      const result = await streamGenerationInto({
-        prompt: editPrompt.trim(),
-        active: {
-          ...activeContract,
-          agentBroker: false,
-          surfacePolicy: activeContract.surfacePolicy,
-        },
-        directionId,
-        ghostTargetPath: ghostTarget.trim() || '.',
-        ghostBaseDirectionId,
-        layout: readLayout(),
-        signal: abort.signal,
-        edit: {
-          baseRevision,
-          sections: accRef.current.snapshot().sections,
-          targetSections: targets.length ? Array.from(new Set(targets)) : undefined,
-        },
-      });
-      setCurrentStreamHealth((current) => current ?? `${result.streamGraph.health.complete ? 'complete' : 'open'} · missing=${result.streamGraph.health.missingDeclared.length} blocked=${result.streamGraph.health.blockedCount} retried=${result.streamGraph.health.repairedCount}`);
-      setStatus('done');
-      replayCurrentArtifact();
-      appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: true });
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') {
-        setStatus('aborted');
-      } else {
-        const message = err instanceof Error ? err.message : String(err);
-        logLine('op-error', `edit error: ${message}`);
-        setStatus('error');
-      }
-      appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: false });
-    } finally {
-      setRunning(false);
-    }
-  }, [
-    abortRef,
-    accRef,
-    activeContract,
-    appendDevEvent,
-    artifactRevisionRef,
-    directionId,
-    editPrompt,
-    editTargets,
-    ghostBaseDirectionId,
-    ghostTarget,
-    logLine,
-    readLayout,
-    replayCurrentArtifact,
-    setBytes,
-    setCurrentStreamHealth,
-    setRunning,
-    setStatus,
-    streamGenerationInto,
-  ]);
-
   const replaySurface = useCallback((envelope: SurfaceEnvelope) => {
     abortRef.current?.abort();
     clearApprovals('Approval request was replaced');
     setLogs([]);
     setDevEvents([]);
-    accRef.current = new SectionAccumulator();
-    for (const line of envelope.protocolLines) {
-      if (line.op !== 'meta') accRef.current.applyDetailed(line);
+    const arrowArtifact = findArrowArtifact(envelope.protocolLines);
+    if (!arrowArtifact) {
+      setStatus('replay error');
+      logLine('op-error', 'saved surface has no Arrow artifact');
+      return;
     }
-    artifactRevisionRef.current = accRef.current.snapshot().sections.length;
+    artifactRevisionRef.current = envelope.protocolLines.length;
     setArtifactRevision(artifactRevisionRef.current);
     setActiveTokensSourceOverride(envelope.tokenCss ?? null);
     setSurfaceTokensSource(envelope.tokenCss ?? defaultTokensSource);
-    setMode(deriveSurfacePlanControls(envelope.surfacePlan).mode);
-    modeRef.current = deriveSurfacePlanControls(envelope.surfacePlan).mode;
+    const replayMode = envelope.metadata.mode ?? (envelope.grants.tools.length === 0 ? 'static' : 'interactive');
+    setMode(replayMode);
+    modeRef.current = replayMode;
     setSurfacePlan(envelope.surfacePlan);
     setCurrentEffectiveSurfacePlan(envelope.surfacePlan);
     setCurrentShape(envelope.metadata.shape ?? null);
     setCurrentValidationSummary(`${envelope.validationIssues.filter((issue) => issue.severity === 'block').length}/${envelope.validationIssues.filter((issue) => issue.severity === 'warn').length}`);
     setCurrentStreamHealth(envelope.streamGraph
-      ? `${envelope.streamGraph.health.complete ? 'complete' : 'open'} · missing=${envelope.streamGraph.health.missingDeclared.length} blocked=${envelope.streamGraph.health.blockedCount} retried=${envelope.streamGraph.health.repairedCount}`
+      ? `${envelope.streamGraph.health.complete ? 'complete' : 'blocked'} · artifacts=${envelope.streamGraph.artifacts.length} blocked=${envelope.streamGraph.health.blockedCount}`
       : null);
     setCurrentSurfaceContractView(null);
-    setRuntimeCapabilityNames(envelope.grants.intents);
+    setRuntimeToolNames(envelope.grants.tools);
     setRuntimeComponentNames(envelope.grants.components?.map((component) => component.name) ?? null);
     setShowWelcome(false);
     setStatus('replayed');
-    setBytes(new TextEncoder().encode(envelope.compiledHtml).byteLength);
-    window.setTimeout(() => surfaceRef.current?.render(envelope.compiledHtml), 0);
+    setBytes(new TextEncoder().encode(JSON.stringify(arrowArtifact.source)).byteLength);
+    window.setTimeout(() => surfaceRef.current?.renderArtifact(arrowArtifact), 0);
     appendDevEvent({ kind: 'surface-plan', at: Date.now(), plan: envelope.surfacePlan });
     appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: true });
     logLine('op-meta', `replayed ${envelope.surfacePlan.purpose}/${envelope.surfacePlan.runtime}`);
+    if (arrowArtifact) logLine('op-add', `replayed artifact /artifact -> ${Object.keys(arrowArtifact.source).join(', ')}`);
   }, [
     abortRef,
-    accRef,
     appendDevEvent,
     artifactRevisionRef,
     clearApprovals,
@@ -319,7 +230,7 @@ export function useGenerationRuns({
     setDevEvents,
     setLogs,
     setMode,
-    setRuntimeCapabilityNames,
+    setRuntimeToolNames,
     setRuntimeComponentNames,
     setShowWelcome,
     setStatus,
@@ -328,5 +239,16 @@ export function useGenerationRuns({
     surfaceRef,
   ]);
 
-  return { generate, editArtifact, replaySurface };
+  return { generate, replaySurface };
+}
+
+function findArrowArtifact(lines: SurfaceEnvelope['protocolLines']) {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line) continue;
+    if (line.op === 'artifact' && line.path === '/artifact' && isArrowSurfaceArtifact(line.value)) {
+      return line.value;
+    }
+  }
+  return null;
 }

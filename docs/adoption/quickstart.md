@@ -42,16 +42,16 @@ Open `http://localhost:5173/generate`.
 
 The Generate workbench runs showcase prompts through the agent broker by
 default, then keeps maintainer controls visible: stream diagnostics, Devtools,
-validation retry, edit/replay, custom SurfacePlan overrides, directions, and
-Ghost fingerprint steering internals. The custom Surface Config panel is the explicit
-manual override path.
+validation summaries, replay, custom SurfacePlan overrides, directions, and
+Ghost fingerprint steering internals. The custom Surface Config panel is the
+explicit manual override path.
 
 ## Run A Ghost Sandbox
 
 The Surface Gallery and Generate workbench both add Ghost-backed sandbox presets
 when trusted roots are configured. A configured Ghost root is treated as a
 fingerprint package, not as a bundled visual direction. Ghost resolves the
-product design context; Summon still owns host policy, capabilities, runtime
+product design context; Summon still owns host policy, tools, runtime
 contracts, and token fallback.
 
 Add one or more trusted Ghost roots to `apps/server/.env`:
@@ -139,13 +139,14 @@ The Stream and Devtools drawers are for understanding a run after you have
 rendered and interacted with a surface:
 
 - Open the **Stream** drawer to inspect accepted protocol lines, the selected
-  broker intent, selected surface config, validation summaries, and validation
-  retry feedback.
+  broker goal, selected surface config, validation summaries, skipped raw
+  lines, and Arrow artifact revisions.
 - Open the **Devtools** drawer to inspect sandbox startup, render events, host
-  tool requests, host dispatch, pushed state, trusted component sync, and stream
-  diagnostics.
-- For a healthy interactive run, expect to see a render event, a host tool
-  request when you submit the search, host dispatch, and pushed state.
+  tool requests, host dispatch, pushed state, trusted component sync, and
+  stream diagnostics.
+- For a healthy interactive run, expect to see `render` and `rendered` events,
+  a host tool request when you submit the search, host dispatch, and pushed
+  state.
 
 ## Optional Checks
 
@@ -158,7 +159,7 @@ Use the other `/generate` scenarios to exercise static summaries,
 declarative forms, host AI calls, GitHub lookup, trusted host components,
 background host work, approval-required publish, local state and motion,
 token overrides, layout constraints, sibling summon, Ghost steering when
-configured, and validation retry diagnostics.
+configured, and validation diagnostics.
 
 To run the gallery and workbench side by side, use `pnpm dev:demos`.
 
@@ -172,10 +173,11 @@ real input and pushes only safe state back.
   provider key and confirm the server is listening on `:3001`.
 - If generated controls do nothing, confirm the run is interactive. Static
   surfaces intentionally have no allowed host tools.
-- If the model emits unsafe HTML, inspect the Stream drawer for validation
-  summaries, blocked output, and validation retry feedback.
+- If the model emits malformed or unsafe Arrow output, inspect the Stream
+  drawer for validation summaries, blocked output, and `/protocol-skip`.
 - If the sandbox does not update after a generated control is used, inspect
   Devtools for rejected host tool requests, host dispatch, handler completion,
   and pushed state.
-- If sections are missing or retried, inspect stream diagnostics in the Stream
-  and Devtools drawers.
+- If the surface stays blank, inspect Stream diagnostics for accepted Arrow
+  `/artifact` revisions, then inspect Devtools for `render`, `rendered`, and
+  `sandbox-fatal`.

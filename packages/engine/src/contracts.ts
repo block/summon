@@ -1,18 +1,15 @@
 import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
-  buildCapabilitiesBlock,
+  buildToolsBlock,
   buildComponentsBlock,
   buildDirectionBlock,
   buildLayoutBlock,
   buildOverrideBlock,
-  buildPosturesBlock,
   buildSurfaceContractBlock,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
   type DirectionInput,
-  type PostureRegistry,
-  type ScriptPolicy,
   type SummonLayout,
   type TokenOverride,
 } from './prompt.js';
@@ -24,17 +21,16 @@ import {
 import {
   defaultTriggersForKind,
   hasCompleteResourceStateKeys,
-} from './capability-contract.js';
+} from './tool-contract.js';
 import { formatTokenContract } from './token-contract.js';
 import type { SurfaceContractView } from './surface-contract.js';
 import {
   buildSurfacePlanBlock,
-  surfacePlanScriptPolicy,
   type SurfacePlan,
 } from './surface-plan.js';
 import type {
   ValidationComponent,
-  ValidationCapability,
+  ValidationTool,
   ValidationContext,
 } from './runtime-validator.js';
 
@@ -43,10 +39,8 @@ export type ContractIssueSource =
   | 'html'
   | 'token'
   | 'direction'
-  | 'capability'
+  | 'tool'
   | 'layout'
-  | 'edit'
-  | 'repair'
   | 'system';
 
 export type ContractIssueSeverity = 'block' | 'warn';
@@ -110,17 +104,13 @@ export interface CompiledDirectionContract {
   issues: ContractIssue[];
 }
 
-export interface CompiledCapabilityContract {
-  pack: CapabilityPack;
+export interface CompiledToolContract {
+  pack: ToolPack;
   promptBlock: ContractPromptBlock | null;
-  intentNames: string[];
-  validationCapabilities: ValidationCapability[];
+  toolNames: string[];
+  validationTools: ValidationTool[];
   initialState: Record<string, unknown>;
   issues: ContractIssue[];
-}
-
-export interface CapabilityContractOptions {
-  scriptPolicy?: ScriptPolicy;
 }
 
 export interface CompiledComponentContract {
@@ -137,11 +127,9 @@ export interface SystemContractInput {
   layout?: SummonLayout | null;
   editBlock?: string | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   components?: ComponentPack | null;
-  scriptPolicy?: ScriptPolicy;
   tokenOverrides?: TokenOverride[];
-  postures?: PostureRegistry | null;
   surfacePlan?: SurfacePlan | null;
   surfaceContract?: SurfaceContractView | null;
   activeTokensCss?: string | null;
@@ -174,36 +162,36 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'unsafe-tag':
       return ['Use plain HTML elements; remove iframe/object/embed/link/meta/base-like tags.'];
     case 'inline-handler':
-      return ['Replace inline handlers with declarative data-summon attributes such as data-summon-on-click, data-summon-set, or data-summon-toggle.'];
+      return ['Use Arrow event handlers inside the template and call granted host tools with `callTool()` from `host-bridge:summon`.'];
     case 'static-script':
       return ['Remove script tags in static mode, or express the UI without interactivity.'];
     case 'script-not-granted':
     case 'surface-script-policy-removed':
-      return ['Use declarative data-summon attributes, local state, and motion primitives instead of generated scripts.'];
-    case 'unknown-intent':
-    case 'intent-trigger-not-granted':
-      return ['Use only the granted capabilities and triggers listed in the Capabilities block.'];
+      return ['Return an Arrow artifact that uses `reactive()`, Arrow event handlers, and `host-bridge:summon` instead of generated script tags.'];
+    case 'unknown-tool':
+    case 'tool-trigger-not-granted':
+      return ['Use only the granted tools and triggers listed in the Tools block.'];
     case 'invalid-args-json':
-      return ['Make data-summon-args a valid JSON object on one line.'];
+      return ['Build tool args as plain objects in the Arrow event handler before calling `callTool()`.'];
     case 'unknown-resource':
-    case 'non-resource-capability':
+    case 'non-resource-tool':
     case 'resource-state-keys-incomplete':
       return ['Use only data resources listed under Available data resources.'];
     case 'resource-loading-not-rendered':
-      return ['Add visible UI bound to the data resource loading state, for example `data-summon-show="$alias.loading"`.'];
+      return ['Copy the listed resource loading key into Arrow `reactive()` state and render a visible loading affordance from it.'];
     case 'resource-error-not-rendered':
-      return ['Add visible UI bound to the data resource error state, for example `data-summon-show="$alias.error" data-summon-bind="$alias.error"`.'];
+      return ['Copy the listed resource error key into Arrow `reactive()` state and render visible host error text from it.'];
     case 'resource-data-not-rendered':
-      return ['Wrap result UI in `data-summon-show="$alias.data"` and bind or foreach under the data resource alias.'];
+      return ['Copy the listed resource data key into Arrow `reactive()` state and render result rows only from host data.'];
     case 'resource-empty-not-rendered':
-      return ['Add visible no-results UI bound to the data resource empty state, for example `data-summon-show="$alias.empty"`.'];
+      return ['Copy the listed empty-state key into Arrow `reactive()` state and render no-results copy only from that key.'];
     case 'action-pending-not-rendered':
-      return ['Disable the triggering control with `data-summon-attr-disabled="<pendingKey>"` or show a pending message.'];
+      return ['Copy the listed pending key into Arrow `reactive()` state and render a busy label or disabled-looking state from it.'];
     case 'action-error-not-rendered':
-      return ['Add visible host error UI with `data-summon-show="<errorKey>" data-summon-bind="<errorKey>"`.'];
+      return ['Copy the listed action error key into Arrow `reactive()` state and render visible host error text from it.'];
     case 'unsafe-attr-binding':
     case 'bad-attr-binding-placement':
-      return ['Use only safe data-summon-attr-* bindings on supported elements.'];
+      return ['Use normal quoted Arrow attributes and sanitize dynamic values before rendering them.'];
     case 'host-owned-meta':
       return ['Remove host-owned meta lines; the host emits /surface-policy, /surface-plan, and /surface-contract before model output.'];
     case 'surface-policy-invalid':
@@ -274,50 +262,47 @@ export function compileDirectionContract(
   };
 }
 
-export function compileCapabilityContract(
-  pack: CapabilityPack | null | undefined,
-  options: CapabilityContractOptions = {},
-): CompiledCapabilityContract {
-  const normalized: CapabilityPack = pack ?? { intents: [] };
+export function compileToolContract(
+  pack: ToolPack | null | undefined,
+): CompiledToolContract {
+  const normalized: ToolPack = pack ?? { tools: [] };
   const initialState: Record<string, unknown> = {};
-  const validationCapabilities: ValidationCapability[] = normalized.intents.map((intent) => {
-    const capability: ValidationCapability = {
-      name: intent.name,
-      kind: intent.kind,
-      triggers: intent.triggers?.length
-        ? intent.triggers
-        : defaultTriggersForKind(intent.kind ?? 'action'),
+  const validationTools: ValidationTool[] = normalized.tools.map((spec) => {
+    const tool: ValidationTool = {
+      name: spec.name,
+      kind: spec.kind,
+      triggers: spec.triggers?.length
+        ? spec.triggers
+        : defaultTriggersForKind(spec.kind ?? 'action'),
     };
-    if (intent.stateKeys) capability.stateKeys = intent.stateKeys;
-    if (intent.actionStateKeys) capability.actionStateKeys = intent.actionStateKeys;
-    if (intent.surface) capability.surface = intent.surface;
-    if (intent.kind === 'resource' && hasCompleteResourceStateKeys(intent.stateKeys)) {
-      initialState[intent.stateKeys.loading] = false;
-      initialState[intent.stateKeys.data] = intent.defaultData ?? null;
-      initialState[intent.stateKeys.error] = null;
-      if (intent.stateKeys.empty) initialState[intent.stateKeys.empty] = false;
+    if (spec.stateKeys) tool.stateKeys = spec.stateKeys;
+    if (spec.actionStateKeys) tool.actionStateKeys = spec.actionStateKeys;
+    if (spec.surface) tool.surface = spec.surface;
+    if (spec.kind === 'resource' && hasCompleteResourceStateKeys(spec.stateKeys)) {
+      initialState[spec.stateKeys.loading] = false;
+      initialState[spec.stateKeys.data] = spec.defaultData ?? null;
+      initialState[spec.stateKeys.error] = null;
+      if (spec.stateKeys.empty) initialState[spec.stateKeys.empty] = false;
     }
-    if ((intent.kind ?? 'action') === 'action' && intent.actionStateKeys) {
-      initialState[intent.actionStateKeys.pending] = false;
-      initialState[intent.actionStateKeys.done] = false;
-      initialState[intent.actionStateKeys.error] = null;
+    if ((spec.kind ?? 'action') === 'action' && spec.actionStateKeys) {
+      initialState[spec.actionStateKeys.pending] = false;
+      initialState[spec.actionStateKeys.done] = false;
+      initialState[spec.actionStateKeys.error] = null;
     }
-    return capability;
+    return tool;
   });
 
   return {
     pack: normalized,
-    promptBlock: normalized.intents.length > 0
+    promptBlock: normalized.tools.length > 0
       ? {
-          id: 'capabilities',
-          text: buildCapabilitiesBlock(normalized, {
-            scriptPolicy: options.scriptPolicy,
-          }),
+          id: 'tools',
+          text: buildToolsBlock(normalized),
           cache: 'ephemeral',
         }
       : null,
-    intentNames: normalized.intents.map((intent) => intent.name),
-    validationCapabilities,
+    toolNames: normalized.tools.map((tool) => tool.name),
+    validationTools,
     initialState,
     issues: [],
   };
@@ -359,6 +344,7 @@ export function compileSystemContracts(
   ];
   const issues: ContractIssue[] = [];
   const startupLines: ProtocolLine[] = [];
+  const activeSurfacePlan = input.surfaceContract?.surface.plan ?? input.surfacePlan ?? null;
 
   let activeTokensCss = input.activeTokensCss ?? null;
   if (input.direction) {
@@ -386,22 +372,12 @@ export function compileSystemContracts(
       text: buildLayoutBlock(input.layout),
       cache: 'ephemeral',
     });
-    startupLines.push(layoutScreenProtocolLine(input.layout));
-  }
-
-  if (input.editBlock) {
-    promptBlocks.push({
-      id: 'edit',
-      text: input.editBlock,
-      cache: 'ephemeral',
-    });
   }
 
   if (input.experimentalPromptBlock) {
     promptBlocks.push(input.experimentalPromptBlock);
   }
 
-  const activeSurfacePlan = input.surfaceContract?.surface.plan ?? input.surfacePlan ?? null;
   if (input.surfaceContract) {
     promptBlocks.push({
       id: 'surface-contract',
@@ -416,23 +392,9 @@ export function compileSystemContracts(
     });
   }
 
-  const requestedScriptPolicy = input.scriptPolicy ??
-    (activeSurfacePlan
-      ? surfacePlanScriptPolicy(activeSurfacePlan)
-      : 'forbid');
-  const hasLegacyScriptedPlan = (activeSurfacePlan as { runtime?: string } | null | undefined)?.runtime === 'scripted';
-  if (requestedScriptPolicy === 'allow' || hasLegacyScriptedPlan) {
-    issues.push(contractIssue({
-      source: 'system',
-      severity: 'block',
-      code: 'surface-script-policy-removed',
-      message: 'Generated script surfaces are no longer supported; use declarative local state and motion primitives',
-    }));
-  }
-  const scriptPolicy: ScriptPolicy = 'forbid';
-  const capability = compileCapabilityContract(input.capabilities, { scriptPolicy });
-  if (capability.promptBlock) promptBlocks.push(capability.promptBlock);
-  issues.push(...capability.issues);
+  const tool = compileToolContract(input.tools);
+  if (tool.promptBlock) promptBlocks.push(tool.promptBlock);
+  issues.push(...tool.issues);
 
   const component = compileComponentContract(input.components);
   if (component.promptBlock) promptBlocks.push(component.promptBlock);
@@ -446,14 +408,6 @@ export function compileSystemContracts(
     });
   }
 
-  if (input.postures?.postures.length) {
-    promptBlocks.push({
-      id: 'postures',
-      text: buildPosturesBlock(input.postures),
-      cache: 'ephemeral',
-    });
-  }
-
   return {
     promptBlocks,
     issues,
@@ -461,20 +415,11 @@ export function compileSystemContracts(
     surfaceContract: input.surfaceContract ?? undefined,
     validationContext: {
       mode: input.mode,
-      allowedIntents: capability.intentNames,
-      capabilities: capability.validationCapabilities,
+      allowedTools: tool.toolNames,
+      tools: tool.validationTools,
       components: component.validationComponents,
-      scriptPolicy,
       surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
     },
-  };
-}
-
-function layoutScreenProtocolLine(layout: SummonLayout): ProtocolLine {
-  return {
-    op: 'set',
-    path: '/screen',
-    value: { sections: layout.slots.map((slot) => slot.id) },
   };
 }

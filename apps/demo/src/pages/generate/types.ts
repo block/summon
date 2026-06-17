@@ -42,7 +42,6 @@ export interface ModelCatalogEntry {
 export interface ModelProviderControls {
   customModels: boolean;
   maxOutputTokens: { default: number; presets: number[] };
-  repairMaxOutputTokens: { default: number; presets: number[] };
   anthropicThinking?: { default: 'adaptive' | 'off'; options: Array<'adaptive' | 'off'> };
   effort?: { default: 'low' | 'medium' | 'high'; options: Array<'low' | 'medium' | 'high'> };
 }
@@ -55,7 +54,6 @@ export interface ModelProviderDefaults {
 
 export interface ModelOptions {
   maxOutputTokens?: number;
-  repairMaxOutputTokens?: number;
   anthropicThinking?: 'adaptive' | 'off';
   effort?: 'low' | 'medium' | 'high';
 }
@@ -68,8 +66,6 @@ export interface ModelSelectionPayload {
   modelOptions?: ModelOptions;
 }
 
-export type FragmentMode = 'section' | 'block-v0' | 'html-node-v0';
-
 export type DiagnosticsTab = 'stream' | 'devtools' | 'history' | 'safety';
 
 export interface StreamOptions {
@@ -79,13 +75,7 @@ export interface StreamOptions {
   ghostTargetPath: string;
   ghostBaseDirectionId: string | null;
   layout?: SummonLayout | null;
-  fragmentMode?: FragmentMode;
   signal: AbortSignal;
-  edit?: {
-    baseRevision: number;
-    sections: { id: string; html: string }[];
-    targetSections?: string[];
-  };
 }
 
 export interface StreamResult extends SurfaceStreamResult {
@@ -95,7 +85,6 @@ export interface StreamResult extends SurfaceStreamResult {
 
 export interface StreamOptionsPayload {
   surfacePolicy?: SurfacePolicy;
-  surfacePlan?: SurfacePlan;
 }
 
 export interface LogEntry {

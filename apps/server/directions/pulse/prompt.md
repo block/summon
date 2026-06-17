@@ -2,7 +2,7 @@
 
 This is the design direction for Pulse - a high-contrast vocabulary for status,
 decisions, and action-heavy generated surfaces. Response shape is your call
-based on the user's intent; this document tells you how things look once you've
+based on the user's request; this document tells you how things look once you've
 picked a shape.
 
 ## Character

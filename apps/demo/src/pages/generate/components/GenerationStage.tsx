@@ -15,14 +15,16 @@ export function GenerationStage({
   running,
   onGenerate,
   statusText,
+  stageNotice,
+  onOpenDiagnostics,
   surfaceRef,
   surfaceTokensSource,
-  capabilityRegistry,
+  toolRegistry,
   componentRegistry,
-  grantedCapabilities,
+  validationTools,
   grantedComponents,
   appendDevEvent,
-  onSurfaceIntentRejected,
+  onSurfaceGoalRejected,
   onSurfaceHandlerError,
   onSurfaceComponentError,
   showWelcome,
@@ -35,14 +37,16 @@ export function GenerationStage({
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
+  stageNotice: { tone: "pending" | "error"; title: string; detail?: string } | null;
+  onOpenDiagnostics: () => void;
   surfaceRef: RefObject<SummonSurfaceHandle>;
   surfaceTokensSource: string;
-  capabilityRegistry: SummonSurfaceProps["capabilityRegistry"];
+  toolRegistry: SummonSurfaceProps["toolRegistry"];
   componentRegistry: SummonSurfaceProps["componentRegistry"];
-  grantedCapabilities: SummonSurfaceProps["grantedCapabilities"];
+  validationTools: SummonSurfaceProps["validationTools"];
   grantedComponents: SummonSurfaceProps["artifactComponents"];
   appendDevEvent: SummonSurfaceProps["onEvent"];
-  onSurfaceIntentRejected: SummonSurfaceProps["onIntentRejected"];
+  onSurfaceGoalRejected: SummonSurfaceProps["onToolRejected"];
   onSurfaceHandlerError: SummonSurfaceProps["onHandlerError"];
   onSurfaceComponentError: SummonSurfaceProps["onComponentError"];
   showWelcome: boolean;
@@ -63,14 +67,13 @@ export function GenerationStage({
           id="sandbox"
           className="h-full min-h-0 w-full border-0 bg-surface-raised"
           title="Summon generate sandbox"
-          html=""
           tokensSource={surfaceTokensSource}
-          capabilityRegistry={capabilityRegistry}
+          toolRegistry={toolRegistry}
           componentRegistry={componentRegistry}
-          grantedCapabilities={grantedCapabilities}
+          validationTools={validationTools}
           artifactComponents={grantedComponents}
           onEvent={appendDevEvent}
-          onIntentRejected={onSurfaceIntentRejected}
+          onToolRejected={onSurfaceGoalRejected}
           onHandlerError={onSurfaceHandlerError}
           onComponentError={onSurfaceComponentError}
         />
@@ -87,6 +90,45 @@ export function GenerationStage({
               <p className="m-0 text-[15px] leading-normal tracking-normal text-ink-muted">
                 Describe a surface to generate.
               </p>
+            </div>
+          </div>
+        ) : null}
+        {stageNotice ? (
+          <div
+            className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center"
+            id="stage-notice"
+            role={stageNotice.tone === "error" ? "alert" : "status"}
+          >
+            <div className="grid max-w-[min(520px,100%)] justify-items-center gap-3">
+              <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
+                {statusText}
+              </div>
+              <div
+                className={
+                  stageNotice.tone === "error"
+                    ? "text-[18px] font-semibold leading-tight text-danger"
+                    : "text-[18px] font-semibold leading-tight text-ink"
+                }
+              >
+                {stageNotice.title}
+              </div>
+              {stageNotice.detail ? (
+                <p className="m-0 max-w-[48ch] text-[13px] leading-normal tracking-normal text-ink-muted">
+                  {stageNotice.detail}
+                </p>
+              ) : null}
+              {stageNotice.tone === "error" ? (
+                <Button
+                  id="open-diagnostics"
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="mt-1"
+                  onClick={onOpenDiagnostics}
+                >
+                  Diagnostics
+                </Button>
+              ) : null}
             </div>
           </div>
         ) : null}

@@ -1,8 +1,9 @@
 import type { EventStore } from '@summon-internal/devtools';
-import { hasCompleteResourceStateKeys, type ValidationCapability } from '@summon-internal/engine';
+import type { ValidationTool } from '@summon-internal/engine';
 import type {
+  ArrowNetworkPolicy,
+  ArrowSurfaceArtifact,
   Artifact,
-  CompiledHtmlNodePatch,
   ComponentIslandDescriptor,
   SandboxHandle,
   SandboxInboundMessage,
@@ -14,14 +15,17 @@ import type {
  * SUMMON_READY and never receives a script nonce. Generated CSS remains inline
  * because the compiler constrains it and visual richness is a core Summon goal.
  */
-function cspForNonce(nonce: string): string {
+function cspForNonce(nonce: string, networkPolicy: ArrowNetworkPolicy = 'none'): string {
+  const connectSrc = networkPolicy === 'restricted-fetch'
+    ? 'connect-src https: http://localhost:* http://127.0.0.1:* http://[::1]:*'
+    : "connect-src 'none'";
   return [
     "default-src 'none'",
-    `script-src 'nonce-${nonce}'`,
+    `script-src 'nonce-${nonce}' 'wasm-unsafe-eval'`,
     "style-src 'unsafe-inline'",
     "img-src data:",
     "font-src data:",
-    "connect-src 'none'",
+    connectSrc,
     "form-action 'none'",
     "base-uri 'none'",
     "frame-src 'none'",
@@ -36,28 +40,42 @@ export interface SpawnOptions {
   iframe: HTMLIFrameElement;
   artifact: Artifact;
   /**
-   * Host-controlled allowlist of intents this sandbox may emit. The bridge
-   * enforces it; anything else is rejected before reaching `onIntent`.
+   * Host-controlled allowlist of tools this sandbox may emit. The bridge
+   * enforces it; anything else is rejected before reaching `onToolCall`.
    *
    * This is required even for static/read-only surfaces. Pass `[]` when the
-   * host grants no executable intents. `artifact.intents` is advisory only and
+   * host grants no executable tools. `artifact.tools` is advisory only and
    * never becomes executable authority.
    */
-  grantedIntents: string[];
+  grantedTools: string[];
   /**
-   * Host-controlled capability grant metadata. Used by the sandbox runtime
-   * only to resolve declarative resource aliases to host-owned state keys.
-   * Intent execution remains governed solely by `grantedIntents`.
+   * Host-controlled tool grant metadata. Tool execution remains
+   * governed solely by `grantedTools`; this metadata is recorded for
+   * validation, diagnostics, and component/policy context.
    */
-  grantedCapabilities?: ValidationCapability[];
+  validationTools?: ValidationTool[];
   /** Raw bootstrap source; published consumers can use `@anarchitecture/summon/assets`. */
   bootstrapSource: string;
   /** Raw token CSS source; published consumers can use `@anarchitecture/summon/assets`. */
   tokensSource: string;
-  /** Receives only intents that passed the bridge allowlist. */
-  onIntent?: (intent: string, args: Record<string, unknown>) => void;
-  /** Receives intents that were rejected by the allowlist. Useful for logging / tests. */
-  onIntentRejected?: (reason: string, raw: unknown) => void;
+  /**
+   * Optional trusted Arrow runtime bundle. It must install
+   * `window.__SUMMON_ARROW_SANDBOX__ = { sandbox }` inside the iframe before
+   * the Summon Arrow adapter receives an artifact.
+   */
+  arrowRuntimeSource?: string;
+  /**
+   * Host-owned network grant for Arrow sandboxes. Defaults to `none`; do not
+   * derive this from generated artifact metadata.
+   */
+  arrowNetworkPolicy?: ArrowNetworkPolicy;
+  /** Receives only tools that passed the bridge allowlist. */
+  onToolCall?: (tool: string, args: Record<string, unknown>) =>
+    | void
+    | Record<string, unknown>
+    | Promise<void | Record<string, unknown>>;
+  /** Receives tools that were rejected by the allowlist. Useful for logging / tests. */
+  onToolRejected?: (reason: string, raw: unknown) => void;
   /** Receives sandbox-measured component island placeholders. */
   onComponents?: (components: ComponentIslandDescriptor[], sandboxId: string) => void;
   /**
@@ -68,8 +86,8 @@ export interface SpawnOptions {
   onSandboxFatal?: (reason: string) => void;
   /**
    * Optional devtools event store. When set, the spawner pushes lifecycle and
-   * intent-bridge events into it (sandbox-spawned/ready/fatal/disposed,
-   * intent-emitted/rejected, render). Behavior is identical when omitted.
+   * tool-bridge events into it (sandbox-spawned/ready/fatal/disposed,
+   * tool-called/rejected, render). Behavior is identical when omitted.
    */
   events?: EventStore;
 }
@@ -98,26 +116,23 @@ function buildSrcdoc(params: {
   scriptNonce: string;
   bootstrapSource: string;
   tokensSource: string;
-  resourceMap: ResourceMap;
+  networkPolicy: ArrowNetworkPolicy;
+  arrowRuntimeSource?: string;
 }): string {
   // The CSP meta must come FIRST in <head> — anything before it is unprotected.
   // Artifact HTML is deliberately absent from initial srcdoc. The trusted
   // bootstrap sends SUMMON_READY, then the host queues the compiled render
   // through SUMMON_RENDER.
   //
-  // The base style block (entrance animation for live-paint sections) is
-  // emitted BEFORE the direction's tokensSource so directions can override —
-  // e.g., a direction wanting no decorative motion can redeclare the
-  // `[data-summon-section]` rule with `animation: none`.
   return `<!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Security-Policy" content="${escapeHtml(cspForNonce(params.scriptNonce))}">
+<meta http-equiv="Content-Security-Policy" content="${escapeHtml(cspForNonce(params.scriptNonce, params.networkPolicy))}">
 <meta charset="utf-8">
 <script nonce="${params.scriptNonce}">window.__SUMMON_SANDBOX_ID__=${escapeScriptJson(params.sandboxId)};</script>
-<script nonce="${params.scriptNonce}">window.__SUMMON_RESOURCES__=${escapeScriptJson(params.resourceMap)};</script>
+<script nonce="${params.scriptNonce}">window.__SUMMON_NETWORK_POLICY__=${escapeScriptJson(params.networkPolicy)};</script>
+${params.arrowRuntimeSource ? `<script nonce="${params.scriptNonce}">${params.arrowRuntimeSource}</script>` : ''}
 <script nonce="${params.scriptNonce}">${params.bootstrapSource}</script>
-<style>${SUMMON_BASE_CSS}</style>
 <style>${params.tokensSource}</style>
 </head>
 <body>
@@ -125,176 +140,6 @@ function buildSrcdoc(params: {
 <script nonce="${params.scriptNonce}">window.__SUMMON_SIGNAL_READY__?.();</script>
 </body>
 </html>`;
-}
-
-const SUMMON_BASE_CSS = `
-[data-summon-section] {
-  animation: summon-section-in 0.45s cubic-bezier(0.33, 1, 0.68, 1) both;
-}
-.summon-node-enter {
-  animation: summon-node-enter 0.32s cubic-bezier(0.33, 1, 0.68, 1) both;
-  will-change: opacity, filter, transform;
-}
-.summon-node-update {
-  animation: summon-node-update 0.42s ease-out both;
-}
-.summon-slot-filled {
-  animation: summon-slot-filled 0.42s ease-out both;
-}
-.summon-motion-enter-rise {
-  animation: summon-motion-rise 0.34s cubic-bezier(0.33, 1, 0.68, 1) both;
-}
-.summon-motion-enter-fade {
-  animation: summon-motion-fade 0.24s ease-out both;
-}
-.summon-motion-enter-fade-slide {
-  animation: summon-motion-fade-slide 0.32s cubic-bezier(0.33, 1, 0.68, 1) both;
-}
-.summon-motion-enter-pop {
-  animation: summon-motion-pop 0.28s cubic-bezier(0.2, 0.9, 0.2, 1.2) both;
-}
-.summon-motion-update-pulse {
-  animation: summon-motion-pulse 0.46s ease-out both;
-}
-.summon-motion-update-fade {
-  animation: summon-motion-update-fade 0.28s ease-out both;
-}
-.summon-motion-update-pop {
-  animation: summon-motion-pop 0.24s cubic-bezier(0.2, 0.9, 0.2, 1.2) both;
-}
-.summon-transition-fade,
-.summon-transition-rise,
-.summon-transition-fade-slide,
-.summon-transition-pop {
-  transition:
-    opacity 0.18s ease-out,
-    filter 0.18s ease-out,
-    transform 0.18s ease-out,
-    box-shadow 0.18s ease-out;
-}
-[data-summon-skeleton] {
-  position: relative;
-  overflow: hidden;
-  min-height: 0.8em;
-  border-radius: 6px;
-  color: transparent !important;
-  background: rgba(127, 127, 127, 0.14);
-  pointer-events: none;
-  user-select: none;
-}
-[data-summon-skeleton] > * {
-  visibility: hidden;
-}
-[data-summon-skeleton]::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
-  animation: summon-skeleton-sheen 1.35s ease-in-out infinite;
-}
-@keyframes summon-section-in {
-  from { opacity: 0; filter: blur(8px); transform: translateY(8px); }
-  to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
-}
-@keyframes summon-node-enter {
-  from { opacity: 0; filter: blur(5px); transform: translateY(6px); }
-  to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
-}
-@keyframes summon-node-update {
-  0%   { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
-  35%  { box-shadow: 0 0 0 2px rgba(80, 112, 255, 0.18); }
-  100% { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
-}
-@keyframes summon-slot-filled {
-  0%   { box-shadow: inset 0 0 0 0 rgba(80, 112, 255, 0); }
-  45%  { box-shadow: inset 0 0 0 1px rgba(80, 112, 255, 0.12); }
-  100% { box-shadow: inset 0 0 0 0 rgba(80, 112, 255, 0); }
-}
-@keyframes summon-motion-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes summon-motion-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes summon-motion-fade-slide {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes summon-motion-pop {
-  from { opacity: 0; transform: scale(0.985); }
-  to   { opacity: 1; transform: scale(1); }
-}
-@keyframes summon-motion-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
-  35%  { box-shadow: 0 0 0 3px rgba(80, 112, 255, 0.16); }
-  100% { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
-}
-@keyframes summon-motion-update-fade {
-  0%   { opacity: 0.72; }
-  100% { opacity: 1; }
-}
-@keyframes summon-skeleton-sheen {
-  0%   { transform: translateX(-100%); }
-  60%, 100% { transform: translateX(100%); }
-}
-@media (prefers-reduced-motion: reduce) {
-  [data-summon-section],
-  .summon-node-enter,
-  .summon-node-update,
-  .summon-slot-filled,
-  .summon-motion-enter-rise,
-  .summon-motion-enter-fade,
-  .summon-motion-enter-fade-slide,
-  .summon-motion-enter-pop,
-  .summon-motion-update-pulse,
-  .summon-motion-update-fade,
-  .summon-motion-update-pop,
-  [data-summon-skeleton]::after {
-    animation: none;
-  }
-  .summon-transition-fade,
-  .summon-transition-rise,
-  .summon-transition-fade-slide,
-  .summon-transition-pop {
-    transition: none;
-  }
-  .summon-node-enter {
-    opacity: 1;
-    filter: none;
-    transform: none;
-  }
-}
-`;
-
-interface ResourceMapEntry {
-  stateKeys: {
-    loading: string;
-    data: string;
-    error: string;
-    empty?: string;
-  };
-}
-
-type ResourceMap = Record<string, ResourceMapEntry>;
-
-function resourceMapFromCapabilities(capabilities: ValidationCapability[] | undefined): ResourceMap {
-  const out: ResourceMap = {};
-  for (const capability of capabilities ?? []) {
-    if (capability.kind !== 'resource') continue;
-    if (!hasCompleteResourceStateKeys(capability.stateKeys)) continue;
-    out[capability.name] = {
-      stateKeys: {
-        loading: capability.stateKeys.loading,
-        data: capability.stateKeys.data,
-        error: capability.stateKeys.error,
-        ...(capability.stateKeys.empty ? { empty: capability.stateKeys.empty } : {}),
-      },
-    };
-  }
-  return out;
 }
 
 function normalizeComponentDescriptors(raw: unknown): ComponentIslandDescriptor[] {
@@ -342,49 +187,46 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
   const sandboxId = randomSandboxId();
   const scriptNonce = randomSandboxId();
   // Bridge allowlist comes only from the host grant. A JS caller that omits
-  // grantedIntents fails closed because `new Set(undefined)` grants nothing.
-  const intentAllowlist = new Set(opts.grantedIntents);
-  const grantedCapabilities = opts.grantedCapabilities ?? opts.artifact.capabilities ?? [];
-  const resourceMap = resourceMapFromCapabilities(grantedCapabilities);
+  // grantedTools fails closed because `new Set(undefined)` grants nothing.
+  const toolAllowlist = new Set(opts.grantedTools);
+  const validationTools = opts.validationTools ?? opts.artifact.validationTools ?? [];
+  const arrowNetworkPolicy = opts.arrowNetworkPolicy ?? 'none';
 
   // Deliberately NOT adding allow-same-origin. That keeps the iframe null-origin:
   // no storage, no parent DOM access, cross-origin isolation applies.
   opts.iframe.setAttribute('sandbox', 'allow-scripts');
+  opts.iframe.dataset.summonSandboxId = sandboxId;
 
   let ready = false;
   const pendingStates: Record<string, unknown>[] = [];
-  const pendingDomOps: Array<
-    | { kind: 'render'; html: string }
-    | { kind: 'node-patch'; patch: CompiledHtmlNodePatch }
-  > = [];
-  // Chrome attributes are merged before flush so a flurry of setChrome calls
-  // pre-ready collapses into a single postMessage. Post-ready, each setChrome
-  // call dispatches immediately.
-  const pendingChrome: Record<string, string> = {};
-  let hasPendingChrome = false;
+  const pendingDomOps: Array<{ kind: 'artifact'; artifact: ArrowSurfaceArtifact }> = [];
 
   function flushPending() {
     if (!ready || !opts.iframe.contentWindow) return;
-    if (hasPendingChrome) {
-      opts.iframe.contentWindow.postMessage(
-        { type: 'SUMMON_CHROME', sandbox_id: sandboxId, attrs: { ...pendingChrome } },
-        '*'
-      );
-      for (const k of Object.keys(pendingChrome)) delete pendingChrome[k];
-      hasPendingChrome = false;
-    }
     while (pendingStates.length > 0) {
       const state = pendingStates.shift()!;
       opts.iframe.contentWindow.postMessage({ type: 'SUMMON_STATE', sandbox_id: sandboxId, state }, '*');
     }
     while (pendingDomOps.length > 0) {
       const op = pendingDomOps.shift()!;
-      if (op.kind === 'render') {
-        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', sandbox_id: sandboxId, html: op.html }, '*');
-      } else {
-        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_NODE_PATCH', sandbox_id: sandboxId, patch: op.patch }, '*');
-      }
+      opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', sandbox_id: sandboxId, artifact: op.artifact }, '*');
     }
+  }
+
+  function postToolResult(requestId: string | undefined, result: {
+    ok: boolean;
+    state?: Record<string, unknown>;
+    error?: string;
+  }) {
+    if (!requestId || !opts.iframe.contentWindow) return;
+    opts.iframe.contentWindow.postMessage({
+      type: 'SUMMON_TOOL_RESULT',
+      sandbox_id: sandboxId,
+      request_id: requestId,
+      ok: result.ok,
+      state: result.state ?? {},
+      ...(result.error ? { error: result.error } : {}),
+    }, '*');
   }
 
   function handleMessage(event: MessageEvent) {
@@ -396,8 +238,9 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     // delivered to the host page — only those claiming to speak the Summon
     // protocol should reach the sandbox_id gate below.
     if (
-      data.type !== 'SUMMON_INTENT' &&
+      data.type !== 'SUMMON_TOOL_CALL' &&
       data.type !== 'SUMMON_READY' &&
+      data.type !== 'SUMMON_RENDERED' &&
       data.type !== 'SUMMON_FATAL' &&
       data.type !== 'SUMMON_COMPONENTS'
     ) {
@@ -418,8 +261,8 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     // A nonce miss is silently dropped rather than reported as a rejection.
     // The listener is bound to `window`, so on a page with multiple sandboxes
     // every listener sees every sibling's messages. Those aren't this
-    // sandbox's intents to validate — they're not addressed to it. Reserving
-    // onIntentRejected for messages that *do* claim this sandbox's identity
+    // sandbox's tools to validate — they're not addressed to it. Reserving
+    // onToolRejected for messages that *do* claim this sandbox's identity
     // (and fail later checks) keeps the rejection signal meaningful.
     if (data.sandbox_id !== sandboxId) {
       return;
@@ -427,7 +270,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
 
     if (data.type === 'SUMMON_FATAL') {
       // Bootstrap's self-test failed. Tear down: never set ready, never push
-      // state, never deliver intents. The sandbox is structurally unsound.
+      // state, never deliver tools. The sandbox is structurally unsound.
       const reason = typeof data.reason === 'string' ? data.reason : 'unknown';
       window.removeEventListener('message', handleMessage);
       opts.iframe.srcdoc = '';
@@ -444,6 +287,16 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       }
       opts.events?.push({ kind: 'sandbox-ready', at: Date.now(), sandboxId });
       flushPending();
+      return;
+    }
+
+    if (data.type === 'SUMMON_RENDERED') {
+      opts.events?.push({
+        kind: 'rendered',
+        at: Date.now(),
+        sandboxId,
+        revision: typeof data.revision === 'number' ? data.revision : 0,
+      });
       return;
     }
 
@@ -464,63 +317,76 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       return;
     }
 
-    if (data.type === 'SUMMON_INTENT') {
-      const { intent, args } = data;
-      if (typeof intent !== 'string' || !intent) {
+    if (data.type === 'SUMMON_TOOL_CALL') {
+      const { tool, args } = data;
+      if (typeof tool !== 'string' || !tool) {
         opts.events?.push({
-          kind: 'intent-rejected',
+          kind: 'tool-rejected',
           at: Date.now(),
           sandboxId,
-          reason: 'intent not a non-empty string',
+          reason: 'tool not a non-empty string',
           raw: data,
         });
-        opts.onIntentRejected?.('intent not a non-empty string', data);
+        opts.onToolRejected?.('tool not a non-empty string', data);
+        postToolResult(data.request_id, { ok: false, error: 'tool not a non-empty string' });
         return;
       }
-      if (!intentAllowlist.has(intent)) {
+      if (!toolAllowlist.has(tool)) {
         opts.events?.push({
-          kind: 'intent-rejected',
+          kind: 'tool-rejected',
           at: Date.now(),
           sandboxId,
-          reason: `intent "${intent}" not granted`,
+          reason: `tool "${tool}" not granted`,
           raw: data,
         });
-        opts.onIntentRejected?.(`intent "${intent}" not granted`, data);
+        opts.onToolRejected?.(`tool "${tool}" not granted`, data);
+        postToolResult(data.request_id, { ok: false, error: `tool "${tool}" not granted` });
         return;
       }
       const safeArgs =
         args && typeof args === 'object' ? (args as Record<string, unknown>) : {};
       opts.events?.push({
-        kind: 'intent-emitted',
+        kind: 'tool-called',
         at: Date.now(),
         sandboxId,
-        intent,
+        tool,
         args: safeArgs,
       });
-      opts.onIntent?.(intent, safeArgs);
+      void Promise.resolve(opts.onToolCall?.(tool, safeArgs))
+        .then((state) => {
+          postToolResult(data.request_id, {
+            ok: true,
+            state: state && typeof state === 'object' && !Array.isArray(state) ? state : {},
+          });
+        })
+        .catch((err) => {
+          const error = err instanceof Error ? err.message : String(err);
+          postToolResult(data.request_id, { ok: false, error });
+        });
     }
   }
 
   window.addEventListener('message', handleMessage);
 
+  if (opts.artifact.arrow) {
+    pendingDomOps.push({ kind: 'artifact', artifact: opts.artifact.arrow });
+  }
   opts.iframe.srcdoc = buildSrcdoc({
     sandboxId,
     scriptNonce,
     bootstrapSource: opts.bootstrapSource,
     tokensSource: opts.tokensSource,
-    resourceMap,
+    networkPolicy: arrowNetworkPolicy,
+    arrowRuntimeSource: opts.arrowRuntimeSource,
   });
-  if (opts.artifact.html) {
-    pendingDomOps.push({ kind: 'render', html: opts.artifact.html });
-  }
 
   opts.events?.push({
     kind: 'sandbox-spawned',
     at: Date.now(),
     sandboxId,
-    grantedIntents: Array.from(intentAllowlist),
-    artifactCapabilities: opts.artifact.capabilities,
-    grantedCapabilities,
+    grantedTools: Array.from(toolAllowlist),
+    artifactTools: opts.artifact.tools,
+    validationTools,
   });
 
   return {
@@ -530,42 +396,25 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       pendingStates.push(state);
       flushPending();
     },
-    render(html) {
-      pendingDomOps.push({ kind: 'render', html });
+    renderArtifact(artifact) {
+      pendingDomOps.push({ kind: 'artifact', artifact });
       opts.events?.push({
         kind: 'render',
         at: Date.now(),
         sandboxId,
-        bytes: html.length,
+        bytes: JSON.stringify(artifact.source).length,
       });
-      flushPending();
-    },
-    patchNode(patch) {
-      pendingDomOps.push({ kind: 'node-patch', patch });
-      opts.events?.push({
-        kind: 'render',
-        at: Date.now(),
-        sandboxId,
-        bytes: patch.html.length,
-      });
-      flushPending();
-    },
-    setChrome(attrs) {
-      // Validate keys defensively. We get away with `unsafe-inline` everywhere
-      // else because the iframe is null-origin, but `data-summon-<key>` is
-      // host-controlled — keep it boring.
-      for (const [k, v] of Object.entries(attrs)) {
-        if (!/^[a-z][a-z0-9-]*$/.test(k)) continue;
-        pendingChrome[k] = String(v);
-        hasPendingChrome = true;
-      }
       flushPending();
     },
     dispose() {
       window.removeEventListener('message', handleMessage);
-      opts.iframe.srcdoc = '';
       ready = false;
       opts.events?.push({ kind: 'sandbox-disposed', at: Date.now(), sandboxId });
+      window.setTimeout(() => {
+        if (opts.iframe.dataset.summonSandboxId !== sandboxId) return;
+        opts.iframe.srcdoc = '';
+        delete opts.iframe.dataset.summonSandboxId;
+      }, 0);
     },
   };
 }

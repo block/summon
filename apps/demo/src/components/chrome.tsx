@@ -4,13 +4,12 @@ import { cn } from '../lib/cn.js';
 import { elevatedPanelClass, panelHeaderClass, pageWidthClass, StatusText } from './ui.js';
 
 export interface AppNavProps {
-  active?: 'generate' | 'batch' | 'fragment-compare';
+  active?: 'generate' | 'batch';
 }
 
 const navItems = [
   { id: 'generate', label: 'Generate', href: '/generate' },
   { id: 'batch', label: 'Batch', href: '/batch' },
-  { id: 'fragment-compare', label: 'Fragment compare', href: '/fragment-compare' },
 ] as const;
 
 const navItemBaseClass =

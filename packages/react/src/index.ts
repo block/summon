@@ -1,15 +1,13 @@
 import {
-  type CapabilityRegistry,
+  type ToolRegistry,
   type ComponentDefinition,
   type ComponentRegistry,
 } from '@anarchitecture/summon';
 import {
-  compileArtifactHtml,
-  SectionAccumulator,
-  type CompiledArtifactHtml,
-  type CompiledHtmlNodePatch,
-  type HtmlNodePatch,
-  type ProtocolLine,
+  isArrowSurfaceArtifact,
+  type ArtifactLine,
+  type ArrowNetworkPolicy,
+  type ArrowSurfaceArtifact,
   type ValidationContext,
 } from '@anarchitecture/summon/engine';
 import {
@@ -24,6 +22,7 @@ import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/dev
 import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
 import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
+  arrowRuntimeSource as defaultArrowRuntimeSource,
   bootstrapSource as defaultBootstrapSource,
   tokensSource as defaultTokensSource,
 } from '@anarchitecture/summon/assets';
@@ -39,29 +38,28 @@ import {
 } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
-export interface SummonSurfaceChrome {
-  [key: string]: string;
-}
-
 export interface SummonSurfaceProps {
   envelope?: SurfaceEnvelope | null;
-  html?: string;
-  protocolLines?: ProtocolLine[];
-  artifactIntents?: string[];
-  grantedIntents?: string[];
-  grantedCapabilities?: Artifact['capabilities'];
+  artifact?: ArrowSurfaceArtifact | null;
+  artifactTools?: string[];
+  grantedTools?: string[];
+  validationTools?: Artifact['validationTools'];
   artifactComponents?: Artifact['components'];
-  capabilityRegistry?: CapabilityRegistry | null;
+  toolRegistry?: ToolRegistry | null;
   componentRegistry?: ComponentRegistry | null;
   bootstrapSource?: string;
+  arrowRuntimeSource?: string;
+  arrowNetworkPolicy?: ArrowNetworkPolicy;
   tokensSource?: string;
   initialState?: Record<string, unknown>;
-  chrome?: SummonSurfaceChrome;
-  onIntent?: (intent: string, args: Record<string, unknown>) => void;
-  onIntentRejected?: (reason: string, raw: unknown) => void;
+  onToolCall?: (tool: string, args: Record<string, unknown>) =>
+    | void
+    | Record<string, unknown>
+    | Promise<void | Record<string, unknown>>;
+  onToolRejected?: (reason: string, raw: unknown) => void;
   onEvent?: (event: DevtoolsEvent) => void;
   onFatal?: (reason: string) => void;
-  onHandlerError?: (intent: string, error: Error) => void;
+  onHandlerError?: (tool: string, error: Error) => void;
   onComponentError?: (error: ComponentIslandError) => void;
   id?: string;
   title?: string;
@@ -72,10 +70,8 @@ export interface SummonSurfaceProps {
 export interface SummonSurfaceHandle {
   iframe: HTMLIFrameElement | null;
   sandboxId: string | null;
-  render(html: string): void;
-  patchNode(patch: HtmlNodePatch): void;
+  renderArtifact(artifact: ArrowSurfaceArtifact): void;
   pushState(state: Record<string, unknown>): void;
-  setChrome(chrome: SummonSurfaceChrome): void;
 }
 
 export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>(function SummonSurface(
@@ -85,7 +81,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const handleRef = useRef<SandboxHandle | null>(null);
   const validationContextRef = useRef<ValidationContext | null>(null);
-  const lastRenderedHtmlRef = useRef<CompiledArtifactHtml | null>(null);
+  const lastRenderedArtifactRef = useRef<ArrowSurfaceArtifact | null>(null);
   const events = useMemo(() => createEventStore(), []);
 
   useImperativeHandle(ref, () => ({
@@ -95,42 +91,18 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     get sandboxId() {
       return handleRef.current?.sandboxId ?? null;
     },
-    render(html: string) {
-      const compiled = compileForRender(html, validationContextRef.current ?? defaultValidationContext());
-      lastRenderedHtmlRef.current = compiled;
-      preflightComponentProps(
-        compiled,
-        props.componentRegistry,
-        handleRef.current?.sandboxId ?? undefined,
-        events,
-        props.onComponentError,
-      );
-      handleRef.current?.render(compiled);
-    },
-    patchNode(patch: HtmlNodePatch) {
-      const compiled = compilePatchForRender(patch, validationContextRef.current ?? defaultValidationContext());
-      if (compiled) {
-        preflightComponentProps(
-          compiled.html,
-          props.componentRegistry,
-          handleRef.current?.sandboxId ?? undefined,
-          events,
-          props.onComponentError,
-        );
-        handleRef.current?.patchNode(compiled);
-      }
+    renderArtifact(artifact: ArrowSurfaceArtifact) {
+      lastRenderedArtifactRef.current = artifact;
+      handleRef.current?.renderArtifact(artifact);
     },
     pushState(state: Record<string, unknown>) {
       handleRef.current?.pushState(state);
     },
-    setChrome(chrome: SummonSurfaceChrome) {
-      handleRef.current?.setChrome(chrome);
-    },
   }), []);
 
   useEffect(() => {
-    lastRenderedHtmlRef.current = null;
-  }, [props.envelope, props.html, props.protocolLines]);
+    lastRenderedArtifactRef.current = null;
+  }, [props.envelope, props.artifact]);
 
   useEffect(() => {
     if (!props.onEvent) return;
@@ -144,22 +116,24 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const contract = props.capabilityRegistry?.toContract();
+    const contract = props.toolRegistry?.toContract();
     const componentContract = props.componentRegistry?.toContract();
-    const handlers = props.capabilityRegistry?.toPolicyHandlers() ?? {};
-    const grantedIntents = props.grantedIntents ?? props.capabilityRegistry?.intents() ?? [];
-    const grantedCapabilities = props.grantedCapabilities ?? contract?.validationCapabilities ?? [];
+    const handlers = props.toolRegistry?.toPolicyHandlers() ?? {};
+    const grantedTools = props.grantedTools ?? props.toolRegistry?.tools() ?? [];
+    const validationTools = props.validationTools ?? contract?.validationTools ?? [];
     const initialState = {
       ...(contract?.initialState ?? {}),
       ...(props.initialState ?? {}),
     };
     const validationContext = validationContextFromProps(
       props,
-      grantedIntents,
-      grantedCapabilities,
+      grantedTools,
+      validationTools,
       componentContract?.validationComponents ?? props.artifactComponents ?? props.envelope?.grants.components,
     );
     validationContextRef.current = validationContext;
+    const arrowArtifact = resolveArrowArtifact(props);
+    const arrowNetworkPolicy = props.arrowNetworkPolicy ?? props.envelope?.surfacePlan.network ?? 'none';
 
     let handle: SandboxHandle | null = null;
     let islands: ComponentIslandRegistry | null = props.componentRegistry
@@ -181,11 +155,12 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     });
 
     const artifact: Artifact = {
+      runtime: 'arrow',
       // Advisory only. spawnSandbox receives host grants below.
-      intents: props.artifactIntents ?? props.envelope?.grants.intents ?? grantedIntents,
-      capabilities: props.envelope?.grants.capabilities ?? props.grantedCapabilities,
+      tools: props.artifactTools ?? props.envelope?.grants.tools ?? grantedTools,
+      validationTools: props.envelope?.grants.validationTools ?? props.validationTools,
       components: props.artifactComponents ?? props.envelope?.grants.components ?? componentContract?.validationComponents,
-      html: resolveCompiledHtml(props, validationContext),
+      ...(arrowArtifact ? { arrow: arrowArtifact } : {}),
       initialState,
     };
     const grantedComponentNames = new Set((artifact.components ?? []).map((component) => component.name));
@@ -193,19 +168,25 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     handle = spawnSandbox({
       iframe,
       artifact,
-      grantedIntents,
-      grantedCapabilities,
+      grantedTools,
+      validationTools,
       bootstrapSource: props.bootstrapSource ?? defaultBootstrapSource,
+      arrowRuntimeSource: props.arrowRuntimeSource ?? defaultArrowRuntimeSource,
+      arrowNetworkPolicy,
       tokensSource: props.tokensSource ?? props.envelope?.tokenCss ?? defaultTokensSource,
       events,
       onSandboxFatal: props.onFatal,
-      onIntent: (intent, args) => {
-        props.onIntent?.(intent, args);
-        if (Object.prototype.hasOwnProperty.call(handlers, intent)) {
-          void policy.dispatch(intent, args);
+      onToolCall: async (tool, args) => {
+        const customState = await props.onToolCall?.(tool, args);
+        if (customState && typeof customState === 'object' && !Array.isArray(customState)) {
+          return customState;
         }
+        if (Object.prototype.hasOwnProperty.call(handlers, tool)) {
+          return policy.dispatch(tool, args).then((result) => result.state);
+        }
+        return policy.getState();
       },
-      onIntentRejected: props.onIntentRejected,
+      onToolRejected: props.onToolRejected,
       onComponents: (components, sandboxId) => {
         const grantedComponents = components.filter((component) => grantedComponentNames.has(component.name));
         for (const component of components) {
@@ -245,23 +226,15 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
         }
         islands?.sync(grantedComponents, {
           sandboxId,
-          emitIntent: (intent, args = {}) => {
-            void policy.dispatch(intent, args);
+          callTool: (tool, args = {}) => {
+            void policy.dispatch(tool, args);
           },
         });
       },
     });
     handleRef.current = handle;
-    preflightComponentProps(
-      artifact.html,
-      props.componentRegistry,
-      handle.sandboxId,
-      events,
-      props.onComponentError,
-    );
-    if (props.chrome) handle.setChrome(props.chrome);
-    if (lastRenderedHtmlRef.current !== null) {
-      handle.render(lastRenderedHtmlRef.current);
+    if (lastRenderedArtifactRef.current !== null) {
+      handle.renderArtifact(lastRenderedArtifactRef.current);
     }
 
     return () => {
@@ -275,22 +248,22 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
   }, [
     events,
     props.bootstrapSource,
-    props.capabilityRegistry,
-    props.chrome,
+    props.arrowRuntimeSource,
+    props.arrowNetworkPolicy,
+    props.toolRegistry,
     props.componentRegistry,
     props.envelope,
-    props.artifactIntents,
-    props.grantedIntents,
-    props.grantedCapabilities,
+    props.artifact,
+    props.artifactTools,
+    props.grantedTools,
+    props.validationTools,
     props.artifactComponents,
-    props.html,
     props.initialState,
-    props.onIntent,
-    props.onIntentRejected,
+    props.onToolCall,
+    props.onToolRejected,
     props.onFatal,
     props.onComponentError,
     props.onHandlerError,
-    props.protocolLines,
     props.tokensSource,
   ]);
 
@@ -311,7 +284,7 @@ export interface ReactComponentDefinition<T = unknown>
 export interface ReactComponentRuntimeContext {
   componentId: string;
   sandboxId: string;
-  emitIntent: (intent: string, args?: Record<string, unknown>) => void;
+  callTool: (tool: string, args?: Record<string, unknown>) => void;
 }
 
 export interface ReactComponentWithRuntimeDefinition<T = unknown, P = T>
@@ -327,13 +300,13 @@ export function defineReactComponent<T, P = T>(
   const { component, mapProps, ...rest } = definition;
   return {
     ...rest,
-    render: ({ container, props, componentId, sandboxId, emitIntent }) => {
+    render: ({ container, props, componentId, sandboxId, callTool }) => {
       let root = roots.get(container);
       if (!root) {
         root = createRoot(container);
         roots.set(container, root);
       }
-      const runtimeContext = { componentId, sandboxId, emitIntent };
+      const runtimeContext = { componentId, sandboxId, callTool };
       const componentProps = mapProps
         ? mapProps(props as T, runtimeContext)
         : props as unknown as P;
@@ -350,109 +323,33 @@ export function defineReactComponent<T, P = T>(
   };
 }
 
-function resolveCompiledHtml(props: SummonSurfaceProps, context: ValidationContext): CompiledArtifactHtml {
-  if (props.envelope) return props.envelope.compiledHtml;
-  if (props.html !== undefined) return compileForRender(props.html, context);
-  if (!props.protocolLines) return compileForRender('', context);
-  const accumulator = new SectionAccumulator();
-  for (const line of props.protocolLines) accumulator.apply(line);
-  return compileForRender(accumulator.compose(), context);
-}
-
-function compileForRender(html: string, context: ValidationContext): CompiledArtifactHtml {
-  const result = compileArtifactHtml(html, context);
-  if (result.issues.some((issue) => issue.severity === 'block')) {
-    return '' as CompiledArtifactHtml;
-  }
-  return result.html;
-}
-
-function compilePatchForRender(
-  patch: HtmlNodePatch,
-  context: ValidationContext,
-): CompiledHtmlNodePatch | null {
-  const result = compileArtifactHtml(patch.html, {
-    ...context,
-    experimentalFragmentMode: 'html-node-v0',
-  });
-  if (result.issues.some((issue) => issue.severity === 'block')) return null;
-  return {
-    sectionId: patch.sectionId,
-    nodeId: patch.nodeId,
-    ...(patch.parentId ? { parentId: patch.parentId } : {}),
-    html: result.html,
-  };
-}
-
-function preflightComponentProps(
-  html: CompiledArtifactHtml,
-  componentRegistry: ComponentRegistry | null | undefined,
-  sandboxId: string | undefined,
-  events: ReturnType<typeof createEventStore>,
-  onError: ((error: ComponentIslandError) => void) | undefined,
-): void {
-  if (!componentRegistry || typeof DOMParser === 'undefined') return;
-  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
-  const placeholders = doc.querySelectorAll('[data-summon-component]');
-  for (const placeholder of placeholders) {
-    const componentName = placeholder.getAttribute('data-summon-component') ?? '';
-    const componentId = placeholder.getAttribute('data-summon-component-id') ?? undefined;
-    const rawProps = placeholder.getAttribute('data-summon-props') ?? '{}';
-    let props: unknown;
-    try {
-      props = JSON.parse(rawProps);
-    } catch {
-      emitComponentPreflightError({
-        code: 'props-invalid',
-        componentId,
-        componentName,
-        sandboxId,
-        reason: `component "${componentName}" props are not valid JSON`,
-      }, events, onError);
-      continue;
+function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact | null {
+  if (props.artifact) return props.artifact;
+  const lines = props.envelope?.protocolLines;
+  if (!lines) return null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line || line.op !== 'artifact' || line.path !== '/artifact') continue;
+    const value = (line as ArtifactLine).value;
+    if (isArrowSurfaceArtifact(value)) {
+      return value;
     }
-    const parsed = componentRegistry.validateProps(componentName, props);
-    if (parsed.ok) continue;
-    emitComponentPreflightError({
-      code: parsed.error?.startsWith('unknown component') ? 'unknown-component' : 'props-invalid',
-      componentId,
-      componentName,
-      sandboxId,
-      reason: parsed.error ?? 'component props failed validation',
-    }, events, onError);
   }
-}
-
-function emitComponentPreflightError(
-  error: ComponentIslandError,
-  events: ReturnType<typeof createEventStore>,
-  onError: ((error: ComponentIslandError) => void) | undefined,
-): void {
-  events.push({
-    kind: 'component-error',
-    at: Date.now(),
-    code: error.code,
-    sandboxId: error.sandboxId,
-    componentId: error.componentId,
-    componentName: error.componentName,
-    reason: error.reason,
-  });
-  onError?.(error);
+  return null;
 }
 
 function validationContextFromProps(
   props: SummonSurfaceProps,
-  grantedIntents: string[],
-  grantedCapabilities: Artifact['capabilities'],
+  grantedTools: string[],
+  validationTools: Artifact['validationTools'],
   components: Artifact['components'],
 ): ValidationContext {
   const surfacePlan = props.envelope?.surfacePlan;
   return {
     mode: props.envelope?.metadata.mode ??
-      (surfacePlan?.runtime === 'static' || grantedIntents.length === 0 ? 'static' : 'interactive'),
-    scriptPolicy: 'forbid',
-    allowedIntents: props.envelope?.grants.intents ?? grantedIntents,
-    capabilities: props.envelope?.grants.capabilities ?? grantedCapabilities,
+      (grantedTools.length === 0 ? 'static' : 'interactive'),
+    allowedTools: props.envelope?.grants.tools ?? grantedTools,
+    tools: props.envelope?.grants.validationTools ?? validationTools,
     components,
     ...(surfacePlan ? { surfacePlan } : {}),
   };
@@ -461,9 +358,8 @@ function validationContextFromProps(
 function defaultValidationContext(): ValidationContext {
   return {
     mode: 'static',
-    scriptPolicy: 'forbid',
-    allowedIntents: [],
-    capabilities: [],
+    allowedTools: [],
+    tools: [],
     components: [],
   };
 }

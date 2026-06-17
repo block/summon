@@ -4,52 +4,43 @@ export {
   isProtocolLine,
   parseProtocolLine,
   parseProtocolLineStrict,
-  blockTargetFromPath,
-  htmlNodePatchFromLine,
-  htmlNodeTargetFromPath,
-  sectionIdFromSectionPath,
 } from './protocol.js';
 export type {
   ProtocolLine,
-  AddLine,
-  SetLine,
   MetaLine,
-  BlockTarget,
-  HtmlNodePatch,
-  HtmlNodeTarget,
+  ArtifactLine,
   ProtocolParseErrorCode,
   ProtocolParseOptions,
 } from './protocol.js';
+export {
+  isArrowSurfaceArtifact,
+  normalizeArrowSurfaceArtifact,
+  validateArrowSurfaceArtifact,
+} from './arrow-artifact.js';
+export type {
+  ArrowNetworkPolicy,
+  ArrowSurfaceArtifact,
+  ArrowArtifactValidationOptions,
+} from './arrow-artifact.js';
 export {
   DEFAULT_VALIDATION_LIMITS,
   normalizeValidationLimits,
 } from './validation-limits.js';
 export type { ValidationLimits } from './validation-limits.js';
-export { SectionAccumulator } from './section-accumulator.js';
-export type {
-  SectionAccumulatorSnapshot,
-  SectionApplyKind,
-  SectionApplyResult,
-  SectionSnapshotEntry,
-} from './section-accumulator.js';
 export { StreamGraph } from './stream-graph.js';
 export type {
-  StreamGraphBlock,
-  StreamGraphEdge,
+  StreamGraphArtifact,
   StreamGraphHealth,
-  StreamGraphNode,
-  StreamGraphSection,
   StreamGraphSnapshot,
 } from './stream-graph.js';
 export {
-  SUMMON_SYSTEM_PROMPT,
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   buildDirectionBlock,
   buildLayoutBlock,
-  buildCapabilitiesBlock,
+  buildToolsBlock,
   buildComponentsBlock,
   buildOverrideBlock,
-  buildPosturesBlock,
   buildSurfaceContractBlock,
 } from './prompt.js';
 export type {
@@ -57,24 +48,20 @@ export type {
   DirectionInput,
   SummonLayout,
   SummonLayoutSlot,
-  IntentSpec,
+  ToolSpec,
   DataResourceSpec,
-  CapabilityPattern,
-  CapabilityPack,
+  ToolPattern,
+  ToolPack,
   ComponentExample,
   ComponentPack,
   ComponentSizing,
   ComponentSpec,
-  CapabilitiesBlockOptions,
-  ScriptPolicy,
   TokenOverride,
-  PostureContract,
-  PostureRegistry,
 } from './prompt.js';
 export {
   compileTokenContract,
   compileDirectionContract,
-  compileCapabilityContract,
+  compileToolContract,
   compileComponentContract,
   compileSystemContracts,
   contractIssue,
@@ -82,7 +69,7 @@ export {
   withIssueSeverity,
 } from './contracts.js';
 export type {
-  CompiledCapabilityContract,
+  CompiledToolContract,
   CompiledComponentContract,
   CompiledDirectionContract,
   CompiledSystemContracts,
@@ -91,7 +78,6 @@ export type {
   ContractIssueSeverity,
   ContractIssueSource,
   ContractPromptBlock,
-  CapabilityContractOptions,
   DirectionContractInput,
   GhostGenerationContext,
   GhostGenerationSource,
@@ -100,21 +86,17 @@ export type {
   TokenContractInput,
 } from './contracts.js';
 export {
-  CAPABILITY_BINDING_SPECS,
-  CAPABILITY_TRIGGER_SPECS,
   defaultTriggersForKind,
-  formatCapabilityProtocolContract,
+  formatToolProtocolContract,
   hasCompleteResourceStateKeys,
-} from './capability-contract.js';
+} from './tool-contract.js';
 export type {
   ActionStateKeys,
-  CapabilityBindingSpec,
-  CapabilityKind,
-  CapabilityStateKeys,
-  CapabilityTrigger,
-  CapabilityTriggerSpec,
+  ToolKind,
+  ToolStateKeys,
+  ToolTrigger,
   ResourceStateKeys,
-} from './capability-contract.js';
+} from './tool-contract.js';
 export {
   TOKEN_CONTRACT,
   REQUIRED_TOKENS,
@@ -142,50 +124,36 @@ export type {
   ValidationResult,
 } from './direction-validator.js';
 export {
-  ARTIFACT_COMPILER_VERSION,
-  compileArtifactHtml,
   validateProtocolLine,
-  validateHtmlFragment,
 } from './runtime-validator.js';
 export type {
-  ArtifactCompileResult,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
   ValidationContext,
-  ValidationCapability,
+  ValidationTool,
   ValidationComponent,
 } from './runtime-validator.js';
 export {
-  DEFAULT_SURFACE_CEILING,
   DEFAULT_SURFACE_PLAN,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
-  SURFACE_RUNTIME_VALUES,
+  SURFACE_NETWORK_VALUES,
   buildSurfacePlanBlock,
-  constrainSurfacePlan,
-  deriveSurfacePlanControls,
   inferSurfacePlan,
-  normalizeSurfaceCeiling,
   normalizeSurfacePlan,
   suggestSurfacePlan,
-  surfacePlanScriptPolicy,
-  surfacePlanWithinCeiling,
 } from './surface-plan.js';
 export type {
-  CapabilitySurface,
+  ToolSurface,
   ComponentSurface,
   SurfaceAuthority,
-  SurfaceCeiling,
   SurfaceData,
   SurfacePersistence,
   SurfacePlan,
-  SurfacePlanControls,
   SurfacePlanInferenceInput,
   SurfacePlanMode,
   SurfacePurpose,
-  SurfaceRuntime,
+  SurfaceNetwork,
 } from './surface-plan.js';
 export {
   compileSurfacePolicy,
@@ -217,6 +185,4 @@ export type {
   ProtocolHardenerOptions,
   ProtocolHardenerResult,
   ProtocolSkipMetaValue,
-  RepairFeedbackMetaValue,
-  ScreenSynthesizedMetaValue,
 } from './protocol-hardener.js';

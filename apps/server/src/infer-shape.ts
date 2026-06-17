@@ -28,7 +28,7 @@ export async function inferShape(
   prompt: string,
   timeoutMs = 1500
 ): Promise<ResponseShape | null> {
-  const systemText = `Classify a generative-UI prompt into the response shape that best fits the user's intent.
+  const systemText = `Classify a generative-UI prompt into the response shape that best fits the user's tool.
 
 Shapes:
 - article — long-form explainer, walkthrough, plan/itinerary, reflection, memo, guide, or readable summary.

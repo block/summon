@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
-import { SectionAccumulator } from '@anarchitecture/summon/engine';
 import { Button, panelClass } from '../../../components/ui.js';
 import { cn } from '../../../lib/cn.js';
 import { createScopedDemoRegistry } from '../../../showcase.js';
-import { childCapabilityNames } from '../constants.js';
+import { childToolNames } from '../constants.js';
 import type { ChildSurfaceModel } from '../types.js';
 
 export function ChildSurface({
@@ -22,14 +21,13 @@ export function ChildSurface({
       modelProvider: () => child.modelSelection.modelProvider ?? null,
       modelSelection: () => child.modelSelection,
       onError: (message) => setStatus(`error: ${message.slice(0, 40)}`),
-    }, childCapabilityNames),
+    }, childToolNames),
     [child.modelSelection],
   );
   const contract = useMemo(() => registry.toContract(), [registry]);
 
   useEffect(() => {
     const abort = new AbortController();
-    const acc = new SectionAccumulator();
     async function runChild() {
       try {
         const response = await fetch('/api/generate', {
@@ -39,9 +37,10 @@ export function ChildSurface({
             prompt: child.prompt,
             ...(child.directionId ? { directionId: child.directionId } : { directionId: '' }),
             ...child.modelSelection,
-            mode: 'interactive',
-            capabilities: contract.pack,
-            ...(child.agentBroker ? { agent: { enabled: true } } : {}),
+            tools: contract.pack,
+            ...(child.agentBroker
+              ? { agent: { enabled: true } }
+              : { surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: childToolNames } }),
           }),
           signal: abort.signal,
         });
@@ -49,12 +48,10 @@ export function ChildSurface({
         if (!response.body) throw new Error('no response body');
         await consumeSurfaceStream(response.body, {
           mode: 'interactive',
-          accumulator: acc,
           onMeta: (line) => {
             if (line.path === '/status') setStatus(String(line.value));
           },
-          onRenderHtml: (html) => surfaceRef.current?.render(html),
-          onNodePatch: (patch) => surfaceRef.current?.patchNode(patch),
+          onArtifact: (artifact) => surfaceRef.current?.renderArtifact(artifact),
         });
         setStatus('done');
       } catch (err) {
@@ -79,10 +76,9 @@ export function ChildSurface({
         ref={surfaceRef}
         title={`Summoned: ${child.title ?? child.prompt.slice(0, 40)}`}
         className="block h-[480px] w-full border-0 bg-surface-raised"
-        html=""
         tokensSource={child.tokensSource}
-        capabilityRegistry={registry}
-        grantedCapabilities={contract.validationCapabilities}
+        toolRegistry={registry}
+        validationTools={contract.validationTools}
       />
     </section>
   );

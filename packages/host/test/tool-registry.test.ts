@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  IntentArgsError,
+  ToolArgsError,
   PolicyEngine,
-  createCapabilityRegistry,
+  createToolRegistry,
   createComponentRegistry,
   createSurfaceEnvelope,
   defineAction,
   defineApprovalAction,
-  defineCapability,
+  defineTool,
   defineDataResource,
   defineComponent,
   defineWorkerAction,
@@ -18,7 +18,7 @@ import {
 import { z } from 'zod';
 
 test('registry converts actions and resources into prompt and validation metadata', () => {
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineAction({
       name: 'counter',
       description: 'Adjust the counter.',
@@ -41,7 +41,7 @@ test('registry converts actions and resources into prompt and validation metadat
 
   const contract = registry.toContract();
   assert.deepEqual(contract.pack, {
-    intents: [
+    tools: [
       {
         name: 'counter',
         description: 'Adjust the counter.',
@@ -66,9 +66,9 @@ test('registry converts actions and resources into prompt and validation metadat
         surface: { data: 'host-resource', authority: 'read' },
       },
     ],
-    patterns: [{ name: 'Counter', code: '<button>+</button>', intent: 'counter' }],
+    patterns: [{ name: 'Counter', code: '<button>+</button>', tool: 'counter' }],
   });
-  assert.deepEqual(contract.validationCapabilities, [
+  assert.deepEqual(contract.validationTools, [
     { name: 'counter', kind: 'action', triggers: ['click', 'submit'], surface: { authority: 'host-action' } },
     {
       name: 'lookup',
@@ -171,13 +171,13 @@ test('component registry rejects duplicate names and dispatches render lifecycle
     props: { label: 'Revenue' },
     componentId: 'metric',
     sandboxId: 'sandbox',
-    emitIntent: () => {},
+    callTool: () => {},
   });
   registry.destroy('MetricCard', {
     container,
     componentId: 'metric',
     sandboxId: 'sandbox',
-    emitIntent: () => {},
+    callTool: () => {},
   });
   assert.deepEqual(calls, ['render:metric:Revenue', 'destroy:metric']);
 });
@@ -187,7 +187,7 @@ test('registry formats richer Zod schemas for prompts', () => {
     Alpha = 'alpha',
     Beta = 'beta',
   }
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineAction({
       name: 'complex',
       description: 'Exercise schema formatting.',
@@ -209,14 +209,14 @@ test('registry formats richer Zod schemas for prompts', () => {
   ]);
 
   assert.equal(
-    registry.toContract().pack.intents[0]!.argsSchema,
+    registry.toContract().pack.tools[0]!.argsSchema,
     '{required: string, optional?: number, nullable: string | null, choice: "one" | "two", literal: "fixed", union: string | number, native: "alpha" | "beta", list: {id: string, score: number | null}[], record: {[key: string]: boolean}, nested: {"display-name"?: string}}',
   );
 });
 
-test('registry converts capabilities into PolicyEngine handlers', async () => {
-  const registry = createCapabilityRegistry([
-    defineCapability({
+test('registry converts tools into PolicyEngine handlers', async () => {
+  const registry = createToolRegistry([
+    defineTool({
       name: 'counter',
       description: 'Adjust the counter.',
       argsSchema: z.object({ delta: z.number() }),
@@ -235,7 +235,7 @@ test('registry converts capabilities into PolicyEngine handlers', async () => {
     },
   });
 
-  assert.deepEqual(policy.intents, ['counter']);
+  assert.deepEqual(policy.tools, ['counter']);
   await policy.dispatch('counter', { delta: 3 });
   assert.equal(latestState.count, 3);
 });
@@ -243,8 +243,8 @@ test('registry converts capabilities into PolicyEngine handlers', async () => {
 test('registry-generated handlers reject invalid args before execution', async () => {
   let calls = 0;
   const errors: Error[] = [];
-  const registry = createCapabilityRegistry([
-    defineCapability({
+  const registry = createToolRegistry([
+    defineTool({
       name: 'counter',
       description: 'Adjust the counter.',
       argsSchema: z.object({ delta: z.number() }),
@@ -258,7 +258,7 @@ test('registry-generated handlers reject invalid args before execution', async (
   const policy = new PolicyEngine({
     handlers: registry.toPolicyHandlers(),
     onStateChange: () => {},
-    onHandlerError: (_intent, error) => {
+    onHandlerError: (_tool, error) => {
       errors.push(error);
     },
   });
@@ -267,12 +267,12 @@ test('registry-generated handlers reject invalid args before execution', async (
 
   assert.equal(calls, 0);
   assert.equal(errors.length, 1);
-  assert.ok(errors[0] instanceof IntentArgsError);
+  assert.ok(errors[0] instanceof ToolArgsError);
 });
 
 test('controlled actions push pending, done, and error lifecycle state', async () => {
   const states: Record<string, unknown>[] = [];
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineAction({
       name: 'save',
       description: 'Save a selection.',
@@ -286,7 +286,7 @@ test('controlled actions push pending, done, and error lifecycle state', async (
   ]);
 
   const contract = registry.toContract();
-  assert.deepEqual(contract.pack.intents[0]?.actionStateKeys, {
+  assert.deepEqual(contract.pack.tools[0]?.actionStateKeys, {
     pending: 'savePending',
     done: 'saveDone',
     error: 'saveError',
@@ -318,7 +318,7 @@ test('controlled actions push pending, done, and error lifecycle state', async (
 test('controlled actions support custom state keys and rethrow failures to diagnostics', async () => {
   const states: Record<string, unknown>[] = [];
   const errors: Error[] = [];
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineAction({
       name: 'save',
       description: 'Save a selection.',
@@ -340,7 +340,7 @@ test('controlled actions support custom state keys and rethrow failures to diagn
   const policy = new PolicyEngine({
     handlers: registry.toPolicyHandlers(),
     onStateChange: (state) => states.push(state),
-    onHandlerError: (_intent, error) => errors.push(error),
+    onHandlerError: (_tool, error) => errors.push(error),
   });
 
   await policy.dispatch('save', { label: 'Balanced path' });
@@ -353,7 +353,7 @@ test('controlled actions support custom state keys and rethrow failures to diagn
 });
 
 test('default actions do not receive controlled lifecycle state', () => {
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineAction({
       name: 'save',
       description: 'Save a selection.',
@@ -364,12 +364,12 @@ test('default actions do not receive controlled lifecycle state', () => {
   ]);
 
   const contract = registry.toContract();
-  assert.equal(contract.pack.intents[0]?.actionStateKeys, undefined);
+  assert.equal(contract.pack.tools[0]?.actionStateKeys, undefined);
   assert.deepEqual(contract.initialState, {});
 });
 
 test('data resource handlers push loading, data, and error state', async () => {
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineDataResource({
       name: 'lookup',
       description: 'Fetch a lookup result.',
@@ -411,7 +411,7 @@ test('data resource handlers push loading, data, and error state', async () => {
 
 test('data resource handlers expose optional empty state after successful empty results', async () => {
   let nextResult: { title: string }[] = [];
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineDataResource({
       name: 'lookup',
       description: 'Fetch lookup results.',
@@ -454,7 +454,7 @@ test('data resource handlers expose optional empty state after successful empty 
 
 test('data resource empty state resets false on invalid and failed host results', async () => {
   let mode: 'invalid' | 'throw' = 'invalid';
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineDataResource({
       name: 'lookup',
       description: 'Fetch lookup results.',
@@ -494,7 +494,7 @@ test('data resource empty state resets false on invalid and failed host results'
 });
 
 test('data resource empty state supports custom isEmpty logic', async () => {
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineDataResource({
       name: 'lookup',
       description: 'Fetch lookup result.',
@@ -528,7 +528,7 @@ test('data resource empty state supports custom isEmpty logic', async () => {
 
 test('data resource result validation converts invalid host data into error state', async () => {
   const errors: string[] = [];
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineDataResource({
       name: 'lookup',
       description: 'Fetch a lookup result.',
@@ -575,7 +575,7 @@ test('defineDataResource validates default data against result schema', () => {
 });
 
 test('data resource handlers restore default data on host errors', async () => {
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineDataResource({
       name: 'lookup',
       description: 'Fetch a lookup result.',
@@ -611,7 +611,7 @@ test('data resource handlers drop duplicate work when concurrency is drop', asyn
   const pending = new Promise<{ ok: boolean }>((resolve) => {
     release = resolve;
   });
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineDataResource({
       name: 'slow',
       description: 'Run one slow lookup.',
@@ -642,7 +642,7 @@ test('data resource handlers drop duplicate work when concurrency is drop', asyn
 test('data resource handlers abort stale work when concurrency is latest', async () => {
   const signals: AbortSignal[] = [];
   let latestState: Record<string, unknown> = {};
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineDataResource({
       name: 'slow',
       description: 'Run the latest lookup.',
@@ -676,16 +676,16 @@ test('data resource handlers abort stale work when concurrency is latest', async
   assert.deepEqual(latestState.slowResult, { id: 'second' });
 });
 
-test('without removes a capability from both pack and handlers', () => {
-  const registry = createCapabilityRegistry([
-    defineCapability({
+test('without removes a tool from both pack and handlers', () => {
+  const registry = createToolRegistry([
+    defineTool({
       name: 'counter',
       description: 'Adjust the counter.',
       argsSchema: z.object({ delta: z.number() }),
       stateShape: '{count: number}',
       handler: () => {},
     }),
-    defineCapability({
+    defineTool({
       name: 'summon',
       description: 'Spawn a child UI.',
       argsSchema: z.object({ prompt: z.string() }),
@@ -695,18 +695,18 @@ test('without removes a capability from both pack and handlers', () => {
   ]).without(['summon']);
 
   assert.deepEqual(
-    registry.toContract().pack.intents.map((intent) => intent.name),
+    registry.toContract().pack.tools.map((tool) => tool.name),
     ['counter'],
   );
   assert.deepEqual(Object.keys(registry.toPolicyHandlers()), ['counter']);
-  assert.deepEqual(registry.toContract().validationCapabilities, [
+  assert.deepEqual(registry.toContract().validationTools, [
     { name: 'counter', kind: 'action', triggers: ['click', 'submit'], surface: { authority: 'host-action' } },
   ]);
-  assert.deepEqual(registry.intents(), ['counter']);
+  assert.deepEqual(registry.tools(), ['counter']);
 });
 
-test('worker helpers annotate capabilities without changing policy dispatch', async () => {
-  const registry = createCapabilityRegistry([
+test('worker helpers annotate tools without changing policy dispatch', async () => {
+  const registry = createToolRegistry([
     defineWorkerAction({
       name: 'analyze',
       description: 'Run host-owned analysis.',
@@ -726,7 +726,7 @@ test('worker helpers annotate capabilities without changing policy dispatch', as
   ]);
 
   const contract = registry.toContract();
-  assert.deepEqual(contract.validationCapabilities.map((capability) => capability.surface), [
+  assert.deepEqual(contract.validationTools.map((tool) => tool.surface), [
     { data: 'worker', authority: 'host-action' },
     { data: 'worker', authority: 'read' },
   ]);
@@ -745,7 +745,7 @@ test('worker helpers annotate capabilities without changing policy dispatch', as
 test('approval action runs approved handler only after approval', async () => {
   let approvedCalls = 0;
   const states: Record<string, unknown>[] = [];
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineApprovalAction({
       name: 'publish',
       description: 'Publish after approval.',
@@ -762,8 +762,8 @@ test('approval action runs approved handler only after approval', async () => {
   ]);
 
   const contract = registry.toContract();
-  assert.equal(contract.validationCapabilities[0]?.surface?.authority, 'approval-gated');
-  assert.match(contract.pack.intents[0]?.stateShape ?? '', /publishApprovalRequestId: string \| null/);
+  assert.equal(contract.validationTools[0]?.surface?.authority, 'approval-gated');
+  assert.match(contract.pack.tools[0]?.stateShape ?? '', /publishApprovalRequestId: string \| null/);
 
   const policy = new PolicyEngine({
     handlers: registry.toPolicyHandlers(),
@@ -789,7 +789,7 @@ test('approval action rejects invalid args before requesting approval', async ()
   let prepareCalls = 0;
   let approvalCalls = 0;
   let approvedCalls = 0;
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineApprovalAction({
       name: 'publish',
       description: 'Publish after approval.',
@@ -815,14 +815,14 @@ test('approval action rejects invalid args before requesting approval', async ()
   const policy = new PolicyEngine({
     handlers: registry.toPolicyHandlers(),
     onStateChange: () => {},
-    onHandlerError: (_intent, error) => errors.push(error),
+    onHandlerError: (_tool, error) => errors.push(error),
   });
 
   await policy.dispatch('publish', { title: 42 });
   assert.equal(prepareCalls, 0);
   assert.equal(approvalCalls, 0);
   assert.equal(approvedCalls, 0);
-  assert.ok(errors[0] instanceof IntentArgsError);
+  assert.ok(errors[0] instanceof ToolArgsError);
 });
 
 test('approval action prepares a frozen request for host approval and approved handler', async () => {
@@ -830,7 +830,7 @@ test('approval action prepares a frozen request for host approval and approved h
   let seenRequest:
     | {
         id: string;
-        capability: string;
+        tool: string;
         summary: string;
         details?: unknown;
         plan: unknown;
@@ -840,7 +840,7 @@ test('approval action prepares a frozen request for host approval and approved h
     | undefined;
   let handlerPlan: unknown;
   const states: Record<string, unknown>[] = [];
-  const registry = createCapabilityRegistry([
+  const registry = createToolRegistry([
     defineApprovalAction({
       name: 'publish',
       description: 'Publish after approval.',
@@ -880,7 +880,7 @@ test('approval action prepares a frozen request for host approval and approved h
 
   assert.equal(prepareCalls, 1);
   assert.ok(seenRequest);
-  assert.equal(seenRequest.capability, 'publish');
+  assert.equal(seenRequest.tool, 'publish');
   assert.equal(seenRequest.summary, 'Publish "launch note"');
   assert.deepEqual(seenRequest.details, { channel: 'demo-updates' });
   assert.deepEqual(seenRequest.plan, { operation: 'publish', title: 'LAUNCH NOTE' });
@@ -893,49 +893,60 @@ test('approval action prepares a frozen request for host approval and approved h
 });
 
 test('surface envelope serializes replay metadata', () => {
+  const artifact = {
+    runtime: 'arrow' as const,
+    source: {
+      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+    },
+  };
   const envelope = createSurfaceEnvelope({
     prompt: 'compare options',
     surfacePlan: {
       purpose: 'compare',
-      runtime: 'static',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'none',
       persistence: 'replayable',
+      network: 'none',
     },
-    protocolLines: [{ op: 'set', path: '/screen', value: { sections: ['hero'] } }],
-    html: '<section>Saved</section>',
-    grants: { intents: [] },
+    artifact,
+    protocolLines: [{ op: 'artifact', path: '/artifact', value: artifact }],
+    grants: { tools: [] },
     metadata: { directionId: 'ghost', mode: 'static' },
     runtimeVersion: 'test',
   });
 
-  assert.equal(envelope.version, 2);
+  assert.equal(envelope.version, 4);
   assert.equal(envelope.prompt, 'compare options');
-  assert.equal(envelope.compiledHtml, '<section>Saved</section>');
-  assert.equal(envelope.compilerIssues.length, 0);
-  assert.equal(envelope.compilerVersion, 'summon-artifact-compiler-v2');
+  assert.deepEqual(envelope.artifact, artifact);
   assert.equal(envelope.metadata.directionId, 'ghost');
   assert.deepEqual(envelope.protocolLines, [
-    { op: 'set', path: '/screen', value: { sections: ['hero'] } },
+    { op: 'artifact', path: '/artifact', value: artifact },
   ]);
 });
 
 test('surface envelope parser accepts valid replay envelopes', () => {
+  const artifact = {
+    runtime: 'arrow' as const,
+    source: {
+      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+    },
+  };
   const envelope = createSurfaceEnvelope({
     prompt: 'compare options',
     surfacePlan: {
       purpose: 'compare',
-      runtime: 'static',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'none',
       persistence: 'replayable',
+      network: 'none',
     },
+    artifact,
     protocolLines: [
-      { op: 'set', path: '/screen', value: { sections: ['hero'] } },
-      { op: 'add', path: '/section/hero', html: '<p>Saved</p>' },
+      { op: 'artifact', path: '/artifact', value: artifact },
     ],
-    html: '<section>Saved</section>',
-    grants: { intents: [] },
+    grants: { tools: [] },
     metadata: { mode: 'static' },
   });
 
@@ -943,28 +954,35 @@ test('surface envelope parser accepts valid replay envelopes', () => {
 });
 
 test('surface envelope parser rejects malformed, wrong-version, and escalating envelopes', () => {
+  const artifact = {
+    runtime: 'arrow' as const,
+    source: {
+      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+    },
+  };
   const envelope = createSurfaceEnvelope({
     prompt: 'pick an option',
     surfacePlan: {
       purpose: 'collect',
-      runtime: 'declarative',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',
+      network: 'none',
     },
+    artifact,
     protocolLines: [
       {
         op: 'add',
         path: '/section/hero',
-        html: '<button data-summon-on-click="delete_everything">Bad</button>',
-      },
+        html: '<p>Legacy</p>',
+      } as never,
     ],
-    html: '<button data-summon-on-click="delete_everything">Bad</button>',
-    grants: { intents: ['choose'], capabilities: [{ name: 'choose', triggers: ['click'] }] },
+    grants: { tools: ['choose'], validationTools: [{ name: 'choose', triggers: ['click'] }] },
     metadata: { mode: 'interactive' },
   });
 
   assert.equal(parseSurfaceEnvelope('{bad'), null);
-  assert.equal(parseSurfaceEnvelope({ ...envelope, version: 3 }), null);
+  assert.equal(parseSurfaceEnvelope({ ...envelope, version: 2 }), null);
   assert.equal(parseSurfaceEnvelope(envelope), null);
 });

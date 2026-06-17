@@ -1,20 +1,10 @@
-import {
-  blockTargetFromPath,
-  htmlNodeTargetFromPath,
-  sectionIdFromSectionPath,
-  type ProtocolLine,
-} from '../protocol.js';
+import type { ContractIssue } from '../contracts.js';
+import type { ProtocolLine } from '../protocol.js';
+import { validateArrowSurfaceArtifact } from '../arrow-artifact.js';
 import { normalizeValidationLimits } from '../validation-limits.js';
 import { protocolBlock } from './issues.js';
-import { validateHtmlFragment } from './html.js';
-import { parseHtmlForValidation } from './html-parser.js';
 import type { ValidationContext } from './types.js';
-import type { ContractIssue } from '../contracts.js';
 
-const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
-const BLOCK_ID_RE = SECTION_ID_RE;
-const NODE_ID_RE = SECTION_ID_RE;
-const MAX_BLOCKS_PER_SECTION = 8;
 const META_PATH_RE = /^\/[a-z][a-z0-9-/]{0,119}$/;
 const HOST_OWNED_META_PATHS = new Set(['/surface-policy', '/surface-plan', '/surface-contract']);
 
@@ -39,179 +29,16 @@ export function validateProtocolLine(
     return issues;
   }
 
-  if (line.op === 'set') {
-    if (line.path === '/screen') {
-      const value = line.value as { sections?: unknown } | undefined;
-      if (!value || !Array.isArray(value.sections)) {
-        issues.push(protocolBlock('invalid-screen-value', 'Screen value must include a sections array', line.path));
-        return issues;
-      }
-      if (value.sections.length < 1 || value.sections.length > limits.maxSections) {
-        issues.push(
-          protocolBlock(
-            'invalid-section-count',
-            `Screen must declare 1 to ${limits.maxSections} sections`,
-            line.path,
-          ),
-        );
-      }
-      const seen = new Set<string>();
-      for (const section of value.sections) {
-        if (typeof section !== 'string' || !SECTION_ID_RE.test(section)) {
-          issues.push(
-            protocolBlock('invalid-section-id', `Invalid section id "${String(section)}"`, line.path),
-          );
-          continue;
-        }
-        if (seen.has(section)) {
-          issues.push(protocolBlock('duplicate-section-id', `Duplicate section id "${section}"`, line.path));
-        }
-        seen.add(section);
-      }
+  if (line.op === 'artifact') {
+    if (!line.value || typeof line.value !== 'object') {
+      issues.push(protocolBlock('invalid-arrow-artifact', 'Artifact line value must be an Arrow artifact object', line.path));
       return issues;
     }
-
-    const sectionId = sectionIdFromSectionPath(line.path);
-    if (!sectionId) {
-      issues.push(protocolBlock('invalid-set-path', `Unsupported set path "${line.path}"`, line.path));
-      return issues;
-    }
-
-    if (!SECTION_ID_RE.test(sectionId)) {
-      issues.push(protocolBlock('invalid-section-path', `Invalid section path "${line.path}"`, line.path));
-    }
-
-    const value = line.value as { blocks?: unknown } | undefined;
-    if (!value || !Array.isArray(value.blocks)) {
-      issues.push(protocolBlock('invalid-block-value', 'Section value must include a blocks array', line.path));
-      return issues;
-    }
-    if (value.blocks.length < 1 || value.blocks.length > MAX_BLOCKS_PER_SECTION) {
-      issues.push(
-        protocolBlock(
-          'invalid-block-count',
-          `Section must declare 1 to ${MAX_BLOCKS_PER_SECTION} blocks`,
-          line.path,
-        ),
-      );
-    }
-    const seen = new Set<string>();
-    for (const block of value.blocks) {
-      if (typeof block !== 'string' || !BLOCK_ID_RE.test(block)) {
-        issues.push(
-          protocolBlock('invalid-block-id', `Invalid block id "${String(block)}"`, line.path),
-        );
-        continue;
-      }
-      if (seen.has(block)) {
-        issues.push(protocolBlock('duplicate-block-id', `Duplicate block id "${block}"`, line.path));
-      }
-      seen.add(block);
-    }
-    return issues;
+    issues.push(...validateArrowSurfaceArtifact(line.value as never, {
+      maxSourceBytes: limits.maxProtocolLineBytes,
+      network: context.surfacePlan?.network ?? 'none',
+    }));
   }
 
-  if (line.op === 'add') {
-    const blockTarget = blockTargetFromPath(line.path);
-    const nodeTarget = htmlNodeTargetFromPath(line.path);
-    const sectionId = sectionIdFromSectionPath(line.path);
-    if (!sectionId && !blockTarget && !nodeTarget) {
-      issues.push(protocolBlock('invalid-add-path', `Unsupported add path "${line.path}"`, line.path));
-      return issues;
-    }
-    if (nodeTarget) {
-      if (context.experimentalFragmentMode !== 'html-node-v0') {
-        issues.push(protocolBlock(
-          'experimental-node-fragment-disabled',
-          'HTML node fragments are only accepted when html-node-v0 is enabled',
-          line.path,
-        ));
-        return issues;
-      }
-      if (!SECTION_ID_RE.test(nodeTarget.sectionId) || !NODE_ID_RE.test(nodeTarget.nodeId)) {
-        issues.push(protocolBlock('invalid-node-path', `Invalid node path "${line.path}"`, line.path));
-      }
-      if (line.parent !== undefined) {
-        if (!NODE_ID_RE.test(line.parent)) {
-          issues.push(protocolBlock('invalid-node-parent', `Invalid node parent "${line.parent}"`, line.path));
-        }
-        if (line.parent === nodeTarget.nodeId) {
-          issues.push(protocolBlock('invalid-node-parent', 'Node parent cannot be itself', line.path));
-        }
-      }
-      if (line.html !== undefined && typeof line.html !== 'string') {
-        issues.push(protocolBlock('invalid-node-html', 'Node html must be a string', line.path));
-        return issues;
-      }
-      issues.push(...validateHtmlFragment(line.html ?? '', context).map((issue) => ({
-        ...issue,
-        path: issue.path ?? line.path,
-      })));
-      issues.push(...validateHtmlNodeShape(line.html ?? '', nodeTarget.nodeId, context).map((issue) => ({
-        ...issue,
-        path: issue.path ?? line.path,
-      })));
-      return issues;
-    }
-    if (sectionId && !SECTION_ID_RE.test(sectionId)) {
-      issues.push(protocolBlock('invalid-section-path', `Invalid section path "${line.path}"`, line.path));
-    }
-    if (blockTarget && (!SECTION_ID_RE.test(blockTarget.sectionId) || !BLOCK_ID_RE.test(blockTarget.blockId))) {
-      issues.push(protocolBlock('invalid-block-path', `Invalid block path "${line.path}"`, line.path));
-    }
-    if (line.html !== undefined && typeof line.html !== 'string') {
-      issues.push(protocolBlock('invalid-section-html', 'Section html must be a string', line.path));
-      return issues;
-    }
-    issues.push(...validateHtmlFragment(line.html ?? '', context).map((issue) => ({
-      ...issue,
-      path: issue.path ?? line.path,
-    })));
-  }
-
-  return issues;
-}
-
-function validateHtmlNodeShape(
-  html: string,
-  expectedNodeId: string,
-  context: ValidationContext,
-): ContractIssue[] {
-  const issues: ContractIssue[] = [];
-  const parseIssues: ContractIssue[] = [];
-  const parsed = parseHtmlForValidation(html, normalizeValidationLimits(context.limits), parseIssues);
-  let depth = 0;
-  let rootCount = 0;
-  let rootNodeId: string | undefined;
-
-  for (const token of parsed.tokens) {
-    if (token.kind === 'open') {
-      if (depth === 0) {
-        rootCount += 1;
-        rootNodeId = token.attrs.get('data-summon-node');
-      } else if (token.attrs.has('data-summon-node')) {
-        issues.push(protocolBlock(
-          'nested-node-id',
-          'Node patch HTML must not contain nested data-summon-node attributes',
-        ));
-      }
-      if (!token.selfClosing) depth += 1;
-    } else if (depth > 0) {
-      depth -= 1;
-    }
-  }
-
-  if (rootCount !== 1) {
-    issues.push(protocolBlock(
-      'invalid-node-html',
-      'Node patch HTML must contain exactly one top-level element',
-    ));
-  }
-  if (rootNodeId !== expectedNodeId) {
-    issues.push(protocolBlock(
-      'node-root-mismatch',
-      `Node patch root must include data-summon-node="${expectedNodeId}"`,
-    ));
-  }
   return issues;
 }

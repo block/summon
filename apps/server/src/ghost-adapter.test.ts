@@ -78,7 +78,7 @@ describe('Ghost adapter', () => {
     });
   });
 
-  it('resolves Ghost relay context into prompt intent and valid token CSS', async () => {
+  it('resolves Ghost relay context into prompt context and valid token CSS', async () => {
     const root = await makeGhostFixture({ tokenCss: await readDefaultTokensCss() });
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -107,7 +107,8 @@ describe('Ghost adapter', () => {
     assert.match(ctx.prompt, /Status surfaces must foreground current state/);
     assert.match(ctx.prompt, /Surfaces are compact/);
     assert.match(ctx.prompt, /exacting workflows/);
-    assert.match(ctx.prompt, /fingerprint\/memory\/intent\.md/);
+    assert.match(ctx.prompt, /Suggested Reads/);
+    assert.match(ctx.prompt, /fingerprint\/prose\.yml/);
   });
 
   it('appends a Summon surface brief without recompiling the fingerprint', async () => {
@@ -123,7 +124,7 @@ describe('Ghost adapter', () => {
       mode: 'static',
       surfacePlan: {
         purpose: 'inform',
-        runtime: 'static',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'none',
         persistence: 'replayable',
@@ -134,8 +135,8 @@ describe('Ghost adapter', () => {
     assert.equal(prepared.source, 'root');
     assert.match(prepared.prompt, /# Ghost Relay Brief/);
     assert.match(prepared.prompt, /## Summon Surface Brief/);
-    assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=static; data=embedded; authority=none; persistence=replayable/);
-    assert.match(prepared.prompt, /The agent broker controls host authority and capabilities/);
+    assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=arrow; data=embedded; authority=none; persistence=replayable/);
+    assert.match(prepared.prompt, /The agent broker controls host authority and tools/);
     assert.match(prepared.prompt, /Compose from the fingerprint prose, inventory, and composition layers/);
     assert.match(prepared.prompt, /Preserve quiet density/);
   });
@@ -175,7 +176,7 @@ describe('Ghost adapter', () => {
     assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('using the fallback Summon direction tokens')));
   });
 
-  it('builds review packet metadata from relay context and accepted protocol lines', async () => {
+  it('builds review packet metadata from relay context and accepted Arrow artifacts', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -190,9 +191,17 @@ describe('Ghost adapter', () => {
       prompt: 'show the state of the queue',
       validation: { blocked: 0, warnings: 1, codes: { 'unknown-token': 1 } },
       acceptedLines: [
-        { op: 'set', path: '/screen', value: { sections: ['header', 'content'] } },
-        { op: 'add', path: '/section/header', html: '<h1>Queue</h1>' },
-        { op: 'add', path: '/section/content', html: '<p>12 pending</p>' },
+        {
+          op: 'artifact',
+          path: '/artifact',
+          value: {
+            runtime: 'arrow',
+            source: {
+              'main.ts': 'export default html`<h1>Queue</h1>`',
+              'main.css': 'h1 { color: var(--color-text); }',
+            },
+          },
+        },
       ],
     });
 
@@ -207,11 +216,8 @@ describe('Ghost adapter', () => {
       packet.fingerprintProvenance.layers.map(({ relativeRoot, memoryDir, dir }) => ({ relativeRoot, memoryDir, dir })),
       [{ relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' }],
     );
-    assert.deepEqual(packet.declaredSections, ['header', 'content']);
-    assert.deepEqual(packet.sections, [
-      { id: 'header', html: '<h1>Queue</h1>' },
-      { id: 'content', html: '<p>12 pending</p>' },
-    ]);
+    assert.equal(packet.artifactRuntime, 'arrow');
+    assert.deepEqual(packet.artifactFiles, ['main.css', 'main.ts']);
     assert.equal(packet.tokenSource.kind, 'summon-default');
     assert.equal('css' in packet.tokenSource, false);
   });
@@ -336,10 +342,10 @@ checks:
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'memory', 'intent.md'),
-    `# Intent
+    join(root, '.ghost', 'fingerprint', 'memory', 'tool.md'),
+    `# Tool
 
-Human-approved test intent keeps generated surfaces grounded.
+Human-approved test tool keeps generated surfaces grounded.
 `,
   );
   await writeFile(

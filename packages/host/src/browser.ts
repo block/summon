@@ -6,7 +6,6 @@ export type {
   SurfaceStreamLineDecision,
   SurfaceStreamOptions,
   SurfaceStreamParseError,
-  SurfaceStreamRenderMode,
   SurfaceStreamResult,
   SurfaceStreamSource,
 } from './surface-stream.js';
@@ -41,13 +40,12 @@ export type {
 } from './component-islands.js';
 export type {
   Artifact,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
   ComponentIslandBounds,
   ComponentIslandDescriptor,
   ComponentsMessage,
   FatalMessage,
-  IntentMessage,
+  ToolCallMessage,
+  ToolResultMessage,
   ReadyMessage,
   SandboxHandle,
   SandboxInboundMessage,

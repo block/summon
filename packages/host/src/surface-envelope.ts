@@ -1,37 +1,34 @@
 import type {
-  CompiledArtifactHtml,
+  ArrowSurfaceArtifact,
   ContractIssue,
   ProtocolLine,
   StreamGraphSnapshot,
   SurfacePlan,
-  ValidationCapability,
+  ValidationTool,
   ValidationComponent,
 } from '@summon-internal/engine';
 import {
-  compileArtifactHtml,
+  isArrowSurfaceArtifact,
   isProtocolLine,
   normalizeSurfacePlan,
-  surfacePlanScriptPolicy,
   validateProtocolLine,
 } from '@summon-internal/engine';
 
-export const SUMMON_SURFACE_ENVELOPE_VERSION = 2;
+export const SUMMON_SURFACE_ENVELOPE_VERSION = 4;
 
 export interface SurfaceEnvelope {
-  version: 2;
+  version: 4;
   id: string;
   createdAt: string;
   prompt: string;
   surfacePlan: SurfacePlan;
+  artifact: ArrowSurfaceArtifact;
   protocolLines: ProtocolLine[];
-  compiledHtml: CompiledArtifactHtml;
-  compilerVersion: string;
-  compilerIssues: ContractIssue[];
   validationIssues: ContractIssue[];
   streamGraph: StreamGraphSnapshot | null;
   grants: {
-    intents: string[];
-    capabilities?: ValidationCapability[];
+    tools: string[];
+    validationTools?: ValidationTool[];
     components?: ValidationComponent[];
   };
   metadata: {
@@ -49,13 +46,13 @@ export interface CreateSurfaceEnvelopeInput {
   createdAt?: string | Date;
   prompt: string;
   surfacePlan: SurfacePlan;
+  artifact: ArrowSurfaceArtifact;
   protocolLines: ProtocolLine[];
-  html: string;
   validationIssues?: ContractIssue[];
   streamGraph?: StreamGraphSnapshot | null;
   grants: {
-    intents: string[];
-    capabilities?: ValidationCapability[];
+    tools: string[];
+    validationTools?: ValidationTool[];
     components?: ValidationComponent[];
   };
   metadata?: SurfaceEnvelope['metadata'];
@@ -68,31 +65,31 @@ export function createSurfaceEnvelope(input: CreateSurfaceEnvelopeInput): Surfac
     ? input.createdAt.toISOString()
     : input.createdAt ?? new Date().toISOString();
   const validationContext = validationContextForEnvelope(input);
-  const compiled = compileArtifactHtml(input.html, validationContext);
   const protocolIssues: ContractIssue[] = [];
-  const protocolLines = input.protocolLines.map((line) =>
-    compileEnvelopeProtocolLine(line, validationContext, protocolIssues),
-  );
+  const protocolLines = input.protocolLines.map((line) => {
+    for (const issue of validateProtocolLine(line, validationContext)) {
+      protocolIssues.push(issue);
+    }
+    return { ...line };
+  });
   return {
-    version: 2,
+    version: SUMMON_SURFACE_ENVELOPE_VERSION,
     id: input.id ?? newEnvelopeId(),
     createdAt,
     prompt: input.prompt,
     surfacePlan: input.surfacePlan,
+    artifact: input.artifact,
     protocolLines,
-    compiledHtml: compiled.html,
-    compilerVersion: compiled.compilerVersion,
-    compilerIssues: compiled.issues,
-    validationIssues: [...(input.validationIssues ?? []), ...compiled.issues, ...protocolIssues],
+    validationIssues: [...(input.validationIssues ?? []), ...protocolIssues],
     streamGraph: input.streamGraph ?? null,
     grants: {
-      intents: [...input.grants.intents],
-      capabilities: input.grants.capabilities?.map((capability) => ({ ...capability })),
+      tools: [...input.grants.tools],
+      validationTools: input.grants.validationTools?.map((tool) => ({ ...tool })),
       components: input.grants.components?.map((component) => ({ ...component })),
     },
     metadata: input.metadata ?? {},
     tokenCss: input.tokenCss ?? null,
-    runtimeVersion: input.runtimeVersion ?? 'summon-surface-envelope-v2',
+    runtimeVersion: input.runtimeVersion ?? 'summon-surface-envelope-v4',
   };
 }
 
@@ -108,11 +105,6 @@ export function parseSurfaceEnvelope(raw: string | unknown): SurfaceEnvelope | n
   if (isSurfaceEnvelope(parsed)) {
     return parsed;
   }
-  if (isLegacySurfaceEnvelope(parsed)) {
-    const envelope = createSurfaceEnvelope(parsed);
-    if (envelope.compilerIssues.some((issue) => issue.severity === 'block')) return null;
-    return envelope;
-  }
   return null;
 }
 
@@ -123,11 +115,7 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
   if (typeof input.id !== 'string' || !input.id) return false;
   if (typeof input.createdAt !== 'string' || Number.isNaN(Date.parse(input.createdAt))) return false;
   if (typeof input.prompt !== 'string') return false;
-  if (typeof input.compiledHtml !== 'string') return false;
-  if (typeof input.compilerVersion !== 'string' || !input.compilerVersion) return false;
-  if (!Array.isArray(input.compilerIssues) || !input.compilerIssues.every(isContractIssue)) {
-    return false;
-  }
+  if (!isArrowSurfaceArtifact(input.artifact)) return false;
   if (typeof input.runtimeVersion !== 'string' || !input.runtimeVersion) return false;
 
   const surfacePlan = normalizeSurfacePlan(input.surfacePlan);
@@ -151,24 +139,8 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
     const issues = validateProtocolLine(line, validationContext);
     if (issues.some((issue) => issue.severity === 'block')) return false;
   }
-  const compiled = compileArtifactHtml(input.compiledHtml, validationContext);
-  if (compiled.issues.some((issue) => issue.severity === 'block')) return false;
-  if (compiled.html !== input.compiledHtml) return false;
 
   return true;
-}
-
-function compileEnvelopeProtocolLine(
-  line: ProtocolLine,
-  validationContext: ReturnType<typeof validationContextForEnvelope>,
-  issues: ContractIssue[],
-): ProtocolLine {
-  if (line.op !== 'add' || line.html === undefined) return { ...line };
-  const compiled = compileArtifactHtml(line.html, validationContext);
-  for (const issue of compiled.issues) {
-    issues.push(issue.path ? issue : { ...issue, path: line.path });
-  }
-  return { ...line, html: compiled.html };
 }
 
 function validationContextForEnvelope(input: {
@@ -177,32 +149,12 @@ function validationContextForEnvelope(input: {
   metadata?: SurfaceEnvelope['metadata'];
 }) {
   return {
-    mode: input.metadata?.mode ?? (input.surfacePlan.runtime === 'static' ? 'static' as const : 'interactive' as const),
-    scriptPolicy: surfacePlanScriptPolicy(input.surfacePlan),
-    capabilities: input.grants.capabilities,
+    mode: input.metadata?.mode ?? (input.grants.tools.length === 0 ? 'static' as const : 'interactive' as const),
+    tools: input.grants.validationTools,
     components: input.grants.components,
-    allowedIntents: input.grants.intents,
+    allowedTools: input.grants.tools,
     surfacePlan: input.surfacePlan,
   };
-}
-
-function isLegacySurfaceEnvelope(value: unknown): value is CreateSurfaceEnvelopeInput {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const input = value as Record<string, unknown>;
-  if (input.version !== 1) return false;
-  if (typeof input.id !== 'string' || !input.id) return false;
-  if (typeof input.createdAt !== 'string' || Number.isNaN(Date.parse(input.createdAt))) return false;
-  if (typeof input.prompt !== 'string') return false;
-  if (typeof input.html !== 'string') return false;
-  const surfacePlan = normalizeSurfacePlan(input.surfacePlan);
-  if (!surfacePlan) return false;
-  if (!Array.isArray(input.protocolLines) || !input.protocolLines.every(isProtocolLine)) return false;
-  if (!Array.isArray(input.validationIssues) || !input.validationIssues.every(isContractIssue)) return false;
-  if (!isStreamGraphSnapshot(input.streamGraph)) return false;
-  if (!isGrants(input.grants)) return false;
-  if (!isMetadata(input.metadata)) return false;
-  if (input.tokenCss !== undefined && input.tokenCss !== null && typeof input.tokenCss !== 'string') return false;
-  return true;
 }
 
 function newEnvelopeId(): string {
@@ -233,13 +185,13 @@ function isGrants(value: unknown): value is SurfaceEnvelope['grants'] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const grants = value as Record<string, unknown>;
   return (
-    Array.isArray(grants.intents) &&
-    grants.intents.every((intent) => typeof intent === 'string') &&
+    Array.isArray(grants.tools) &&
+    grants.tools.every((tool) => typeof tool === 'string') &&
     (
-      grants.capabilities === undefined ||
+      grants.validationTools === undefined ||
       (
-        Array.isArray(grants.capabilities) &&
-        grants.capabilities.every(isValidationCapability)
+        Array.isArray(grants.validationTools) &&
+        grants.validationTools.every(isValidationTool)
       )
     ) &&
     (
@@ -252,10 +204,10 @@ function isGrants(value: unknown): value is SurfaceEnvelope['grants'] {
   );
 }
 
-function isValidationCapability(value: unknown): value is ValidationCapability {
+function isValidationTool(value: unknown): value is ValidationTool {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const capability = value as Record<string, unknown>;
-  return typeof capability.name === 'string' && capability.name.length > 0;
+  const tool = value as Record<string, unknown>;
+  return typeof tool.name === 'string' && tool.name.length > 0;
 }
 
 function isValidationComponent(value: unknown): value is ValidationComponent {

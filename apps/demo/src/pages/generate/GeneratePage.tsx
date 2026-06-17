@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { createSurfaceEnvelope } from '@anarchitecture/summon/envelope';
 import {
-  deriveSurfacePlanControls,
-  SectionAccumulator,
+  isArrowSurfaceArtifact,
+  type ProtocolLine,
   type SummonLayout,
   type SurfaceContractView,
   type SurfacePlan,
@@ -38,13 +38,13 @@ import {
   ghostRootFromSelection,
   groupScenarios,
   scenarioUsesFixedPolicy,
+  surfacePolicyForPlan,
   tokenOverridesFor,
 } from './surfaceHelpers.js';
 import type {
   ApprovalCard,
   ChildSurfaceModel,
   DiagnosticsTab,
-  FragmentMode,
   LogEntry,
   ModelOptions,
   ModelSelectionPayload,
@@ -53,7 +53,6 @@ import type {
 
 export function GeneratePage() {
   const surfaceRef = useRef<SummonSurfaceHandle>(null);
-  const accRef = useRef(new SectionAccumulator());
   const abortRef = useRef<AbortController | null>(null);
   const modeRef = useRef<Mode>('interactive');
   const approvalResolvers = useRef(new Map<string, (decision: ApprovalDecision) => void>());
@@ -66,10 +65,8 @@ export function GeneratePage() {
   const [mode, setMode] = useState<Mode>(SHOWCASE_SCENARIOS[0]?.mode ?? 'interactive');
   const [surfacePlan, setSurfacePlan] = useState<SurfacePlan>(SHOWCASE_SCENARIOS[0]!.surfacePlan);
   const [layoutId, setLayoutId] = useState('');
-  const [fragmentMode, setFragmentMode] = useState<FragmentMode>('section');
   const [tokenPreset, setTokenPreset] = useState('');
   const [agentBrokerEnabled, setAgentBrokerEnabled] = useState(true);
-  const [repairEnabled, setRepairEnabled] = useState(false);
   const [customContractEnabled, setCustomContractEnabled] = useState(false);
   const [directionId, setDirectionId] = useState<string | null>(null);
   const [ghostTarget, setGhostTarget] = useState('.');
@@ -79,12 +76,12 @@ export function GeneratePage() {
   const [utilityModel, setUtilityModel] = useState('');
   const [customModel, setCustomModel] = useState('');
   const [maxOutputTokens, setMaxOutputTokens] = useState(64000);
-  const [repairMaxOutputTokens, setRepairMaxOutputTokens] = useState(12000);
   const [anthropicThinking, setAnthropicThinking] = useState<'adaptive' | 'off'>('adaptive');
   const [modelEffort, setModelEffort] = useState<'low' | 'medium' | 'high'>('medium');
   const [activeTokensSourceOverride, setActiveTokensSourceOverride] = useState<string | null>(null);
+  const activeTokensSourceOverrideRef = useRef<string | null>(null);
   const [surfaceTokensSource, setSurfaceTokensSource] = useState(defaultTokensSource);
-  const [runtimeCapabilityNames, setRuntimeCapabilityNames] = useState<string[] | null>(null);
+  const [runtimeToolNames, setRuntimeToolNames] = useState<string[] | null>(null);
   const [runtimeComponentNames, setRuntimeComponentNames] = useState<string[] | null>(null);
   const [status, setStatus] = useState('idle');
   const [bytes, setBytes] = useState(0);
@@ -94,15 +91,12 @@ export function GeneratePage() {
   const [currentEffectiveSurfacePlan, setCurrentEffectiveSurfacePlan] = useState<SurfacePlan | null>(null);
   const [currentShape, setCurrentShape] = useState<string | null>(null);
   const [currentValidationSummary, setCurrentValidationSummary] = useState<string | null>(null);
-  const [currentRepairSummary, setCurrentRepairSummary] = useState<string | null>(null);
   const [currentStreamHealth, setCurrentStreamHealth] = useState<string | null>(null);
   const [currentSurfaceContractView, setCurrentSurfaceContractView] = useState<SurfaceContractView | null>(null);
-  const [currentAgentIntentSummary, setCurrentAgentIntentSummary] = useState<string | null>(null);
+  const [currentAgentGoalSummary, setCurrentAgentGoalSummary] = useState<string | null>(null);
   const [currentAgentPolicySummary, setCurrentAgentPolicySummary] = useState<string | null>(null);
   const [artifactRevision, setArtifactRevision] = useState(0);
   const artifactRevisionRef = useRef(0);
-  const editTargets = '';
-  const editPrompt = '';
   const [diagnosticsTab, setDiagnosticsTab] = useState<DiagnosticsTab>('stream');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -117,6 +111,10 @@ export function GeneratePage() {
   useEffect(() => {
     artifactRevisionRef.current = artifactRevision;
   }, [artifactRevision]);
+
+  useEffect(() => {
+    activeTokensSourceOverrideRef.current = activeTokensSourceOverride;
+  }, [activeTokensSourceOverride]);
 
   const showcaseScenarios = useMemo(
     () => [
@@ -152,7 +150,6 @@ export function GeneratePage() {
       setGenerationModel('');
       setUtilityModel('');
       setMaxOutputTokens(64000);
-      setRepairMaxOutputTokens(12000);
       return;
     }
     const generationDefault = selectedProvider.defaults?.generationModel ?? selectedProvider.model;
@@ -160,7 +157,6 @@ export function GeneratePage() {
     setGenerationModel((current) => current || generationDefault);
     setUtilityModel((current) => current || utilityDefault);
     setMaxOutputTokens(selectedProvider.controls?.maxOutputTokens.default ?? selectedProvider.defaults?.modelOptions.maxOutputTokens ?? 64000);
-    setRepairMaxOutputTokens(selectedProvider.controls?.repairMaxOutputTokens.default ?? selectedProvider.defaults?.modelOptions.repairMaxOutputTokens ?? 12000);
     setAnthropicThinking(selectedProvider.controls?.anthropicThinking?.default ?? 'adaptive');
     setModelEffort(selectedProvider.controls?.effort?.default ?? 'medium');
   }, [selectedProvider]);
@@ -183,12 +179,12 @@ export function GeneratePage() {
     setDevEvents((items) => [...items.slice(-799), event]);
   }, []);
 
-  const handleSurfaceIntentRejected = useCallback((reason: string) => {
+  const handleSurfaceGoalRejected = useCallback((reason: string) => {
     logLine('op-error', `rejected: ${reason}`);
   }, [logLine]);
 
-  const handleSurfaceHandlerError = useCallback((intent: string, error: Error) => {
-    logLine('op-error', `host handler error (${intent}): ${error.message}`);
+  const handleSurfaceHandlerError = useCallback((tool: string, error: Error) => {
+    logLine('op-error', `host handler error (${tool}): ${error.message}`);
   }, [logLine]);
 
   const handleSurfaceComponentError = useCallback((error: { componentName?: string; componentId?: string; reason: string }) => {
@@ -196,17 +192,16 @@ export function GeneratePage() {
   }, [logLine]);
 
   const clearRuntimeState = useCallback(() => {
-    accRef.current = new SectionAccumulator();
     setArtifactRevision(0);
     artifactRevisionRef.current = 0;
+    activeTokensSourceOverrideRef.current = null;
     setActiveTokensSourceOverride(null);
     setCurrentEffectiveSurfacePlan(null);
     setCurrentShape(null);
     setCurrentValidationSummary(null);
-    setCurrentRepairSummary(null);
     setCurrentStreamHealth(null);
     setCurrentSurfaceContractView(null);
-    setCurrentAgentIntentSummary(null);
+    setCurrentAgentGoalSummary(null);
     setCurrentAgentPolicySummary(null);
   }, []);
 
@@ -248,7 +243,6 @@ export function GeneratePage() {
     if (utilityModel) selection.utilityModel = utilityModel;
     const options: ModelOptions = {};
     if (Number.isFinite(maxOutputTokens)) options.maxOutputTokens = maxOutputTokens;
-    if (Number.isFinite(repairMaxOutputTokens)) options.repairMaxOutputTokens = repairMaxOutputTokens;
     if (selectedProvider?.id === 'anthropic') {
       options.anthropicThinking = anthropicThinking;
       options.effort = modelEffort;
@@ -262,7 +256,6 @@ export function GeneratePage() {
     maxOutputTokens,
     modelEffort,
     modelProviderId,
-    repairMaxOutputTokens,
     selectedProvider,
     utilityModel,
   ]);
@@ -279,22 +272,20 @@ export function GeneratePage() {
     const modelSelection = readModelSelection();
     const agentBroker = agentBrokerEnabled && !customContractEnabled && !scenarioUsesFixedPolicy(selectedScenario);
     const overrides = tokenOverridesFor(tokenPreset);
-    const repair = repairEnabled
-      ? selectedScenario.repair ?? { enabled: true, maxAttempts: 1, maxTargets: 2 }
-      : undefined;
+    const surfacePolicy = customContractEnabled
+      ? surfacePolicyForPlan(surfacePlan, selectedScenario.toolNames, selectedScenario.componentNames)
+      : selectedScenario.surfacePolicy;
     return {
       scenarioId: selectedScenario.id,
       prompt: prompt.trim() || selectedScenario.prompt,
       mode,
-      capabilityNames: runtimeCapabilityNames ?? selectedScenario.capabilityNames,
+      toolNames: runtimeToolNames ?? selectedScenario.toolNames,
       componentNames: runtimeComponentNames ?? selectedScenario.componentNames,
       agentBroker,
-      ...(!agentBroker && !customContractEnabled ? { surfacePolicy: selectedScenario.surfacePolicy } : {}),
+      ...(!agentBroker ? { surfacePolicy } : {}),
       surfacePlan,
-      scriptPolicy: deriveSurfacePlanControls(surfacePlan).scriptPolicy,
       ...(layoutId ? { layoutId } : {}),
       ...(overrides ? { tokenOverrides: overrides } : {}),
-      ...(repair ? { repair } : {}),
       directionId,
       modelProvider: modelSelection.modelProvider ?? null,
       ...(modelSelection.generationModel ? { generationModel: modelSelection.generationModel } : {}),
@@ -310,15 +301,14 @@ export function GeneratePage() {
     mode,
     prompt,
     readModelSelection,
-    repairEnabled,
-    runtimeCapabilityNames,
+    runtimeToolNames,
     runtimeComponentNames,
     selectedScenario,
     surfacePlan,
     tokenPreset,
   ]);
 
-  const capabilityRegistry = useMemo(() => {
+  const toolRegistry = useMemo(() => {
     if (activeContract.mode !== 'interactive') return null;
     let localSummonCount = summonedCountRef.current;
     return createScopedDemoRegistry({
@@ -333,7 +323,7 @@ export function GeneratePage() {
           prompt: args.prompt,
           title: args.title || undefined,
           directionId,
-          tokensSource: activeTokensSourceOverride ?? tokensFor(directionId),
+          tokensSource: activeTokensSourceOverrideRef.current ?? tokensFor(directionId),
           modelSelection: readModelSelectionRef.current(),
           agentBroker: activeContract.agentBroker === true,
         };
@@ -343,19 +333,18 @@ export function GeneratePage() {
         push({ summonedCount: localSummonCount, lastSummoned: args.prompt, summonError: null });
         logLine('op-meta', `summon sibling: ${args.prompt.slice(0, 80)}`);
       },
-    }, activeContract.capabilityNames);
+    }, activeContract.toolNames);
   }, [
     activeContract.agentBroker,
-    activeContract.capabilityNames,
+    activeContract.toolNames,
     activeContract.mode,
-    activeTokensSourceOverride,
     directionId,
     logLine,
     requestHostApproval,
     tokensFor,
   ]);
 
-  const capabilityContract = useMemo(() => capabilityRegistry?.toContract() ?? null, [capabilityRegistry]);
+  const toolContract = useMemo(() => toolRegistry?.toContract() ?? null, [toolRegistry]);
   const componentRegistry = useMemo(() => createDemoComponentRegistry(), []);
   const grantedComponents = useMemo(
     () => activeContract.componentNames?.length
@@ -372,7 +361,7 @@ export function GeneratePage() {
     setStatus('idle');
     setBytes(0);
     setShowWelcome(true);
-    setRuntimeCapabilityNames(null);
+    setRuntimeToolNames(null);
     setRuntimeComponentNames(null);
     setChildren([]);
     summonedCountRef.current = 0;
@@ -387,7 +376,6 @@ export function GeneratePage() {
     setSurfacePlan(scenario.surfacePlan);
     setLayoutId(scenario.layoutId ?? '');
     setTokenPreset(scenario.tokenOverrides ? 'accent-blue' : '');
-    setRepairEnabled(Boolean(scenario.repair?.enabled));
     const fallbackDirectionId = directions[0]?.id ?? null;
     const desiredDirectionId = scenario.directionId ?? fallbackDirectionId;
     setDirectionId(desiredDirectionId ?? null);
@@ -403,7 +391,6 @@ export function GeneratePage() {
 
   const streamGenerationInto = useSurfaceStream({
     surfaceRef,
-    accRef,
     modeRef,
     artifactRevisionRef,
     directionId,
@@ -412,7 +399,7 @@ export function GeneratePage() {
     logLine,
     setBytes,
     setMode,
-    setCurrentAgentIntentSummary,
+    setCurrentAgentGoalSummary,
     setCurrentAgentPolicySummary,
     setCurrentEffectiveSurfacePlan,
     setCurrentSurfaceContractView,
@@ -420,7 +407,6 @@ export function GeneratePage() {
     setActiveTokensSourceOverride,
     setSurfaceTokensSource,
     setCurrentValidationSummary,
-    setCurrentRepairSummary,
     setCurrentStreamHealth,
     setStatus,
     setArtifactRevision,
@@ -432,17 +418,18 @@ export function GeneratePage() {
   }, [layoutId]);
 
   const saveSurfaceEnvelope = useCallback((runPrompt: string, result: StreamResult) => {
-    if (!result.surfacePlan || !accRef.current.hasAnySection()) return;
+    const artifact = findArrowArtifact(result.protocolLines);
+    if (!result.surfacePlan || !artifact) return;
     const envelope = createSurfaceEnvelope({
       prompt: runPrompt,
       surfacePlan: result.surfacePlan,
+      artifact,
       protocolLines: result.protocolLines,
-      html: accRef.current.compose(),
       validationIssues: result.validationIssues,
       streamGraph: result.streamGraph,
       grants: {
-        intents: capabilityRegistry?.intents() ?? [],
-        capabilities: capabilityContract?.validationCapabilities,
+        tools: toolRegistry?.tools() ?? [],
+        validationTools: toolContract?.validationTools,
         components: grantedComponents,
       },
       metadata: {
@@ -459,8 +446,8 @@ export function GeneratePage() {
     ]);
   }, [
     activeTokensSourceOverride,
-    capabilityContract,
-    capabilityRegistry,
+    toolContract,
+    toolRegistry,
     directionId,
     grantedComponents,
     mode,
@@ -471,7 +458,6 @@ export function GeneratePage() {
 
   const { generate, replaySurface } = useGenerationRuns({
     surfaceRef,
-    accRef,
     abortRef,
     artifactRevisionRef,
     modeRef,
@@ -481,9 +467,6 @@ export function GeneratePage() {
     directionId,
     ghostTarget,
     ghostBaseDirectionId,
-    fragmentMode,
-    editPrompt,
-    editTargets,
     tokensFor,
     clearApprovals,
     clearRuntimeState,
@@ -493,9 +476,8 @@ export function GeneratePage() {
     appendDevEvent,
     logLine,
     currentValidationSummary,
-    currentRepairSummary,
     setChildren,
-    setRuntimeCapabilityNames,
+    setRuntimeToolNames,
     setRuntimeComponentNames,
     setLogs,
     setDevEvents,
@@ -505,7 +487,6 @@ export function GeneratePage() {
     setStatus,
     setBytes,
     setCurrentValidationSummary,
-    setCurrentRepairSummary,
     setCurrentStreamHealth,
     setArtifactRevision,
     setActiveTokensSourceOverride,
@@ -528,19 +509,48 @@ export function GeneratePage() {
     : selectedProvider
       ? fallbackCatalog(selectedProvider.utilityModel, selectedProvider.utilityModel)
       : [];
-  const scriptPolicy = deriveSurfacePlanControls(surfacePlan).scriptPolicy;
   const statusText = bytes ? `${status} · ${bytes.toLocaleString()} B` : status;
+  const latestStageError = useMemo(() => {
+    for (let i = logs.length - 1; i >= 0; i -= 1) {
+      const entry = logs[i];
+      if (entry?.cls.split(/\s+/).includes('op-error')) return cleanStageError(entry.text);
+    }
+    return null;
+  }, [logs]);
+  const stageNotice = useMemo(() => {
+    const hasRenderedArtifact = artifactRevision > 0;
+    if (!showWelcome && running && !hasRenderedArtifact) {
+      return {
+        tone: 'pending' as const,
+        title: 'Generating surface',
+        detail: 'Waiting for the first accepted artifact.',
+      };
+    }
+    if (!showWelcome && !hasRenderedArtifact && (status === 'error' || status.startsWith('error'))) {
+      return {
+        tone: 'error' as const,
+        title: 'Generation failed',
+        detail: latestStageError ?? 'No accepted artifact was produced.',
+      };
+    }
+    if (!showWelcome && !hasRenderedArtifact && status === 'aborted') {
+      return {
+        tone: 'error' as const,
+        title: 'Generation aborted',
+      };
+    }
+    return null;
+  }, [artifactRevision, latestStageError, running, showWelcome, status]);
   const contractRows = buildContractRows({
     active: activeContract,
     selectedScenario,
     modelProviders,
-    currentAgentIntentSummary,
+    currentAgentGoalSummary,
     currentAgentPolicySummary,
     currentEffectiveSurfacePlan,
     currentShape,
     currentStreamHealth,
     currentSurfaceContractView,
-    currentRepairSummary,
     currentValidationSummary,
   });
   const devtoolsTally = useMemo(() => {
@@ -606,14 +616,16 @@ export function GeneratePage() {
           running={running}
           onGenerate={generate}
           statusText={statusText}
+          stageNotice={stageNotice}
+          onOpenDiagnostics={() => setDiagnosticsOpen(true)}
           surfaceRef={surfaceRef}
           surfaceTokensSource={surfaceTokensSource}
-          capabilityRegistry={capabilityRegistry}
+          toolRegistry={toolRegistry}
           componentRegistry={componentRegistry}
-          grantedCapabilities={capabilityContract?.validationCapabilities}
+          validationTools={toolContract?.validationTools}
           grantedComponents={grantedComponents}
           appendDevEvent={appendDevEvent}
-          onSurfaceIntentRejected={handleSurfaceIntentRejected}
+          onSurfaceGoalRejected={handleSurfaceGoalRejected}
           onSurfaceHandlerError={handleSurfaceHandlerError}
           onSurfaceComponentError={handleSurfaceComponentError}
           showWelcome={showWelcome}
@@ -672,8 +684,6 @@ export function GeneratePage() {
             setUtilityModel={setUtilityModel}
             maxOutputTokens={maxOutputTokens}
             setMaxOutputTokens={setMaxOutputTokens}
-            repairMaxOutputTokens={repairMaxOutputTokens}
-            setRepairMaxOutputTokens={setRepairMaxOutputTokens}
             anthropicThinking={anthropicThinking}
             setAnthropicThinking={setAnthropicThinking}
             modelEffort={modelEffort}
@@ -686,17 +696,12 @@ export function GeneratePage() {
             setShowWelcome={setShowWelcome}
             layoutId={layoutId}
             setLayoutId={setLayoutId}
-            fragmentMode={fragmentMode}
-            setFragmentMode={setFragmentMode}
-            scriptPolicy={scriptPolicy}
             tokenPreset={tokenPreset}
             setTokenPreset={setTokenPreset}
             mode={mode}
             setMode={setMode}
             agentBrokerEnabled={agentBrokerEnabled}
             setAgentBrokerEnabled={setAgentBrokerEnabled}
-            repairEnabled={repairEnabled}
-            setRepairEnabled={setRepairEnabled}
             customContractEnabled={customContractEnabled}
             setCustomContractEnabled={setCustomContractEnabled}
             selectedScenario={selectedScenario}
@@ -749,4 +754,21 @@ export function GeneratePage() {
       />
     </>
   );
+}
+
+function cleanStageError(text: string): string {
+  return text
+    .replace(/^stream error:\s*/i, '')
+    .replace(/^error:\s*/i, '')
+    .trim();
+}
+
+function findArrowArtifact(lines: readonly ProtocolLine[]) {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (line?.op === 'artifact' && line.path === '/artifact' && isArrowSurfaceArtifact(line.value)) {
+      return line.value;
+    }
+  }
+  return null;
 }

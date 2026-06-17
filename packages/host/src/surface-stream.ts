@@ -1,14 +1,14 @@
 import {
-  compileArtifactHtml,
+  normalizeArrowSurfaceArtifact,
+  normalizeValidationLimits,
   parseProtocolLine,
-  SectionAccumulator,
   StreamGraph,
-  type CompiledArtifactHtml,
-  type CompiledHtmlNodePatch,
+  validateArrowSurfaceArtifact,
   type ContractIssue,
+  type ArrowSurfaceArtifact,
+  type ArtifactLine,
   type MetaLine,
   type ProtocolLine,
-  type SectionApplyResult,
   type StreamGraphSnapshot,
   type SurfacePlanMode,
   type ValidationContext,
@@ -20,7 +20,6 @@ export type SurfaceStreamSource =
   | AsyncIterable<SurfaceStreamChunk>
   | Iterable<SurfaceStreamChunk>;
 
-export type SurfaceStreamRenderMode = 'live' | 'final' | 'manual';
 export type SurfaceStreamLineDecision =
   | boolean
   | 'apply'
@@ -30,11 +29,9 @@ export type SurfaceStreamLineDecision =
 export interface SurfaceStreamContext {
   lineNumber: number;
   raw?: string;
-  accumulator: SectionAccumulator;
   graph: StreamGraph;
   protocolLines: readonly ProtocolLine[];
   acceptedStructuralLines: number;
-  applyResult?: SectionApplyResult;
 }
 
 export interface SurfaceStreamParseError {
@@ -44,9 +41,7 @@ export interface SurfaceStreamParseError {
 
 export interface SurfaceStreamOptions {
   mode: SurfacePlanMode | (() => SurfacePlanMode);
-  accumulator?: SectionAccumulator;
   streamGraph?: StreamGraph;
-  renderMode?: SurfaceStreamRenderMode;
   shouldApplyLine?: (
     line: ProtocolLine,
     context: SurfaceStreamContext,
@@ -59,20 +54,17 @@ export interface SurfaceStreamOptions {
     line: MetaLine,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
+  onArtifact?: (
+    artifact: ArrowSurfaceArtifact,
+    line: ArtifactLine,
+    context: SurfaceStreamContext,
+  ) => void | Promise<void>;
   onParseError?: (
     raw: string,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
   onGraph?: (
     snapshot: StreamGraphSnapshot,
-    context: SurfaceStreamContext,
-  ) => void | Promise<void>;
-  onRenderHtml?: (
-    html: CompiledArtifactHtml,
-    context: SurfaceStreamContext,
-  ) => void | Promise<void>;
-  onNodePatch?: (
-    patch: CompiledHtmlNodePatch,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
   onError?: (
@@ -84,7 +76,6 @@ export interface SurfaceStreamOptions {
 
 export interface SurfaceStreamResult {
   protocolLines: ProtocolLine[];
-  html: CompiledArtifactHtml;
   streamGraph: StreamGraphSnapshot;
   validationIssues: ContractIssue[];
   parseErrors: SurfaceStreamParseError[];
@@ -96,7 +87,6 @@ export async function consumeSurfaceStream(
   source: SurfaceStreamSource,
   options: SurfaceStreamOptions,
 ): Promise<SurfaceStreamResult> {
-  const accumulator = options.accumulator ?? new SectionAccumulator();
   const graph = options.streamGraph ?? new StreamGraph();
   const protocolLines: ProtocolLine[] = [];
   const validationIssues: ContractIssue[] = [];
@@ -110,28 +100,16 @@ export async function consumeSurfaceStream(
 
   const context = (
     raw?: string,
-    applyResult?: SectionApplyResult,
   ): SurfaceStreamContext => ({
     lineNumber,
     raw,
-    accumulator,
     graph,
     protocolLines,
     acceptedStructuralLines,
-    ...(applyResult ? { applyResult } : {}),
   });
-
-  const renderMode = (): SurfaceStreamRenderMode => (
-    options.renderMode ?? (resolveMode(options.mode) === 'static' ? 'live' : 'final')
-  );
 
   const emitGraph = async (ctx: SurfaceStreamContext) => {
     await options.onGraph?.(graph.snapshot(), ctx);
-  };
-
-  const emitRender = async (ctx: SurfaceStreamContext) => {
-    if (!accumulator.hasAnySection()) return;
-    await options.onRenderHtml?.(accumulator.compose() as CompiledArtifactHtml, ctx);
   };
 
   const handleRawLine = async (raw: string) => {
@@ -163,12 +141,10 @@ export async function consumeSurfaceStream(
     }
 
     graph.applyLine(acceptedLine);
-    let applyResult: SectionApplyResult | undefined;
     if (acceptedLine.op !== 'meta') {
-      applyResult = accumulator.applyDetailed(acceptedLine);
       acceptedStructuralLines += 1;
     }
-    const ctx = context(raw, applyResult);
+    const ctx = context(raw);
     protocolLines.push(acceptedLine);
 
     if (acceptedLine.op === 'meta' && acceptedLine.path === '/validation-blocked' && isContractIssue(acceptedLine.value)) {
@@ -185,15 +161,15 @@ export async function consumeSurfaceStream(
       await options.onMeta?.(acceptedLine, ctx);
       return;
     }
+    if (acceptedLine.op === 'artifact') {
+      await emitGraph(ctx);
+      if (isArrowSurfaceArtifactValue(acceptedLine.value)) {
+        await options.onArtifact?.(acceptedLine.value, acceptedLine, ctx);
+      }
+      return;
+    }
 
     await emitGraph(ctx);
-    if (renderMode() === 'live' && applyResult?.changed) {
-      if (applyResult.nodePatch && options.onNodePatch) {
-        await options.onNodePatch(applyResult.nodePatch as CompiledHtmlNodePatch, ctx);
-        return;
-      }
-      await emitRender(ctx);
-    }
   };
 
   try {
@@ -214,9 +190,6 @@ export async function consumeSurfaceStream(
     if (tail) await handleRawLine(tail);
 
     const finalContext = context();
-    if (renderMode() === 'final') {
-      await emitRender(finalContext);
-    }
     await emitGraph(finalContext);
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
@@ -224,10 +197,8 @@ export async function consumeSurfaceStream(
     throw error;
   }
 
-  const html = accumulator.compose() as CompiledArtifactHtml;
   return {
     protocolLines,
-    html,
     streamGraph: graph.snapshot(),
     validationIssues,
     parseErrors,
@@ -242,17 +213,49 @@ function compileAcceptedLine(
   validationIssues: ContractIssue[],
   graph: StreamGraph,
 ): ProtocolLine | null {
-  if (!validationContext || line.op !== 'add' || line.html === undefined) return line;
-  const result = compileArtifactHtml(line.html, validationContext);
+  if (line.op === 'artifact') {
+    return compileAcceptedArtifactLine(line, validationContext, validationIssues, graph);
+  }
+  if (line.op === 'meta') return line;
+  return null;
+}
+
+function compileAcceptedArtifactLine(
+  line: ArtifactLine,
+  validationContext: ValidationContext | undefined,
+  validationIssues: ContractIssue[],
+  graph: StreamGraph,
+): ArtifactLine | null {
+  const normalized = normalizeArrowSurfaceArtifact(line.value);
+  const issues = [...normalized.issues];
+  if (normalized.artifact) {
+    const limits = normalizeValidationLimits(validationContext?.limits);
+    issues.push(...validateArrowSurfaceArtifact(normalized.artifact, {
+      maxSourceBytes: limits.maxProtocolLineBytes,
+      network: validationContext?.surfacePlan?.network ?? 'none',
+    }));
+  }
+
   let blocked = false;
-  for (const issue of result.issues) {
-    const scoped = issue.path ? issue : { ...issue, path: line.path };
-    pushValidationIssue(validationIssues, scoped);
-    graph.recordIssue(scoped);
+  for (const issue of issues) {
+    pushValidationIssue(validationIssues, issue);
+    graph.recordIssue(issue);
     if (issue.severity === 'block') blocked = true;
   }
-  if (blocked) return null;
-  return { ...line, html: result.html };
+  if (blocked || !normalized.artifact) return null;
+  return { ...line, value: normalized.artifact };
+}
+
+function isArrowSurfaceArtifactValue(value: unknown): value is ArrowSurfaceArtifact {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    (value as { runtime?: unknown }).runtime === 'arrow' &&
+    typeof (value as { source?: unknown }).source === 'object' &&
+    (value as { source?: unknown }).source !== null &&
+    !Array.isArray((value as { source?: unknown }).source)
+  );
 }
 
 async function* chunksFromSource(
@@ -284,10 +287,6 @@ function decodeChunk(chunk: SurfaceStreamChunk, decoder: TextDecoder): string {
   return typeof chunk === 'string'
     ? decoder.decode() + chunk
     : decoder.decode(chunk, { stream: true });
-}
-
-function resolveMode(mode: SurfacePlanMode | (() => SurfacePlanMode)): SurfacePlanMode {
-  return typeof mode === 'function' ? mode() : mode;
 }
 
 function normalizeLineDecision(

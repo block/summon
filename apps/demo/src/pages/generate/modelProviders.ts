@@ -64,8 +64,7 @@ export function parseProviderControls(raw: unknown): ModelProviderControls | und
   if (!raw || typeof raw !== 'object') return undefined;
   const item = raw as Record<string, unknown>;
   const maxOutputTokens = parseTokenControl(item.maxOutputTokens);
-  const repairMaxOutputTokens = parseTokenControl(item.repairMaxOutputTokens);
-  if (!maxOutputTokens || !repairMaxOutputTokens) return undefined;
+  if (!maxOutputTokens) return undefined;
   const thinkingOptions = Array.isArray((item.anthropicThinking as Record<string, unknown> | undefined)?.options)
     ? ((item.anthropicThinking as { options?: unknown[] }).options ?? []).filter((value): value is 'adaptive' | 'off' => value === 'adaptive' || value === 'off')
     : [];
@@ -75,7 +74,6 @@ export function parseProviderControls(raw: unknown): ModelProviderControls | und
   return {
     customModels: item.customModels !== false,
     maxOutputTokens,
-    repairMaxOutputTokens,
     anthropicThinking: {
       default: (item.anthropicThinking as { default?: unknown } | undefined)?.default === 'off' ? 'off' : 'adaptive',
       options: thinkingOptions.length ? thinkingOptions : ['adaptive', 'off'],

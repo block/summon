@@ -4,12 +4,12 @@ import {
   compileSurfaceContractView,
   compileSurfacePolicy,
   surfaceContractViewFromCompiledPolicy,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
 } from '../src/index.ts';
 
-const capabilities: CapabilityPack = {
-  intents: [
+const tools: ToolPack = {
+  tools: [
     {
       name: 'search',
       description: 'Search host records.',
@@ -70,18 +70,17 @@ const components: ComponentPack = {
   ],
 };
 
-test('static policy contract view has no tools/components and static runtime', () => {
+test('static policy contract view has no tools/components and Arrow runtime', () => {
   const view = compileSurfaceContractView({ tier: 'static', purpose: 'inform' }, {
-    capabilities,
+    tools,
     components,
   });
 
   assert.deepEqual(view.tools, []);
   assert.deepEqual(view.components, []);
   assert.equal(view.surface.policy.tier, 'static');
-  assert.equal(view.surface.plan.runtime, 'static');
+  assert.equal(view.surface.plan.runtime, 'arrow');
   assert.equal(view.surface.mode, 'static');
-  assert.equal(view.surface.scriptPolicy, 'forbid');
   assert.deepEqual(view.issues, []);
 });
 
@@ -90,7 +89,7 @@ test('declarative search policy includes only selected resource state keys', () 
     tier: 'declarative',
     purpose: 'explore',
     grants: ['search'],
-  }, { capabilities });
+  }, { tools });
 
   assert.deepEqual(view.tools.map((tool) => tool.name), ['search']);
   assert.deepEqual(view.tools[0], {
@@ -110,7 +109,7 @@ test('declarative search policy includes only selected resource state keys', () 
     defaultDataShape: '[]',
     surface: { data: 'host-resource', authority: 'read' },
   });
-  assert.equal(view.surface.plan.runtime, 'declarative');
+  assert.equal(view.surface.plan.runtime, 'arrow');
   assert.equal(view.surface.plan.data, 'host-resource');
   assert.equal(view.surface.plan.authority, 'read');
 });
@@ -138,7 +137,7 @@ test('invalid grants/components preserve compile issues in derived view', () => 
     tier: 'declarative',
     grants: ['missing', 'analysis'],
     components: ['MissingComponent', 'WorkerChart'],
-  }, { capabilities, components });
+  }, { tools, components });
   const view = surfaceContractViewFromCompiledPolicy(compiled, {
     id: 'host-layout',
     slots: [{ id: 'hero', purpose: 'Main result' }],

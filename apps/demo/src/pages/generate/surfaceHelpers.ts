@@ -1,17 +1,18 @@
 import {
   parseTokenValues,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
   type SurfaceContractView,
   type SurfacePlan,
+  type SurfacePolicy,
 } from '@anarchitecture/summon/engine';
 import { narrowComponentPack } from '../../components.js';
 import {
-  narrowCapabilityPack,
+  narrowToolPack,
   type ActiveContract,
   type ShowcaseScenario,
 } from '../../showcase.js';
-import { baseCapabilityPack, baseComponentPack, scenarioCategoryOrder } from './constants.js';
+import { baseToolPack, baseComponentPack, scenarioCategoryOrder } from './constants.js';
 import type { ModelProviderInfo, StreamOptionsPayload } from './types.js';
 
 export function describeScenario(scenario: ShowcaseScenario): { category: string; description: string } {
@@ -47,8 +48,6 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
       return { category: 'Layout', description: 'Host layout slots constrain the generated card shape.' };
     case 'sibling-summon':
       return { category: 'Composition', description: 'Parent surface can summon a sibling sandbox with narrowed host tools.' };
-    case 'repair-diagnostics':
-      return { category: 'Diagnostics', description: 'Validation retry generation with diagnostics.' };
     default:
       return { category: 'Showcase', description: 'Surface-configured Summon generation scenario.' };
   }
@@ -90,8 +89,8 @@ export function scenarioUsesFixedPolicy(scenario: ShowcaseScenario): boolean {
   return false;
 }
 
-export function capabilityPackFor(active: ActiveContract): CapabilityPack {
-  return narrowCapabilityPack(baseCapabilityPack, active.capabilityNames);
+export function toolPackFor(active: ActiveContract): ToolPack {
+  return narrowToolPack(baseToolPack, active.toolNames);
 }
 
 export function componentPackFor(active: ActiveContract): ComponentPack | null {
@@ -104,15 +103,36 @@ export function agentBrokerRequestFor(active: ActiveContract): { enabled: true }
   return active.agentBroker ? { enabled: true } : undefined;
 }
 
-export function explicitSurfaceRequestFor(active: ActiveContract): Pick<StreamOptionsPayload, 'surfacePolicy' | 'surfacePlan'> {
+export function explicitSurfaceRequestFor(active: ActiveContract): Pick<StreamOptionsPayload, 'surfacePolicy'> {
   if (active.surfacePolicy) return { surfacePolicy: active.surfacePolicy };
-  return { surfacePlan: active.surfacePlan };
+  return {};
 }
 
 export function surfaceRequestFor(active: ActiveContract): StreamOptionsPayload {
   const agent = agentBrokerRequestFor(active);
   if (agent) return {};
   return explicitSurfaceRequestFor(active);
+}
+
+export function surfacePolicyForPlan(
+  plan: SurfacePlan,
+  toolNames: string[],
+  componentNames: string[] | undefined,
+): SurfacePolicy {
+  const tier = plan.authority === 'approval-gated'
+    ? 'approval'
+    : plan.data === 'worker'
+      ? 'worker'
+      : plan.data === 'host-resource' || plan.authority !== 'none'
+        ? 'declarative'
+        : 'static';
+  return {
+    tier,
+    purpose: plan.purpose,
+    persistence: plan.persistence,
+    ...(tier !== 'static' && toolNames.length > 0 ? { grants: toolNames } : {}),
+    ...(componentNames?.length ? { components: componentNames } : {}),
+  };
 }
 
 export function ghostSelectionValue(rootId: string): string {
@@ -138,23 +158,14 @@ export function summarizeValidationMeta(value: unknown): string {
   return `${blocked}/${warnings}`;
 }
 
-export function summarizeRepairMeta(value: unknown): string {
-  const summary = value as { queued?: unknown; repaired?: unknown; failed?: unknown } | undefined;
-  const queued = typeof summary?.queued === 'number' ? summary.queued : 0;
-  const repaired = typeof summary?.repaired === 'number' ? summary.repaired : 0;
-  const failed = typeof summary?.failed === 'number' ? summary.failed : 0;
-  return `${repaired}/${queued}${failed ? ` failed=${failed}` : ''}`;
-}
-
 export function summarizeStreamGraphMeta(value: unknown): string {
   const summary = value as
-    | { health?: { complete?: unknown; missingDeclared?: unknown[]; blockedCount?: unknown; repairedCount?: unknown } }
+    | { artifacts?: unknown[]; health?: { complete?: unknown; blockedCount?: unknown; skippedCount?: unknown } }
     | undefined;
   const complete = summary?.health?.complete === true;
-  const missing = Array.isArray(summary?.health?.missingDeclared) ? summary.health.missingDeclared.length : 0;
+  const artifacts = Array.isArray(summary?.artifacts) ? summary.artifacts.length : 0;
   const blocked = typeof summary?.health?.blockedCount === 'number' ? summary.health.blockedCount : 0;
-  const repaired = typeof summary?.health?.repairedCount === 'number' ? summary.health.repairedCount : 0;
-  return `${complete ? 'complete' : 'open'} · missing=${missing} blocked=${blocked} retried=${repaired}`;
+  return `${complete ? 'complete' : 'blocked'} · artifacts=${artifacts} blocked=${blocked}`;
 }
 
 export function parseSurfaceContractView(value: unknown): SurfaceContractView | null {
@@ -166,7 +177,7 @@ export function parseSurfaceContractView(value: unknown): SurfaceContractView | 
   return contract as SurfaceContractView;
 }
 
-export function agentIntentText(value: unknown): string {
+export function agentGoalText(value: unknown): string {
   if (!value || typeof value !== 'object') return JSON.stringify(value);
   const item = value as Record<string, unknown>;
   const parts = [
@@ -175,8 +186,8 @@ export function agentIntentText(value: unknown): string {
     typeof item.dataNeed === 'string' ? item.dataNeed : null,
     typeof item.sideEffect === 'string' ? item.sideEffect : null,
   ].filter((part): part is string => Boolean(part));
-  const grants = Array.isArray(item.requestedCapabilities)
-    ? item.requestedCapabilities.filter((name): name is string => typeof name === 'string')
+  const grants = Array.isArray(item.requestedTools)
+    ? item.requestedTools.filter((name): name is string => typeof name === 'string')
     : [];
   const components = Array.isArray(item.requestedComponents)
     ? item.requestedComponents.filter((name): name is string => typeof name === 'string')
@@ -185,7 +196,7 @@ export function agentIntentText(value: unknown): string {
     grants.length ? `tools=${grants.join(',')}` : '',
     components.length ? `components=${components.join(',')}` : '',
   ].filter(Boolean).join(' ');
-  return `${parts.join(' · ') || 'intent'}${access ? ` · ${access}` : ''}`;
+  return `${parts.join(' · ') || 'tool'}${access ? ` · ${access}` : ''}`;
 }
 
 export function agentPolicyText(value: unknown): string {
@@ -195,14 +206,14 @@ export function agentPolicyText(value: unknown): string {
     ? item.surfacePolicy as Record<string, unknown>
     : null;
   const source = typeof item.source === 'string' ? item.source : 'broker';
-  const intentSource = typeof item.intentSource === 'string' ? item.intentSource : '';
+  const goalSource = typeof item.goalSource === 'string' ? item.goalSource : '';
   const tier = typeof policy?.tier === 'string' ? policy.tier : 'policy';
   const purpose = typeof policy?.purpose === 'string' ? policy.purpose : 'inform';
   const fallback = item.fallback === true ? ' · fallback' : '';
-  const rejectedCapabilities = Array.isArray(item.rejectedCapabilities) ? item.rejectedCapabilities.length : 0;
+  const rejectedTools = Array.isArray(item.rejectedTools) ? item.rejectedTools.length : 0;
   const rejectedComponents = Array.isArray(item.rejectedComponents) ? item.rejectedComponents.length : 0;
-  const rejected = rejectedCapabilities + rejectedComponents;
-  const sourceText = intentSource ? `${source}/${intentSource}` : source;
+  const rejected = rejectedTools + rejectedComponents;
+  const sourceText = goalSource ? `${source}/${goalSource}` : source;
   return `${sourceText} · ${tier}/${purpose}${fallback}${rejected ? ` · rejected=${rejected}` : ''}`;
 }
 
@@ -236,46 +247,47 @@ export function buildContractRows({
   active,
   selectedScenario,
   modelProviders,
-  currentAgentIntentSummary,
+  currentAgentGoalSummary,
   currentAgentPolicySummary,
   currentEffectiveSurfacePlan,
   currentShape,
   currentStreamHealth,
   currentSurfaceContractView,
-  currentRepairSummary,
   currentValidationSummary,
 }: {
   active: ActiveContract;
   selectedScenario: ShowcaseScenario;
   modelProviders: ModelProviderInfo[];
-  currentAgentIntentSummary: string | null;
+  currentAgentGoalSummary: string | null;
   currentAgentPolicySummary: string | null;
   currentEffectiveSurfacePlan: SurfacePlan | null;
   currentShape: string | null;
   currentStreamHealth: string | null;
   currentSurfaceContractView: SurfaceContractView | null;
-  currentRepairSummary: string | null;
   currentValidationSummary: string | null;
 }) {
   const requested = active.surfacePlan;
   const broker = active.agentBroker
-    ? currentAgentPolicySummary ?? currentAgentIntentSummary ?? 'planning on run'
+    ? currentAgentPolicySummary ?? currentAgentGoalSummary ?? 'planning on run'
     : scenarioUsesFixedPolicy(selectedScenario)
       ? 'fixed policy'
       : 'manual surface config';
   const contract = currentSurfaceContractView;
   const hostTools = contract
     ? contract.tools.map((tool) => tool.name).join(', ') || 'none'
-    : active.capabilityNames.length ? active.capabilityNames.join(', ') : 'none';
+    : active.toolNames.length ? active.toolNames.join(', ') : 'none';
   const components = contract
     ? contract.components.map((component) => component.name).join(', ') || 'none'
     : active.componentNames?.length ? active.componentNames.join(', ') : 'none';
-  const toolCount = contract?.tools.length ?? active.capabilityNames.length;
+  const toolCount = contract?.tools.length ?? active.toolNames.length;
   const componentCount = contract?.components.length ?? active.componentNames?.length ?? 0;
   const validation = currentValidationSummary ?? 'pending';
   const stream = currentStreamHealth ?? 'pending';
   const effectivePlan = contract?.surface.plan ?? currentEffectiveSurfacePlan;
   const effective = effectivePlan ? planText(effectivePlan) : 'pending';
+  const runtime = effectivePlan
+    ? `${displayPlanPart(effectivePlan.runtime)} · ${contract?.surface.mode ?? active.mode} · network ${effectivePlan.network ?? 'none'}`
+    : `${displayPlanPart(active.surfacePlan.runtime)} · ${active.mode} · pending`;
   const provider = modelProviders.find((item) => item.id === active.modelProvider);
   const selectedModel = active.generationModel
     ?? provider?.defaults?.generationModel
@@ -293,10 +305,9 @@ export function buildContractRows({
     ['effective', 'Effective safety plan', effective, effectivePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${toolCount}: ${hostTools}`, toolCount ? 'neutral' : 'pending'],
     ['components', 'Trusted components', `${componentCount}: ${components}`, componentCount ? 'good' : 'pending'],
-    ['runtime', 'Runtime', `${contract?.surface.mode ?? active.mode} · scripts ${contract?.surface.scriptPolicy ?? active.scriptPolicy}`, (contract?.surface.scriptPolicy ?? active.scriptPolicy) === 'allow' ? 'warn' : 'neutral'],
+    ['runtime', 'Sandbox runtime', runtime, effectivePlan ? 'good' : 'pending'],
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
     ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
-    ['repair', 'Validation retry', active.repair?.enabled ? (currentRepairSummary ?? 'on') : 'off', active.repair?.enabled ? 'warn' : 'pending'],
     ['tokens', 'Tokens', active.tokenOverrides ? 'override' : 'base', active.tokenOverrides ? 'good' : 'pending'],
     ['shape', 'Shape', currentShape ?? 'pending', currentShape ? 'neutral' : 'pending'],
   ].map(([key, label, value, tone]) => ({ key, label, value, tone })) as Array<{

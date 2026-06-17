@@ -1,14 +1,14 @@
 /**
  * Endpoint binding — the trusted shape of a host-owned network call that an
- * intent fires. Turns the ad-hoc "set loading, fetch, catch, push" ceremony
+ * tool fires. Turns the ad-hoc "set loading, fetch, catch, push" ceremony
  * into a declared contract: validate args, call fetch with an AbortSignal,
  * surface loading/data/error under a named triple of state keys.
  *
- * The sandbox never sees any of this. It only emits the intent and reads
+ * The sandbox never sees any of this. It only emits the tool and reads
  * the resulting state keys.
  */
 
-import type { IntentHandler } from './policy-engine.js';
+import type { ToolHandler } from './policy-engine.js';
 
 export interface EndpointStateKeys {
   /** State flag set to true while the request is in flight, false otherwise. */
@@ -54,13 +54,13 @@ export interface EndpointBinding<In, Out> {
 }
 
 /**
- * Build an IntentHandler from an endpoint binding. The returned handler
+ * Build an ToolHandler from an endpoint binding. The returned handler
  * manages loading/error state, concurrency, and AbortSignal wiring; the
  * caller only supplies the parse, fetch, and state-key shape.
  */
 export function bindEndpoint<In, Out>(
   binding: EndpointBinding<In, Out>
-): IntentHandler {
+): ToolHandler {
   const { stateKeys, concurrency = 'latest' } = binding;
   let inflight: AbortController | null = null;
 

@@ -14,15 +14,23 @@ function collectPageErrors(page: Page): Error[] {
 
 const hostSearchPlan = {
   purpose: 'explore',
-  runtime: 'declarative',
+  runtime: 'arrow',
   data: 'host-resource',
   authority: 'read',
   persistence: 'replayable',
 };
 
+const staticSummaryPlan = {
+  purpose: 'compare',
+  runtime: 'arrow',
+  data: 'embedded',
+  authority: 'none',
+  persistence: 'replayable',
+};
+
 const componentIslandsPlan = {
   purpose: 'review',
-  runtime: 'declarative',
+  runtime: 'arrow',
   data: 'embedded',
   authority: 'host-action',
   persistence: 'replayable',
@@ -39,17 +47,33 @@ function jsonl(lines: any[]): string {
   return `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`;
 }
 
+function arrowHtmlArtifact(html: string): any {
+  const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+  return {
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'arrow',
+      source: {
+        'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\``,
+      },
+    },
+  };
+}
+
 test('adversarial sandbox boundary holds', async ({ page }) => {
   await page.goto('/adversarial');
 
   const summary = page.locator('#summary');
   await expect(summary).toContainText('Sandbox boundary holding.', { timeout: 30_000 });
-  await expect(summary).toContainText(/All 25 tests passed/);
+  await expect(summary).toContainText(/All \d+ tests passed/);
+  const passedCount = Number((await summary.textContent())?.match(/All (\d+) tests passed/)?.[1] ?? 0);
+  expect(passedCount).toBeGreaterThanOrEqual(25);
   await expect(page.locator('#results .fail')).toHaveCount(0);
 
   const results = page.locator('#results');
-  await expect(results).toContainText('intent="exfiltrate"');
-  await expect(results).toContainText('intent="escalate"');
+  await expect(results).toContainText('tool="exfiltrate"');
+  await expect(results).toContainText('tool="escalate"');
 });
 
 test('bootstrap self-test fails closed on unsafe sandbox config', async ({ page }) => {
@@ -67,12 +91,13 @@ test('bootstrap self-test fails closed on unsafe sandbox config', async ({ page 
 test('strict input keeps sensitive entry in host overlay', async ({ page }) => {
   await page.goto('/strict');
 
-  const hostInput = page.locator('[data-summon-strict-slot="card_number"] input');
+  const hostInput = page.locator('[data-strict-slot="card_number"] input');
   await expect(hostInput).toBeVisible();
   await hostInput.fill('4242 4242 4242 4242');
 
   const sandbox = page.frameLocator('#sandbox');
   const payButton = sandbox.locator('#pay');
+  await expect(page.locator('#log')).toContainText('filled=true');
   await expect(payButton).toBeEnabled();
   await payButton.click();
 
@@ -91,10 +116,10 @@ test('generate page boots without server credentials', async ({ page }) => {
   await expect(page.locator('#sandbox')).toHaveAttribute('sandbox', 'allow-scripts');
   await expect(page.locator('#go')).toBeEnabled();
   await expect(page.locator('#welcome')).toBeVisible();
-  await expect(page.locator('#welcome')).toContainText('Host Data Search');
+  await expect(page.locator('#welcome')).toContainText('Describe a surface to generate.');
   await expect(page.locator('#scenario')).toContainText('Host Data Search');
-  await expect(page.locator('#scenario-list')).toBeVisible();
-  await expect(page.locator('[data-scenario-id="host-resource-search"][aria-pressed="true"]')).toContainText('Host Data Search');
+  await expect(page.locator('#scenario')).toHaveValue('host-resource-search');
+  await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.locator('#contract-summary [data-contract-row="requested"]')).toContainText(
     'Requested surface config',
   );
@@ -105,8 +130,8 @@ test('generate page boots without server credentials', async ({ page }) => {
   expect(pageErrors.map((error) => error.message)).toEqual([]);
 });
 
-test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => {
-  const sandboxId = 'node-patch-test';
+test('sandbox ignores legacy HTML render and node patch messages', async ({ page }) => {
+  const sandboxId = 'legacy-message-test';
   await page.setContent(`
     <script>
       window.__summonMessages = [];
@@ -119,7 +144,7 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
       <head>
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'; child-src 'none'; media-src 'none'; object-src 'none'; worker-src 'none'">
         <meta charset="utf-8">
-        <script>window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+        <script>window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};</script>
         <script>${bootstrapSource}</script>
       </head>
       <body><div id="summon-root"></div></body>
@@ -132,93 +157,36 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
     return messages.some((message) => message?.type === 'SUMMON_READY');
   })).toBe(true);
 
-  async function patchNode(patch: any) {
-    await page.locator('#sandbox').evaluate((iframe, payload) => {
-      (iframe as HTMLIFrameElement).contentWindow?.postMessage({
-        type: 'SUMMON_NODE_PATCH',
-        sandbox_id: payload.sandboxId,
-        patch: payload.patch,
-      }, '*');
-    }, { patch, sandboxId });
-  }
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'root',
-    html: '<div data-summon-node="root"></div>',
-  });
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'a',
-    parentId: 'root',
-    html: '<label data-summon-node="a">Name <input value=""></label>',
-  });
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'b',
-    parentId: 'root',
-    html: '<p data-summon-node="b">Draft</p>',
-  });
+  await page.locator('#sandbox').evaluate((iframe, payload) => {
+    const win = (iframe as HTMLIFrameElement).contentWindow;
+    win?.postMessage({
+      type: 'SUMMON_RENDER',
+      sandbox_id: payload.sandboxId,
+      html: '<h1 id="legacy-html">Legacy HTML</h1><script>parent.postMessage({type:"EXECUTED"}, "*")</script>',
+    }, '*');
+    win?.postMessage({
+      type: 'SUMMON_NODE_PATCH',
+      sandbox_id: payload.sandboxId,
+      patch: {
+        sectionId: 'main',
+        nodeId: 'root',
+        html: '<div data-summon-node="root">Legacy patch</div>',
+      },
+    }, '*');
+  }, { sandboxId });
 
   const sandbox = page.frameLocator('#sandbox');
-  const input = sandbox.locator('[data-summon-node="a"] input');
-  await expect(input).toBeVisible();
-  await input.fill('sticky value');
-  await expect(input).toBeFocused();
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'b',
-    parentId: 'root',
-    html: '<p data-summon-node="b">Final</p>',
+  await expect(sandbox.locator('#legacy-html')).toHaveCount(0);
+  await expect(sandbox.locator('[data-summon-node="root"]')).toHaveCount(0);
+  const executed = await page.evaluate(() => {
+    const messages = (window as any).__summonMessages as any[];
+    return messages.some((message) => message?.type === 'EXECUTED');
   });
-
-  await expect(sandbox.locator('[data-summon-node="b"]')).toContainText('Final');
-  await expect(input).toHaveValue('sticky value');
-  await expect(input).toBeFocused();
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'card',
-    parentId: 'root',
-    html: '<article data-summon-node="card"><h2>Sales</h2><div class="slot" data-summon-node-children><div data-summon-skeleton></div><div data-summon-skeleton><span>Loading</span></div></div></article>',
-  });
-  const card = sandbox.locator('[data-summon-node="card"]');
-  await expect(card).toHaveClass(/summon-node-enter/);
-  await expect(sandbox.locator('[data-summon-node="card"] [data-summon-node-children] > [data-summon-skeleton]')).toHaveCount(2);
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'card-value',
-    parentId: 'card',
-    html: '<p data-summon-node="card-value">Inside card</p>',
-  });
-
-  const cardSlot = sandbox.locator('[data-summon-node="card"] [data-summon-node-children]');
-  const cardSlotChild = sandbox.locator(
-    '[data-summon-node="card"] [data-summon-node-children] > [data-summon-node="card-value"]',
-  );
-  await expect(cardSlot).toHaveClass(/summon-slot-filled/);
-  await expect(sandbox.locator('[data-summon-node="card"] [data-summon-node-children] > [data-summon-skeleton]')).toHaveCount(0);
-  await expect(cardSlotChild).toContainText('Inside card');
-  await expect(cardSlotChild).toHaveClass(/summon-node-enter/);
-  await expect(cardSlotChild).not.toHaveClass(/summon-node-enter/);
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'card',
-    parentId: 'root',
-    html: '<article data-summon-node="card"><h2>Sales updated</h2><div class="slot" data-summon-node-children></div></article>',
-  });
-
-  await expect(card).toHaveClass(/summon-node-update/);
-  await expect(card).toContainText('Sales updated');
-  await expect(cardSlotChild).toContainText('Inside card');
-  await expect(cardSlotChild).not.toHaveClass(/summon-node-update/);
+  expect(executed).toBe(false);
 });
 
-test('sandbox render keeps generated scripts inert while local state and motion work', async ({ page }) => {
-  const sandboxId = 'local-state-test';
+test('sandbox Arrow onState bridge syncs host pushes without legacy attributes', async ({ page }) => {
+  const sandboxId = 'arrow-on-state-test';
   await page.setContent(`
     <script>
       window.__summonMessages = [];
@@ -232,7 +200,39 @@ test('sandbox render keeps generated scripts inert while local state and motion 
       <head>
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'; child-src 'none'; media-src 'none'; object-src 'none'; worker-src 'none'">
         <meta charset="utf-8">
-        <script nonce="${nonce}">window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+        <script nonce="${nonce}">window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};</script>
+        <script nonce="${nonce}">
+          window.__SUMMON_ARROW_SANDBOX__ = {
+            sandbox(options, adapter, imports) {
+              return function mount(root) {
+                const bridge = imports["host-bridge:summon"];
+                const state = { count: 0, label: "Waiting" };
+                root.innerHTML = '<main><p id="label"></p><output id="count"></output><button id="increment">Increment</button></main>';
+                const label = root.querySelector("#label");
+                const count = root.querySelector("#count");
+                function render() {
+                  label.textContent = state.label;
+                  count.textContent = String(state.count);
+                }
+                const unsubscribe = bridge.onState((hostState) => {
+                  state.count = Number(hostState.count ?? state.count);
+                  state.label = String(hostState.label ?? state.label);
+                  render();
+                });
+                root.querySelector("#increment").addEventListener("click", async () => {
+                  const result = await bridge.callTool("counter", { delta: 1 });
+                  if (result.ok) {
+                    state.count = Number(result.state.count ?? state.count);
+                    state.label = String(result.state.label ?? state.label);
+                    render();
+                  }
+                });
+                render();
+                return function teardown() { unsubscribe(); root.replaceChildren(); };
+              };
+            },
+          };
+        </script>
         <script nonce="${nonce}">${bootstrapSource}</script>
       </head>
       <body><div id="summon-root"></div></body>
@@ -245,40 +245,47 @@ test('sandbox render keeps generated scripts inert while local state and motion 
     return messages.some((message) => message?.type === 'SUMMON_READY');
   })).toBe(true);
 
-  const html = `<div data-summon-local='{"tab":"overview","expanded":false}'>
-    <button id="activity-tab" data-summon-set="tab=activity" data-summon-class-active='tab == "activity"'>Activity</button>
-    <button id="toggle" data-summon-toggle="expanded">Toggle</button>
-    <section id="overview" data-summon-show='tab == "overview"'>Overview</section>
-    <section id="activity-panel" data-summon-show='tab == "activity"' data-summon-motion="enter:rise; update:pulse" data-summon-transition="fade-slide">Activity panel</section>
-    <div id="details" data-summon-show="expanded">Details</div>
-  </div><script>parent.postMessage({type:"EXECUTED"}, "*")</script>`;
   await page.locator('#sandbox').evaluate((iframe, payload) => {
     (iframe as HTMLIFrameElement).contentWindow?.postMessage({
       type: 'SUMMON_RENDER',
       sandbox_id: payload.sandboxId,
-      html: payload.html,
+      artifact: {
+        runtime: 'arrow',
+        source: {
+          'main.ts': [
+            'import { html, reactive } from "@arrow-js/core";',
+            'import { callTool, onState } from "host-bridge:summon";',
+            'const state = reactive({ count: 0, label: "" });',
+            'onState((hostState) => { state.count = Number(hostState.count ?? state.count); state.label = String(hostState.label ?? state.label); });',
+            'async function increment() { await callTool("counter", { delta: 1 }); }',
+            'export default html`<main><p id="label">${() => state.label}</p><output id="count">${() => state.count}</output><button id="increment" @click="${increment}">Increment</button></main>`;',
+          ].join('\\n'),
+        },
+      },
     }, '*');
-  }, { sandboxId, html });
+  }, { sandboxId });
 
   const sandbox = page.frameLocator('#sandbox');
-  await expect(sandbox.locator('#overview')).toBeVisible();
-  await expect(sandbox.locator('#activity-panel')).toBeHidden();
-  await expect(sandbox.locator('#details')).toBeHidden();
-  await sandbox.locator('#activity-tab').click();
-  await expect(sandbox.locator('#activity-tab')).toHaveClass(/active/);
-  await expect(sandbox.locator('#overview')).toBeHidden();
-  await expect(sandbox.locator('#activity-panel')).toBeVisible();
-  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-motion-enter-rise/);
-  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-transition-fade-slide/);
-  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-motion-update-pulse/);
-  await sandbox.locator('#toggle').click();
-  await expect(sandbox.locator('#details')).toBeVisible();
+  await expect(sandbox.locator('#label')).toHaveText('Waiting');
+  await expect(sandbox.locator('#count')).toHaveText('0');
+  await expect(sandbox.locator('[data-summon-bind],[data-summon-show],[data-summon-on-click],[data-summon-local]')).toHaveCount(0);
 
-  const executed = await page.evaluate(() => {
+  await page.locator('#sandbox').evaluate((iframe, payload) => {
+    (iframe as HTMLIFrameElement).contentWindow?.postMessage({
+      type: 'SUMMON_STATE',
+      sandbox_id: payload.sandboxId,
+      state: { count: 7, label: 'Host pushed' },
+    }, '*');
+  }, { sandboxId });
+
+  await expect(sandbox.locator('#label')).toHaveText('Host pushed');
+  await expect(sandbox.locator('#count')).toHaveText('7');
+
+  await sandbox.locator('#increment').click();
+  await expect.poll(async () => page.evaluate(() => {
     const messages = (window as any).__summonMessages as any[];
-    return messages.some((message) => message?.type === 'EXECUTED');
-  });
-  expect(executed).toBe(false);
+    return messages.find((message) => message?.type === 'SUMMON_TOOL_CALL' && message.tool === 'counter')?.args;
+  })).toEqual({ delta: 1 });
 });
 
 test('generate showcase uses the agent broker by default', async ({ page }) => {
@@ -288,13 +295,13 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
     const body = jsonl([
       {
         op: 'meta',
-        path: '/agent-intent',
+        path: '/agent-goal',
         value: {
           purpose: 'explore',
           interaction: 'search',
           dataNeed: 'host-resource',
           sideEffect: 'none',
-          requestedCapabilities: ['search'],
+          requestedTools: ['search'],
           requestedComponents: [],
           confidence: 0.72,
           rationale: 'deterministic keyword and catalog match',
@@ -305,7 +312,7 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
-          intentSource: 'deterministic',
+          goalSource: 'deterministic',
           proposedSurfacePolicy: {
             tier: 'declarative',
             purpose: 'explore',
@@ -319,18 +326,22 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
             grants: ['search'],
             persistence: 'replayable',
           },
-          rejectedCapabilities: [],
+          rejectedTools: [],
           rejectedComponents: [],
           fallback: false,
         },
       },
       { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'explore', grants: ['search'] } },
       { op: 'meta', path: '/surface-plan', value: hostSearchPlan },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
       {
-        op: 'add',
-        path: '/section/main',
-        html: '<section><h1>Dinner Finder</h1><button data-summon-intent="search">Search</button></section>',
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'export default html`<section><h1>Dinner Finder</h1><button>Search</button></section>`',
+          },
+        },
       },
       {
         op: 'meta',
@@ -338,12 +349,10 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);
@@ -359,10 +368,138 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
   expect(captured.agent).toEqual({ enabled: true });
   expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
-  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['search']);
-  expect(captured.scriptPolicy).toBe('forbid');
+  expect(captured.tools.tools.map((tool: any) => tool.name)).toEqual(['search']);
+  expect(captured.scriptPolicy).toBeUndefined();
   await expect(page.locator('#contract-summary [data-contract-row="broker"]')).toContainText('default');
   await expect(page.locator('#log')).toContainText('agent policy');
+});
+
+test('generate showcase renders Arrow artifacts in the sandbox', async ({ page }) => {
+  await page.route('**/api/generate', async (route) => {
+    const body = jsonl([
+      { op: 'meta', path: '/surface-plan', value: { ...hostSearchPlan, data: 'embedded', authority: 'none' } },
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'export default html`<section id="arrow-probe" style="color:black;padding:20px"><h1>Arrow rendered</h1><p>Inside sandbox.</p></section>`',
+          },
+        },
+      },
+      {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: true,
+            blockedCount: 0,
+            skippedCount: 0,
+          },
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
+        },
+      },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#iframe-status')).toContainText('done');
+  const sandbox = page.frameLocator('#sandbox');
+  await expect(sandbox.locator('#arrow-probe')).toBeVisible({ timeout: 15_000 });
+  await expect(sandbox.locator('#arrow-probe')).toContainText('Arrow rendered');
+});
+
+test('generate static summary scenario renders read-only Arrow artifacts', async ({ page }) => {
+  let captured: any = null;
+  await page.route('**/api/generate', async (route) => {
+    captured = route.request().postDataJSON();
+    const body = jsonl([
+      { op: 'meta', path: '/surface-plan', value: staticSummaryPlan },
+      arrowHtmlArtifact('<section id="static-probe"><h1>Static rendered</h1><p>Read-only summary.</p></section>'),
+      {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: true,
+            blockedCount: 0,
+            skippedCount: 0,
+          },
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
+        },
+      },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#scenario').selectOption('static-summary');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#iframe-status')).toContainText('done');
+  const sandbox = page.frameLocator('#sandbox');
+  await expect(sandbox.locator('#static-probe')).toBeVisible({ timeout: 15_000 });
+  await expect(sandbox.locator('#static-probe')).toContainText('Static rendered');
+  expect(captured.mode).toBeUndefined();
+  expect(captured.surfacePlan).toBeUndefined();
+  expect(captured.surfacePolicy).toBeUndefined();
+  expect(captured.agent).toEqual({ enabled: true });
+  expect(captured.tools.tools).toEqual([]);
+});
+
+test('generate static summary shows streamed server errors instead of a blank stage', async ({ page }) => {
+  await page.route('**/api/generate', async (route) => {
+    const body = jsonl([
+      { op: 'meta', path: '/surface-plan', value: staticSummaryPlan },
+      { op: 'meta', path: '/error', value: 'model provider could not produce a surface' },
+      {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: false,
+            blockedCount: 0,
+            skippedCount: 0,
+          },
+          artifacts: [],
+        },
+      },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#scenario').selectOption('static-summary');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#stage-notice')).toBeVisible();
+  await expect(page.locator('#stage-notice')).toContainText('Generation failed');
+  await expect(page.locator('#stage-notice')).toContainText('model provider could not produce a surface');
+  await page.locator('#open-diagnostics').click();
+  await expect(page.locator('#diagnostics-stream')).toBeVisible();
+  await expect(page.locator('#log')).toContainText('model provider could not produce a surface');
+});
+
+test('generate static summary shows HTTP setup errors instead of a blank stage', async ({ page }) => {
+  await page.route('**/api/generate', async (route) => {
+    await route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'missing ANTHROPIC_API_KEY' }),
+    });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#scenario').selectOption('static-summary');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#stage-notice')).toBeVisible();
+  await expect(page.locator('#stage-notice')).toContainText('Generation failed');
+  await expect(page.locator('#stage-notice')).toContainText('HTTP 400: missing ANTHROPIC_API_KEY');
 });
 
 test('batch page brokers each generation request', async ({ page }) => {
@@ -371,10 +508,9 @@ test('batch page brokers each generation request', async ({ page }) => {
     const request = route.request().postDataJSON();
     captured.push(request);
     const body = jsonl([
-      { op: 'meta', path: '/agent-intent', value: { purpose: 'inform', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-      { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'inform', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html: '<section><h1>Batch brokered</h1></section>' },
+      { op: 'meta', path: '/agent-goal', value: { purpose: 'inform', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedTools: [], requestedComponents: [], confidence: 0.58 } },
+      { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', goalSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'inform', persistence: 'replayable' }, rejectedTools: [], rejectedComponents: [], fallback: false } },
+      arrowHtmlArtifact('<section><h1>Batch brokered</h1></section>'),
     ]);
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
@@ -391,74 +527,24 @@ test('batch page brokers each generation request', async ({ page }) => {
   await expect(page.locator('#grid')).toContainText('agent policy');
 });
 
-test('fragment compare launches section and html node streams from the same prompt', async ({ page }) => {
-  const captured: any[] = [];
-  let releaseBoth!: () => void;
-  const bothArrived = new Promise<void>((resolve) => {
-    releaseBoth = resolve;
-  });
-
-  await page.route('**/api/generate', async (route) => {
-    const request = route.request().postDataJSON();
-    captured.push(request);
-    if (captured.length === 2) releaseBoth();
-    await bothArrived;
-
-    const body = request.fragmentMode === 'html-node-v0'
-      ? jsonl([
-          { op: 'meta', path: '/agent-intent', value: { purpose: 'review', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
-          { op: 'meta', path: '/experimental-fragments', value: { mode: 'html-node-v0' } },
-          { op: 'set', path: '/screen', value: { sections: ['main'] } },
-          { op: 'add', path: '/section/main/node/root', html: '<div data-summon-node="root"></div>' },
-          { op: 'add', path: '/section/main/node/card', parent: 'root', html: '<article data-summon-node="card"><h1>Node stream</h1><div data-summon-node-children><div data-summon-skeleton></div></div></article>' },
-          { op: 'add', path: '/section/main/node/body', parent: 'card', html: '<p data-summon-node="body">Rendered as HTML node patches.</p>' },
-        ])
-      : jsonl([
-          { op: 'meta', path: '/agent-intent', value: { purpose: 'review', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
-          { op: 'set', path: '/screen', value: { sections: ['main'] } },
-          { op: 'add', path: '/section/main', html: '<section><h1>Section stream</h1><p>Rendered as section fragments.</p></section>' },
-        ]);
-    await route.fulfill({ status: 200, contentType: 'text/plain', body });
-  });
-
-  await page.goto('/fragment-compare');
-  await expect(page.locator('#prompt-preset-matrix')).toContainText('Operational workflows');
-  await expect(page.locator('#prompt-preset-matrix')).toContainText('Complex');
-  await page.getByRole('button', { name: /Operational workflows, Complex: Migration Control/ }).click();
-  const prompt = await page.locator('#prompt').inputValue();
-  expect(prompt).toContain('migration control room');
-  await page.locator('#run').click();
-
-  await expect.poll(() => captured.length).toBe(2);
-  const sectionRequest = captured.find((request) => request.fragmentMode !== 'html-node-v0');
-  const nodeRequest = captured.find((request) => request.fragmentMode === 'html-node-v0');
-  expect(sectionRequest?.prompt).toBe(prompt);
-  expect(nodeRequest?.prompt).toBe(prompt);
-  expect(sectionRequest?.agent).toEqual({ enabled: true });
-  expect(nodeRequest?.agent).toEqual({ enabled: true });
-  expect(sectionRequest?.surfacePlan).toBeUndefined();
-  expect(nodeRequest?.surfacePlan).toBeUndefined();
-  expect(sectionRequest?.directionId).toBe('');
-  expect(nodeRequest?.directionId).toBe('');
-  expect(sectionRequest?.modelOptions).toEqual(nodeRequest?.modelOptions);
-  expect(sectionRequest?.modelOptions?.anthropicThinking).toBe('off');
-  expect(sectionRequest?.fragmentMode).toBeUndefined();
-  expect(nodeRequest?.fragmentMode).toBe('html-node-v0');
-
-  await expect(page.locator('#section-status')).toContainText('done');
-  await expect(page.locator('#block-status')).toContainText('done');
-  await expect(page.frameLocator('#section-frame').locator('body')).toContainText('Section stream');
-  await expect(page.frameLocator('#block-frame').locator('body')).toContainText('Node stream');
-  await expect(page.locator('#block-metrics')).toContainText('patches');
+test('unknown demo routes redirect to Arrow generate workbench', async ({ page }) => {
+  await page.goto('/unknown-route');
+  await expect(page).toHaveURL(/\/generate$/);
+  await expect(page.locator('#scenario')).toContainText('Host Data Search');
 });
 
-test('generate showcase sends raw SurfacePlan from the advanced override', async ({ page }) => {
+test('generate showcase sends SurfacePolicy from the advanced override', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
-    const surfacePlan = captured.surfacePlan;
+    const surfacePlan = {
+      purpose: captured.surfacePolicy?.purpose ?? 'collect',
+      runtime: 'arrow',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: captured.surfacePolicy?.persistence ?? 'replayable',
+      network: 'none',
+    };
     const body = jsonl([
       { op: 'meta', path: '/surface-plan', value: surfacePlan },
       { op: 'meta', path: '/shape', value: 'card' },
@@ -470,29 +556,17 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
           rejected: [],
         },
       },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      {
-        op: 'add',
-        path: '/section/main',
-        html: '<section><form data-summon-on-submit="submit"><input name="title"><button>Save</button></form></section>',
-      },
-      {
-        op: 'meta',
-        path: '/repair-summary',
-        value: { queued: 0, cancelled: 0, repaired: 0, failed: 0 },
-      },
+      arrowHtmlArtifact('<section><form id="override-form"><label>Title <input name="title" /></label><button>Save</button></form></section>'),
       {
         op: 'meta',
         path: '/stream-graph-summary',
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);
@@ -500,45 +574,44 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
   });
 
   await page.goto('/generate');
-  await expect(page.locator('#scenario')).toContainText('Validation Retry Diagnostics');
-  await page.locator('#scenario').selectOption('repair-diagnostics');
+  await expect(page.locator('#scenario')).toContainText('Declarative form');
+  await page.locator('#scenario').selectOption('declarative-form');
+  await page.getByRole('button', { name: 'Options' }).click();
   await page.locator('#token-preset').selectOption('accent-blue');
 
-  await expect(page.locator('#prompt')).toHaveValue(/onboarding checklist/);
-  await expect(page.locator('[data-scenario-id="repair-diagnostics"][aria-pressed="true"]')).toContainText('Validation Retry Diagnostics');
-  await expect(page.locator('#repair-enabled')).toBeChecked();
+  await expect(page.locator('#prompt')).toHaveValue(/team lunch order/);
+  await expect(page.locator('#scenario')).toHaveValue('declarative-form');
   await expect(page.locator('#custom-contract-panel')).toBeHidden();
   await page.locator('#custom-contract-enabled').check();
   await expect(page.locator('#custom-contract-panel')).toBeVisible();
   await expect(page.locator('#surface-purpose')).toHaveValue('collect');
-  await expect(page.locator('#edit-card')).toBeHidden();
+  await page.getByRole('button', { name: 'Close' }).click();
 
   await page.locator('#go').click();
   await expect(page.locator('#iframe-status')).toContainText('done');
-  await expect(page.locator('#result-toolbar')).toBeVisible();
-  await expect(page.locator('#edit-card')).toBeVisible();
+  await expect(page.frameLocator('#sandbox').locator('#override-form')).toBeVisible();
+  await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.locator('#contract-summary [data-contract-row="effective"]')).toContainText(
-    'collect · declarative',
+    'collect · arrow',
   );
 
   expect(captured).toBeTruthy();
-  expect(captured.mode).toBe('interactive');
-  expect(captured.scriptPolicy).toBe('forbid');
-  expect(captured.surfacePolicy).toBeUndefined();
-  expect(captured.surfacePlan).toEqual({
+  expect(captured.mode).toBeUndefined();
+  expect(captured.scriptPolicy).toBeUndefined();
+  expect(captured.surfacePlan).toBeUndefined();
+  expect(captured.surfacePolicy).toEqual({
+    tier: 'declarative',
     purpose: 'collect',
-    runtime: 'declarative',
-    data: 'embedded',
-    authority: 'host-action',
     persistence: 'replayable',
+    grants: ['submit'],
   });
-  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['submit']);
-  expect(captured.capabilities.intents[0].surface).toEqual({ authority: 'host-action' });
+  expect(captured.tools.tools.map((tool: any) => tool.name)).toEqual(['submit']);
+  expect(captured.tools.tools[0].surface).toEqual({ authority: 'host-action' });
   expect(captured.tokenOverrides).toEqual({
     'color-accent': '#0f8cff',
     'color-accent-fg': '#ffffff',
   });
-  expect(captured.repair).toEqual({ enabled: true, maxAttempts: 1, maxTargets: 2 });
+  expect(captured.repair).toBeUndefined();
 });
 
 test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page }) => {
@@ -583,13 +656,13 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
       },
       {
         op: 'meta',
-        path: '/agent-intent',
+        path: '/agent-goal',
         value: {
           purpose: 'review',
           interaction: 'select',
           dataNeed: 'embedded',
           sideEffect: 'local-state',
-          requestedCapabilities: ['choose'],
+          requestedTools: ['choose'],
           requestedComponents: [],
           confidence: 0.72,
         },
@@ -599,31 +672,28 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
-          intentSource: 'deterministic',
+          goalSource: 'deterministic',
           surfacePolicy: {
             tier: 'declarative',
             purpose: 'review',
             grants: ['choose'],
             persistence: 'replayable',
           },
-          rejectedCapabilities: [],
+          rejectedTools: [],
           rejectedComponents: [],
           fallback: false,
         },
       },
       { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'review', grants: ['choose'] } },
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html: '<section><h1>Checkout Review</h1><button data-summon-on-click="choose">Accept</button></section>' },
       {
-        op: 'meta',
-        path: '/ghost-token-source',
+        op: 'artifact',
+        path: '/artifact',
         value: {
-          kind: 'css',
-          source: 'ghost-config-token-css',
-          css: ':root { --color-bg: #fafafa; --color-accent: #1a73e8; }',
-          baseDirectionId: 'ghost',
-          warnings: [],
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'export default html`<section><h1>Checkout Review</h1><button>Accept</button></section>`',
+          },
         },
       },
       {
@@ -632,7 +702,8 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
         value: {
           baseDirectionId: 'ghost',
           styleSource: 'ghost-config-token-css',
-          declaredSections: ['main'],
+          artifactRuntime: 'arrow',
+          artifactFiles: ['main.ts'],
           validation: { blocked: 0, warnings: 0 },
         },
       },
@@ -642,12 +713,10 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);
@@ -661,7 +730,7 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
 
   await expect(page.locator('#iframe-status')).toContainText('done');
   await expect(page.locator('#log')).toContainText('fingerprint context');
-  await expect(page.locator('#log')).toContainText('Checkout Review');
+  await expect(page.frameLocator('#sandbox').locator('h1')).toContainText('Checkout Review');
   await expect(page.locator('#log')).toContainText('fingerprint review packet');
 
   expect(captured).toBeTruthy();
@@ -674,7 +743,7 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
   expect(captured.agent).toEqual({ enabled: true });
   expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
-  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['choose']);
+  expect(captured.tools.tools.map((tool: any) => tool.name)).toEqual(['choose']);
 });
 
 test('component islands render in host overlay without widening the sandbox', async ({ page }) => {
@@ -694,13 +763,13 @@ test('component islands render in host overlay without widening the sandbox', as
     const body = jsonl([
       {
         op: 'meta',
-        path: '/agent-intent',
+        path: '/agent-goal',
         value: {
           purpose: 'review',
           interaction: 'select',
           dataNeed: 'embedded',
           sideEffect: 'local-state',
-          requestedCapabilities: ['choose'],
+          requestedTools: ['choose'],
           requestedComponents: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
           confidence: 0.72,
         },
@@ -710,28 +779,25 @@ test('component islands render in host overlay without widening the sandbox', as
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
-          intentSource: 'deterministic',
+          goalSource: 'deterministic',
           surfacePolicy: componentIslandsPolicy,
-          rejectedCapabilities: [],
+          rejectedTools: [],
           rejectedComponents: [],
           fallback: false,
         },
       },
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html },
+      arrowHtmlArtifact(html),
       {
         op: 'meta',
         path: '/stream-graph-summary',
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);
@@ -742,6 +808,7 @@ test('component islands render in host overlay without widening the sandbox', as
   await page.locator('#scenario').selectOption('component-islands');
   await page.locator('#go').click();
 
+  await expect(page.locator('#iframe-status')).toContainText('done');
   await page.locator('#sandbox').scrollIntoViewIfNeeded();
   const sandbox = page.frameLocator('#sandbox');
   await expect(sandbox.locator('#sandbox-proof')).toContainText('Sandbox placeholder only');
@@ -758,7 +825,7 @@ test('component islands render in host overlay without widening the sandbox', as
   expect(captured.agent).toEqual({ enabled: true });
   expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
-  expect(captured.scriptPolicy).toBe('forbid');
+  expect(captured.scriptPolicy).toBeUndefined();
 
   await expect(sandbox.locator('[data-summon-component-id="launch-score"]')).not.toContainText('84');
 
@@ -799,20 +866,17 @@ test('component island prop failures do not render host DOM and emit diagnostics
       </section>`;
     const body = jsonl([
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html },
+      arrowHtmlArtifact(html),
       {
         op: 'meta',
         path: '/stream-graph-summary',
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);

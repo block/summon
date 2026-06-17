@@ -1,8 +1,8 @@
 #!/usr/bin/env tsx
 /**
  * eval-directions — drive a fixed prompt pool × directions matrix through the
- * generation engine, then score each artifact for token-contract violations
- * and section validity. Emits per-run JSON + a human-readable markdown report
+ * generation engine, then score each Arrow artifact for token-contract
+ * violations and artifact validity. Emits per-run JSON + a human-readable markdown report
  * under `apps/server/directions/.eval/<timestamp>/`.
  *
  *   pnpm eval-directions [--prompts N] [--directions id,id] [--seed N] [--dry]
@@ -14,10 +14,10 @@
  *
  * Each artifact is scored on:
  *
- *   phantomTokens — `var(--*)` references in emitted HTML that the direction
+ *   phantomTokens — `var(--*)` references in emitted Arrow source that the direction
  *                   does NOT define. The most expensive failure mode (silent
  *                   un-themed render); zero is the bar.
- *   literalDrift — raw `#rrggbb` hex literals in emitted HTML, classified
+ *   literalDrift — raw `#rrggbb` hex literals in emitted Arrow source, classified
  *                  against the direction's tokens.css and (when present)
  *                  bucket.json. Three tiers:
  *                    drift        — hex matches a value in tokens.css
@@ -29,8 +29,7 @@
  *                    hallucinated — hex is in neither (LLM invented a value
  *                                   outside the brand entirely; treated like
  *                                   phantom-token, fails the run)
- *   sectionDelta — declared `set /screen sections` vs the actual `add` lines
- *                  emitted. Drift means malformed JSONL or model confusion.
+ *   artifactMissing — no accepted Arrow `/artifact` line was emitted.
  *
  * This is a Summon smoke tool, not a design-fidelity judge. External review
  * tooling owns expression fidelity and perceptual design scoring.
@@ -104,7 +103,7 @@ for (const dir of directions) {
       : (() => {
           const halluc = run.literalDrift.filter((l) => l.tier === 'hallucinated').length;
           const drift = run.literalDrift.filter((l) => l.tier === 'drift').length;
-          return `phantom=${run.phantomTokens.length} hallucinated=${halluc} drift=${drift} sections=${run.declaredSections.length}/${run.emittedSections.length}`;
+          return `phantom=${run.phantomTokens.length} hallucinated=${halluc} drift=${drift} artifact=${run.artifactFiles.join(',') || 'missing'}`;
         })();
     console.log(
       `[${dir.id}] ${prompt.slice(0, 60).padEnd(62, ' ')} ${summary}`,
@@ -131,9 +130,9 @@ const knownSourceTotal = allRuns.reduce(
   (n, r) => n + r.literalDrift.filter((l) => l.tier === 'knownSource').length,
   0,
 );
-const sectionMismatch = allRuns.filter((r) => !r.skipped && r.sectionDelta).length;
+const artifactMissing = allRuns.filter((r) => !r.skipped && r.artifactMissing).length;
 console.log(
-  `\nsummary: ${phantomTotal} phantom · ${hallucinatedTotal} hallucinated · ${driftTotal} drift · ${knownSourceTotal} known-source · ${sectionMismatch} section-shape mismatch(es) across ${allRuns.length} runs`,
+  `\nsummary: ${phantomTotal} phantom · ${hallucinatedTotal} hallucinated · ${driftTotal} drift · ${knownSourceTotal} known-source · ${artifactMissing} missing artifact(s) across ${allRuns.length} runs`,
 );
 if (phantomTotal > 0 || hallucinatedTotal > 0) process.exitCode = 1;
 
@@ -143,9 +142,8 @@ interface RunResult {
   directionId: string;
   prompt: string;
   skipped: boolean;
-  declaredSections: string[];
-  emittedSections: string[];
-  sectionDelta: boolean;
+  artifactFiles: string[];
+  artifactMissing: boolean;
   phantomTokens: PhantomIncident[];
   literalDrift: LiteralIncident[];
   errors: string[];
@@ -153,7 +151,7 @@ interface RunResult {
 
 interface PhantomIncident {
   token: string;
-  section: string;
+  file: string;
 }
 
 type LiteralTier = 'drift' | 'knownSource' | 'hallucinated';
@@ -161,7 +159,7 @@ type LiteralTier = 'drift' | 'knownSource' | 'hallucinated';
 interface LiteralIncident {
   hex: string;
   tier: LiteralTier;
-  section: string;
+  file: string;
 }
 
 interface DirectionRow {
@@ -174,7 +172,7 @@ interface DirectionRow {
   liveOpportunistic: string[];
   defined: Set<string>;
   /** Hex literals (`#rrggbb`, lowercased) declared in tokens.css. Used to
-   *  classify a raw hex in emitted HTML as "drift" (LLM bypassed the var). */
+   *  classify a raw hex in emitted Arrow source as "drift" (LLM bypassed the var). */
   tokenHexValues: Set<string>;
   /** Hex literals from the source bucket.json, when present. Used to
    *  classify the in-between tier — bucket has it, tokens.css doesn't. */
@@ -198,9 +196,8 @@ async function runOne(
       directionId: dir.id,
       prompt,
       skipped: true,
-      declaredSections: [],
-      emittedSections: [],
-      sectionDelta: false,
+      artifactFiles: [],
+      artifactMissing: false,
       phantomTokens: [],
       literalDrift: [],
       errors: [],
@@ -233,32 +230,23 @@ async function runOne(
     errors.push(err instanceof Error ? err.message : String(err));
   }
 
-  const { declaredSections, sections } = parseArtifact(raw);
-  const phantomTokens = scanPhantomTokens(sections, dir.defined);
-  const literalDrift = scanLiteralDrift(sections, dir.tokenHexValues, dir.bucketColors);
-  const sectionDelta =
-    declaredSections.length !== sections.length ||
-    declaredSections.some((n, i) => n !== sections[i]?.name);
+  const artifactFiles = parseArtifact(raw);
+  const phantomTokens = scanPhantomTokens(artifactFiles, dir.defined);
+  const literalDrift = scanLiteralDrift(artifactFiles, dir.tokenHexValues, dir.bucketColors);
 
   return {
     directionId: dir.id,
     prompt,
     skipped: false,
-    declaredSections,
-    emittedSections: sections.map((s) => s.name),
-    sectionDelta,
+    artifactFiles: artifactFiles.map((file) => file.name),
+    artifactMissing: artifactFiles.length === 0,
     phantomTokens,
     literalDrift,
     errors,
   };
 }
 
-function parseArtifact(raw: string): {
-  declaredSections: string[];
-  sections: { name: string; html: string }[];
-} {
-  const declaredSections: string[] = [];
-  const sections: { name: string; html: string }[] = [];
+function parseArtifact(raw: string): Array<{ name: string; text: string }> {
   for (const line of raw.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed.startsWith('{')) continue;
@@ -270,46 +258,42 @@ function parseArtifact(raw: string): {
     }
     if (!parsed || typeof parsed !== 'object') continue;
     const obj = parsed as Record<string, unknown>;
-    if (obj.op === 'set' && obj.path === '/screen' && obj.value && typeof obj.value === 'object') {
-      const list = (obj.value as { sections?: unknown }).sections;
-      if (Array.isArray(list)) {
-        for (const n of list) if (typeof n === 'string') declaredSections.push(n);
+    if (obj.op === 'artifact' && obj.path === '/artifact' && obj.value && typeof obj.value === 'object') {
+      const value = obj.value as { runtime?: unknown; source?: unknown };
+      if (value.runtime !== 'arrow' || !value.source || typeof value.source !== 'object' || Array.isArray(value.source)) {
+        continue;
       }
-      continue;
-    }
-    if (obj.op === 'add' && typeof obj.path === 'string' && obj.path.startsWith('/section/')) {
-      sections.push({
-        name: obj.path.slice('/section/'.length),
-        html: typeof obj.html === 'string' ? obj.html : '',
-      });
+      return Object.entries(value.source as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+        .map(([name, text]) => ({ name, text }));
     }
   }
-  return { declaredSections, sections };
+  return [];
 }
 
 function scanPhantomTokens(
-  sections: { name: string; html: string }[],
+  files: Array<{ name: string; text: string }>,
   defined: Set<string>,
 ): PhantomIncident[] {
   const incidents: PhantomIncident[] = [];
   const re = /var\(--([a-zA-Z0-9_-]+)/g;
-  for (const section of sections) {
+  for (const file of files) {
     const seen = new Set<string>();
     let match: RegExpExecArray | null;
-    while ((match = re.exec(section.html)) !== null) {
+    while ((match = re.exec(file.text)) !== null) {
       const name = match[1]!;
       if (defined.has(name) || seen.has(name)) continue;
       seen.add(name);
-      incidents.push({ token: name, section: section.name });
+      incidents.push({ token: name, file: file.name });
     }
   }
   return incidents;
 }
 
 /**
- * Scans for raw `#rrggbb` hex literals in emitted HTML. Hex inside a
+ * Scans for raw `#rrggbb` hex literals in emitted Arrow source. Hex inside a
  * `var(--name, #fallback)` expression is intentional and ignored — the
- * LLM's primary intent there is the var, not the fallback.
+ * LLM's primary tool there is the var, not the fallback.
  *
  * Each hex is classified into a tier based on whether it resolves to a
  * declared token value, the upstream brand bucket, or neither. Tiers map
@@ -322,14 +306,14 @@ function scanPhantomTokens(
  * a tight false-positive baseline first.
  */
 function scanLiteralDrift(
-  sections: { name: string; html: string }[],
+  files: Array<{ name: string; text: string }>,
   tokenHex: Set<string>,
   bucketColors: Set<string>,
 ): LiteralIncident[] {
   const incidents: LiteralIncident[] = [];
   const re = /#([0-9a-fA-F]{6})\b/g;
-  for (const section of sections) {
-    const cleaned = section.html.replace(/var\([^)]*\)/g, '');
+  for (const file of files) {
+    const cleaned = file.text.replace(/var\([^)]*\)/g, '');
     const seen = new Set<string>();
     let match: RegExpExecArray | null;
     while ((match = re.exec(cleaned)) !== null) {
@@ -341,7 +325,7 @@ function scanLiteralDrift(
         : bucketColors.has(hex)
           ? 'knownSource'
           : 'hallucinated';
-      incidents.push({ hex, tier, section: section.name });
+      incidents.push({ hex, tier, file: file.name });
     }
   }
   return incidents;
@@ -357,7 +341,7 @@ function buildReport(runs: RunResult[], dirs: DirectionRow[]): string {
     const phantoms = dirRuns.flatMap((r) =>
       r.phantomTokens.map((p) => ({ ...p, prompt: r.prompt })),
     );
-    const sectionMismatches = dirRuns.filter((r) => r.sectionDelta);
+    const missingArtifacts = dirRuns.filter((r) => r.artifactMissing);
     const literals = dirRuns.flatMap((r) =>
       r.literalDrift.map((l) => ({ ...l, prompt: r.prompt })),
     );
@@ -372,13 +356,13 @@ function buildReport(runs: RunResult[], dirs: DirectionRow[]): string {
     lines.push(`- Hallucinated hex literals: **${hallucinated.length}**`);
     lines.push(`- Drift hex literals (in tokens.css): **${drift.length}**`);
     lines.push(`- Known-source hex literals (in bucket.json only): **${knownSource.length}**`);
-    lines.push(`- Section-shape mismatches: **${sectionMismatches.length}**`);
+    lines.push(`- Missing Arrow artifacts: **${missingArtifacts.length}**`);
     lines.push(`- Source: ${bucketState}`);
     if (phantoms.length > 0) {
       lines.push('\nPhantom tokens:');
       for (const p of phantoms) {
         lines.push(
-          `- \`--${p.token}\` in section \`${p.section}\` (prompt: "${p.prompt.slice(0, 60)}…")`,
+          `- \`--${p.token}\` in \`${p.file}\` (prompt: "${p.prompt.slice(0, 60)}…")`,
         );
       }
     }
@@ -386,7 +370,7 @@ function buildReport(runs: RunResult[], dirs: DirectionRow[]): string {
       lines.push('\nHallucinated hex literals (not in tokens.css or bucket.json):');
       for (const l of hallucinated) {
         lines.push(
-          `- \`${l.hex}\` in section \`${l.section}\` (prompt: "${l.prompt.slice(0, 60)}…")`,
+          `- \`${l.hex}\` in \`${l.file}\` (prompt: "${l.prompt.slice(0, 60)}…")`,
         );
       }
     }
@@ -394,7 +378,7 @@ function buildReport(runs: RunResult[], dirs: DirectionRow[]): string {
       lines.push('\nDrift hex literals (LLM bypassed `var(--*)`):');
       for (const l of drift) {
         lines.push(
-          `- \`${l.hex}\` in section \`${l.section}\` (prompt: "${l.prompt.slice(0, 60)}…")`,
+          `- \`${l.hex}\` in \`${l.file}\` (prompt: "${l.prompt.slice(0, 60)}…")`,
         );
       }
     }
@@ -402,15 +386,15 @@ function buildReport(runs: RunResult[], dirs: DirectionRow[]): string {
       lines.push('\nKnown-source hex literals (gap in token contract — bucket has it, tokens.css does not):');
       for (const l of knownSource) {
         lines.push(
-          `- \`${l.hex}\` in section \`${l.section}\` (prompt: "${l.prompt.slice(0, 60)}…")`,
+          `- \`${l.hex}\` in \`${l.file}\` (prompt: "${l.prompt.slice(0, 60)}…")`,
         );
       }
     }
-    if (sectionMismatches.length > 0) {
-      lines.push('\nSection mismatches:');
-      for (const r of sectionMismatches) {
+    if (missingArtifacts.length > 0) {
+      lines.push('\nMissing Arrow artifacts:');
+      for (const r of missingArtifacts) {
         lines.push(
-          `- declared [${r.declaredSections.join(', ')}] vs emitted [${r.emittedSections.join(', ')}] (prompt: "${r.prompt.slice(0, 60)}…")`,
+          `- no /artifact line (prompt: "${r.prompt.slice(0, 60)}…")`,
         );
       }
     }

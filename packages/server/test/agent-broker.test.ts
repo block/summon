@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  inferSurfaceIntent,
+  inferSurfaceGoal,
   planAgentSurface,
   runAgentSurfaceGeneration,
-  type AgentIntentTextClient,
+  type AgentGoalTextClient,
   type SummonModelProvider,
 } from '../src/index.ts';
 import type {
-  CapabilityPack,
+  ToolPack,
   ProtocolLine,
 } from '@summon-internal/engine';
 
-const capabilities: CapabilityPack = {
-  intents: [
+const tools: ToolPack = {
+  tools: [
     {
       name: 'search',
       description: 'Search host-owned recipe data.',
@@ -49,9 +49,23 @@ const capabilities: CapabilityPack = {
   ],
 };
 
-const multiToolCapabilities: CapabilityPack = {
-  intents: [
-    ...capabilities.intents,
+function arrowProtocolLine(html: string): string {
+  const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+  return `${JSON.stringify({
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'arrow',
+      source: {
+        'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\`;`,
+      },
+    },
+  })}\n`;
+}
+
+const multiToolPack: ToolPack = {
+  tools: [
+    ...tools.tools,
     {
       name: 'delete_record',
       description: 'Delete a selected record after host approval.',
@@ -87,22 +101,22 @@ const multiToolCapabilities: CapabilityPack = {
   ],
 };
 
-test('inferSurfaceIntent maps search prompts to host-resource intent', () => {
-  const intent = inferSurfaceIntent(
+test('inferSurfaceGoal maps search prompts to host-resource tool', () => {
+  const tool = inferSurfaceGoal(
     'build a dinner finder where i can search recipes and browse results',
-    { capabilities },
+    { tools },
   );
 
-  assert.equal(intent.purpose, 'explore');
-  assert.equal(intent.interaction, 'search');
-  assert.equal(intent.dataNeed, 'host-resource');
-  assert.deepEqual(intent.requestedCapabilities, ['search']);
+  assert.equal(tool.purpose, 'explore');
+  assert.equal(tool.interaction, 'search');
+  assert.equal(tool.dataNeed, 'host-resource');
+  assert.deepEqual(tool.requestedTools, ['search']);
 });
 
 test('planAgentSurface proposes and compiles a declarative policy', async () => {
   const plan = await planAgentSurface({
     prompt: 'build a dinner finder where i can search recipes',
-    capabilities,
+    tools,
   });
 
   assert.deepEqual(plan.surfacePolicy, {
@@ -111,44 +125,45 @@ test('planAgentSurface proposes and compiles a declarative policy', async () => 
     grants: ['search'],
     persistence: 'replayable',
   });
-  assert.equal(plan.intentSource, 'deterministic');
+  assert.equal(plan.goalSource, 'deterministic');
   assert.deepEqual(plan.compiledPolicy.issues, []);
-  assert.deepEqual(plan.compiledPolicy.surfacePlan, {
-    purpose: 'explore',
-    runtime: 'declarative',
-    data: 'host-resource',
-    authority: 'read',
-    persistence: 'replayable',
-  });
+    assert.deepEqual(plan.compiledPolicy.surfacePlan, {
+      purpose: 'explore',
+      runtime: 'arrow',
+      data: 'host-resource',
+      authority: 'read',
+      persistence: 'replayable',
+      network: 'none',
+    });
 });
 
 test('planAgentSurface keeps passive summary prompts static despite powerful nouns', async () => {
   const updateSummary = await planAgentSurface({
     prompt: 'make a product update summary for this launch',
-    capabilities,
+    tools,
   });
   assert.equal(updateSummary.surfacePolicy.tier, 'static');
   assert.equal(updateSummary.surfacePolicy.grants, undefined);
 
   const riskSummary = await planAgentSurface({
     prompt: 'summarize launch risk for next week',
-    capabilities,
+    tools,
   });
   assert.equal(riskSummary.surfacePolicy.tier, 'static');
   assert.equal(riskSummary.surfacePolicy.grants, undefined);
 });
 
-test('planAgentSurface selects worker and approval tiers from catalog-backed intent', async () => {
+test('planAgentSurface selects worker and approval tiers from catalog-backed tool', async () => {
   const worker = await planAgentSurface({
     prompt: 'analyze launch risk in the background and score readiness',
-    capabilities,
+    tools,
   });
   assert.equal(worker.surfacePolicy.tier, 'worker');
   assert.deepEqual(worker.surfacePolicy.grants, ['analysis']);
 
   const approval = await planAgentSurface({
     prompt: 'publish the prepared product update summary',
-    capabilities,
+    tools,
   });
   assert.equal(approval.surfacePolicy.tier, 'approval');
   assert.deepEqual(approval.surfacePolicy.grants, ['publish_summary']);
@@ -158,22 +173,22 @@ test('planAgentSurface selects worker and approval tiers from catalog-backed int
 test('planAgentSurface keeps multi-tool class inference narrow', async () => {
   const approval = await planAgentSurface({
     prompt: 'publish the prepared summary',
-    capabilities: multiToolCapabilities,
+    tools: multiToolPack,
   });
   assert.equal(approval.surfacePolicy.tier, 'approval');
   assert.deepEqual(approval.surfacePolicy.grants, ['publish_summary']);
 
   const search = await planAgentSurface({
     prompt: 'search recipes for dinner',
-    capabilities: multiToolCapabilities,
+    tools: multiToolPack,
   });
   assert.equal(search.surfacePolicy.tier, 'declarative');
   assert.deepEqual(search.surfacePolicy.grants, ['search']);
 
   const ambiguousSearch = await planAgentSurface({
     prompt: 'search the host data',
-    capabilities: {
-      intents: [
+    tools: {
+      tools: [
         {
           name: 'recipe_lookup',
           description: 'Look up recipe data.',
@@ -200,29 +215,30 @@ test('planAgentSurface keeps multi-tool class inference narrow', async () => {
 test('planAgentSurface selects host actions only from explicit action phrasing', async () => {
   const plan = await planAgentSurface({
     prompt: 'let me save a choice for the launch announcement',
-    capabilities,
+    tools,
   });
 
   assert.equal(plan.surfacePolicy.tier, 'declarative');
   assert.equal(plan.surfacePolicy.purpose, 'operate');
   assert.deepEqual(plan.surfacePolicy.grants, ['choose']);
-  assert.deepEqual(plan.compiledPolicy.surfacePlan, {
-    purpose: 'operate',
-    runtime: 'declarative',
-    data: 'embedded',
-    authority: 'host-action',
-    persistence: 'replayable',
-  });
+    assert.deepEqual(plan.compiledPolicy.surfacePlan, {
+      purpose: 'operate',
+      runtime: 'arrow',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: 'replayable',
+      network: 'none',
+    });
 });
 
-test('model-assisted intent can narrow to known names but cannot add unknown grants', async () => {
-  const intentModel: AgentIntentTextClient = {
+test('model-assisted tool can narrow to known names but cannot add unknown grants', async () => {
+  const goalModel: AgentGoalTextClient = {
     completeText: async () => JSON.stringify({
       purpose: 'operate',
       interaction: 'approval',
       dataNeed: 'embedded',
       sideEffect: 'approval-required',
-      requestedCapabilities: ['missing', 'publish_summary'],
+      requestedTools: ['missing', 'publish_summary'],
       requestedComponents: ['MysteryCard'],
       confidence: 0.91,
     }),
@@ -230,33 +246,33 @@ test('model-assisted intent can narrow to known names but cannot add unknown gra
 
   const plan = await planAgentSurface({
     prompt: 'publish the prepared product update summary',
-    capabilities,
-    intentModel,
+    tools,
+    goalModel,
   });
 
   assert.equal(plan.surfacePolicy.tier, 'approval');
-  assert.equal(plan.intentSource, 'model');
+  assert.equal(plan.goalSource, 'model');
   assert.deepEqual(plan.surfacePolicy.grants, ['publish_summary']);
   assert.equal(plan.surfacePolicy.components, undefined);
-  assert.deepEqual(plan.policyResolution.rejectedCapabilities, []);
+  assert.deepEqual(plan.policyResolution.rejectedTools, []);
 });
 
-test('provided intent is reported separately from model and deterministic sources', async () => {
+test('provided tool is reported separately from model and deterministic sources', async () => {
   const plan = await planAgentSurface({
     prompt: 'show the matching recipes',
-    capabilities,
-    intent: {
+    tools,
+    goal: {
       purpose: 'explore',
       interaction: 'search',
       dataNeed: 'host-resource',
       sideEffect: 'none',
-      requestedCapabilities: ['search'],
+      requestedTools: ['search'],
       requestedComponents: [],
       confidence: 1,
     },
   });
 
-  assert.equal(plan.intentSource, 'provided');
+  assert.equal(plan.goalSource, 'provided');
   assert.equal(plan.surfacePolicy.tier, 'declarative');
   assert.deepEqual(plan.surfacePolicy.grants, ['search']);
 });
@@ -264,7 +280,7 @@ test('provided intent is reported separately from model and deterministic source
 test('host policy resolver can force a static fallback', async () => {
   const plan = await planAgentSurface({
     prompt: 'build a dinner finder where i can search recipes',
-    capabilities,
+    tools,
     hostPolicyResolver: () => null,
   });
 
@@ -280,28 +296,27 @@ test('host policy resolver can force a static fallback', async () => {
 test('runAgentSurfaceGeneration emits agent diagnostics before policy metadata', async () => {
   const lines: ProtocolLine[] = [];
   const provider: SummonModelProvider = async function* () {
-    yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
-    yield '{"op":"add","path":"/section/hero","html":"<section><h1>Dinner finder</h1><p>Ready.</p></section>"}\n';
+    yield arrowProtocolLine('<section><h1>Dinner finder</h1><p>Ready.</p></section>');
   };
 
   const summary = await runAgentSurfaceGeneration({
     prompt: 'build a dinner finder where i can search recipes',
-    capabilities,
+    tools,
     modelProvider: provider,
   }, (line) => {
     lines.push(line);
   });
 
   assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
-    'meta /agent-intent',
+    'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
   ]);
   assert.equal(summary.agent.surfacePolicy.tier, 'declarative');
-  assert.equal(summary.agent.intentSource, 'deterministic');
+  assert.equal(summary.agent.goalSource, 'deterministic');
   const policyResolution = lines[1] as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((policyResolution.value as { intentSource?: unknown }).intentSource, 'deterministic');
+  assert.equal((policyResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
   assert.equal(summary.blocked, false);
 });

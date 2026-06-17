@@ -1,22 +1,23 @@
 export { spawnSandbox } from './sandbox-spawner.js';
 export type { SpawnOptions } from './sandbox-spawner.js';
-export { PolicyEngine, defineIntent, IntentArgsError } from './policy-engine.js';
+export { PolicyEngine, defineToolHandler, ToolArgsError } from './policy-engine.js';
 export type {
-  IntentContext,
-  IntentEntry,
-  IntentHandler,
+  ToolContext,
+  ToolHandlerEntry,
+  ToolHandler,
   PolicyEngineOptions,
-  TypedIntentEntry,
+  PolicyDispatchResult,
+  TypedToolHandlerEntry,
 } from './policy-engine.js';
 export {
-  createCapabilityRegistry,
+  createToolRegistry,
   defineAction,
   defineApprovalAction,
-  defineCapability,
+  defineTool,
   defineDataResource,
   defineWorkerAction,
   defineWorkerResource,
-} from './capability-registry.js';
+} from './tool-registry.js';
 export type {
   ActionDefinition,
   ActionStateKeys,
@@ -25,12 +26,12 @@ export type {
   ApprovalPrepared,
   ApprovalRequest,
   ApprovalStateKeys,
-  CapabilityDefinition,
-  CapabilityRegistry,
+  ToolDefinition,
+  ToolRegistry,
   DataResourceDefinition,
   ResourceStateKeys,
   StateShapeDescriptor,
-} from './capability-registry.js';
+} from './tool-registry.js';
 export {
   createComponentRegistry,
   defineComponent,
@@ -74,7 +75,6 @@ export type {
   SurfaceStreamLineDecision,
   SurfaceStreamOptions,
   SurfaceStreamParseError,
-  SurfaceStreamRenderMode,
   SurfaceStreamResult,
   SurfaceStreamSource,
 } from './surface-stream.js';
@@ -89,14 +89,13 @@ export type {
 } from './strict-input.js';
 export type {
   Artifact,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
   ComponentIslandBounds,
   ComponentIslandDescriptor,
   ComponentsMessage,
   SandboxHandle,
   StateMessage,
-  IntentMessage,
+  ToolCallMessage,
+  ToolResultMessage,
   ReadyMessage,
   FatalMessage,
   SandboxInboundMessage,

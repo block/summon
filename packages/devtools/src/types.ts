@@ -1,7 +1,7 @@
 /**
  * Devtools event vocabulary. Every interesting boundary in summon emits one of
  * these so a panel can reconstruct what happened: which sandbox spawned, what
- * intents the artifact tried, which were rejected at the bridge, which made it
+ * tools the artifact tried, which were rejected at the bridge, which made it
  * to the policy engine, what state was pushed back, what the LLM streamed.
  *
  * Events are append-only. Producers should treat the EventStore as fire-and-
@@ -23,9 +23,9 @@ export interface BaseEvent {
 export interface SandboxSpawnedEvent extends BaseEvent {
   kind: 'sandbox-spawned';
   sandboxId: string;
-  grantedIntents: string[];
-  artifactCapabilities?: unknown[];
-  grantedCapabilities?: unknown[];
+  grantedTools: string[];
+  artifactTools?: unknown[];
+  validationTools?: unknown[];
 }
 
 /** Bootstrap inside the iframe finished its self-test and signaled READY. */
@@ -47,35 +47,35 @@ export interface SandboxDisposedEvent extends BaseEvent {
   sandboxId: string;
 }
 
-/** An intent passed the bridge allowlist. Args are the (still-unvalidated) bag from the sandbox. */
-export interface IntentEmittedEvent extends BaseEvent {
-  kind: 'intent-emitted';
+/** An tool passed the bridge allowlist. Args are the (still-unvalidated) bag from the sandbox. */
+export interface ToolCalledEvent extends BaseEvent {
+  kind: 'tool-called';
   sandboxId: string;
-  intent: string;
+  tool: string;
   args: Record<string, unknown>;
 }
 
 /** The bridge rejected a postMessage that claimed this sandbox's identity. */
-export interface IntentRejectedEvent extends BaseEvent {
-  kind: 'intent-rejected';
+export interface ToolRejectedEvent extends BaseEvent {
+  kind: 'tool-rejected';
   sandboxId: string;
   reason: string;
   raw: unknown;
 }
 
 /** Policy engine started running a handler. `id` matches the settled event. */
-export interface IntentDispatchedEvent extends BaseEvent {
-  kind: 'intent-dispatched';
+export interface ToolDispatchedEvent extends BaseEvent {
+  kind: 'tool-dispatched';
   id: string;
-  intent: string;
+  tool: string;
   args: unknown;
 }
 
 /** Policy engine finished a handler (success or thrown error). */
-export interface IntentSettledEvent extends BaseEvent {
-  kind: 'intent-settled';
+export interface ToolSettledEvent extends BaseEvent {
+  kind: 'tool-settled';
   id: string;
-  intent: string;
+  tool: string;
   ok: boolean;
   error?: string;
   durationMs: number;
@@ -91,7 +91,7 @@ export interface StatePushedEvent extends BaseEvent {
 /** A streaming protocol line was successfully parsed. */
 export interface ProtocolLineEvent extends BaseEvent {
   kind: 'protocol-line';
-  line: { op: 'add' | 'set' | 'meta'; path: string; html?: string; value?: unknown };
+  line: { op: 'meta' | 'artifact'; path: string; value?: unknown };
 }
 
 /** A line in the LLM stream did not parse as a protocol line. */
@@ -111,18 +111,15 @@ export interface StreamGraphEvent extends BaseEvent {
   kind: 'stream-graph';
   health: {
     complete: boolean;
-    missingDeclared: string[];
-    undeclaredPresent: string[];
     skippedCount: number;
     blockedCount: number;
-    repairedCount: number;
   };
-  sections: Array<{
-    id: string;
-    declared: boolean;
-    present: boolean;
+  artifacts: Array<{
     revision: number;
+    runtime: 'arrow';
     bytes: number;
+    firstSeenLine?: number;
+    lastUpdatedLine?: number;
   }>;
 }
 
@@ -148,12 +145,19 @@ export interface SurfaceContractEvent extends BaseEvent {
   };
 }
 
-/** Host pushed full HTML into the sandbox via SUMMON_RENDER. */
+/** Host pushed an Arrow artifact into the sandbox via SUMMON_RENDER. */
 export interface RenderEvent extends BaseEvent {
   kind: 'render';
   sandboxId: string;
-  /** byte length of the html payload — full text is omitted to keep the ring buffer small. */
+  /** Approximate byte length of the artifact payload. */
   bytes: number;
+}
+
+/** The sandbox finished mounting the latest Arrow artifact. */
+export interface RenderedEvent extends BaseEvent {
+  kind: 'rendered';
+  sandboxId: string;
+  revision: number;
 }
 
 export interface ComponentSyncEvent extends BaseEvent {
@@ -181,10 +185,10 @@ export type DevtoolsEvent =
   | SandboxReadyEvent
   | SandboxFatalEvent
   | SandboxDisposedEvent
-  | IntentEmittedEvent
-  | IntentRejectedEvent
-  | IntentDispatchedEvent
-  | IntentSettledEvent
+  | ToolCalledEvent
+  | ToolRejectedEvent
+  | ToolDispatchedEvent
+  | ToolSettledEvent
   | StatePushedEvent
   | ProtocolLineEvent
   | ProtocolParseErrorEvent
@@ -193,6 +197,7 @@ export type DevtoolsEvent =
   | SurfacePlanEvent
   | SurfaceContractEvent
   | RenderEvent
+  | RenderedEvent
   | ComponentSyncEvent
   | ComponentErrorEvent;
 

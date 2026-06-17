@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
-import { type CapabilityPack } from '@anarchitecture/summon';
+import { type ToolPack } from '@anarchitecture/summon';
 import {
+  isArrowSurfaceArtifact,
   parseProtocolLine,
-  SectionAccumulator,
-  type ValidationCapability,
+  type ValidationTool,
 } from '@anarchitecture/summon/engine';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { AppNav, ModeGroup, PageHeader } from '../components/chrome.js';
 import { Button, compactInputClass, compactSelectClass, pageWidthClass, panelClass, statusToneClass, textareaClass } from '../components/ui.js';
 import { cn } from '../lib/cn.js';
-import { createDemoCapabilityRegistry } from '../capabilities.js';
+import { createDemoToolRegistry } from '../tools.js';
 import { ALL_PROMPTS, sample } from '../prompts.js';
 
 interface DirectionInfo {
@@ -40,11 +40,11 @@ function summarizeAgentMeta(value: unknown): string {
   if (policy) {
     const tier = typeof policy.tier === 'string' ? policy.tier : 'policy';
     const purpose = typeof policy.purpose === 'string' ? policy.purpose : 'inform';
-    const intentSource = typeof item.intentSource === 'string' ? ` · ${item.intentSource}` : '';
+    const goalSource = typeof item.goalSource === 'string' ? ` · ${item.goalSource}` : '';
     const fallback = item.fallback === true ? ' · fallback' : '';
-    return `${tier}/${purpose}${intentSource}${fallback}`;
+    return `${tier}/${purpose}${goalSource}${fallback}`;
   }
-  const purpose = typeof item.purpose === 'string' ? item.purpose : 'intent';
+  const purpose = typeof item.purpose === 'string' ? item.purpose : 'tool';
   const interaction = typeof item.interaction === 'string' ? item.interaction : 'none';
   const dataNeed = typeof item.dataNeed === 'string' ? item.dataNeed : 'embedded';
   return `${purpose}/${interaction}/${dataNeed}`;
@@ -78,22 +78,21 @@ function BatchTile({
   const [status, setStatus] = useState('pending');
   const [statusClass, setStatusClass] = useState('pending');
   const [bytes, setBytes] = useState(0);
-  const [intent, setIntent] = useState<{ text: string; err?: boolean } | null>(null);
+  const [tool, setTool] = useState<{ text: string; err?: boolean } | null>(null);
 
   const registry = useMemo(() => {
     if (run.interactivity !== 'interactive') return null;
-    return createDemoCapabilityRegistry({
-      onLog: (message) => setIntent({ text: message }),
-      onError: (message) => setIntent({ text: message, err: true }),
+    return createDemoToolRegistry({
+      onLog: (message) => setTool({ text: message }),
+      onError: (message) => setTool({ text: message, err: true }),
     }).without(['summon']);
   }, [run.interactivity]);
   const contract = useMemo(() => registry?.toContract() ?? null, [registry]);
-  const capabilityPack: CapabilityPack | null = contract?.pack ?? null;
-  const validationCapabilities: ValidationCapability[] | null = contract?.validationCapabilities ?? null;
+  const toolPack: ToolPack | null = contract?.pack ?? null;
+  const validationTools: ValidationTool[] | null = contract?.validationTools ?? null;
 
   useEffect(() => {
     let cancelled = false;
-    const acc = new SectionAccumulator();
     const start = performance.now();
     let byteCount = 0;
 
@@ -102,8 +101,7 @@ function BatchTile({
       setStatusClass('streaming');
       setStatus('streaming');
       setBytes(0);
-      setIntent(null);
-      const renderIncrementally = run.interactivity === 'static';
+      setTool(null);
 
       try {
         const res = await fetch('/api/generate', {
@@ -112,8 +110,7 @@ function BatchTile({
           body: JSON.stringify({
             prompt: run.prompt,
             directionId: run.directionId,
-            mode: run.interactivity,
-            capabilities: run.interactivity === 'interactive' ? capabilityPack : undefined,
+            tools: run.interactivity === 'interactive' ? toolPack : undefined,
             agent: { enabled: true },
           }),
           signal: run.signal,
@@ -127,15 +124,14 @@ function BatchTile({
         const processLine = (raw: string) => {
           const parsed = parseProtocolLine(raw);
           if (!parsed) return;
-          if (parsed.op === 'meta' && parsed.path === '/agent-intent') {
-            setIntent({ text: `agent intent: ${summarizeAgentMeta(parsed.value)}` });
+          if (parsed.op === 'meta' && parsed.path === '/agent-goal') {
+            setTool({ text: `agent goal: ${summarizeAgentMeta(parsed.value)}` });
           }
           if (parsed.op === 'meta' && parsed.path === '/agent-policy-resolution') {
-            setIntent({ text: `agent policy: ${summarizeAgentMeta(parsed.value)}` });
+            setTool({ text: `agent policy: ${summarizeAgentMeta(parsed.value)}` });
           }
-          const changed = acc.apply(parsed);
-          if (renderIncrementally && changed && acc.hasAnySection()) {
-            surfaceRef.current?.render(acc.compose());
+          if (parsed.op === 'artifact' && isArrowSurfaceArtifact(parsed.value)) {
+            surfaceRef.current?.renderArtifact(parsed.value);
           }
         };
 
@@ -155,9 +151,6 @@ function BatchTile({
         }
         const tail = buffer.trim();
         if (tail) processLine(tail);
-        if (!renderIncrementally && acc.hasAnySection()) {
-          surfaceRef.current?.render(acc.compose());
-        }
 
         const ms = Math.round(performance.now() - start);
         if (cancelled) return;
@@ -182,7 +175,7 @@ function BatchTile({
     return () => {
       cancelled = true;
     };
-  }, [capabilityPack, onComplete, run]);
+  }, [toolPack, onComplete, run]);
 
   return (
     <div className={cn(panelClass, 'flex min-w-0 flex-col')}>
@@ -192,9 +185,9 @@ function BatchTile({
           <span className={statusToneClass(statusClass)}>{status}</span>
           <span>{bytes.toLocaleString()} B</span>
         </div>
-        {intent ? (
-          <div className={cn('border-t border-dashed border-line bg-surface px-3.5 py-2 font-mono text-[11px]', intent.err ? 'text-danger' : 'text-good')}>
-            {intent.text}
+        {tool ? (
+          <div className={cn('border-t border-dashed border-line bg-surface px-3.5 py-2 font-mono text-[11px]', tool.err ? 'text-danger' : 'text-good')}>
+            {tool.text}
           </div>
         ) : null}
       </div>
@@ -203,10 +196,9 @@ function BatchTile({
           ref={surfaceRef}
           title={run.prompt}
           className={cn('block w-full border-0 bg-surface-raised', stacked ? 'h-[880px]' : 'h-[760px]')}
-          html=""
           tokensSource={run.tokensCss}
-          capabilityRegistry={registry}
-          grantedCapabilities={validationCapabilities ?? undefined}
+          toolRegistry={registry}
+          validationTools={validationTools ?? undefined}
         />
         {run.interactivity === 'interactive' && statusClass === 'streaming' ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[var(--overlay-strong)] text-[13px] font-medium tracking-normal text-ink-soft">

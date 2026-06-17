@@ -1,7 +1,7 @@
 # Workbench - Design Direction
 
 This is the design direction for Workbench - a dense, neutral UI vocabulary for
-operational tools. Response shape is your call based on the user's intent; this
+operational tools. Response shape is your call based on the user's request; this
 document tells you how things look once you've picked a shape.
 
 ## Character

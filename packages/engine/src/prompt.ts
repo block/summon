@@ -12,14 +12,13 @@ import type { DirectionOpts } from './direction-validator.js';
 import {
   type ActionStateKeys,
   defaultTriggersForKind,
-  formatCapabilityProtocolContract,
-  type CapabilityKind,
-  type CapabilityStateKeys,
-  type CapabilityTrigger,
+  type ToolKind,
+  type ToolStateKeys,
+  type ToolTrigger,
   type ResourceStateKeys,
-} from './capability-contract.js';
+} from './tool-contract.js';
 import type { SurfaceContractView } from './surface-contract.js';
-import type { ComponentSurface, CapabilitySurface } from './surface-plan.js';
+import type { ComponentSurface, ToolSurface } from './surface-plan.js';
 
 export interface Exemplar {
   name: string;
@@ -34,7 +33,7 @@ export interface Exemplar {
    *  the behavioral act the host wants the generation to perform
    *  (tap/brief/detailed/canvas), declared by the LLM on a `/posture`
    *  meta-line, enforced by the host. The LLM picks a posture within a shape
-   *  the same way it picks an intent within a capability pack. */
+   *  the same way it picks a tool within a tool pack. */
   kind?: 'atom' | 'shape';
   /** For shape exemplars — the response shape this exemplar represents. The
    *  classifier emits a shape per generation; only the matching exemplar(s)
@@ -64,9 +63,9 @@ export interface DirectionInput {
 }
 
 export interface SummonLayoutSlot {
-  /** Lowercase kebab-case section id, e.g. `next-steps`. */
+  /** Lowercase kebab-case slot id, e.g. `next-steps`. */
   id: string;
-  /** One-sentence instruction describing what belongs in this slot. */
+  /** One-sentence instruction describing what belongs in this region. */
   purpose: string;
 }
 
@@ -78,20 +77,20 @@ export interface SummonLayout {
 }
 
 /**
- * The stable, cacheable prefix. Output format, HTML/CSS rules, token contract.
+ * The stable, cacheable prefix. Output format, Arrow/CSS rules, token contract.
  * No design direction — that lives in the per-direction block below so changing
  * directions doesn't invalidate this cache entry.
  *
  * The token-contract paragraph is generated from `token-contract.ts` so the
  * prompt can never drift from the schema directions are validated against.
  */
-export const SUMMON_FIXED_INSTRUCTIONS = `You generate self-contained web UIs as a stream of JSONL protocol lines for the Summon rendering engine.
+export const SUMMON_FIXED_INSTRUCTIONS = `You generate self-contained Arrow web UIs for the Summon rendering engine.
 
-## Your job — interpret intent, then design the response
+## Your job — interpret the request, then design the response
 
-The user types a request in natural language: "help me plan…", "I want to…", "can you compare…", "explain how…". Your job is to settle on a rich composition that actually helps, then render it.
+The user types a request in natural language: "help me plan...", "I want to...", "can you compare...", "explain how...". Your job is to settle on a rich composition that actually helps, then render it as an Arrow artifact.
 
-Pick the composition that fits the intent. Cards are only one option, not the default. Examples:
+Pick the composition that fits the request. Cards are only one option, not the default. Examples:
 
 - **Plan / itinerary** — staged narrative, timeline, route, calendar, or numbered walkthrough.
 - **Comparison / decision** — table, matrix, split view, scorecard, annotated verdict, or pros/cons only when useful.
@@ -103,48 +102,44 @@ Pick the composition that fits the intent. Cards are only one option, not the de
 
 Before using a card grid, ask what job the boxes are doing. Use cards when the content is truly a set of separate comparable objects, selectable choices, or repeated records with distinct evidence. If most groups would become anonymous rounded boxes, redesign as an article, table, timeline, checklist, matrix, ledger, map, split view, or typographic composition instead.
 
-**Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific intent actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
+**Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific tool actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
 
-## Output protocol — JSONL only
+## Output protocol — Arrow JSONL only
 
-Emit ONLY JSON objects, one per line. No markdown fences, no prose, no headings, no commentary. Each line must be valid JSON on a single physical line.
+Emit exactly one JSON object on one physical line. No markdown fences, no prose, no headings, no commentary. The line must be valid JSON.
 
-**Core structural lines:**
+Emit exactly this shape with real source strings:
 
-1. **First structural line** — declare your section structure:
+{"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"...","main.css":"..."}}}
+
+Rules:
+
+- The \`value.runtime\` must be \`"arrow"\`.
+- \`source\` must contain exactly one entry file: \`main.ts\` or \`main.js\`.
+- \`main.css\` is optional and should contain all visual styling.
+- The default export from \`main.ts\` must be an Arrow template.
+- Import Arrow primitives from \`@arrow-js/core\`; do not rely on ambient globals. Use only \`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`onCleanup\`, and \`nextTick\`.
+- Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this sandbox does not support them. Use normal HTML attributes like \`value=\` and read form input through event snapshots such as \`event.target.value\`.
+- Do not inject standalone expressions inside opening tags to create dynamic attributes. Expressions must be text nodes, child nodes, or quoted attribute values.
+- Bad: \`<button \${() => state.loading ? "disabled" : ""}>Search</button>\`. Good: \`<button class="\${() => state.loading ? "loading" : ""}">\${() => state.loading ? "Searching..." : "Search"}</button>\`.
+- For host actions and resources, import from \`host-bridge:summon\`:
+
+\`\`\`ts
+import { callTool, getState, onState } from "host-bridge:summon"
 \`\`\`
-{"op":"set","path":"/screen","value":{"sections":["hero","itinerary","budget"]}}
-\`\`\`
 
-2. **One line per section**, in the declared order:
-\`\`\`
-{"op":"add","path":"/section/hero","html":"..."}
-{"op":"add","path":"/section/itinerary","html":"..."}
-{"op":"add","path":"/section/budget","html":"..."}
-\`\`\`
+- Call \`await callTool(toolName, args)\` for granted host tools. The result is \`{ ok, state, error? }\`.
+- Call \`await getState()\` to read the latest host-pushed state.
+- Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
+- Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
+- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
+- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, host-owned meta lines, HTML fragments, or multiple lines. The only prefixed attributes allowed in Arrow source are \`data-summon-component\`, \`data-summon-component-id\`, and \`data-summon-props\` from the Component islands block.
+- Keep the JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.
 
-**Progressive rendering contract**: make the surface visible early. Emit the
-\`set /screen\` line as soon as you know the stable section ids, then emit one
-cheap placeholder \`add /section/<id>\` line for each planned section before
-writing detailed content. Replace those placeholders by emitting another
-\`add /section/<id>\` line with the final HTML for the same stable section id.
-Hosts treat later accepted \`add\` lines for the same section as replacements.
-Do not rename, reorder, or remove section ids once you have emitted them. This
-is how Summon creates json-render-like perceived streaming while still only
-rendering complete, validated JSONL protocol lines.
+## Arrow/CSS rules
 
-A host block may require one or more \`meta\` prelude lines before the first structural line, for example to declare a host-owned mode, template, or policy choice. If so, emit those complete \`meta\` JSONL lines first, exactly as the host block specifies. Otherwise, start with the \`set /screen\` line. Meta lines are host-owned annotations; they do not replace \`/screen\` unless a host layout block explicitly says so.
-
-**Section naming**: lowercase, kebab-case, 1–20 chars. Pick names that describe what each section IS, not generic placeholders. Good: \`overview\`, \`timeline\`, \`option-a\`, \`verdict\`, \`tl-dr\`, \`breakdown\`, \`progress\`, \`next-steps\`. Avoid generic \`header\`/\`body\`/\`footer\` unless the intent really does call for that shape.
-
-**Section count**: 1 to 5. Usually 2–4. One is fine when the response is a single focused thing (a recommendation, a toast draft). More than 5 is almost always wrong.
-
-Keep each section's HTML on a single line. Escape double quotes inside the HTML string as \\". Long content is fine — HTML collapses whitespace.
-
-## HTML/CSS rules
-
-- Plain HTML elements. Inline \`<style>\` blocks and \`style="..."\` attributes are the primary way to style.
-- \`<script>\` tags and event-handler attributes are forbidden. If there is no Capabilities block, the UI is static. If there is a Capabilities block, use declarative \`data-summon-*\` attributes only.
+- Use plain semantic HTML inside Arrow templates.
+- Put visual styling in \`main.css\`; use class names, not generated inline style strings, for major layout.
 - No external URLs. No external images, no external fonts, no external stylesheets. Inline SVG is fine.
 - Use CSS custom properties for every color, space, radius, and type size. Do not hardcode hex colors, rgb(), pixel spacing, or specific font stacks.
 
@@ -164,11 +159,45 @@ The direction block specifies which tokens carry particular meaning for that dir
 
 ## How to think about this generation
 
-Decide your section structure and your styling approach BEFORE you start emitting. Once you've started emitting, commit. Don't re-evaluate selectors, layout primitives, color tokens, or section names mid-generation. If a constraint blocks the obvious approach (e.g. a control needs interactivity but you have no Capabilities block), state the constraint in one short line of copy inside the UI ("Static preview — pick functionality requires interactive mode") and use the simplest static alternative. Do not invent CSS-only state machines, \`:has()\` selector tricks, sibling-checked toggles, or \`<details>\` chains to simulate interactivity that the rules forbid. A static answer that names its limitation is better than an elaborate workaround.
+Decide your section structure and your styling approach BEFORE you start emitting. Once you've started emitting, commit. Don't re-evaluate selectors, layout primitives, color tokens, or section names mid-generation. If a constraint blocks the obvious approach (e.g. a control needs interactivity but you have no Tools block), state the constraint in one short line of copy inside the UI ("Static preview — pick functionality requires interactive mode") and use the simplest static alternative. Do not invent CSS-only state machines, \`:has()\` selector tricks, sibling-checked toggles, or \`<details>\` chains to simulate interactivity that the rules forbid. A static answer that names its limitation is better than an elaborate workaround.
 
 Pick one structural approach and ship it. Reconsidering mid-stream is the wrong move — the user sees a half-rendered UI and a frozen status.
 
-Begin. Emit any host-required \`meta\` prelude lines first. Then emit the \`set /screen\` structural line unless a host layout block says not to, followed by one \`add\` line per section.`;
+Begin. Emit exactly one Arrow artifact JSONL line.`;
+
+export const SUMMON_ARROW_ARTIFACT_INSTRUCTIONS = `## Arrow sandbox artifact output
+
+This block is the output contract for Summon Arrow runtimes.
+
+Your entire response must be exactly one JSONL line. Do not wrap it in Markdown. Do not add prose before or after it. Do not emit code fences. Do not emit \`set /screen\`, \`add /section/*\`, or any other line.
+
+Emit exactly this shape with real source strings:
+
+{"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"...","main.css":"..."}}}
+
+Rules:
+
+- The \`value.runtime\` must be \`"arrow"\`.
+- \`source\` must contain exactly one entry file: \`main.ts\` or \`main.js\`.
+- \`main.css\` is optional and should contain all visual styling.
+- The default export from \`main.ts\` must be an Arrow template.
+- Import Arrow primitives from \`@arrow-js/core\`; do not rely on ambient globals. Use only \`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`onCleanup\`, and \`nextTick\`.
+- Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this sandbox does not support them. Use normal HTML attributes like \`value=\` and read form input through event snapshots such as \`event.target.value\`.
+- Do not inject standalone expressions inside opening tags to create dynamic attributes. Expressions must be text nodes, child nodes, or quoted attribute values.
+- Bad: \`<button \${() => state.loading ? "disabled" : ""}>Search</button>\`. Good: \`<button class="\${() => state.loading ? "loading" : ""}">\${() => state.loading ? "Searching..." : "Search"}</button>\`.
+- For host actions and resources, import from \`host-bridge:summon\`:
+
+\`\`\`ts
+import { callTool, getState, onState } from "host-bridge:summon"
+\`\`\`
+
+- Call \`await callTool(toolName, args)\` for granted host tools. The result is \`{ ok, state, error? }\`.
+- Call \`await getState()\` to read the latest host-pushed state.
+- Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
+- Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
+- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
+- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, or host-owned meta lines. The only prefixed attributes allowed in Arrow source are \`data-summon-component\`, \`data-summon-component-id\`, and \`data-summon-props\` from the Component islands block.
+- Keep every JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.`;
 
 /**
  * Compose the direction-specific block that follows the fixed instructions:
@@ -207,7 +236,7 @@ export function buildDirectionBlock(input: DirectionInput): string {
       );
     } else if (input.shape && shapeExemplars.length === 1 && shapeExemplars[0]!.shape === input.shape) {
       parts.push(
-        `The user's intent reads as a **${input.shape}** response. Use this composition as a visual starting point — replace the content (titles, copy, numbers, bullet text) with the user's data, and preserve the relevant visual moves: borders, typography rhythm, spacing between groups, and emphasis patterns. Host-supplied contracts, layouts, allowed intents, and surface constraints override exemplar structure. The point is to land on this design language fast, not to reinvent it.`
+        `The user's request reads as a **${input.shape}** response. Use this composition as a visual starting point — replace the content (titles, copy, numbers, bullet text) with the user's data, and preserve the relevant visual moves: borders, typography rhythm, spacing between groups, and emphasis patterns. Host-supplied contracts, layouts, allowed tools, and surface constraints override exemplar structure. The point is to land on this design language fast, not to reinvent it.`
       );
     } else {
       parts.push(
@@ -223,34 +252,26 @@ export function buildDirectionBlock(input: DirectionInput): string {
 }
 
 /**
- * Host layout — an optional per-generation slot contract. The host owns the
- * section order; the LLM owns the HTML content inside each slot.
+ * Host layout — an optional per-generation slot contract. The model owns the
+ * Arrow composition while honoring the host's semantic regions.
  */
 export function buildLayoutBlock(layout: SummonLayout): string {
-  const sections = layout.slots.map((slot) => slot.id);
   const slotLines = layout.slots
     .map((slot) => `- \`${slot.id}\` — ${slot.purpose}`)
     .join('\n');
 
-  return `## Host layout — this generation
+return `## Host layout — this generation
 
-The host has supplied a strict layout contract named **${layout.id}**. This contract overrides the generic instruction to invent your own section structure.
-
-The host has already declared this section order:
-
-\`\`\`json
-{"op":"set","path":"/screen","value":{"sections":${JSON.stringify(sections)}}}
-\`\`\`
-
-Do NOT emit a \`set /screen\` line. Emit only \`add\` lines for these slots, in this order:
+The host has supplied a strict layout contract named **${layout.id}**. Build your Arrow artifact so its visible composition has these semantic regions, in this order:
 
 ${slotLines}
 
 Rules:
 
 - Use each slot for its purpose.
-- Do not invent extra sections, page chrome, wrapper sections, or alternate slot names.
-- Keep styling local inside each section's HTML. The host layout controls order; the direction controls visual language.`;
+- Do not invent page chrome or alternate slot names that obscure the layout.
+- Do not emit \`set /screen\` or \`add /section/*\`; the output is still exactly one Arrow \`/artifact\` JSONL line.
+- The host layout controls semantic order; the direction controls visual language.`;
 }
 
 /**
@@ -350,7 +371,7 @@ export function buildSurfaceContractBlock(contract: SurfaceContractView): string
 
   return `## Surface contract — host-owned boundaries
 
-This is a compact, read-only view of the host-selected \`SurfacePolicy\`. It tells you what this generated surface can do. It is not a JSON UI schema: you still generate rich freeform HTML/CSS inside these typed boundaries.
+This is a compact, read-only view of the host-selected \`SurfacePolicy\`. It tells you what this generated surface can do. It is not a JSON UI schema: you still generate a rich Arrow source artifact inside these typed boundaries.
 
 Do not emit \`/surface-contract\`, \`/surface-policy\`, or \`/surface-plan\` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, sandbox grants, and component prop validation.
 
@@ -358,7 +379,7 @@ Do not emit \`/surface-contract\`, \`/surface-policy\`, or \`/surface-plan\` met
 
 - Policy: tier=\`${surface.policy.tier}\`, purpose=\`${surface.policy.purpose}\`, persistence=\`${surface.policy.persistence}\`
 - Plan: purpose=\`${surface.plan.purpose}\`, runtime=\`${surface.plan.runtime}\`, data=\`${surface.plan.data}\`, authority=\`${surface.plan.authority}\`, persistence=\`${surface.plan.persistence}\`
-- Mode: \`${surface.mode}\`; scripts \`${surface.scriptPolicy}\`
+- Mode: \`${surface.mode}\`
 
 ### Tools
 
@@ -405,30 +426,30 @@ function buildDirectionAddendum(
 }
 
 /**
- * Capabilities — what intents the generated UI can emit. Injected as a third
+ * Tools — what tools the generated UI can emit. Injected as a third
  * cacheable system block when the host requests interactive mode. Static mode
  * omits this block entirely; the fixed instructions already forbid scripts.
  *
- * The engine is intent-agnostic. Consumers (demo apps, host applications)
- * define their own capability packs — intents they support and example
+ * The engine is tool-agnostic. Consumers (demo apps, host applications)
+ * define their own tool packs — tools they support and example
  * patterns showing how to wire each one. A pack is passed in per generation.
  */
-export interface IntentSpec {
+export interface ToolSpec {
   name: string;
   description: string;
   argsSchema: string;
   stateShape: string;
-  kind?: CapabilityKind;
-  triggers?: CapabilityTrigger[];
-  stateKeys?: CapabilityStateKeys;
+  kind?: ToolKind;
+  triggers?: ToolTrigger[];
+  stateKeys?: ToolStateKeys;
   actionStateKeys?: ActionStateKeys;
-  surface?: CapabilitySurface;
+  surface?: ToolSurface;
   resultSchema?: string;
   defaultDataShape?: string;
   defaultData?: unknown;
 }
 
-export interface DataResourceSpec extends IntentSpec {
+export interface DataResourceSpec extends ToolSpec {
   kind: 'resource';
   stateKeys: ResourceStateKeys;
   resultSchema?: string;
@@ -436,24 +457,22 @@ export interface DataResourceSpec extends IntentSpec {
   defaultData?: unknown;
 }
 
-export interface CapabilityPattern {
+export interface ToolPattern {
   /** Short title shown above the code snippet in the prompt. */
   name: string;
   /** HTML code block the LLM sees as an example. Script examples are filtered. */
   code: string;
-  /** Optional owner intent. SurfacePolicy narrowing uses this to keep examples
+  /** Optional owner tool. SurfacePolicy narrowing uses this to keep examples
    * aligned with the grants selected for a generation. */
-  intent?: string;
+  tool?: string;
 }
 
-export interface CapabilityPack {
-  intents: IntentSpec[];
+export interface ToolPack {
+  tools: ToolSpec[];
   /** Example patterns shown under "### Patterns". Optional — without them the
-   *  LLM gets only the intent list and the interactivity rules. */
-  patterns?: CapabilityPattern[];
+   *  LLM gets only the tool list and the interactivity rules. */
+  patterns?: ToolPattern[];
 }
-
-export type ScriptPolicy = 'allow' | 'forbid';
 
 export interface ComponentExample {
   /** Short label for the component example. */
@@ -484,136 +503,194 @@ export interface ComponentPack {
   components: ComponentSpec[];
 }
 
-export interface CapabilitiesBlockOptions {
-  scriptPolicy?: ScriptPolicy;
-}
-
-export function buildCapabilitiesBlock(
-  pack: CapabilityPack,
-  _options: CapabilitiesBlockOptions = {},
+export function buildToolsBlock(
+  pack: ToolPack,
 ): string {
-  if (pack.intents.length === 0) return '';
+  if (pack.tools.length === 0) return '';
 
-  const actions = pack.intents.filter((intent) => (intent.kind ?? 'action') === 'action');
-  const resources = pack.intents.filter((intent) => intent.kind === 'resource');
+  const actions = pack.tools.filter((tool) => (tool.kind ?? 'action') === 'action');
+  const resources = pack.tools.filter((tool) => tool.kind === 'resource');
 
-  const formatIntent = (i: IntentSpec) => {
-    const triggers = normalizeTriggers(i).join(', ');
-    const stateKeys = i.stateKeys
-      ? `\n  State keys: ${formatStateKeys(i.stateKeys)}`
+  const formatTool = (tool: ToolSpec) => {
+    const triggers = normalizeTriggers(tool).join(', ');
+    const stateKeys = tool.stateKeys
+      ? `\n  State keys: ${formatStateKeys(tool.stateKeys)}`
       : '';
-    const actionStateKeys = i.actionStateKeys
-      ? `\n  Action state: ${formatActionStateKeys(i.actionStateKeys)}`
+    const actionStateKeys = tool.actionStateKeys
+      ? `\n  Action state: ${formatActionStateKeys(tool.actionStateKeys)}`
       : '';
-    const surface = i.surface ? `\n  Surface: ${formatSurface(i.surface)}` : '';
-    return `- \`${i.name}(${i.argsSchema})\` — ${i.description}\n  Triggers: ${triggers}\n  State update: \`${i.stateShape}\`${stateKeys}${actionStateKeys}${surface}`;
+    const surface = tool.surface ? `\n  Surface: ${formatSurface(tool.surface)}` : '';
+    return `- \`${tool.name}(${tool.argsSchema})\` — ${tool.description}\n  Triggers: ${triggers}\n  State update: \`${tool.stateShape}\`${stateKeys}${actionStateKeys}${surface}`;
   };
 
   const actionsList = actions
-    .map(formatIntent)
+    .map(formatTool)
     .join('\n\n');
   const resourcesList = resources
     .map(
-      (i) => {
-        const resultSchema = i.resultSchema ? `\n  Result schema: \`${i.resultSchema}\`` : '';
-        const defaultData = i.defaultDataShape
-          ? `\n  Default data: \`${i.defaultDataShape}\``
+      (tool) => {
+        const resultSchema = tool.resultSchema ? `\n  Result schema: \`${tool.resultSchema}\`` : '';
+        const defaultData = tool.defaultDataShape
+          ? `\n  Default data: \`${tool.defaultDataShape}\``
           : '\n  Default data: `null`';
-        return `${formatIntent(i)}${resultSchema}${defaultData}\n  Data resource lifecycle: initial/loading/error/invalid states keep data at the default value (or null), and successful host fetches write validated data.`;
+        return `${formatTool(tool)}${resultSchema}${defaultData}\n  Data resource lifecycle: initial/loading/error/invalid states keep data at the default value (or null), and successful host fetches write validated data.`;
       }
     )
     .join('\n\n');
 
-  const capabilitySections = [
+  const toolSections = [
     resourcesList ? `### Available data resources\n\n${resourcesList}` : '',
     actionsList ? `### Available actions\n\n${actionsList}` : '',
   ].filter(Boolean).join('\n\n');
 
   const promptPatterns = (pack.patterns ?? []).filter(
-    (pattern) => !/<\s*script\b/i.test(pattern.code),
+    (pattern) =>
+      !/<\s*script\b/i.test(pattern.code) &&
+      !/\bdata-summon-(?!(?:component|component-id|props)\b)[a-z0-9-]+/i.test(pattern.code),
   );
   const patternsBlock =
     promptPatterns.length > 0
       ? `\n\n### Patterns\n\n${promptPatterns
-          .map((p) => `**${p.name}:**\n\`\`\`html\n${p.code.trim()}\n\`\`\``)
+          .map((p) => `**${p.name}:**\n\`\`\`ts\n${p.code.trim()}\n\`\`\``)
           .join('\n\n')}`
       : '';
-  const scriptPolicyBlock = `### Script policy — declarative only
+  const hostBridgeBlock = `### Host tool bridge
 
-This host has NOT granted custom artifact scripts. Do not emit \`<script>\` tags. Do not rely on \`sandbox.emit\`, \`sandbox.onState\`, custom event listeners, timers, computed DOM mutations, or local script state.
+Generated custom scripts are not supported. Do not emit \`<script>\` tags. All behavior lives in the Arrow entry module you return as \`main.ts\` or \`main.js\`.
 
-All interactivity for this generation must use declarative \`data-summon-*\` attributes. Use \`data-summon-local\`, \`data-summon-set\`, \`data-summon-toggle\`, \`data-summon-show\`, \`data-summon-hide\`, \`data-summon-class-*\`, \`data-summon-motion\`, and \`data-summon-transition\` for tabs, disclosures, selection, staged reveal, local visual state, and simple motion. If the requested behavior cannot be expressed with those attributes and the granted capabilities, leave that control out or state the limitation in the UI.`;
+Use Arrow \`reactive()\` state for local UI state, Arrow event handlers for clicks/submits/input, and the \`host-bridge:summon\` virtual module for host state and tools. Do not use \`window.sandbox\`, direct DOM listeners, timers, storage, or native bridges. If a requested behavior cannot be expressed with Arrow plus the granted tools, leave that control out or state the limitation in the UI.`;
 
-  const actionWiring = 'via `data-summon-on-click`, `data-summon-on-submit`, or `data-summon-resource-trigger`';
-  const intentNames = new Set(pack.intents.map((intent) => intent.name));
+  const actionWiring = 'by calling `await callTool("<tool>", args)` from an Arrow event handler';
+  const toolNames = new Set(pack.tools.map((tool) => tool.name));
   const examples: string[] = [];
-  if (intentNames.has('counter')) {
-    examples.push(`<!-- Counter: click + bind -->
-<button data-summon-on-click="counter" data-summon-args='{"delta":1}'>+</button>
-<button data-summon-on-click="counter" data-summon-args='{"delta":-1}'>−</button>
-<output data-summon-bind="count">0</output>`);
+  if (toolNames.has('counter')) {
+    examples.push(`// Counter: Arrow event handlers + host state sync
+import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ count: 0 });
+onState((hostState) => {
+  state.count = Number(hostState.count ?? state.count ?? 0);
+});
+
+async function change(delta: number) {
+  const result = await callTool("counter", { delta });
+  if (result.ok) state.count = Number(result.state.count ?? state.count);
+}
+
+export default html\`
+  <button @click="\${() => change(-1)}" aria-label="Decrease">-</button>
+  <output>\${() => state.count}</output>
+  <button @click="\${() => change(1)}" aria-label="Increase">+</button>
+\`;`);
   }
-  if (intentNames.has('submit')) {
-    examples.push(`<!-- Form: submit + show success/error -->
-<form data-summon-on-submit="submit">
-  <input name="title" placeholder="Title">
-  <input name="notes" placeholder="Notes">
-  <button>Save</button>
-</form>
-<p data-summon-show="submitted">Saved.</p>
-<p data-summon-show="submitError" data-summon-bind="submitError"></p>`);
+  if (toolNames.has('submit')) {
+    examples.push(`// Form: collect an event snapshot, callTool the host, render host-owned state
+import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ submitted: false, submitError: "" });
+onState((hostState) => {
+  state.submitted = Boolean(hostState.submitted);
+  state.submitError = String(hostState.submitError ?? "");
+});
+
+async function save(event: SubmitEvent) {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const result = await callTool("submit", fields);
+  state.submitted = Boolean(result.state.submitted);
+  state.submitError = String(result.state.submitError ?? result.error ?? "");
+}
+
+export default html\`
+  <form @submit="\${save}">
+    <input name="title" placeholder="Title">
+    <input name="notes" placeholder="Notes">
+    <button>Save</button>
+  </form>
+  <p>\${() => state.submitted ? "Saved." : ""}</p>
+  <p>\${() => state.submitError}</p>
+\`;`);
   }
-  if (intentNames.has('log')) {
-    examples.push(`<!-- List of items: foreach + scoped bind + click-with-item -->
-<ul data-summon-foreach="results" data-summon-as="r">
-  <template>
-    <li data-summon-on-click="log" data-summon-args='{"payload":{"picked":"$r"}}'>
-      <strong data-summon-bind="$r.title"></strong>
-      <span data-summon-bind="$r.snippet"></span>
-    </li>
-  </template>
-</ul>`);
+  if (toolNames.has('log')) {
+    examples.push(`// Result row: pass the selected item through an Arrow handler
+import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ results: [] as Array<{ title: string; snippet: string }> });
+onState((hostState) => {
+  state.results = Array.isArray(hostState.results) ? hostState.results : [];
+});
+
+async function pick(result: { title: string; snippet: string }) {
+  await callTool("log", { payload: { picked: result } });
+}
+
+export default html\`
+  <ul>
+    \${() => state.results.map((result) => html\`
+      <li @click="\${() => pick(result)}">
+        <strong>\${result.title}</strong>
+        <span>\${result.snippet}</span>
+      </li>
+    \`)}
+  </ul>
+\`;`);
   }
   const examplesBlock = examples.length > 0
-    ? `\n\n**Examples:**\n\n\`\`\`html\n${examples.join('\n\n')}\n\`\`\``
+    ? `\n\n**Examples:**\n\n\`\`\`ts\n${examples.join('\n\n')}\n\`\`\``
     : '';
 
-  return `## Capabilities — this generation is INTERACTIVE
+  return `## Tools — this generation is INTERACTIVE
 
-**Declarative-only interactivity.** The sandbox runtime binds a small set of \`data-summon-*\` attributes to host state, local ephemeral state, motion recipes, and intents. Custom artifact scripts are not granted for this generation.
+**Arrow-native interactivity.** Generated surfaces run as Arrow artifacts. Use Arrow \`reactive()\` for state, Arrow event handlers for user input, and \`host-bridge:summon\` for host tools and host-pushed state.
 
-Do NOT build CSS-only state machines using \`:has()\`, \`:checked\` sibling selectors, \`<details>\` chained to other elements, or \`:target\` URL hash tricks for state. Those patterns are clever but fragile; the declarative attributes below are shorter and more reliable.
+Do NOT build CSS-only state machines using \`:has()\`, \`:checked\` sibling selectors, \`<details>\` chained to other elements, or \`:target\` URL hash tricks for state. Use Arrow state and handlers instead.
 
-### Available capabilities
+### Host bridge
 
-${capabilitySections}
+Import the bridge in your Arrow entry file:
 
-${formatCapabilityProtocolContract()}
+\`\`\`ts
+import { callTool, getState, onState } from "host-bridge:summon";
+\`\`\`
+
+- \`await callTool(toolName, args)\` calls a granted host tool and resolves to \`{ ok, state, error? }\`.
+- \`await getState()\` reads the latest host-owned state snapshot.
+- \`onState((state) => { ... })\` subscribes to host \`pushState()\` updates and returns an unsubscribe function.
+- Copy host-owned keys into your Arrow \`reactive()\` object from \`getState()\`, \`onState()\`, and successful \`callTool()\` results.
+
+### Available tools
+
+${toolSections}
+
 ${examplesBlock}
 
-${scriptPolicyBlock}
+${hostBridgeBlock}
 
 ### The interactivity contract — READ THIS
 
-**Every clickable, tappable, or focusable element in your generated UI MUST be wired to one of the declared intents — ${actionWiring}. If you cannot wire an element, do not show it.**
+**Every clickable, tappable, or focusable element in your generated UI MUST be wired to one of the declared tools — ${actionWiring}. If you cannot wire an element, do not show it.**
 
-- No button unless you've decided which intent it fires.
+- No button unless you've decided which tool it fires.
 - No clickable result tiles, rows, or cards unless clicking them emits something.
-- No pagination, no sorting, no filtering controls unless you've decided which intent they fire.
+- No pagination, no sorting, no filtering controls unless you've decided which tool they fire.
 
 Dead buttons are worse than no buttons. When in doubt, leave it out.
 
-Only the intents listed above exist. Any concept that isn't in the intent list does not exist — don't add controls that imply capabilities you don't have. When in doubt, route the user-visible action through the closest matching intent or drop the control.
+Only the tools listed above exist. Any concept that isn't in the tool list does not exist — don't add controls that imply tools you don't have. When in doubt, route the user-visible action through the closest matching tool or drop the control.
 
-Data resources expose host-owned loading/data/error state and may expose \`$alias.empty\` when the host declares an empty-state key. Use \`mount\` only for initial read-oriented loads granted by the resource; use \`submit\` for forms and \`click\` only when the resource grants a click trigger. Bind \`$alias.loading\` for busy UI, \`$alias.error\` for host errors, \`$alias.data\` for validated result data, and \`$alias.empty\` only for real no-results copy after a successful host result.
+Data resources expose host-owned loading/data/error state keys and may expose an empty-state key. Use \`mount\` only for initial read-oriented loads granted by the resource; use \`submit\` for forms and \`click\` only when the resource grants a click trigger. Mirror the listed loading key for busy UI, error key for host errors, data key for validated result data, and empty key only for real no-results copy after a successful host result.
 
-Default data is real host state. A data resource starts at \`{loading:false, data:defaultData ?? null, error:null, empty:false when declared}\`, and loading/error/invalid-result states keep the data value at \`defaultData ?? null\` with \`empty:false\`. Never hallucinate fetched rows, profiles, images, or counts before a successful data resource result. Wrap result UI in \`data-summon-show="$alias.data"\`; for arrays, put \`data-summon-foreach="$alias.data"\` on the result list so no rows render until the host data exists. Render "no results" from \`$alias.empty\`, not from missing or pre-load data.
+Default data is real host state. A data resource starts at \`{loading:false, data:defaultData ?? null, error:null, empty:false when declared}\`, and loading/error/invalid-result states keep the data value at \`defaultData ?? null\` with \`empty:false\`. Never hallucinate fetched rows, profiles, images, or counts before a successful data resource result. Render array rows from the host data key only after it exists. Render "no results" from the declared empty key, not from missing or pre-load data.
 
 Controlled actions expose host-owned pending/done/error keys when listed under Action state. Use \`pending\` to disable or mark the triggering control busy, show \`error\` as host failure text, and show \`done\` only for useful success confirmation. Do not fake completed, approved, or failed states in local markup.
 
 ### Initial state
 
-Action-owned state starts empty unless the host declares controlled action state, in which case pending/done/error start false/false/null. Data-resource lifecycle keys start from the default state described above. Render defensively: show an empty-state message only from declared empty state or a form before data exists, never placeholder fetched data. \`data-summon-show\` reads as falsy for missing keys, so wrapping action result UI in \`data-summon-show="<resultKey>"\` is a clean empty-state default.${patternsBlock}`;
+Action-owned state starts empty unless the host declares controlled action state, in which case pending/done/error start false/false/null. Data-resource lifecycle keys start from the default state described above. Render defensively: show an empty-state message only from declared empty state or a form before data exists, never placeholder fetched data.${patternsBlock}`;
 }
 
 export function buildComponentsBlock(pack: ComponentPack | null | undefined): string {
@@ -647,7 +724,7 @@ export function buildComponentsBlock(pack: ComponentPack | null | undefined): st
 
   return `## Component islands — host-rendered UI available
 
-The host has registered trusted UI components that can render above the sandbox as overlay islands. Use them only when they materially improve fidelity, such as charts, metrics, calendars, maps, data-dense controls, or product-native widgets. The freeform HTML/CSS you generate is still the composition layer around them.
+The host has registered trusted UI components that can render above the sandbox as overlay islands. Use them only when they materially improve fidelity, such as charts, metrics, calendars, maps, data-dense controls, or product-native widgets. The Arrow artifact you generate is still the composition layer around them.
 
 Component islands are placeholders inside your HTML. The host validates the component name and props, measures the placeholder, and renders the real component outside the sandbox. The sandbox cannot read or mutate the host-rendered component DOM.
 
@@ -675,18 +752,18 @@ Rules:
 - \`data-summon-props\` must be one valid JSON object matching the component's props schema.
 - Give the placeholder explicit visual space with CSS, usually \`height\`, \`min-height\`, or a grid track.
 - Do not nest component placeholders.
-- Do not use a component island for something ordinary HTML/CSS can express well.
-- Component islands do not grant new host actions. If the component needs durable host behavior, it must route through an already-granted intent or host-owned component code.
+- Do not use a component island for something your Arrow template and CSS can express well.
+- Component islands do not grant new host actions. If the component needs durable host behavior, it must route through an already-granted tool or host-owned component code.
 
-Props may include scoped values such as \`"$row.title"\` or \`"$resource.data"\` when the placeholder lives inside a foreach/resource scope; the sandbox resolves those before asking the host to render.${examplesBlock}`;
+If props depend on Arrow state, compute the JSON from Arrow with a quoted attribute expression such as \`data-summon-props="\${() => JSON.stringify({ value: state.revenue })}"\` and keep \`data-summon-component-id\` stable across renders.${examplesBlock}`;
 }
 
-function normalizeTriggers(intent: IntentSpec): CapabilityTrigger[] {
-  if (intent.triggers?.length) return intent.triggers;
-  return defaultTriggersForKind(intent.kind ?? 'action');
+function normalizeTriggers(tool: ToolSpec): ToolTrigger[] {
+  if (tool.triggers?.length) return tool.triggers;
+  return defaultTriggersForKind(tool.kind ?? 'action');
 }
 
-function formatStateKeys(keys: CapabilityStateKeys): string {
+function formatStateKeys(keys: ToolStateKeys): string {
   const parts: string[] = [];
   if (keys.loading) parts.push(`loading=${keys.loading}`);
   if (keys.data) parts.push(`data=${keys.data}`);
@@ -699,7 +776,7 @@ function formatActionStateKeys(keys: ActionStateKeys): string {
   return `pending=${keys.pending}, done=${keys.done}, error=${keys.error}`;
 }
 
-function formatSurface(surface: CapabilitySurface): string {
+function formatSurface(surface: ToolSurface): string {
   const parts: string[] = [];
   if (surface.data) parts.push(`data=${surface.data}`);
   if (surface.authority) parts.push(`authority=${surface.authority}`);
@@ -712,101 +789,3 @@ function formatComponentSurface(surface: ComponentSurface): string {
   if (surface.authority) parts.push(`authority=${surface.authority}`);
   return parts.length ? parts.join(', ') : 'embedded/none';
 }
-
-/**
- * Posture — the behavioral act the host wants this generation to perform.
- *
- * Postures are host-defined (not summon-defined): a consumer registers the
- * vocabulary appropriate to its surface (e.g. `tap` / `brief` / `detailed` /
- * `form` / `canvas` for a protector console). The LLM declares its chosen
- * posture on a `/posture` meta-line emitted before the `/screen` line. The
- * host enforces the contract — word counts, section counts, action counts,
- * regulated-capability gating — outside the engine.
- *
- * Posture is orthogonal to {@link Exemplar.shape}: shape describes the
- * visual template (article/card/comparison/tracker, classifier-driven);
- * posture describes the act (tap/brief/detailed, LLM-picked). One generation
- * has both.
- */
-export interface PostureContract {
-  /** Short name. Lowercase, kebab-case if multi-word. */
-  name: string;
-  /** One-sentence prose describing when the posture is appropriate.
-   *  Goes verbatim into the system prompt; write it like a stage direction
-   *  for the LLM, not API docs. */
-  description: string;
-  /** Hard cap on `/screen.sections.length`. Overrides the global "1 to 5"
-   *  guidance from `SUMMON_FIXED_INSTRUCTIONS` when the posture is active. */
-  maxSections?: number;
-  /** Hard cap on visible word count across the rendered artifact. Counted
-   *  by the host's stance policy (whitespace-tokenized, after strip-tags). */
-  maxWords?: number;
-  /** Hard cap on the number of clickable / submittable controls in the
-   *  artifact (i.e. elements wired to a granted intent). */
-  maxActions?: number;
-  /** Modality the artifact is composed for. `voice` implies an audio
-   *  affordance and is currently unsupported by the default sandbox CSP —
-   *  consumers wanting voice must relax `media-src` and ship audio control
-   *  intents themselves. */
-  modality?: 'text' | 'voice' | 'hybrid';
-  /** Whether this posture may carry capabilities flagged as regulated
-   *  (i.e. with `requiredDisclosures`). A `tap` typically can't — the
-   *  surface is too small for inherited disclosures — so the posture must
-   *  escalate. Enforcement lives in the host's stance policy. */
-  allowsRegulated?: boolean;
-}
-
-export interface PostureRegistry {
-  postures: PostureContract[];
-}
-
-/**
- * Build the postures system block. Drop into the system message as a
- * cacheable text block alongside `buildCapabilitiesBlock` — per-consumer
- * (registry-keyed), stable across requests with the same registry.
- *
- * Returns an empty string for an empty registry; callers can splice the
- * result unconditionally.
- */
-export function buildPosturesBlock(registry: PostureRegistry): string {
-  if (registry.postures.length === 0) return '';
-
-  const postureLines = registry.postures
-    .map((p) => {
-      const constraints: string[] = [];
-      if (p.maxSections !== undefined) constraints.push(`maxSections: ${p.maxSections}`);
-      if (p.maxWords !== undefined) constraints.push(`maxWords: ${p.maxWords}`);
-      if (p.maxActions !== undefined) constraints.push(`maxActions: ${p.maxActions}`);
-      if (p.modality !== undefined) constraints.push(`modality: ${p.modality}`);
-      if (p.allowsRegulated !== undefined)
-        constraints.push(`allowsRegulated: ${p.allowsRegulated}`);
-      const constraintLine = constraints.length > 0 ? ` _(${constraints.join(', ')})_` : '';
-      return `- **\`${p.name}\`** — ${p.description}${constraintLine}`;
-    })
-    .join('\n');
-
-  return `## Postures — declare yours first
-
-This generation runs in a host that defines a vocabulary of *postures*. A posture is the **act** the system is performing right now — a tap is not a brief is not a canvas. Pick the posture that fits the situation; staying inside its contract is mandatory.
-
-**Emit your posture as a required host meta prelude before the first structural \`/screen\` line:**
-
-\`\`\`
-{"op":"meta","path":"/posture","value":"<posture-name>"}
-\`\`\`
-
-Then emit the \`/screen\` line, then sections.
-
-**Per-posture \`maxSections\` supersedes the default "1 to 5" range** stated above. Do not exceed a posture's \`maxSections\` to "fit more in" — picking a wider posture (or violating the contract) is itself the failure. Wrong posture is the violation, not "too small."
-
-**Available postures:**
-
-${postureLines}
-
-Pick by situation, not by capability mix. A focused interruption is a tap even if you also have lending available; a planning conversation is a canvas even if a single proposal would technically work. The posture is the act; the capabilities are tools. Don't let the toolset pick the act.`;
-}
-
-/**
- * Legacy export — retained for any callers that haven't been migrated.
- */
-export const SUMMON_SYSTEM_PROMPT = SUMMON_FIXED_INSTRUCTIONS;

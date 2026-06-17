@@ -15,6 +15,5 @@ export async function runSurfaceGeneration(
     return session.finalize();
   }
   await session.consumeProvider();
-  await session.runQueuedRepairs();
   return session.finalize();
 }

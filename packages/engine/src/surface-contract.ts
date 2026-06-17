@@ -1,16 +1,15 @@
 import {
   defaultTriggersForKind,
   type ActionStateKeys,
-  type CapabilityKind,
-  type CapabilityStateKeys,
-  type CapabilityTrigger,
-} from './capability-contract.js';
+  type ToolKind,
+  type ToolStateKeys,
+  type ToolTrigger,
+} from './tool-contract.js';
 import type { ContractIssue } from './contracts.js';
 import type {
-  CapabilityPack,
+  ToolPack,
   ComponentPack,
   ComponentSizing,
-  ScriptPolicy,
   SummonLayout,
 } from './prompt.js';
 import {
@@ -31,17 +30,16 @@ export interface SurfaceContractSurface {
   policy: NormalizedSurfacePolicy;
   plan: SurfacePlan;
   mode: SurfacePlanMode;
-  scriptPolicy: ScriptPolicy;
 }
 
 export interface SurfaceContractTool {
   name: string;
-  kind: CapabilityKind;
+  kind: ToolKind;
   description: string;
-  triggers: CapabilityTrigger[];
+  triggers: ToolTrigger[];
   argsSchema: string;
   stateShape: string;
-  stateKeys?: CapabilityStateKeys;
+  stateKeys?: ToolStateKeys;
   actionStateKeys?: ActionStateKeys;
   resultSchema?: string;
   defaultDataShape?: string;
@@ -87,7 +85,7 @@ export function compileSurfaceContractView(
   options: CompileSurfaceContractViewOptions = {},
 ): SurfaceContractView {
   const compiled = compileSurfacePolicy(policy, {
-    capabilities: options.capabilities,
+    tools: options.tools,
     components: options.components,
   });
   return surfaceContractViewFromCompiledPolicy(compiled, options.layout ?? null);
@@ -102,36 +100,35 @@ export function surfaceContractViewFromCompiledPolicy(
       policy: compiledPolicy.policy,
       plan: compiledPolicy.surfacePlan,
       mode: compiledPolicy.mode,
-      scriptPolicy: compiledPolicy.scriptPolicy,
     },
-    tools: formatTools(compiledPolicy.capabilities),
+    tools: formatTools(compiledPolicy.tools),
     components: formatComponents(compiledPolicy.components),
     layout: formatLayout(layout ?? null),
     issues: compiledPolicy.issues,
   };
 }
 
-function formatTools(pack: CapabilityPack | null): SurfaceContractTool[] {
-  return (pack?.intents ?? []).map((intent) => {
-    const kind = intent.kind ?? 'action';
+function formatTools(pack: ToolPack | null): SurfaceContractTool[] {
+  return (pack?.tools ?? []).map((spec) => {
+    const kind = spec.kind ?? 'action';
     const tool: SurfaceContractTool = {
-      name: intent.name,
+      name: spec.name,
       kind,
-      description: intent.description,
-      triggers: intent.triggers?.length
-        ? [...intent.triggers]
+      description: spec.description,
+      triggers: spec.triggers?.length
+        ? [...spec.triggers]
         : defaultTriggersForKind(kind),
-      argsSchema: intent.argsSchema,
-      stateShape: intent.stateShape,
+      argsSchema: spec.argsSchema,
+      stateShape: spec.stateShape,
       surface: {
-        data: intent.surface?.data ?? (kind === 'resource' ? 'host-resource' : 'embedded'),
-        authority: intent.surface?.authority ?? (kind === 'resource' ? 'read' : 'host-action'),
+        data: spec.surface?.data ?? (kind === 'resource' ? 'host-resource' : 'embedded'),
+        authority: spec.surface?.authority ?? (kind === 'resource' ? 'read' : 'host-action'),
       },
     };
-    if (intent.stateKeys) tool.stateKeys = { ...intent.stateKeys };
-    if (intent.actionStateKeys) tool.actionStateKeys = { ...intent.actionStateKeys };
-    if (intent.resultSchema) tool.resultSchema = intent.resultSchema;
-    if (intent.defaultDataShape) tool.defaultDataShape = intent.defaultDataShape;
+    if (spec.stateKeys) tool.stateKeys = { ...spec.stateKeys };
+    if (spec.actionStateKeys) tool.actionStateKeys = { ...spec.actionStateKeys };
+    if (spec.resultSchema) tool.resultSchema = spec.resultSchema;
+    if (spec.defaultDataShape) tool.defaultDataShape = spec.defaultDataShape;
     return tool;
   });
 }

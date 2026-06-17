@@ -1,28 +1,12 @@
 /**
- * Streaming protocol. The LLM emits one JSON object per line; the accumulator
- * applies them to build up a section map that the host pushes into the sandbox.
+ * Arrow streaming protocol. The model emits one JSON object per line:
  *
- *   {"op":"add","path":"/section/header","html":"<h1>..."}
- *   {"op":"set","path":"/screen","value":{"sections":["header","content","footer"]}}
- *   {"op":"meta","path":"/template","value":"stack"}
+ *   {"op":"meta","path":"/status","value":"writing"}
+ *   {"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{...}}}
  *
- * "add" sets a section's HTML (overwrite on repeat).
- * "set /screen" declares section order (host uses a default if not emitted).
- * "meta" lines are informational; ignored by the accumulator.
+ * Surface UI is delivered exclusively as Arrow artifacts. Section, block, node,
+ * and raw HTML stream operations are no longer part of the protocol.
  */
-
-export interface AddLine {
-  op: 'add';
-  path: string;
-  html?: string;
-  parent?: string;
-}
-
-export interface SetLine {
-  op: 'set';
-  path: string;
-  value?: unknown;
-}
 
 export interface MetaLine {
   op: 'meta';
@@ -30,26 +14,15 @@ export interface MetaLine {
   value?: unknown;
 }
 
-export type ProtocolLine = AddLine | SetLine | MetaLine;
+export interface ArtifactLine {
+  op: 'artifact';
+  path: '/artifact';
+  value?: unknown;
+}
+
+export type ProtocolLine = MetaLine | ArtifactLine;
 
 export const SUMMON_PROTOCOL_VERSION = 1;
-
-export interface BlockTarget {
-  sectionId: string;
-  blockId: string;
-}
-
-export interface HtmlNodeTarget {
-  sectionId: string;
-  nodeId: string;
-}
-
-export interface HtmlNodePatch {
-  sectionId: string;
-  nodeId: string;
-  parentId?: string;
-  html: string;
-}
 
 export type ProtocolParseErrorCode =
   | 'empty'
@@ -57,8 +30,7 @@ export type ProtocolParseErrorCode =
   | 'malformed-json'
   | 'invalid-shape'
   | 'invalid-op'
-  | 'invalid-add-html'
-  | 'invalid-add-parent';
+  | 'invalid-artifact-path';
 
 export class ProtocolParseError extends Error {
   readonly code: ProtocolParseErrorCode;
@@ -109,16 +81,12 @@ export function parseProtocolLineStrict(
     throw new ProtocolParseError('invalid-shape', 'Protocol line must include string op and path');
   }
 
-  if (p.op === 'add') {
-    if (p.html !== undefined && typeof p.html !== 'string') {
-      throw new ProtocolParseError('invalid-add-html', 'Add line html must be a string');
+  if (p.op === 'artifact') {
+    if (p.path !== '/artifact') {
+      throw new ProtocolParseError('invalid-artifact-path', 'Artifact line path must be /artifact');
     }
-    if (p.parent !== undefined && typeof p.parent !== 'string') {
-      throw new ProtocolParseError('invalid-add-parent', 'Add line parent must be a string');
-    }
-    return p as unknown as AddLine;
+    return p as unknown as ArtifactLine;
   }
-  if (p.op === 'set') return p as unknown as SetLine;
   if (p.op === 'meta') return p as unknown as MetaLine;
   throw new ProtocolParseError('invalid-op', `Unsupported protocol op "${p.op}"`);
 }
@@ -135,52 +103,10 @@ export function isProtocolLine(value: unknown): value is ProtocolLine {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const p = value as Record<string, unknown>;
   if (typeof p.op !== 'string' || typeof p.path !== 'string') return false;
-  if (p.op === 'add') {
-    return (
-      (p.html === undefined || typeof p.html === 'string') &&
-      (p.parent === undefined || typeof p.parent === 'string')
-    );
-  }
-  return p.op === 'set' || p.op === 'meta';
+  if (p.op === 'artifact') return p.path === '/artifact';
+  return p.op === 'meta';
 }
 
 function byteLength(value: string): number {
   return new TextEncoder().encode(value).length;
-}
-
-export function sectionIdFromSectionPath(path: string): string | null {
-  if (!path.startsWith('/section/')) return null;
-  const suffix = path.slice('/section/'.length);
-  if (!suffix || suffix.includes('/')) return null;
-  return suffix;
-}
-
-export function blockTargetFromPath(path: string): BlockTarget | null {
-  if (!path.startsWith('/section/')) return null;
-  const parts = path.slice('/section/'.length).split('/');
-  if (parts.length !== 3 || parts[1] !== 'block') return null;
-  const [sectionId, , blockId] = parts;
-  if (!sectionId || !blockId) return null;
-  return { sectionId, blockId };
-}
-
-export function htmlNodeTargetFromPath(path: string): HtmlNodeTarget | null {
-  if (!path.startsWith('/section/')) return null;
-  const parts = path.slice('/section/'.length).split('/');
-  if (parts.length !== 3 || parts[1] !== 'node') return null;
-  const [sectionId, , nodeId] = parts;
-  if (!sectionId || !nodeId) return null;
-  return { sectionId, nodeId };
-}
-
-export function htmlNodePatchFromLine(line: ProtocolLine): HtmlNodePatch | null {
-  if (line.op !== 'add') return null;
-  const target = htmlNodeTargetFromPath(line.path);
-  if (!target) return null;
-  return {
-    sectionId: target.sectionId,
-    nodeId: target.nodeId,
-    ...(line.parent ? { parentId: line.parent } : {}),
-    html: line.html ?? '',
-  };
 }

@@ -55,7 +55,7 @@ export function ScenarioRail({
                   <span className="text-[15px] font-semibold text-ink">{scenario.label}</span>
                   <span className="text-[13px] leading-[1.35] text-ink-soft">{presentation.description}</span>
                   <span className="font-mono text-[10px] leading-[1.4] text-ink-muted">
-                    {compactPlanText(scenario.surfacePlan)} · {scenario.capabilityNames.length} host tools{componentCount ? ` · ${componentCount} components` : ''}
+                    {compactPlanText(scenario.surfacePlan)} · {scenario.toolNames.length} host tools{componentCount ? ` · ${componentCount} components` : ''}
                   </span>
                 </button>
               );

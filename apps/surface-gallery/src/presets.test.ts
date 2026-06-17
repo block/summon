@@ -7,12 +7,12 @@ import {
   compileSurfacePolicy,
   normalizeSurfacePolicy,
 } from '@anarchitecture/summon';
-import { allGalleryCapabilityNames, createGalleryCapabilityRegistry } from './capabilities.js';
+import { allGalleryToolNames, createGalleryToolRegistry } from './tools.js';
 import { allGalleryComponentNames, createGalleryComponentRegistry } from './components.js';
 import { GALLERY_PRESETS } from './presets.js';
 
 test('gallery presets are explicit, valid, and policy-complete', () => {
-  const capabilityNames = new Set(allGalleryCapabilityNames());
+  const toolNames = new Set(allGalleryToolNames());
   const componentNames = new Set(allGalleryComponentNames());
   const seen = new Set<string>();
   const requiredIds = [
@@ -41,20 +41,20 @@ test('gallery presets are explicit, valid, and policy-complete', () => {
       persistence: preset.surfacePolicy.persistence ?? 'replayable',
     });
 
-    for (const capability of preset.surfacePolicy.grants ?? []) {
-      assert.equal(capabilityNames.has(capability), true, `${preset.id} references unknown capability ${capability}`);
+    for (const tool of preset.surfacePolicy.grants ?? []) {
+      assert.equal(toolNames.has(tool), true, `${preset.id} references unknown tool ${tool}`);
     }
     for (const component of preset.surfacePolicy.components ?? []) {
       assert.equal(componentNames.has(component), true, `${preset.id} references unknown component ${component}`);
     }
 
     const compiled = compileSurfacePolicy(preset.surfacePolicy, {
-      capabilities: createGalleryCapabilityRegistry().toContract().pack,
+      tools: createGalleryToolRegistry().toContract().pack,
       components: createGalleryComponentRegistry().toContract().pack,
     });
     assert.deepEqual(compiled.issues, []);
     assert.deepEqual(
-      compiled.capabilities?.intents.map((intent) => intent.name) ?? [],
+      compiled.tools?.tools.map((tool) => tool.name) ?? [],
       preset.surfacePolicy.grants ?? [],
     );
     assert.deepEqual(

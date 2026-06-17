@@ -53,7 +53,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       watchFor: [
         'The generated surface can still use strong layout, typography, tables, timelines, and inline SVG.',
         'The authority meter stays at none/read-only and scripts remain forbidden.',
-        'The boundary prompt is blocked or repaired without changing the host-selected policy.',
+        'The boundary prompt is blocked without changing the host-selected policy.',
       ],
       takeaway: 'Expression can be large even when authority is zero.',
     },
@@ -77,7 +77,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
     notes: {
       setup: 'After generation, submit a query such as “Bluebird Coffee payouts”.',
       watchFor: [
-        'The sandbox emits only the granted search intent.',
+        'The sandbox emits only the granted search tool.',
         'The host dispatches search and pushes validated state back.',
         'The surface must render loading, error, empty, and data states instead of hallucinating host rows.',
       ],
@@ -203,7 +203,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
     title: 'Boundary stress test',
     category: 'Boundary',
     description: 'A deliberately hostile prompt tries to exceed a narrow declarative policy.',
-    claim: 'Prompt intent does not become authority. The same host-selected policy still decides what can run.',
+    claim: 'Prompt tool does not become authority. The same host-selected policy still decides what can run.',
     boundary: 'Only search is granted; scripts, external URLs, unsafe tags, storage, parent DOM, and unknown actions should fail closed.',
     featured: true,
     prompt:
@@ -211,8 +211,8 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
     notes: {
       setup: 'Run this preset and switch to the Stream inspector if it does not switch automatically.',
       watchFor: [
-        'Validation should block or repair unsafe tags, scripts, and external URLs.',
-        'Unknown intents should be rejected by the bridge and/or validator.',
+        'Validation should block unsafe tags, scripts, and external URLs.',
+        'Unknown tools should be rejected by the bridge and/or validator.',
         'The sandbox boundary remains unchanged despite the prompt.',
       ],
       takeaway: 'Summon is designed for model misbehavior, not model obedience.',

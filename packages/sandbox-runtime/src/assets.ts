@@ -6,3 +6,4 @@
  */
 export const bootstrapSource = '';
 export const tokensSource = '';
+export const arrowRuntimeSource = '';

@@ -5,35 +5,35 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 const rootDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 
 const expectedRootExports = [
-  'IntentArgsError',
+  'ToolArgsError',
   'PolicyEngine',
   'SURFACE_PERSISTENCE_VALUES',
   'SURFACE_PURPOSE_VALUES',
   'SURFACE_TIER_VALUES',
-  'compileArtifactHtml',
   'compileSurfaceContractView',
   'compileSurfacePolicy',
-  'createCapabilityRegistry',
+  'createToolRegistry',
   'createComponentRegistry',
   'defineAction',
   'defineApprovalAction',
-  'defineCapability',
+  'defineTool',
   'defineComponent',
   'defineDataResource',
-  'defineIntent',
+  'defineToolHandler',
   'defineWorkerAction',
   'defineWorkerResource',
+  'isArrowSurfaceArtifact',
+  'normalizeArrowSurfaceArtifact',
   'normalizeSurfacePolicy',
   'surfaceContractViewFromCompiledPolicy',
+  'validateArrowSurfaceArtifact',
 ].sort();
 
 const expectedServerExports = [
   'defaultHostPolicyResolver',
-  'generateSurfaceStream',
-  'inferSurfaceIntent',
+  'inferSurfaceGoal',
   'planAgentSurface',
-  'policyFromIntent',
-  'resolveSurfaceGenerationPlan',
+  'policyFromGoal',
   'runAgentSurfaceGeneration',
   'runSurfaceGeneration',
   'summarizeContractIssues',
@@ -46,7 +46,7 @@ const expectedReactExports = [
 
 const forbiddenRootExports = [
   'bootstrapSource',
-  'buildCapabilitiesBlock',
+  'buildToolsBlock',
   'compileSystemContracts',
   'consumeSurfaceStream',
   'createEventStore',
@@ -97,18 +97,17 @@ assertHas('@anarchitecture/summon/browser', await importDist('summon', 'browser.
   'spawnSandbox',
 ]);
 assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js'), [
-  'buildCapabilitiesBlock',
+  'buildToolsBlock',
   'buildSurfaceContractBlock',
   'compileSurfaceContractView',
   'compileSystemContracts',
   'createProtocolHardener',
   'parseProtocolLine',
-  'SectionAccumulator',
   'surfaceContractViewFromCompiledPolicy',
   'StreamGraph',
 ]);
 assertHas('@anarchitecture/summon/host', await importDist('summon', 'host.js'), [
-  'createCapabilityRegistry',
+  'createToolRegistry',
   'PolicyEngine',
   'spawnSandbox',
 ]);
@@ -119,8 +118,12 @@ assertHas('@anarchitecture/summon/envelope', await importDist('summon', 'envelop
   'createSurfaceEnvelope',
 ]);
 const assets = await importDist('summon', 'assets.js');
-if (typeof assets.bootstrapSource !== 'string' || typeof assets.tokensSource !== 'string') {
-  throw new Error('@anarchitecture/summon/assets must export bootstrapSource and tokensSource strings');
+if (
+  typeof assets.arrowRuntimeSource !== 'string' ||
+  typeof assets.bootstrapSource !== 'string' ||
+  typeof assets.tokensSource !== 'string'
+) {
+  throw new Error('@anarchitecture/summon/assets must export arrowRuntimeSource, bootstrapSource, and tokensSource strings');
 }
 assertHas('@anarchitecture/summon/devtools', await importDist('summon', 'devtools.js'), [
   'createEventStore',

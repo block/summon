@@ -1,6 +1,6 @@
 import {
   compileTokenContract,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
   type ProtocolLine,
   type SurfacePlan,
@@ -89,7 +89,7 @@ export interface GhostSurfacePromptOptions {
   mode: 'static' | 'interactive';
   surfacePlan: SurfacePlan;
   shape?: string | null;
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   components?: ComponentPack | null;
 }
 
@@ -123,8 +123,8 @@ export interface GhostReviewPacket {
     warnings: number;
     codes: Record<string, number>;
   };
-  declaredSections: string[];
-  sections: Array<{ id: string; html: string }>;
+  artifactRuntime: 'arrow' | null;
+  artifactFiles: string[];
 }
 
 export type ParseGhostRequestResult =
@@ -319,12 +319,7 @@ export function buildGhostReviewPacket(input: {
   acceptedLines: ProtocolLine[];
   prompt: string;
 }): GhostReviewPacket {
-  const declaredSections = declaredSectionsFromLines(input.acceptedLines);
-  const sectionsById = new Map<string, string>();
-  for (const line of input.acceptedLines) {
-    if (line.op !== 'add' || !line.path.startsWith('/section/')) continue;
-    sectionsById.set(line.path.slice('/section/'.length), line.html ?? '');
-  }
+  const artifactFiles = artifactFilesFromLines(input.acceptedLines);
   return {
     schema: 'summon.ghost-fingerprint-generation/v1',
     source: input.context.source,
@@ -346,8 +341,8 @@ export function buildGhostReviewPacket(input: {
     mode: input.mode,
     layoutId: input.layoutId,
     validation: input.validation,
-    declaredSections,
-    sections: [...sectionsById.entries()].map(([id, html]) => ({ id, html })),
+    artifactRuntime: artifactFiles.length > 0 ? 'arrow' : null,
+    artifactFiles,
   };
 }
 
@@ -355,7 +350,7 @@ function buildSummonFingerprintSurfaceBrief(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): string {
-  const capabilityNames = options.capabilities?.intents.map((intent) => intent.name) ?? [];
+  const toolNames = options.tools?.tools.map((tool) => tool.name) ?? [];
   const componentNames = options.components?.components.map((component) => component.name) ?? [];
   const details = [
     `Product: ${context.product}`,
@@ -364,7 +359,7 @@ function buildSummonFingerprintSurfaceBrief(
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
     `Mode: ${options.mode}`,
     options.shape ? `Response shape hint: ${options.shape}` : null,
-    capabilityNames.length > 0 ? `Granted host capabilities: ${capabilityNames.join(', ')}` : 'Granted host capabilities: none',
+    toolNames.length > 0 ? `Granted host tools: ${toolNames.join(', ')}` : 'Granted host tools: none',
     componentNames.length > 0 ? `Granted host components: ${componentNames.join(', ')}` : null,
   ].filter((line): line is string => Boolean(line));
 
@@ -377,9 +372,9 @@ function buildSummonFingerprintSurfaceBrief(
     '',
     'Generation rules:',
     '',
-    '- Compose from the fingerprint prose, inventory, and composition layers. Prose states intent; inventory supplies material and evidence; composition supplies reusable surface patterns.',
-    '- Do not imitate Ghost UI as a visual style. Use inventory examples only when they support the selected intent and composition pattern.',
-    '- The agent broker controls host authority and capabilities. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
+    '- Compose from the fingerprint prose, inventory, and composition layers. Prose states tool; inventory supplies material and evidence; composition supplies reusable surface patterns.',
+    '- Do not imitate Ghost UI as a visual style. Use inventory examples only when they support the selected tool and composition pattern.',
+    '- The agent broker controls host authority and tools. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
     '- Treat checks as validation constraints, not as content to render.',
   ].join('\n');
 }
@@ -576,13 +571,15 @@ function normalizeTargetPath(raw: unknown):
   return { ok: true, path: segments.join('/') };
 }
 
-function declaredSectionsFromLines(lines: ProtocolLine[]): string[] {
+function artifactFilesFromLines(lines: ProtocolLine[]): string[] {
   for (let index = lines.length - 1; index >= 0; index--) {
     const line = lines[index];
-    if (line?.op !== 'set' || line.path !== '/screen') continue;
-    const value = line.value as { sections?: unknown } | undefined;
-    if (!value || !Array.isArray(value.sections)) continue;
-    return value.sections.filter((section): section is string => typeof section === 'string');
+    if (line?.op !== 'artifact') continue;
+    const value = line.value as { runtime?: unknown; source?: unknown } | undefined;
+    if (value?.runtime !== 'arrow' || !value.source || typeof value.source !== 'object' || Array.isArray(value.source)) {
+      continue;
+    }
+    return Object.keys(value.source).sort();
   }
   return [];
 }

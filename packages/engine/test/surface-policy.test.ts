@@ -3,12 +3,12 @@ import test from 'node:test';
 import {
   compileSurfacePolicy,
   normalizeSurfacePolicy,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
 } from '../src/index.ts';
 
-const capabilities: CapabilityPack = {
-  intents: [
+const tools: ToolPack = {
+  tools: [
     {
       name: 'search',
       description: 'Search host data',
@@ -51,8 +51,8 @@ const capabilities: CapabilityPack = {
     },
   ],
   patterns: [
-    { name: 'Search', code: '<form data-summon-resource="search"></form>', intent: 'search' },
-    { name: 'Choose', code: '<button data-summon-on-click="choose"></button>', intent: 'choose' },
+    { name: 'Search', code: 'import { callTool } from "host-bridge:summon";\nconst search = (query: string) => callTool("search", { query });', tool: 'search' },
+    { name: 'Choose', code: 'import { callTool } from "host-bridge:summon";\nconst choose = () => callTool("choose", {});', tool: 'choose' },
   ],
 };
 
@@ -89,20 +89,20 @@ test('normalizes defaults and dedupes policy names', () => {
 
 test('compiles static policy to static embedded plan with no packs', () => {
   const compiled = compileSurfacePolicy({ tier: 'static', purpose: 'compare' }, {
-    capabilities,
+    tools,
     components,
   });
   assert.deepEqual(compiled.issues, []);
   assert.equal(compiled.mode, 'static');
-  assert.equal(compiled.scriptPolicy, 'forbid');
-  assert.equal(compiled.capabilities, null);
+  assert.equal(compiled.tools, null);
   assert.equal(compiled.components, null);
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'compare',
-    runtime: 'static',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
@@ -112,19 +112,19 @@ test('compiles declarative policy and narrows grants, components, and patterns',
     purpose: 'explore',
     grants: ['search', 'choose'],
     components: ['MetricCard'],
-  }, { capabilities, components });
+  }, { tools, components });
   assert.deepEqual(compiled.issues, []);
   assert.equal(compiled.mode, 'interactive');
-  assert.equal(compiled.scriptPolicy, 'forbid');
-  assert.deepEqual(compiled.capabilities?.intents.map((intent) => intent.name), ['search', 'choose']);
-  assert.deepEqual(compiled.capabilities?.patterns?.map((pattern) => pattern.intent), ['search', 'choose']);
+  assert.deepEqual(compiled.tools?.tools.map((tool) => tool.name), ['search', 'choose']);
+  assert.deepEqual(compiled.tools?.patterns?.map((pattern) => pattern.tool), ['search', 'choose']);
   assert.deepEqual(compiled.components?.components.map((component) => component.name), ['MetricCard']);
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'explore',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'host-resource',
     authority: 'host-action',
     persistence: 'replayable',
+    network: 'none',
   });
 });
 
@@ -132,11 +132,10 @@ test('rejects removed scripted policy tier', () => {
   const compiled = compileSurfacePolicy({
     tier: 'scripted',
     grants: ['choose'],
-  } as never, { capabilities });
+  } as never, { tools });
   assert.deepEqual(compiled.issues.map((issue) => issue.code), ['surface-policy-invalid']);
   assert.equal(compiled.mode, 'static');
-  assert.equal(compiled.scriptPolicy, 'forbid');
-  assert.equal(compiled.surfacePlan.runtime, 'static');
+  assert.equal(compiled.surfacePlan.runtime, 'arrow');
 });
 
 test('compiles worker policy and requires worker-backed surface area', () => {
@@ -144,17 +143,18 @@ test('compiles worker policy and requires worker-backed surface area', () => {
     tier: 'worker',
     purpose: 'review',
     grants: ['analysis', 'compute'],
-  }, { capabilities });
+  }, { tools });
   assert.deepEqual(compiled.issues, []);
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'review',
-    runtime: 'worker',
+    runtime: 'arrow',
     data: 'worker',
     authority: 'host-action',
     persistence: 'replayable',
+    network: 'none',
   });
 
-  const missing = compileSurfacePolicy({ tier: 'worker' }, { capabilities });
+  const missing = compileSurfacePolicy({ tier: 'worker' }, { tools });
   assert.deepEqual(missing.issues.map((issue) => issue.code), ['surface-policy-tier-requirement']);
 });
 
@@ -163,18 +163,18 @@ test('compiles approval policy and requires approval-gated grant', () => {
     tier: 'approval',
     purpose: 'operate',
     grants: ['publish'],
-  }, { capabilities });
+  }, { tools });
   assert.deepEqual(compiled.issues, []);
-  assert.equal(compiled.scriptPolicy, 'forbid');
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'operate',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'approval-gated',
     persistence: 'replayable',
+    network: 'none',
   });
 
-  const missing = compileSurfacePolicy({ tier: 'approval', grants: ['choose'] }, { capabilities });
+  const missing = compileSurfacePolicy({ tier: 'approval', grants: ['choose'] }, { tools });
   assert.deepEqual(missing.issues.map((issue) => issue.code), [
     'surface-policy-tier-exceeded',
     'surface-policy-tier-requirement',
@@ -186,7 +186,7 @@ test('blocks unknown names and tier-exceeded grants/components', () => {
     tier: 'declarative',
     grants: ['missing', 'analysis', 'publish'],
     components: ['MissingComponent', 'WorkerChart'],
-  }, { capabilities, components });
+  }, { tools, components });
   assert.deepEqual(compiled.issues.map((issue) => issue.code), [
     'surface-policy-unknown-grant',
     'surface-policy-tier-exceeded',

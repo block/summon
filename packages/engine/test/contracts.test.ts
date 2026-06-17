@@ -6,19 +6,17 @@ import {
   compileSurfaceContractView,
   compileSystemContracts,
   compileTokenContract,
-  deriveSurfacePlanControls,
   inferSurfacePlan,
   normalizeSurfacePlan,
   suggestSurfacePlan,
   SUMMON_FIXED_INSTRUCTIONS,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
+  SURFACE_NETWORK_VALUES,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
-  SURFACE_RUNTIME_VALUES,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
-  type SurfacePlan,
   type SummonLayout,
 } from '../src/index.ts';
 
@@ -27,11 +25,11 @@ const defaultTokens = readFileSync(
   'utf-8',
 );
 
-test('fixed prompt describes skeleton-first progressive rendering', () => {
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Progressive rendering contract/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /placeholder `add \/section\/<id>`/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /later accepted `add` lines for the same section as replacements/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /complete, validated JSONL protocol lines/);
+test('fixed prompt describes Arrow-only artifact output', () => {
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Output protocol — Arrow JSONL only/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /"op":"artifact"/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /"runtime":"arrow"/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Do not emit `set \/screen`, `add \/section\/\*`/);
 });
 
 test('token compiler emits prompt vocabulary and validates from the token contract', () => {
@@ -126,8 +124,8 @@ test('system compiler returns deterministic prompt block order and validation co
       { id: 'details', purpose: 'Supporting facts' },
     ],
   };
-  const capabilities: CapabilityPack = {
-    intents: [
+  const tools: ToolPack = {
+    tools: [
       {
         name: 'choose',
         description: 'Pick an option.',
@@ -153,10 +151,8 @@ test('system compiler returns deterministic prompt block order and validation co
       product: 'Ghost Product',
     },
     layout,
-    editBlock: 'Edit block.',
-    capabilities,
+    tools,
     tokenOverrides: [{ token: 'color-accent', baseValue: 'blue', newValue: 'red' }],
-    postures: { postures: [{ name: 'brief', description: 'Short response.' }] },
   });
 
   assert.deepEqual(
@@ -166,23 +162,14 @@ test('system compiler returns deterministic prompt block order and validation co
       'direction:demo',
       'ghost',
       'layout:two-slot',
-      'edit',
-      'capabilities',
+      'tools',
       'token-overrides',
-      'postures',
     ],
   );
   assert.equal(compiled.validationContext.mode, 'interactive');
-  assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
-  assert.deepEqual([...(compiled.validationContext.allowedIntents ?? [])], ['choose']);
+  assert.deepEqual([...(compiled.validationContext.allowedTools ?? [])], ['choose']);
   assert.equal(compiled.validationContext.definedTokens?.has('color-bg'), true);
-  assert.deepEqual(compiled.startupLines, [
-    {
-      op: 'set',
-      path: '/screen',
-      value: { sections: ['summary', 'details'] },
-    },
-  ]);
+  assert.deepEqual(compiled.startupLines, []);
 });
 
 test('system compiler includes a host-owned surface plan block', () => {
@@ -190,13 +177,14 @@ test('system compiler includes a host-owned surface plan block', () => {
     mode: 'interactive',
     surfacePlan: {
       purpose: 'explore',
-      runtime: 'declarative',
+      runtime: 'arrow',
       data: 'host-resource',
       authority: 'read',
       persistence: 'replayable',
+      network: 'none',
     },
-    capabilities: {
-      intents: [
+    tools: {
+      tools: [
         {
           name: 'search',
           description: 'Search host data.',
@@ -212,15 +200,15 @@ test('system compiler includes a host-owned surface plan block', () => {
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'surface-plan', 'capabilities'],
+    ['fixed', 'surface-plan', 'tools'],
   );
-  assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
   assert.deepEqual(compiled.validationContext.surfacePlan, {
     purpose: 'explore',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'host-resource',
     authority: 'read',
     persistence: 'replayable',
+    network: 'none',
   });
   const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-plan');
   assert.match(surfaceBlock?.text ?? '', /host-owned runtime contract/);
@@ -228,8 +216,8 @@ test('system compiler includes a host-owned surface plan block', () => {
 });
 
 test('system compiler includes compact surface contract view without dropping detail blocks', () => {
-  const capabilities: CapabilityPack = {
-    intents: [
+  const tools: ToolPack = {
+    tools: [
       {
         name: 'search',
         description: 'Search host data.',
@@ -258,27 +246,26 @@ test('system compiler includes compact surface contract view without dropping de
     purpose: 'explore',
     grants: ['search'],
     components: ['MetricCard'],
-  }, { capabilities, components });
+  }, { tools, components });
   const compiled = compileSystemContracts({
     mode: surfaceContract.surface.mode,
     surfaceContract,
-    capabilities: surfaceContract.tools.length ? capabilities : null,
+    tools: surfaceContract.tools.length ? tools : null,
     components,
-    scriptPolicy: surfaceContract.surface.scriptPolicy,
   });
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'surface-contract', 'capabilities', 'components'],
+    ['fixed', 'surface-contract', 'tools', 'components'],
   );
   const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-contract');
   assert.match(surfaceBlock?.text ?? '', /compact, read-only view/);
-  assert.match(surfaceBlock?.text ?? '', /freeform HTML\/CSS/);
+  assert.match(surfaceBlock?.text ?? '', /Arrow/);
   assert.match(surfaceBlock?.text ?? '', /Do not emit `\/surface-contract`, `\/surface-policy`, or `\/surface-plan`/);
   assert.match(surfaceBlock?.text ?? '', /`search` \(resource\)/);
   assert.match(surfaceBlock?.text ?? '', /`MetricCard`/);
   assert.equal(compiled.promptBlocks.some((block) => block.id === 'surface-plan'), false);
-  assert.match(compiled.promptBlocks.find((block) => block.id === 'capabilities')?.text ?? '', /Available data resources/);
+  assert.match(compiled.promptBlocks.find((block) => block.id === 'tools')?.text ?? '', /Available data resources/);
   assert.match(compiled.promptBlocks.find((block) => block.id === 'components')?.text ?? '', /Component islands/);
   assert.deepEqual(compiled.validationContext.surfacePlan, surfaceContract.surface.plan);
 });
@@ -286,24 +273,24 @@ test('system compiler includes compact surface contract view without dropping de
 test('surface plan normalization and suggestions are stable', () => {
   assert.deepEqual(normalizeSurfacePlan({
     purpose: 'operate',
-    runtime: 'worker',
+    runtime: 'arrow',
     data: 'worker',
     authority: 'approval-gated',
     persistence: 'replayable',
   }), {
     purpose: 'operate',
-    runtime: 'worker',
+    runtime: 'arrow',
     data: 'worker',
     authority: 'approval-gated',
     persistence: 'replayable',
+    network: 'none',
   });
 
   const suggestion = suggestSurfacePlan({
     prompt: 'compare payment plans and help me pick one',
     mode: 'interactive',
-    scriptPolicy: 'forbid',
-    capabilities: {
-      intents: [
+    tools: {
+      tools: [
         {
           name: 'choose',
           description: 'Choose.',
@@ -317,17 +304,17 @@ test('surface plan normalization and suggestions are stable', () => {
 
   assert.deepEqual(suggestion, {
     purpose: 'compare',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'host-action',
     persistence: 'replayable',
+    network: 'none',
   });
   assert.deepEqual(inferSurfacePlan({
     prompt: 'compare payment plans and help me pick one',
     mode: 'interactive',
-    scriptPolicy: 'forbid',
-    capabilities: {
-      intents: [
+    tools: {
+      tools: [
         {
           name: 'choose',
           description: 'Choose.',
@@ -340,7 +327,7 @@ test('surface plan normalization and suggestions are stable', () => {
   }), suggestion);
 });
 
-test('surface plan host control helpers expose values and derive defaults', () => {
+test('surface plan host diagnostics expose Arrow-only values', () => {
   assert.deepEqual([...SURFACE_PURPOSE_VALUES], [
     'inform',
     'compare',
@@ -349,11 +336,6 @@ test('surface plan host control helpers expose values and derive defaults', () =
     'operate',
     'review',
     'export',
-  ]);
-  assert.deepEqual([...SURFACE_RUNTIME_VALUES], [
-    'static',
-    'declarative',
-    'worker',
   ]);
   assert.deepEqual([...SURFACE_DATA_VALUES], [
     'embedded',
@@ -370,26 +352,10 @@ test('surface plan host control helpers expose values and derive defaults', () =
     'ephemeral',
     'replayable',
   ]);
-
-  const base: Omit<SurfacePlan, 'runtime'> = {
-    purpose: 'explore',
-    data: 'embedded',
-    authority: 'none',
-    persistence: 'replayable',
-  };
-
-  assert.deepEqual(deriveSurfacePlanControls({ ...base, runtime: 'static' }), {
-    mode: 'static',
-    scriptPolicy: 'forbid',
-  });
-  assert.deepEqual(deriveSurfacePlanControls({ ...base, runtime: 'declarative' }), {
-    mode: 'interactive',
-    scriptPolicy: 'forbid',
-  });
-  assert.deepEqual(deriveSurfacePlanControls({ ...base, runtime: 'worker' }), {
-    mode: 'interactive',
-    scriptPolicy: 'forbid',
-  });
+  assert.deepEqual([...SURFACE_NETWORK_VALUES], [
+    'none',
+    'restricted-fetch',
+  ]);
 });
 
 test('system compiler validates against explicit active tokens when direction is layered', () => {
@@ -416,12 +382,11 @@ test('system compiler validates against explicit active tokens when direction is
   assert.equal(compiled.validationContext.definedTokens?.has('ghost-config-only'), true);
 });
 
-test('system compiler can produce declarative-only interactive contracts', () => {
+test('system compiler can produce Arrow-native interactive contracts', () => {
   const compiled = compileSystemContracts({
     mode: 'interactive',
-    scriptPolicy: 'forbid',
-    capabilities: {
-      intents: [
+    tools: {
+      tools: [
         {
           name: 'choose',
           description: 'Pick an option.',
@@ -436,86 +401,23 @@ test('system compiler can produce declarative-only interactive contracts', () =>
           code: '<button id="x">Pick</button><script>document.getElementById("x")?.addEventListener("click", () => sandbox.emit("choose", {option:"A"}))</script>',
         },
         {
-          name: 'declarative pattern',
+          name: 'legacy declarative pattern',
           code: '<button data-summon-on-click="choose" data-summon-args=\'{"option":"A"}\'>Pick</button>',
         },
-      ],
-    },
-  });
-
-  assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
-  const capabilitiesBlock = compiled.promptBlocks.find((block) => block.id === 'capabilities');
-  assert.match(capabilitiesBlock?.text ?? '', /Declarative-only interactivity/);
-  assert.match(capabilitiesBlock?.text ?? '', /Do not emit `<script>` tags/);
-  assert.doesNotMatch(capabilitiesBlock?.text ?? '', /document\.getElementById/);
-  assert.match(capabilitiesBlock?.text ?? '', /data-summon-on-click="choose"/);
-});
-
-test('system compiler rejects removed script policy allow', () => {
-  const missingPlan = compileSystemContracts({
-    mode: 'interactive',
-    scriptPolicy: 'allow',
-    capabilities: {
-      intents: [
         {
-          name: 'choose',
-          description: 'Pick an option.',
-          argsSchema: '{option: string}',
-          stateShape: '{lastChoice: string}',
-          triggers: ['click'],
+          name: 'arrow pattern',
+          code: 'import { callTool } from "host-bridge:summon";\nconst choose = () => callTool("choose", { option: "A" });',
         },
       ],
     },
   });
 
-  assert.equal(missingPlan.validationContext.scriptPolicy, 'forbid');
-  assert.ok(missingPlan.issues.some((issue) =>
-    issue.code === 'surface-script-policy-removed'
-  ));
-
-  const declarativePlan = compileSystemContracts({
-    mode: 'interactive',
-    scriptPolicy: 'allow',
-    surfacePlan: {
-      purpose: 'explore',
-      runtime: 'declarative',
-      data: 'embedded',
-      authority: 'host-action',
-      persistence: 'replayable',
-    },
-  });
-
-  assert.ok(declarativePlan.issues.some((issue) =>
-    issue.code === 'surface-script-policy-removed'
-  ));
-});
-
-test('system compiler rejects legacy scripted surface plan with script policy allow', () => {
-  const compiled = compileSystemContracts({
-    mode: 'interactive',
-    scriptPolicy: 'allow',
-    surfacePlan: {
-      purpose: 'explore',
-      runtime: 'scripted',
-      data: 'embedded',
-      authority: 'host-action',
-      persistence: 'replayable',
-    } as never,
-    capabilities: {
-      intents: [
-        {
-          name: 'choose',
-          description: 'Pick an option.',
-          argsSchema: '{option: string}',
-          stateShape: '{lastChoice: string}',
-          triggers: ['click'],
-        },
-      ],
-    },
-  });
-
-  assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
-  assert.equal(compiled.issues.some((issue) => issue.code === 'surface-script-policy-removed'), true);
-  const capabilitiesBlock = compiled.promptBlocks.find((block) => block.id === 'capabilities');
-  assert.match(capabilitiesBlock?.text ?? '', /Script policy — declarative only/);
+  const toolsBlock = compiled.promptBlocks.find((block) => block.id === 'tools');
+  assert.match(toolsBlock?.text ?? '', /Arrow-native interactivity/);
+  assert.match(toolsBlock?.text ?? '', /host-bridge:summon/);
+  assert.match(toolsBlock?.text ?? '', /onState/);
+  assert.match(toolsBlock?.text ?? '', /Do not emit `<script>` tags/);
+  assert.doesNotMatch(toolsBlock?.text ?? '', /document\.getElementById/);
+  assert.doesNotMatch(toolsBlock?.text ?? '', /data-summon-on-click="choose"/);
+  assert.match(toolsBlock?.text ?? '', /arrow pattern/);
 });

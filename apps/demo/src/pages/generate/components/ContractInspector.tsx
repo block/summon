@@ -2,10 +2,9 @@ import type { Dispatch, SetStateAction } from 'react';
 import {
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
+  SURFACE_NETWORK_VALUES,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
-  SURFACE_RUNTIME_VALUES,
-  type ScriptPolicy,
   type SurfaceContractView,
   type SurfacePlan,
 } from '@anarchitecture/summon/engine';
@@ -18,7 +17,6 @@ import {
 } from '../surfaceHelpers.js';
 import type {
   DirectionInfo,
-  FragmentMode,
   GhostRootInfo,
   ModelCatalogEntry,
   ModelProviderInfo,
@@ -45,8 +43,6 @@ export function ContractInspector({
   setUtilityModel,
   maxOutputTokens,
   setMaxOutputTokens,
-  repairMaxOutputTokens,
-  setRepairMaxOutputTokens,
   anthropicThinking,
   setAnthropicThinking,
   modelEffort,
@@ -59,17 +55,12 @@ export function ContractInspector({
   setShowWelcome,
   layoutId,
   setLayoutId,
-  fragmentMode,
-  setFragmentMode,
-  scriptPolicy,
   tokenPreset,
   setTokenPreset,
   mode,
   setMode,
   agentBrokerEnabled,
   setAgentBrokerEnabled,
-  repairEnabled,
-  setRepairEnabled,
   customContractEnabled,
   setCustomContractEnabled,
   selectedScenario,
@@ -97,8 +88,6 @@ export function ContractInspector({
   setUtilityModel: (value: string) => void;
   maxOutputTokens: number;
   setMaxOutputTokens: (value: number) => void;
-  repairMaxOutputTokens: number;
-  setRepairMaxOutputTokens: (value: number) => void;
   anthropicThinking: 'adaptive' | 'off';
   setAnthropicThinking: (value: 'adaptive' | 'off') => void;
   modelEffort: 'low' | 'medium' | 'high';
@@ -111,17 +100,12 @@ export function ContractInspector({
   setShowWelcome: (value: boolean) => void;
   layoutId: string;
   setLayoutId: (value: string) => void;
-  fragmentMode: FragmentMode;
-  setFragmentMode: (value: FragmentMode) => void;
-  scriptPolicy: ScriptPolicy;
   tokenPreset: string;
   setTokenPreset: (value: string) => void;
   mode: Mode;
   setMode: (value: Mode) => void;
   agentBrokerEnabled: boolean;
   setAgentBrokerEnabled: (value: boolean) => void;
-  repairEnabled: boolean;
-  setRepairEnabled: (value: boolean) => void;
   customContractEnabled: boolean;
   setCustomContractEnabled: (value: boolean) => void;
   selectedScenario: ShowcaseScenario;
@@ -207,12 +191,6 @@ export function ContractInspector({
               {numberOptions(selectedProvider?.controls?.maxOutputTokens.presets, maxOutputTokens).map((value) => <option key={value} value={value}>{value.toLocaleString()}</option>)}
             </select>
           </label>
-          <label className="min-w-0">
-            <span className={fieldLabelClass}>Repair cap</span>
-            <select id="repair-max-output-tokens" className={selectClassName} title="Repair output token cap" value={repairMaxOutputTokens} onChange={(event) => setRepairMaxOutputTokens(Number(event.target.value))}>
-              {numberOptions(selectedProvider?.controls?.repairMaxOutputTokens.presets, repairMaxOutputTokens).map((value) => <option key={value} value={value}>{value.toLocaleString()}</option>)}
-            </select>
-          </label>
           <label id="anthropic-thinking-field" className="min-w-0" hidden={selectedProvider?.id !== 'anthropic'}>
             <span className={fieldLabelClass}>Thinking</span>
             <select id="anthropic-thinking" className={selectClassName} title="Anthropic thinking mode" value={anthropicThinking} onChange={(event) => setAnthropicThinking(event.target.value as 'adaptive' | 'off')}>
@@ -246,18 +224,15 @@ export function ContractInspector({
             </select>
           </label>
           <label className="min-w-0">
-            <span className={fieldLabelClass}>Fragment unit</span>
-            <select id="fragment-unit" className={selectClassName} title="Streaming fragment unit" value={fragmentMode} onChange={(event) => setFragmentMode(event.target.value as FragmentMode)}>
-              <option value="section">Sections</option>
-              <option value="block-v0">Blocks (experimental)</option>
-              <option value="html-node-v0">HTML nodes (experimental)</option>
+            <span className={fieldLabelClass}>Runtime</span>
+            <select id="runtime-policy" className={selectClassName} title="Generated code runtime" value="arrow" disabled>
+              <option value="arrow">Arrow sandbox</option>
             </select>
           </label>
           <label className="min-w-0">
-            <span className={fieldLabelClass}>Scripts</span>
-            <select id="script-policy" className={selectClassName} title="Script policy" value={scriptPolicy} disabled>
-              <option value="forbid">Scripts forbidden</option>
-              <option value="allow">Scripts allowed</option>
+            <span className={fieldLabelClass}>Network</span>
+            <select id="network-policy" className={selectClassName} title="Host-owned network policy" value={surfacePlan.network ?? 'none'} disabled>
+              <option value="none">No network</option>
             </select>
           </label>
           <label className="min-w-0">
@@ -277,10 +252,6 @@ export function ContractInspector({
           <label className={toggleClassName} title="Infer surface policy from the prompt within host ceilings">
             <input id="agent-broker-enabled" type="checkbox" checked={agentBrokerEnabled} disabled={customContractEnabled || scenarioUsesFixedPolicy(selectedScenario)} onChange={(event) => setAgentBrokerEnabled(event.target.checked)} />
             <span>Agent broker</span>
-          </label>
-          <label className={toggleClassName} title="Enable validation retry">
-            <input id="repair-enabled" type="checkbox" checked={repairEnabled} onChange={(event) => setRepairEnabled(event.target.checked)} />
-            <span>Validation retry</span>
           </label>
         </div>
 
@@ -313,9 +284,6 @@ export function ContractInspector({
             <select id="surface-purpose" className={selectClassName} title="Surface purpose" value={surfacePlan.purpose} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, purpose: event.target.value as SurfacePlan['purpose'] }))}>
               {SURFACE_PURPOSE_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
-            <select id="surface-runtime" className={selectClassName} title="Surface runtime" value={surfacePlan.runtime} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, runtime: event.target.value as SurfacePlan['runtime'] }))}>
-              {SURFACE_RUNTIME_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
             <select id="surface-data" className={selectClassName} title="Surface data" value={surfacePlan.data} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, data: event.target.value as SurfacePlan['data'] }))}>
               {SURFACE_DATA_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
@@ -324,6 +292,9 @@ export function ContractInspector({
             </select>
             <select id="surface-persistence" className={selectClassName} title="Surface persistence" value={surfacePlan.persistence} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, persistence: event.target.value as SurfacePlan['persistence'] }))}>
               {SURFACE_PERSISTENCE_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+            <select id="surface-network" className={selectClassName} title="Surface network policy" value={surfacePlan.network ?? 'none'} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, network: event.target.value as SurfacePlan['network'] }))}>
+              {SURFACE_NETWORK_VALUES.filter((value) => value === 'none').map((value) => <option key={value} value={value}>No network</option>)}
             </select>
           </div>
         </div>

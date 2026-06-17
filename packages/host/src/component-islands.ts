@@ -10,7 +10,7 @@ import type {
 
 export interface ComponentIslandSyncContext {
   sandboxId: string;
-  emitIntent?: (intent: string, args?: Record<string, unknown>) => void;
+  callTool?: (tool: string, args?: Record<string, unknown>) => void;
 }
 
 export interface ComponentIslandRegistryOptions {
@@ -47,7 +47,7 @@ interface MountedIsland {
   wrapper: HTMLDivElement;
   bounds: ComponentIslandBounds;
   sandboxId: string;
-  emitIntent: (intent: string, args?: Record<string, unknown>) => void;
+  callTool: (tool: string, args?: Record<string, unknown>) => void;
 }
 
 export function createComponentIslandRegistry(
@@ -146,7 +146,7 @@ export function createComponentIslandRegistry(
       props,
       componentId: island.id,
       sandboxId: island.sandboxId,
-      emitIntent: island.emitIntent,
+      callTool: island.callTool,
     } as ComponentRenderContext);
   }
 
@@ -157,7 +157,7 @@ export function createComponentIslandRegistry(
       container: island.wrapper,
       componentId: island.id,
       sandboxId: island.sandboxId,
-      emitIntent: island.emitIntent,
+      callTool: island.callTool,
     });
     island.wrapper.remove();
     mounted.delete(id);
@@ -169,7 +169,7 @@ export function createComponentIslandRegistry(
   ): void {
     const seen = new Set<string>();
     const sandboxId = context.sandboxId ?? '';
-    const emitIntent = context.emitIntent ?? (() => {});
+    const callTool = context.callTool ?? (() => {});
 
     for (const component of components) {
       seen.add(component.id);
@@ -220,14 +220,14 @@ export function createComponentIslandRegistry(
           wrapper,
           bounds: clipped,
           sandboxId,
-          emitIntent,
+          callTool,
         };
         mounted.set(component.id, island);
       }
 
       island.bounds = clipped;
       island.sandboxId = sandboxId;
-      island.emitIntent = emitIntent;
+      island.callTool = callTool;
       position(island);
       render(island, parsed.data);
     }

@@ -1,40 +1,40 @@
 import type {
   ActionStateKeys,
-  CapabilityKind,
-  CapabilityPack,
-  CapabilityPattern,
-  CapabilityStateKeys,
-  CapabilityTrigger,
-  CompiledCapabilityContract,
-  IntentSpec,
+  ToolKind,
+  ToolPack,
+  ToolPattern,
+  ToolStateKeys,
+  ToolTrigger,
+  CompiledToolContract,
+  ToolSpec,
   ResourceStateKeys,
-  CapabilitySurface,
+  ToolSurface,
 } from '@summon-internal/engine';
-import { compileCapabilityContract } from '@summon-internal/engine';
+import { compileToolContract } from '@summon-internal/engine';
 import type { ZodType, ZodTypeAny } from 'zod';
-import { defineIntent, type IntentEntry, type IntentHandler } from './policy-engine.js';
+import { defineToolHandler, type ToolHandlerEntry, type ToolHandler } from './policy-engine.js';
 
 export type { ActionStateKeys, ResourceStateKeys } from '@summon-internal/engine';
 
 export type StateShapeDescriptor = string | Record<string, unknown>;
 
-export interface CapabilityDefinition<T = unknown> {
+export interface ToolDefinition<T = unknown> {
   name: string;
   description: string;
   argsSchema: ZodType<T>;
   /** Optional override for prompt-facing schema text when Zod introspection is too lossy. */
   argsSchemaText?: string;
   stateShape: StateShapeDescriptor;
-  kind?: CapabilityKind;
-  triggers?: CapabilityTrigger[];
-  stateKeys?: CapabilityStateKeys;
+  kind?: ToolKind;
+  triggers?: ToolTrigger[];
+  stateKeys?: ToolStateKeys;
   actionStateKeys?: ActionStateKeys;
   resultSchema?: string;
   defaultDataShape?: string;
   defaultData?: unknown;
-  patterns?: CapabilityPattern[];
-  surface?: CapabilitySurface;
-  handler: IntentHandler<T>;
+  patterns?: ToolPattern[];
+  surface?: ToolSurface;
+  handler: ToolHandler<T>;
 }
 
 export interface ActionDefinition<T = unknown> {
@@ -43,11 +43,11 @@ export interface ActionDefinition<T = unknown> {
   argsSchema: ZodType<T>;
   argsSchemaText?: string;
   stateShape: StateShapeDescriptor;
-  triggers?: CapabilityTrigger[];
-  patterns?: CapabilityPattern[];
-  surface?: CapabilitySurface;
+  triggers?: ToolTrigger[];
+  patterns?: ToolPattern[];
+  surface?: ToolSurface;
   controlled?: boolean | { stateKeys?: Partial<ActionStateKeys> };
-  handler: IntentHandler<T>;
+  handler: ToolHandler<T>;
 }
 
 export interface DataResourceDefinition<In = unknown, Out = unknown> {
@@ -60,10 +60,10 @@ export interface DataResourceDefinition<In = unknown, Out = unknown> {
   defaultData?: Out | null;
   stateShape?: StateShapeDescriptor;
   stateKeys: ResourceStateKeys;
-  triggers: CapabilityTrigger[];
-  patterns?: CapabilityPattern[];
+  triggers: ToolTrigger[];
+  patterns?: ToolPattern[];
   concurrency?: 'latest' | 'drop';
-  surface?: CapabilitySurface;
+  surface?: ToolSurface;
   onStart?: (input: In) => Record<string, unknown>;
   onError?: (message: string) => void;
   isEmpty?: (data: Out) => boolean;
@@ -87,7 +87,7 @@ export interface ApprovalPrepared<Plan = unknown> {
 
 export interface ApprovalRequest<TArgs = unknown, Plan = unknown> {
   id: string;
-  capability: string;
+  tool: string;
   args: TArgs;
   summary: string;
   details?: unknown;
@@ -116,16 +116,16 @@ export interface ApprovalActionDefinition<T = unknown, Plan = unknown> extends A
   };
 }
 
-export interface CapabilityRegistry {
-  toContract(): CompiledCapabilityContract;
-  toPolicyHandlers(): Record<string, IntentEntry<any>>;
-  intents(): string[];
-  without(names: string[]): CapabilityRegistry;
+export interface ToolRegistry {
+  toContract(): CompiledToolContract;
+  toPolicyHandlers(): Record<string, ToolHandlerEntry<any>>;
+  tools(): string[];
+  without(names: string[]): ToolRegistry;
 }
 
-export function defineCapability<T>(
-  definition: CapabilityDefinition<T>,
-): CapabilityDefinition<T> {
+export function defineTool<T>(
+  definition: ToolDefinition<T>,
+): ToolDefinition<T> {
   const kind = definition.kind ?? 'action';
   return {
     ...definition,
@@ -135,9 +135,9 @@ export function defineCapability<T>(
   };
 }
 
-export function defineAction<T>(definition: ActionDefinition<T>): CapabilityDefinition<T> {
+export function defineAction<T>(definition: ActionDefinition<T>): ToolDefinition<T> {
   const stateKeys = actionStateKeys(definition.name, definition.controlled);
-  return defineCapability({
+  return defineTool({
     ...definition,
     kind: 'action',
     triggers: definition.triggers ?? ['click', 'submit'],
@@ -151,7 +151,7 @@ export function defineAction<T>(definition: ActionDefinition<T>): CapabilityDefi
   });
 }
 
-export function defineWorkerAction<T>(definition: ActionDefinition<T>): CapabilityDefinition<T> {
+export function defineWorkerAction<T>(definition: ActionDefinition<T>): ToolDefinition<T> {
   return defineAction({
     ...definition,
     surface: {
@@ -164,7 +164,7 @@ export function defineWorkerAction<T>(definition: ActionDefinition<T>): Capabili
 
 export function defineApprovalAction<T, Plan = T>(
   definition: ApprovalActionDefinition<T, Plan>,
-): CapabilityDefinition<T> {
+): ToolDefinition<T> {
   const stateKeys = approvalStateKeys(definition.name, definition.approval.stateKeys);
   const approvedHandler = definition.handler;
   return defineAction({
@@ -223,12 +223,12 @@ export function defineApprovalAction<T, Plan = T>(
 
 export function defineDataResource<In, Out>(
   definition: DataResourceDefinition<In, Out>,
-): CapabilityDefinition<In> {
+): ToolDefinition<In> {
   validateDefaultData(definition);
   const handler = createDataResourceHandler(definition);
   const hasDefaultData = hasOwnDefaultData(definition);
   const resultSchema = definition.resultSchemaText ?? formatZodSchema(definition.resultSchema);
-  return defineCapability({
+  return defineTool({
     name: definition.name,
     description: definition.description,
     argsSchema: definition.argsSchema,
@@ -258,7 +258,7 @@ export function defineDataResource<In, Out>(
 
 export function defineWorkerResource<In, Out>(
   definition: DataResourceDefinition<In, Out>,
-): CapabilityDefinition<In> {
+): ToolDefinition<In> {
   return defineDataResource({
     ...definition,
     surface: {
@@ -269,19 +269,19 @@ export function defineWorkerResource<In, Out>(
   });
 }
 
-export function createCapabilityRegistry(
-  definitions: CapabilityDefinition<any>[],
-): CapabilityRegistry {
-  assertUniqueCapabilityNames(definitions);
-  return new StaticCapabilityRegistry(definitions);
+export function createToolRegistry(
+  definitions: ToolDefinition<any>[],
+): ToolRegistry {
+  assertUniqueToolNames(definitions);
+  return new StaticToolRegistry(definitions);
 }
 
-class StaticCapabilityRegistry implements CapabilityRegistry {
-  constructor(private readonly definitions: CapabilityDefinition<any>[]) {}
+class StaticToolRegistry implements ToolRegistry {
+  constructor(private readonly definitions: ToolDefinition<any>[]) {}
 
-  toContract(): CompiledCapabilityContract {
-    const intents: IntentSpec[] = this.definitions.map((definition) => {
-      const intent: IntentSpec = {
+  toContract(): CompiledToolContract {
+    const tools: ToolSpec[] = this.definitions.map((definition) => {
+      const tool: ToolSpec = {
         name: definition.name,
         description: definition.description,
         argsSchema: definition.argsSchemaText ?? formatZodSchema(definition.argsSchema),
@@ -289,40 +289,40 @@ class StaticCapabilityRegistry implements CapabilityRegistry {
         kind: definition.kind ?? 'action',
         triggers: definition.triggers ?? ['click', 'submit'],
       };
-      if (definition.stateKeys) intent.stateKeys = definition.stateKeys;
-      if (definition.actionStateKeys) intent.actionStateKeys = definition.actionStateKeys;
-      if (definition.surface) intent.surface = definition.surface;
-      if (definition.resultSchema) intent.resultSchema = definition.resultSchema;
-      if (definition.defaultDataShape) intent.defaultDataShape = definition.defaultDataShape;
-      if ('defaultData' in definition) intent.defaultData = definition.defaultData;
-      return intent;
+      if (definition.stateKeys) tool.stateKeys = definition.stateKeys;
+      if (definition.actionStateKeys) tool.actionStateKeys = definition.actionStateKeys;
+      if (definition.surface) tool.surface = definition.surface;
+      if (definition.resultSchema) tool.resultSchema = definition.resultSchema;
+      if (definition.defaultDataShape) tool.defaultDataShape = definition.defaultDataShape;
+      if ('defaultData' in definition) tool.defaultData = definition.defaultData;
+      return tool;
     });
     const patterns = this.definitions.flatMap((definition) =>
       (definition.patterns ?? []).map((pattern) => ({
         ...pattern,
-        intent: pattern.intent ?? definition.name,
+        tool: pattern.tool ?? definition.name,
       })),
     );
-    const pack: CapabilityPack = patterns.length > 0 ? { intents, patterns } : { intents };
-    return compileCapabilityContract(pack);
+    const pack: ToolPack = patterns.length > 0 ? { tools, patterns } : { tools };
+    return compileToolContract(pack);
   }
 
-  toPolicyHandlers(): Record<string, IntentEntry<any>> {
+  toPolicyHandlers(): Record<string, ToolHandlerEntry<any>> {
     return Object.fromEntries(
       this.definitions.map((definition) => [
         definition.name,
-        defineIntent(definition.argsSchema, definition.handler),
+        defineToolHandler(definition.argsSchema, definition.handler),
       ]),
     );
   }
 
-  intents(): string[] {
+  tools(): string[] {
     return this.definitions.map((definition) => definition.name);
   }
 
-  without(names: string[]): CapabilityRegistry {
+  without(names: string[]): ToolRegistry {
     const excluded = new Set(names);
-    return new StaticCapabilityRegistry(
+    return new StaticToolRegistry(
       this.definitions.filter((definition) => !excluded.has(definition.name)),
     );
   }
@@ -330,7 +330,7 @@ class StaticCapabilityRegistry implements CapabilityRegistry {
 
 function createDataResourceHandler<In, Out>(
   definition: DataResourceDefinition<In, Out>,
-): IntentHandler<In> {
+): ToolHandler<In> {
   const { stateKeys, concurrency = 'latest' } = definition;
   let inflight: AbortController | null = null;
   const defaultData = definition.defaultData ?? null;
@@ -407,7 +407,7 @@ function actionStateKeys(
 function createControlledActionHandler<T>(
   definition: ActionDefinition<T>,
   stateKeys: ActionStateKeys,
-): IntentHandler<T> {
+): ToolHandler<T> {
   const handler = definition.handler;
   return async (ctx) => {
     ctx.push({
@@ -488,11 +488,11 @@ function deriveResourceStateShape(
   return `{${keys.loading}: boolean, ${keys.data}: ${result} | null, ${keys.error}: string | null${empty}}`;
 }
 
-function assertUniqueCapabilityNames(definitions: CapabilityDefinition<any>[]): void {
+function assertUniqueToolNames(definitions: ToolDefinition<any>[]): void {
   const seen = new Set<string>();
   for (const definition of definitions) {
     if (seen.has(definition.name)) {
-      throw new Error(`Duplicate capability "${definition.name}"`);
+      throw new Error(`Duplicate tool "${definition.name}"`);
     }
     seen.add(definition.name);
   }
@@ -503,14 +503,14 @@ function formatStateShape(shape: StateShapeDescriptor): string {
   return JSON.stringify(shape);
 }
 
-function defaultTriggersForHostKind(kind: string): CapabilityTrigger[] {
+function defaultTriggersForHostKind(kind: string): ToolTrigger[] {
   return kind === 'resource' ? ['submit', 'mount'] : ['click', 'submit'];
 }
 
 function normalizeSurfaceForKind(
   kind: string,
-  surface: CapabilitySurface | undefined,
-): CapabilitySurface {
+  surface: ToolSurface | undefined,
+): ToolSurface {
   if (kind === 'resource') {
     return {
       data: surface?.data ?? 'host-resource',
@@ -563,14 +563,14 @@ function approvalSummary<T>(
 }
 
 function createApprovalRequest<T, Plan>(
-  capability: string,
+  tool: string,
   args: T,
   id: string,
   prepared: ApprovalPrepared<Plan>,
 ): ApprovalRequest<T, Plan> {
   const request: ApprovalRequest<T, Plan> = {
     id,
-    capability,
+    tool,
     args,
     summary: prepared.summary,
     plan: prepared.plan,

@@ -3,21 +3,17 @@ import cors from 'cors';
 import {
   compileSurfacePolicy,
   parseTokenValues,
-  type CapabilityPack,
+  type ToolPack,
   type ProtocolLine,
-  type ScriptPolicy,
   type SummonLayout,
   type SurfacePlan,
   type TokenOverride,
 } from '@anarchitecture/summon/engine';
 import {
   planAgentSurface,
-  resolveSurfaceGenerationPlan,
   runSurfaceGeneration,
   summarizeContractIssues,
   type AgentSurfacePlanResult,
-  type GenerateEditInput,
-  type RepairOptions as SurfaceRepairOptions,
   type SurfaceGenerationSummary,
 } from '@anarchitecture/summon-server';
 import { readFileSync } from 'node:fs';
@@ -41,7 +37,7 @@ import {
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
 import { inferShape, type ResponseShape } from './infer-shape.js';
-import { parseCapabilityPack } from './capability-pack.js';
+import { parseToolPack } from './tool-pack.js';
 import { parseComponentPack } from './component-pack.js';
 import {
   createModelProviderRegistry,
@@ -69,38 +65,6 @@ const PORT = Number(process.env.PORT) || 3001;
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 const modelProviders = createModelProviderRegistry(process.env);
 const defaultModelProvider = modelProviders.defaultProvider;
-
-const EXPERIMENTAL_BLOCK_FRAGMENT_PROMPT = `## Experimental block fragments
-
-This run is using Summon's experimental block-fragment protocol. Keep sections as the outer structure, but stream complete blocks inside each section.
-
-Rules:
-
-- Emit \`set /screen\` first with the stable section ids.
-- For each section, emit \`set /section/<section-id>\` with \`{"blocks":["block-id"]}\` before adding blocks.
-- Emit complete block replacement lines at \`add /section/<section-id>/block/<block-id>\`.
-- Use lowercase kebab-case ids. Each section may declare 1 to 8 blocks.
-- Treat every block as a complete subtree. Do not split a form, table, data resource scope, component placeholder, script lifecycle, or closely coupled control group across blocks.
-- For perceived streaming, emit cheap block placeholders first, then final replacement \`add\` lines for the same block ids.
-- Do not emit whole-section \`add /section/<section-id>\` lines unless you cannot satisfy the block contract.`;
-
-const EXPERIMENTAL_HTML_NODE_PROMPT = `## Experimental HTML node patches
-
-This run is using Summon's experimental html-node-v0 protocol. Keep sections as the outer structure, but stream small complete raw-HTML DOM nodes inside each section.
-
-Rules:
-
-- Emit \`set /screen\` first with stable section ids.
-- Then emit \`add /section/<section-id>/node/<node-id>\` lines. Each node line must include one complete raw HTML element with \`data-summon-node="<node-id>"\` on that root element.
-- Use lowercase kebab-case ids for sections and nodes.
-- Omit \`parent\` to append a node directly under the section wrapper. Set \`parent\` to an earlier node id to append inside that parent node.
-- Emit a root composition container first, then useful child nodes such as headers, table sections, rows, list items, timeline steps, action groups, chart shells, callouts, notes, and metric blocks when appropriate.
-- Emit useful shells early. When a purposeful container, list, table, timeline, or chart shell will receive child node patches, include a child slot inside it, such as \`<div data-summon-node-children></div>\`, and set those child lines' \`parent\` to that shell's node id.
-- Shell slots may include 1-3 direct lightweight placeholders with \`data-summon-skeleton\`; later real child node patches will replace those placeholders automatically.
-- Do not orphan content that belongs inside a declared parent container. Choose parent containers because the layout needs them, not as decoration.
-- Each node patch should usually be 500-2000 bytes and visually meaningful immediately. Prefer many small useful patches over one large section.
-- Do not put \`data-summon-node\` on nested elements inside a node patch. Child nodes must arrive as their own later protocol lines.
-- Do not emit scripts, inline event handlers, external URLs, or whole-section \`add /section/<section-id>\` lines unless you cannot satisfy the node-patch contract.`;
 
 if (!defaultModelProvider) {
   console.error(
@@ -239,85 +203,6 @@ function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?:
   }
 
   return { layout: { id: obj.id, slots } };
-}
-
-type GenerateEditRequest = GenerateEditInput;
-
-interface ParsedRepairOptions {
-  enabled: boolean;
-  maxAttempts: number;
-  maxTargets: number;
-}
-
-function parseEditRequest(raw: unknown): { edit: GenerateEditRequest | null; error?: string } {
-  if (raw === undefined || raw === null) return { edit: null };
-  if (!raw || typeof raw !== 'object') {
-    return { edit: null, error: 'edit must be an object' };
-  }
-  const obj = raw as Record<string, unknown>;
-  const rawSections = obj.sections;
-  if (!Array.isArray(rawSections) || rawSections.length < 1 || rawSections.length > 5) {
-    return { edit: null, error: 'edit.sections must contain 1-5 section snapshots' };
-  }
-
-  const sections: GenerateEditRequest['sections'] = [];
-  const seen = new Set<string>();
-  let totalHtmlBytes = 0;
-  for (const rawSection of rawSections) {
-    if (!rawSection || typeof rawSection !== 'object') {
-      return { edit: null, error: 'each edit section must be an object' };
-    }
-    const section = rawSection as Record<string, unknown>;
-    if (typeof section.id !== 'string' || !SECTION_ID_RE.test(section.id)) {
-      return { edit: null, error: 'edit section ids must be lowercase kebab-case and 1-20 chars' };
-    }
-    if (seen.has(section.id)) {
-      return { edit: null, error: `duplicate edit section "${section.id}"` };
-    }
-    if (typeof section.html !== 'string') {
-      return { edit: null, error: `edit section "${section.id}" html must be a string` };
-    }
-    totalHtmlBytes += section.html.length;
-    if (section.html.length > 80000 || totalHtmlBytes > 240000) {
-      return { edit: null, error: 'edit section snapshots are too large' };
-    }
-    seen.add(section.id);
-    sections.push({ id: section.id, html: section.html });
-  }
-
-  let targetSections: string[] | undefined;
-  if (obj.targetSections !== undefined) {
-    if (!Array.isArray(obj.targetSections) || obj.targetSections.length < 1 || obj.targetSections.length > 5) {
-      return { edit: null, error: 'edit.targetSections must contain 1-5 section ids' };
-    }
-    targetSections = [];
-    const targetSeen = new Set<string>();
-    for (const rawTarget of obj.targetSections) {
-      if (typeof rawTarget !== 'string' || !SECTION_ID_RE.test(rawTarget)) {
-        return { edit: null, error: 'edit.targetSections contains an invalid section id' };
-      }
-      if (targetSeen.has(rawTarget)) continue;
-      targetSeen.add(rawTarget);
-      targetSections.push(rawTarget);
-    }
-  }
-
-  const baseRevision = Number.isInteger(obj.baseRevision)
-    ? Number(obj.baseRevision)
-    : null;
-  const issues = Array.isArray(obj.issues) ? obj.issues.slice(0, 20) : undefined;
-  return { edit: { baseRevision, sections, targetSections, issues } };
-}
-
-function parseRepairOptions(raw: unknown): ParsedRepairOptions {
-  if (!raw || typeof raw !== 'object') {
-    return { enabled: false, maxAttempts: 1, maxTargets: 2 };
-  }
-  const obj = raw as Record<string, unknown>;
-  const enabled = obj.enabled === true;
-  const maxAttempts = clampInt(obj.maxAttempts, 1, 3, 1);
-  const maxTargets = clampInt(obj.maxTargets, 1, 5, 2);
-  return { enabled, maxAttempts, maxTargets };
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -471,19 +356,20 @@ app.post('/api/generate', async (req, res) => {
     return;
   }
   const layout = parsedLayout.layout;
-  const parsedEdit = parseEditRequest(req.body?.edit);
-  if (parsedEdit.error) {
-    res.status(400).json({ error: parsedEdit.error });
+  const legacyGenerationFields = [
+    'edit',
+    'fragmentMode',
+    'repair',
+    'mode',
+    'scriptPolicy',
+    'surfacePlan',
+    'surfaceCeiling',
+  ];
+  const legacyField = legacyGenerationFields.find((field) => req.body?.[field] !== undefined && req.body?.[field] !== null);
+  if (legacyField) {
+    res.status(400).json({ error: `${legacyField} is not supported in Arrow-only policy mode` });
     return;
   }
-  const edit = parsedEdit.edit;
-  const fragmentMode =
-    req.body?.fragmentMode === 'block-v0'
-      ? 'block-v0'
-      : req.body?.fragmentMode === 'html-node-v0'
-        ? 'html-node-v0'
-        : 'section';
-  const repairOptions = parseRepairOptions(req.body?.repair);
   const rawAgentOptions = req.body?.agent;
   const agentOptions = rawAgentOptions && typeof rawAgentOptions === 'object'
     ? rawAgentOptions as Record<string, unknown>
@@ -491,18 +377,11 @@ app.post('/api/generate', async (req, res) => {
 
   const hasSurfacePolicy =
     req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
-  const hasSurfacePlan =
-    req.body?.surfacePlan !== undefined && req.body.surfacePlan !== null;
-  const requestedMode: 'static' | 'interactive' =
-    req.body?.mode === 'interactive' ? 'interactive' : 'static';
-  let scriptPolicy: ScriptPolicy | undefined =
-    req.body?.scriptPolicy === 'allow' ? 'allow' : req.body?.scriptPolicy === 'forbid' ? 'forbid' : undefined;
-  const capabilityCeiling = parseCapabilityPack(req.body?.capabilities);
+  const toolCeiling = parseToolPack(req.body?.tools);
   const componentPack = parseComponentPack(req.body?.components);
 
-  let mode: 'static' | 'interactive' = requestedMode;
-  let pack: CapabilityPack | null = null;
-  let modeUpgraded = false;
+  let mode: 'static' | 'interactive' = 'static';
+  let pack: ToolPack | null = null;
   let surfacePlan: SurfacePlan;
   let agentPlan: AgentSurfacePlanResult | null = null;
 
@@ -521,47 +400,27 @@ app.post('/api/generate', async (req, res) => {
 
   if (hasSurfacePolicy) {
     const compiledPolicy = compileSurfacePolicy(req.body.surfacePolicy, {
-      capabilities: capabilityCeiling,
+      tools: toolCeiling,
       components: componentPack,
     });
     mode = compiledPolicy.mode;
-    scriptPolicy = compiledPolicy.scriptPolicy;
-    pack = compiledPolicy.capabilities;
+    pack = compiledPolicy.tools;
     surfacePlan = compiledPolicy.surfacePlan;
-  } else if (hasSurfacePlan) {
-    pack = requestedMode === 'interactive' ? capabilityCeiling : null;
-    const resolvedSurface = resolveSurfaceGenerationPlan({
-      prompt,
-      mode,
-      scriptPolicy,
-      capabilities: pack,
-      rawSurfacePlan: req.body?.surfacePlan,
-      rawSurfaceCeiling: req.body?.surfaceCeiling,
-    });
-    if (mode !== resolvedSurface.mode) {
-      modeUpgraded = mode === 'static' && resolvedSurface.mode === 'interactive' ? true : modeUpgraded;
-      mode = resolvedSurface.mode;
-      pack = mode === 'interactive' ? pack ?? capabilityCeiling : null;
-    }
-    scriptPolicy = resolvedSurface.scriptPolicy;
-    surfacePlan = resolvedSurface.surfacePlan;
   } else {
     agentPlan = await planAgentSurface({
       prompt,
-      capabilities: capabilityCeiling,
+      tools: toolCeiling,
       components: componentPack,
-      intentModel: process.env.SUMMON_AGENT_INTENT_MODEL === '0' || agentOptions?.intentModel === 'off'
+      goalModel: process.env.SUMMON_AGENT_GOAL_MODEL === '0' || agentOptions?.goalModel === 'off'
         ? null
         : {
             completeText: (request) => modelProvider.completeText(request, modelSelection),
           },
-      intentTimeoutMs: clampInt(agentOptions?.intentTimeoutMs, 250, 5000, 1800),
+      goalTimeoutMs: clampInt(agentOptions?.goalTimeoutMs, 250, 5000, 1800),
     });
     mode = agentPlan.compiledPolicy.mode;
-    scriptPolicy = agentPlan.compiledPolicy.scriptPolicy;
-    pack = agentPlan.compiledPolicy.capabilities;
+    pack = agentPlan.compiledPolicy.tools;
     surfacePlan = agentPlan.compiledPolicy.surfacePlan;
-    modeUpgraded = requestedMode === 'static' && mode === 'interactive';
   }
 
   if (ghostContext) {
@@ -570,15 +429,14 @@ app.post('/api/generate', async (req, res) => {
       mode,
       surfacePlan,
       shape,
-      capabilities: hasSurfacePolicy
-        ? capabilityCeiling
+      tools: hasSurfacePolicy
+        ? toolCeiling
         : agentPlan
-          ? agentPlan.compiledPolicy.capabilities
+          ? agentPlan.compiledPolicy.tools
           : pack,
       components: componentPack,
     });
   }
-
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('X-Accel-Buffering', 'no');
@@ -597,27 +455,21 @@ app.post('/api/generate', async (req, res) => {
       value: ghostTokenSourceMeta(ghostContext.tokenSource),
     });
   }
-  // Emit the mode-upgrade signal before agent diagnostics. The client respawns
-  // its sandbox into interactive mode in response, so this should land before
-  // any broker or artifact bytes that assume the upgraded mode.
-  if (modeUpgraded) {
-    preludeLines.push({ op: 'meta', path: '/mode-upgraded', value: 'static→interactive' });
-  }
   if (agentPlan) {
     preludeLines.push({
       op: 'meta',
-      path: '/agent-intent',
-      value: agentPlan.intent,
+      path: '/agent-goal',
+      value: agentPlan.goal,
     });
     preludeLines.push({
       op: 'meta',
       path: '/agent-policy-resolution',
       value: {
         source: agentPlan.policyResolution.source,
-        intentSource: agentPlan.intentSource,
+        goalSource: agentPlan.goalSource,
         proposedSurfacePolicy: agentPlan.policyResolution.proposedSurfacePolicy,
         surfacePolicy: agentPlan.policyResolution.surfacePolicy,
-        rejectedCapabilities: agentPlan.policyResolution.rejectedCapabilities,
+        rejectedTools: agentPlan.policyResolution.rejectedTools,
         rejectedComponents: agentPlan.policyResolution.rejectedComponents,
         fallback: agentPlan.policyResolution.fallback,
       },
@@ -628,24 +480,6 @@ app.post('/api/generate', async (req, res) => {
   }
   if (layout) {
     preludeLines.push({ op: 'meta', path: '/layout', value: layout.id });
-  }
-  if (fragmentMode !== 'section' && !edit) {
-    preludeLines.push({
-      op: 'meta',
-      path: '/experimental-fragments',
-      value: { mode: fragmentMode },
-    });
-  }
-  if (edit) {
-    preludeLines.push({
-      op: 'meta',
-      path: '/edit',
-      value: {
-        mode: 'section-replace',
-        baseRevision: edit.baseRevision,
-        targetSections: edit.targetSections ?? edit.sections.map((section) => section.id),
-      },
-    });
   }
   if (overrides.applied.length > 0) {
     // Surface the resolved overrides so the client can paint them into the
@@ -664,12 +498,8 @@ app.post('/api/generate', async (req, res) => {
   await withConcurrencyCap(async () => {
     try {
       let usage: ProviderUsageSnapshot | null = null;
-      const repair: SurfaceRepairOptions = repairOptions.enabled
-        ? { ...repairOptions, provider: (request) => modelProvider.repairSurfaceSection(request, modelSelection) }
-        : { enabled: false };
       const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
         prompt,
-        mode,
         direction: direction
           ? {
               id: direction.id,
@@ -684,29 +514,15 @@ app.post('/api/generate', async (req, res) => {
         ghost: ghostContext ?? null,
         activeTokensCss: ghostContext?.tokenSource.css ?? null,
         layout,
-        edit,
-        experimentalPromptBlock: fragmentMode !== 'section' && !edit
-          ? {
-              id: `experimental-fragments:${fragmentMode}`,
-              text: fragmentMode === 'html-node-v0'
-                ? EXPERIMENTAL_HTML_NODE_PROMPT
-                : EXPERIMENTAL_BLOCK_FRAGMENT_PROMPT,
-              cache: 'ephemeral',
-            }
-          : null,
-        experimentalFragmentMode: !edit ? fragmentMode : 'section',
-        capabilities: hasSurfacePolicy || agentPlan ? capabilityCeiling : pack,
+        tools: hasSurfacePolicy || agentPlan ? toolCeiling : pack,
         components: componentPack,
         surfacePolicy: hasSurfacePolicy
           ? req.body.surfacePolicy
           : agentPlan
             ? agentPlan.surfacePolicy
             : null,
-        scriptPolicy: hasSurfacePolicy || agentPlan ? undefined : scriptPolicy,
-        surfacePlan: hasSurfacePolicy || agentPlan ? null : surfacePlan,
         tokenOverrides: overrides.applied,
         preludeLines,
-        repair,
         modelProvider: (request) => modelProvider.streamSurfaceGeneration(request, (nextUsage) => {
           usage = nextUsage;
         }, modelSelection),
@@ -735,20 +551,15 @@ app.post('/api/generate', async (req, res) => {
         cache_read_input_tokens: 0,
         cache_creation_input_tokens: 0,
       };
-      const stats = summary.repairStats ?? { queued: 0, cancelled: 0, repaired: 0, failed: 0 };
-      const upgradeTag = modeUpgraded ? ` (upgraded via ${agentPlan ? 'broker' : 'surface plan'})` : '';
       console.log(
-        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
+        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
           ` shape=${shape ?? 'all'}` +
           ` layout=${layout?.id ?? 'none'}` +
-          ` edit=${edit ? 'yes' : 'no'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +
-          ` intents=${pack?.intents.length ?? 0}/${capabilityCeiling?.intents.length ?? 0}` +
+          ` tools=${pack?.tools.length ?? 0}/${toolCeiling?.tools.length ?? 0}` +
           ` components=${componentPack?.components.length ?? 0}` +
-          ` scripts=${scriptPolicy}` +
           ` overrides=${overrides.applied.length}` +
-          ` repair=${repairOptions.enabled ? `${stats.repaired}/${stats.queued}` : 'off'}` +
-          ` options=max:${modelSelection.options.maxOutputTokens}/repair:${modelSelection.options.repairMaxOutputTokens}` +
+          ` options=max:${modelSelection.options.maxOutputTokens}` +
           (modelSelection.options.anthropicThinking ? ` thinking=${modelSelection.options.anthropicThinking}` : '') +
           (modelSelection.options.effort ? ` effort=${modelSelection.options.effort}` : '') +
           (modelSelection.customModel ? ' customModel=yes' : '') +

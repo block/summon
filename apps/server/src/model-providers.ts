@@ -3,7 +3,6 @@ import type { ContractPromptBlock } from '@anarchitecture/summon/engine';
 import type {
   SummonModelChunk,
   SummonModelRequest,
-  SummonRepairRequest,
 } from '@anarchitecture/summon-server';
 
 export type ModelProviderId = 'anthropic' | 'openai' | 'gemini';
@@ -51,12 +50,6 @@ export interface ModelProviderControls {
     default: number;
     presets: number[];
   };
-  repairMaxOutputTokens: {
-    min: number;
-    max: number;
-    default: number;
-    presets: number[];
-  };
   anthropicThinking?: {
     default: AnthropicThinkingMode;
     options: AnthropicThinkingMode[];
@@ -88,7 +81,6 @@ export interface ModelProviderInfo {
 
 export interface NormalizedModelOptions {
   maxOutputTokens: number;
-  repairMaxOutputTokens: number;
   anthropicThinking?: AnthropicThinkingMode;
   effort?: ModelEffort;
 }
@@ -106,7 +98,6 @@ export interface ModelProviderAdapter extends ModelProviderInfo, TextCompletionC
     onUsage: (usage: ProviderUsageSnapshot) => void,
     selection?: ModelSelection,
   ): AsyncGenerator<SummonModelChunk, void, void>;
-  repairSurfaceSection(request: SummonRepairRequest, selection?: ModelSelection): Promise<string>;
   completeText(request: TextCompletionRequest, selection?: ModelSelection): Promise<string>;
   resolveSelection(raw: unknown): { ok: true; selection: ModelSelection } | { ok: false; error: string };
 }
@@ -128,7 +119,6 @@ const DEFAULT_OPENAI_UTILITY_MODEL = 'gpt-5-mini';
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
 const DEFAULT_GEMINI_UTILITY_MODEL = 'gemini-2.5-flash';
 const DEFAULT_GENERATION_MAX_TOKENS = 64000;
-const DEFAULT_REPAIR_MAX_TOKENS = 12000;
 const MIN_OUTPUT_TOKENS = 1000;
 const MAX_OUTPUT_TOKENS = 128000;
 const MODEL_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
@@ -151,6 +141,7 @@ const ANTHROPIC_MODELS: ModelCatalogEntry[] = [
     status: 'stable',
     tier: 'frontier',
     maxOutputTokens: 128000,
+    anthropicThinking: 'optional',
   },
   {
     id: 'claude-sonnet-4-6',
@@ -166,7 +157,6 @@ const ANTHROPIC_MODELS: ModelCatalogEntry[] = [
     status: 'stable',
     tier: 'fast',
     maxOutputTokens: 64000,
-    anthropicThinking: 'optional',
   },
 ];
 
@@ -279,15 +269,8 @@ function createProviderDefaults(args: {
     Math.min(MAX_OUTPUT_TOKENS, modelMax),
     Math.min(DEFAULT_GENERATION_MAX_TOKENS, modelMax),
   );
-  const repairMaxOutputTokens = clampInt(
-    Number(args.env.SUMMON_REPAIR_MAX_TOKENS),
-    MIN_OUTPUT_TOKENS,
-    Math.min(MAX_OUTPUT_TOKENS, modelMax),
-    Math.min(DEFAULT_REPAIR_MAX_TOKENS, modelMax),
-  );
   const options: NormalizedModelOptions = {
     maxOutputTokens,
-    repairMaxOutputTokens,
   };
   if (args.anthropic) {
     const thinking = parseThinkingMode(
@@ -295,9 +278,10 @@ function createProviderDefaults(args: {
       'adaptive',
     );
     options.anthropicThinking = forceThinkingForModel(args.catalog, generationModel, thinking);
-    options.effort = parseEffort(
-      args.env.SUMMON_ANTHROPIC_EFFORT ?? args.env.ANTHROPIC_EFFORT,
-      'medium',
+    options.effort = forceEffortForModel(
+      args.catalog,
+      generationModel,
+      parseEffort(args.env.SUMMON_ANTHROPIC_EFFORT ?? args.env.ANTHROPIC_EFFORT, 'medium'),
     );
   }
   return {
@@ -315,12 +299,6 @@ function createProviderControls(defaults: ModelProviderDefaults, anthropic = fal
       max: MAX_OUTPUT_TOKENS,
       default: defaults.modelOptions.maxOutputTokens,
       presets: [8000, 12000, 16000, 32000, 64000],
-    },
-    repairMaxOutputTokens: {
-      min: MIN_OUTPUT_TOKENS,
-      max: MAX_OUTPUT_TOKENS,
-      default: defaults.modelOptions.repairMaxOutputTokens,
-      presets: [4000, 8000, 12000, 16000],
     },
     ...(anthropic
       ? {
@@ -380,12 +358,6 @@ function createSelectionResolver(args: {
         Math.min(MAX_OUTPUT_TOKENS, modelMax),
         Math.min(args.defaults.modelOptions.maxOutputTokens, modelMax),
       ),
-      repairMaxOutputTokens: clampInt(
-        rawOptions.repairMaxOutputTokens,
-        MIN_OUTPUT_TOKENS,
-        Math.min(MAX_OUTPUT_TOKENS, modelMax),
-        Math.min(args.defaults.modelOptions.repairMaxOutputTokens, modelMax),
-      ),
     };
     if (args.anthropic) {
       const requestedThinking = parseThinkingMode(
@@ -393,7 +365,11 @@ function createSelectionResolver(args: {
         args.defaults.modelOptions.anthropicThinking ?? 'adaptive',
       );
       options.anthropicThinking = forceThinkingForModel(args.models, generationModel.model, requestedThinking);
-      options.effort = parseEffort(rawOptions.effort, args.defaults.modelOptions.effort ?? 'medium');
+      options.effort = forceEffortForModel(
+        args.models,
+        generationModel.model,
+        parseEffort(rawOptions.effort, args.defaults.modelOptions.effort ?? 'medium'),
+      );
     }
 
     return {
@@ -448,7 +424,20 @@ function forceThinkingForModel(
   thinking: AnthropicThinkingMode,
 ): AnthropicThinkingMode {
   const entry = catalog.find((item) => item.id === model);
-  return entry?.anthropicThinking === 'always' ? 'adaptive' : thinking;
+  if (entry?.anthropicThinking === 'always') return 'adaptive';
+  if (entry?.anthropicThinking === 'optional') return thinking;
+  return 'off';
+}
+
+function forceEffortForModel(
+  catalog: ModelCatalogEntry[],
+  model: string,
+  effort: ModelEffort,
+): ModelEffort | undefined {
+  const entry = catalog.find((item) => item.id === model);
+  return entry?.anthropicThinking === 'always' || entry?.anthropicThinking === 'optional'
+    ? effort
+    : undefined;
 }
 
 function parseThinkingMode(raw: unknown, fallback: AnthropicThinkingMode): AnthropicThinkingMode {
@@ -512,7 +501,7 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         ...(selection.options.effort
           ? { output_config: { effort: selection.options.effort } }
           : {}),
-        system: request.promptBlocks.map(anthropicSystemBlock),
+        system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: request.prompt }],
       });
 
@@ -536,22 +525,6 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
 
       const final = await stream.finalMessage();
       onUsage(normalizeAnthropicUsage(final.usage));
-    },
-    async repairSurfaceSection(request, selection = defaultsToSelection(defaults)) {
-      const repairMessage = await ensureClient().messages.create({
-        model: selection.generationModel,
-        max_tokens: selection.options.repairMaxOutputTokens,
-        system: [
-          ...request.promptBlocks.map(anthropicSystemBlock),
-          {
-            type: 'text',
-            text: repairModeSystemText(),
-            cache_control: { type: 'ephemeral' },
-          },
-        ],
-        messages: [{ role: 'user', content: request.prompt }],
-      });
-      return extractAnthropicText(repairMessage.content);
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
@@ -677,20 +650,6 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         if (usage) onUsage(usage);
       }
     },
-    async repairSurfaceSection(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        '/responses',
-        responsesBody(
-          selection.generationModel,
-          `${promptBlocksToText(request.promptBlocks)}\n\n${repairModeSystemText()}`,
-          request.prompt,
-          selection.options.repairMaxOutputTokens,
-          false,
-        ),
-        request.signal,
-      );
-      return extractOpenAIText(await response.json());
-    },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         '/responses',
@@ -787,19 +746,6 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         if (usage) onUsage(usage);
       }
     },
-    async repairSurfaceSection(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        selection.generationModel,
-        'generateContent',
-        geminiBody(
-          `${promptBlocksToText(request.promptBlocks)}\n\n${repairModeSystemText()}`,
-          request.prompt,
-          selection.options.repairMaxOutputTokens,
-        ),
-        request.signal,
-      );
-      return extractGeminiText(await response.json()).trim();
-    },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         selection.utilityModel,
@@ -812,8 +758,19 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
   };
 }
 
-function anthropicSystemBlock(block: ContractPromptBlock): Anthropic.TextBlockParam {
-  if (block.cache === 'ephemeral') {
+const ANTHROPIC_MAX_CACHE_CONTROL_BLOCKS = 4;
+
+function anthropicSystemBlocks(blocks: ContractPromptBlock[]): Anthropic.TextBlockParam[] {
+  let cacheBlocksRemaining = ANTHROPIC_MAX_CACHE_CONTROL_BLOCKS;
+  return blocks.map((block) => {
+    const shouldCache = block.cache === 'ephemeral' && cacheBlocksRemaining > 0;
+    if (shouldCache) cacheBlocksRemaining -= 1;
+    return anthropicSystemBlock(block, shouldCache);
+  });
+}
+
+function anthropicSystemBlock(block: ContractPromptBlock, cache: boolean): Anthropic.TextBlockParam {
+  if (cache) {
     return {
       type: 'text',
       text: block.text,
@@ -828,10 +785,6 @@ function anthropicSystemBlock(block: ContractPromptBlock): Anthropic.TextBlockPa
 
 function promptBlocksToText(blocks: ContractPromptBlock[]): string {
   return blocks.map((block) => block.text).join('\n\n');
-}
-
-function repairModeSystemText(): string {
-  return '## Repair mode\n\nYou are repairing one blocked Summon target. Return exactly one safe replacement `add` JSONL line for the same target path and nothing else.';
 }
 
 function extractAnthropicText(content: Anthropic.Message['content']): string {

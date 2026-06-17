@@ -1,28 +1,28 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  CAPABILITY_BINDING_SPECS,
-  CAPABILITY_TRIGGER_SPECS,
-  buildCapabilitiesBlock,
-  compileCapabilityContract,
-  formatCapabilityProtocolContract,
+  buildToolsBlock,
+  compileToolContract,
+  formatToolProtocolContract,
 } from '../src/index.ts';
 
-test('capability protocol contract includes every trigger and binding spec', () => {
-  const text = formatCapabilityProtocolContract();
+test('tool protocol contract documents Arrow host bridge', () => {
+  const text = formatToolProtocolContract();
 
-  for (const spec of CAPABILITY_TRIGGER_SPECS) {
-    assert.match(text, new RegExp(spec.legacyAttribute));
-    assert.match(text, new RegExp(`data-summon-resource-trigger="${spec.resourceTriggerValue}"`));
-  }
-  for (const spec of CAPABILITY_BINDING_SPECS) {
-    assert.match(text, new RegExp(spec.attribute));
-  }
+  assert.match(text, /Arrow host bridge/);
+  assert.match(text, /host-bridge:summon/);
+  assert.match(text, /callTool/);
+  assert.match(text, /getState/);
+  assert.match(text, /onState/);
+  assert.match(text, /reactive\(\)/);
+  assert.doesNotMatch(text, /data-summon-on-click/);
+  assert.doesNotMatch(text, /data-summon-resource-trigger/);
+  assert.doesNotMatch(text, /data-summon-bind/);
 });
 
-test('capability compiler returns prompt, pack, intent names, and validation metadata', () => {
-  const contract = compileCapabilityContract({
-    intents: [
+test('tool compiler returns prompt, pack, tool names, and validation metadata', () => {
+  const contract = compileToolContract({
+    tools: [
       {
         name: 'search',
         description: 'Run a search.',
@@ -47,8 +47,8 @@ test('capability compiler returns prompt, pack, intent names, and validation met
     ],
   });
 
-  assert.deepEqual(contract.intentNames, ['search', 'save']);
-  assert.deepEqual(contract.validationCapabilities, [
+  assert.deepEqual(contract.toolNames, ['search', 'save']);
+  assert.deepEqual(contract.validationTools, [
     {
       name: 'search',
       kind: 'resource',
@@ -71,13 +71,13 @@ test('capability compiler returns prompt, pack, intent names, and validation met
     saveDone: false,
     saveError: null,
   });
-  assert.equal(contract.promptBlock?.id, 'capabilities');
+  assert.equal(contract.promptBlock?.id, 'tools');
   assert.match(contract.promptBlock?.text ?? '', /Available data resources/);
 });
 
-test('capabilities block renders generated protocol docs', () => {
-  const text = buildCapabilitiesBlock({
-    intents: [
+test('tools block renders Arrow-native protocol docs', () => {
+  const text = buildToolsBlock({
+    tools: [
       {
         name: 'search',
         description: 'Run a search.',
@@ -105,21 +105,26 @@ test('capabilities block renders generated protocol docs', () => {
         code: '<button id="go">Go</button><script>document.getElementById("go")?.addEventListener("click", () => sandbox.emit("search", {query:"boots"}))</script>',
       },
       {
-        name: 'declarative search',
+        name: 'legacy declarative search',
         code: '<form data-summon-resource="search" data-summon-resource-trigger="submit"></form>',
+      },
+      {
+        name: 'arrow search',
+        code: 'import { callTool, onState } from "host-bridge:summon";\nconst run = () => callTool("search", { query: "boots" });\nonState(() => {});',
       },
     ],
   });
 
   assert.match(text, /Available data resources/);
-  assert.match(text, /Declarative-only interactivity/);
-  assert.match(text, /data-summon-resource="<name>"/);
-  assert.match(text, /\$alias\.loading/);
-  assert.match(text, /\$alias\.empty/);
+  assert.match(text, /Arrow-native interactivity/);
+  assert.match(text, /host-bridge:summon/);
+  assert.match(text, /reactive\(\)/);
+  assert.match(text, /callTool/);
+  assert.match(text, /getState/);
+  assert.match(text, /onState/);
   assert.match(text, /Default data: `\[\]`/);
   assert.match(text, /Never hallucinate fetched rows/);
-  assert.match(text, /Render "no results" from `\$alias\.empty`/);
-  assert.match(text, /data-summon-show="\$alias\.data"/);
+  assert.match(text, /Render "no results" from the declared empty key/);
   assert.match(text, /State keys: loading=searching, data=results, error=searchError, empty=noResults/);
   assert.match(text, /Action state: pending=savePending, done=saveDone, error=saveError/);
   assert.match(text, /Controlled actions expose host-owned pending\/done\/error keys/);
@@ -127,12 +132,13 @@ test('capabilities block renders generated protocol docs', () => {
   assert.doesNotMatch(text, /data-summon-on-submit="submit"/);
   assert.doesNotMatch(text, /data-summon-on-click="log"/);
   assert.doesNotMatch(text, /document\.getElementById/);
-  assert.match(text, /data-summon-resource="search"/);
+  assert.doesNotMatch(text, /data-summon-resource="search"/);
+  assert.match(text, /arrow search/);
 });
 
-test('capabilities block filters script patterns even with legacy allow policy', () => {
-  const text = buildCapabilitiesBlock({
-    intents: [
+test('tools block filters script patterns', () => {
+  const text = buildToolsBlock({
+    tools: [
       {
         name: 'choose',
         description: 'Choose an option.',
@@ -146,9 +152,9 @@ test('capabilities block filters script patterns even with legacy allow policy',
         code: '<button id="x">Pick</button><script>document.getElementById("x")?.addEventListener("click", () => sandbox.emit("choose", {option:"A"}))</script>',
       },
     ],
-  }, { scriptPolicy: 'allow' });
+  });
 
-  assert.match(text, /Script policy — declarative only/);
+  assert.match(text, /Host tool bridge/);
   assert.doesNotMatch(text, /Rules for scripts/);
   assert.doesNotMatch(text, /document\.getElementById/);
 });

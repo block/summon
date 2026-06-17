@@ -1,11 +1,11 @@
 /**
- * Demo capability registry — the demo app owns its intent vocabulary, prompt
+ * Demo tool registry — the demo app owns its tool vocabulary, prompt
  * patterns, and handler implementations in one place. The registry produces
- * both the model-facing CapabilityPack and the PolicyEngine handler map.
+ * both the model-facing ToolPack and the PolicyEngine handler map.
  */
 
 import {
-  createCapabilityRegistry,
+  createToolRegistry,
   defineAction,
   defineApprovalAction,
   defineDataResource,
@@ -13,10 +13,10 @@ import {
   defineWorkerResource,
   type ApprovalDecision,
   type ApprovalRequest,
-  type CapabilityDefinition,
-  type CapabilityRegistry,
+  type ToolDefinition,
+  type ToolRegistry,
 } from '@anarchitecture/summon';
-import type { IntentHandler } from '@anarchitecture/summon/policy';
+import type { ToolHandler } from '@anarchitecture/summon/policy';
 import { z } from 'zod';
 
 const logArgsSchema = z.object({ payload: z.any().optional() }).passthrough();
@@ -94,7 +94,7 @@ export interface DemoHandlerOptions {
    * Optional because only the single-prompt generate page owns the DOM and
    * streaming machinery needed to spawn sibling sandboxes.
    */
-  onSummon?: IntentHandler<SummonArgs>;
+  onSummon?: ToolHandler<SummonArgs>;
   /**
    * Optional because batch/demo surfaces may run without a visible host
    * approval panel. Browser hosts should render their own approve/deny UI here.
@@ -104,9 +104,9 @@ export interface DemoHandlerOptions {
   ) => Promise<ApprovalDecision> | ApprovalDecision;
 }
 
-export function createDemoCapabilityRegistry(
+export function createDemoToolRegistry(
   opts: DemoHandlerOptions = {},
-): CapabilityRegistry {
+): ToolRegistry {
   const log = opts.onLog ?? (() => {});
   const errlog = opts.onError ?? opts.onLog ?? (() => {});
 
@@ -116,7 +116,7 @@ export function createDemoCapabilityRegistry(
   let logCount = 0;
   const chosenOptions: string[] = [];
 
-  const capabilities: CapabilityDefinition<any>[] = [
+  const tools: ToolDefinition<any>[] = [
     defineAction({
       name: 'log',
       description:
@@ -142,11 +142,24 @@ export function createDemoCapabilityRegistry(
       patterns: [
         {
           name: 'Counter (shared integer state)',
-          code: `<div>
-  <button data-summon-on-click="counter" data-summon-args='{"delta":-1}'>-</button>
-  <output data-summon-bind="count">0</output>
-  <button data-summon-on-click="counter" data-summon-args='{"delta":1}'>+</button>
-</div>`,
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ count: 0 });
+onState((hostState) => {
+  state.count = Number(hostState.count ?? state.count);
+});
+
+async function adjust(delta: number) {
+  const result = await callTool("counter", { delta });
+  if (result.ok) state.count = Number(result.state.count ?? state.count);
+}
+
+export default html\`
+  <button @click="\${() => adjust(-1)}">-</button>
+  <output>\${() => state.count}</output>
+  <button @click="\${() => adjust(1)}">+</button>
+\`;`,
         },
       ],
       handler: ({ args, push }) => {
@@ -180,13 +193,33 @@ export function createDemoCapabilityRegistry(
       patterns: [
         {
           name: 'Form submit (validation)',
-          code: `<form data-summon-on-submit="submit">
-  <input name="title" placeholder="Title">
-  <input name="notes" placeholder="Notes">
-  <button>Save</button>
-</form>
-<p data-summon-show="submitted" style="color:var(--color-success);">Saved.</p>
-<p data-summon-show="submitError" data-summon-bind="submitError" style="color:var(--color-danger);"></p>`,
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ submitted: false, submitError: "" });
+onState((hostState) => {
+  state.submitted = Boolean(hostState.submitted);
+  state.submitError = String(hostState.submitError ?? "");
+});
+
+async function save(event: SubmitEvent) {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const result = await callTool("submit", fields);
+  state.submitted = Boolean(result.state.submitted);
+  state.submitError = String(result.state.submitError ?? result.error ?? "");
+}
+
+export default html\`
+  <form @submit="\${save}">
+    <input name="title" placeholder="Title">
+    <input name="notes" placeholder="Notes">
+    <button>Save</button>
+  </form>
+  <p>\${() => state.submitted ? "Saved." : ""}</p>
+  <p>\${() => state.submitError}</p>
+\`;`,
         },
       ],
       handler: ({ args, push }) => {
@@ -231,22 +264,41 @@ export function createDemoCapabilityRegistry(
       patterns: [
         {
           name: 'Search + result list (form submit + foreach + scoped click)',
-          code: `<div data-summon-resource="search" data-summon-resource-as="s">
-  <form data-summon-resource-trigger="submit">
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ searching: false, results: [] as Array<{ title: string; snippet: string }>, searchError: "" });
+onState((hostState) => {
+  state.searching = Boolean(hostState.searching);
+  state.results = Array.isArray(hostState.results) ? hostState.results : [];
+  state.searchError = String(hostState.searchError ?? "");
+});
+
+async function search(event: SubmitEvent) {
+  event.preventDefault();
+  const query = String(new FormData(event.currentTarget as HTMLFormElement).get("query") ?? "");
+  await callTool("search", { query });
+}
+
+async function pick(result: { title: string; snippet: string }) {
+  await callTool("log", { payload: { picked: result } });
+}
+
+export default html\`
+  <form @submit="\${search}">
     <input name="query" placeholder="Search...">
-    <button data-summon-attr-disabled="$s.loading">Go</button>
+    <button class="\${() => state.searching ? "loading" : ""}">\${() => state.searching ? "Searching..." : "Go"}</button>
   </form>
-  <p data-summon-show="$s.loading">Searching...</p>
-  <p data-summon-show="$s.error" data-summon-bind="$s.error" style="color:var(--color-danger);"></p>
-  <ul data-summon-foreach="$s.data" data-summon-as="r" data-summon-show="$s.data" style="list-style:none;padding:0;margin:0;">
-    <template>
-      <li data-summon-on-click="log" data-summon-args='{"payload":{"picked":"$r"}}' style="cursor:pointer;padding:8px 12px;border-bottom:1px solid var(--color-border);">
-        <div style="font-weight:600;" data-summon-bind="$r.title"></div>
-        <div style="color:var(--color-text-muted);font-size:var(--text-sm);" data-summon-bind="$r.snippet"></div>
+  <p>\${() => state.searchError}</p>
+  <ul>
+    \${() => state.results.map((result) => html\`
+      <li @click="\${() => pick(result)}">
+        <strong>\${result.title}</strong>
+        <span>\${result.snippet}</span>
       </li>
-    </template>
+    \`)}
   </ul>
-</div>`,
+\`;`,
         },
       ],
       onStart: ({ query }) => {
@@ -285,15 +337,30 @@ export function createDemoCapabilityRegistry(
       patterns: [
         {
           name: 'AI brainstorm (form submit + show loading + bind output)',
-          code: `<div data-summon-resource="ai" data-summon-resource-as="a">
-  <form data-summon-resource-trigger="submit">
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ aiLoading: false, aiResponse: "", aiError: "" });
+onState((hostState) => {
+  state.aiLoading = Boolean(hostState.aiLoading);
+  state.aiResponse = String(hostState.aiResponse ?? "");
+  state.aiError = String(hostState.aiError ?? "");
+});
+
+async function brainstorm(event: SubmitEvent) {
+  event.preventDefault();
+  const prompt = String(new FormData(event.currentTarget as HTMLFormElement).get("prompt") ?? "");
+  await callTool("ai", { prompt });
+}
+
+export default html\`
+  <form @submit="\${brainstorm}">
     <textarea name="prompt" placeholder="Describe the person..."></textarea>
-    <button data-summon-attr-disabled="$a.loading">Brainstorm</button>
+    <button class="\${() => state.aiLoading ? "loading" : ""}">\${() => state.aiLoading ? "Generating..." : "Brainstorm"}</button>
   </form>
-  <p data-summon-show="$a.loading">Generating...</p>
-  <p data-summon-show="$a.error" data-summon-bind="$a.error" style="color:var(--color-danger);"></p>
-  <div data-summon-show="$a.data" data-summon-bind="$a.data" style="white-space:pre-wrap;"></div>
-</div>`,
+  <p>\${() => state.aiError}</p>
+  <div>\${() => state.aiResponse}</div>
+\`;`,
         },
       ],
       onStart: ({ prompt }) => {
@@ -334,25 +401,36 @@ export function createDemoCapabilityRegistry(
       patterns: [
         {
           name: 'GitHub lookup (form submit + show wrapper + bind nested fields)',
-          code: `<div data-summon-resource="github_lookup" data-summon-resource-as="gh">
-  <form data-summon-resource-trigger="submit" style="display:flex;gap:var(--space-2);">
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ githubLoading: false, githubUser: null as null | Record<string, unknown>, githubError: "" });
+onState((hostState) => {
+  state.githubLoading = Boolean(hostState.githubLoading);
+  state.githubUser = hostState.githubUser && typeof hostState.githubUser === "object" ? hostState.githubUser as Record<string, unknown> : null;
+  state.githubError = String(hostState.githubError ?? "");
+});
+
+async function lookup(event: SubmitEvent) {
+  event.preventDefault();
+  const username = String(new FormData(event.currentTarget as HTMLFormElement).get("username") ?? "");
+  await callTool("github_lookup", { username });
+}
+
+export default html\`
+  <form @submit="\${lookup}">
     <input name="username" placeholder="GitHub username, e.g. torvalds">
-    <button data-summon-attr-disabled="$gh.loading">Look up</button>
+    <button class="\${() => state.githubLoading ? "loading" : ""}">\${() => state.githubLoading ? "Looking up..." : "Look up"}</button>
   </form>
-  <p data-summon-show="$gh.loading">Looking up...</p>
-  <p data-summon-show="$gh.error" data-summon-bind="$gh.error" style="color:var(--color-danger);"></p>
-  <div data-summon-show="$gh.data" style="display:flex;gap:var(--space-4);align-items:flex-start;padding:var(--space-4);border:1px solid var(--color-border);border-radius:var(--radius-lg);margin-top:var(--space-4);">
-    <img data-summon-attr-src="$gh.data.avatar" alt="" style="width:64px;height:64px;border-radius:50%;">
-    <div>
-      <div style="font-weight:600;">@<span data-summon-bind="$gh.data.login"></span></div>
-      <div data-summon-bind="$gh.data.name"></div>
-      <div data-summon-bind="$gh.data.bio" style="color:var(--color-text-muted);font-size:var(--text-sm);"></div>
-      <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-2);">
-        <span data-summon-bind="$gh.data.followers"></span> followers · <span data-summon-bind="$gh.data.public_repos"></span> repos
-      </div>
-    </div>
-  </div>
-</div>`,
+  <p>\${() => state.githubError}</p>
+  \${() => state.githubUser ? html\`
+    <article>
+      <img src="\${String(state.githubUser.avatar ?? "")}" alt="">
+      <strong>@\${String(state.githubUser.login ?? "")}</strong>
+      <p>\${String(state.githubUser.bio ?? "")}</p>
+    </article>
+  \` : ""}
+\`;`,
         },
       ],
       onStart: ({ username }) => {
@@ -424,20 +502,37 @@ export function createDemoCapabilityRegistry(
       patterns: [
         {
           name: 'Worker analysis (background compute + result binding)',
-          code: `<div data-summon-resource="analysis" data-summon-resource-as="a">
-  <form data-summon-resource-trigger="submit">
+          code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ analysisLoading: false, analysisResult: null as null | { topic: string; score: number; summary: string; next: string[] }, analysisError: "" });
+onState((hostState) => {
+  state.analysisLoading = Boolean(hostState.analysisLoading);
+  state.analysisResult = hostState.analysisResult as typeof state.analysisResult;
+  state.analysisError = String(hostState.analysisError ?? "");
+});
+
+async function analyze(event: SubmitEvent) {
+  event.preventDefault();
+  const topic = String(new FormData(event.currentTarget as HTMLFormElement).get("topic") ?? "");
+  await callTool("analysis", { topic });
+}
+
+export default html\`
+  <form @submit="\${analyze}">
     <input name="topic" placeholder="Topic to analyze">
-    <button data-summon-attr-disabled="$a.loading">Analyze</button>
+    <button class="\${() => state.analysisLoading ? "loading" : ""}">\${() => state.analysisLoading ? "Analyzing..." : "Analyze"}</button>
   </form>
-  <p data-summon-show="$a.loading">Analyzing...</p>
-  <p data-summon-show="$a.error" data-summon-bind="$a.error" style="color:var(--color-danger);"></p>
-  <article data-summon-show="$a.data">
-    <strong data-summon-bind="$a.data.topic"></strong>
-    <span data-summon-bind="$a.data.score"></span>
-    <p data-summon-bind="$a.data.summary"></p>
-    <ul data-summon-foreach="$a.data.next" data-summon-as="step"><template><li data-summon-bind="$step"></li></template></ul>
-  </article>
-</div>`,
+  <p>\${() => state.analysisError}</p>
+  \${() => state.analysisResult ? html\`
+    <article>
+      <strong>\${state.analysisResult.topic}</strong>
+      <span>\${state.analysisResult.score}</span>
+      <p>\${state.analysisResult.summary}</p>
+      <ul>\${state.analysisResult.next.map((step) => html\`<li>\${step}</li>\`)}</ul>
+    </article>
+  \` : ""}
+\`;`,
         },
       ],
       onStart: ({ topic }) => {
@@ -512,21 +607,35 @@ export function createDemoCapabilityRegistry(
   ];
 
   if (opts.onSummon) {
-    capabilities.push(
+    tools.push(
       defineAction({
         name: 'summon',
         description:
-          'Ask the host to generate a NEW sibling UI in its own iframe with its own state. Use sparingly — only when the user benefits from a deeper, separately-stateful surface (e.g., "summon a prep guide for this recipe", "open this option as its own planner"). The `prompt` is the user-intent description for the new UI; the optional `title` labels the child card. Do NOT use summon for things you can render inline with the existing intents.',
+          'Ask the host to generate a NEW sibling UI in its own iframe with its own state. Use sparingly — only when the user benefits from a deeper, separately-stateful surface (e.g., "summon a prep guide for this recipe", "open this option as its own planner"). The `prompt` is the user-tool description for the new UI; the optional `title` labels the child card. Do NOT use summon for things you can render inline with the existing tools.',
         argsSchema: summonArgsSchema,
         stateShape: '{summonedCount: number, lastSummoned: string | null, summonError: string | null}',
         patterns: [
           {
             name: 'Summon a sibling UI (new iframe, own state)',
-            code: `<button
-  data-summon-on-click="summon"
-  data-summon-args='{"prompt":"a focused 20-minute prep guide for chicken piccata, with timer-style steps","title":"Prep guide"}'
->Open prep guide -></button>
-<p data-summon-show="summonError" data-summon-bind="summonError" style="color:var(--color-danger);"></p>`,
+            code: `import { html, reactive } from "@arrow-js/core";
+import { callTool, onState } from "host-bridge:summon";
+
+const state = reactive({ summonError: "" });
+onState((hostState) => {
+  state.summonError = String(hostState.summonError ?? "");
+});
+
+async function openPrepGuide() {
+  await callTool("summon", {
+    prompt: "a focused 20-minute prep guide for chicken piccata, with timer-style steps",
+    title: "Prep guide",
+  });
+}
+
+export default html\`
+  <button @click="\${openPrepGuide}">Open prep guide -></button>
+  <p>\${() => state.summonError}</p>
+\`;`,
           },
         ],
         handler: opts.onSummon,
@@ -534,5 +643,5 @@ export function createDemoCapabilityRegistry(
     );
   }
 
-  return createCapabilityRegistry(capabilities);
+  return createToolRegistry(tools);
 }

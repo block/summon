@@ -75,7 +75,7 @@ export function DiagnosticsDock({
                   <div>
                     <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[13px] text-ink" title={item.prompt}>{item.prompt}</div>
                     <div className="mt-0.5 font-mono text-[10px] text-ink-muted">
-                      {compactPlanText(item.surfacePlan)} · hostTools={item.grants.intents.length} · validation={item.validationIssues.length} · {complete} · {new Date(item.createdAt).toLocaleTimeString()}
+                      {compactPlanText(item.surfacePlan)} · hostTools={item.grants.tools.length} · validation={item.validationIssues.length} · {complete} · {new Date(item.createdAt).toLocaleTimeString()}
                     </div>
                   </div>
                   <button type="button" className={buttonClass({ variant: 'ghost', size: 'xs', className: 'rounded-card' })} onClick={() => replaySurface(item)}>Replay</button>

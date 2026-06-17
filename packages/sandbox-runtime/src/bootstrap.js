@@ -1,49 +1,24 @@
 // Summon sandbox bootstrap — runs FIRST inside every sandbox iframe, before any
-// compiled artifact HTML. Installs window.sandbox (frozen) as the trusted
-// bridge for controlled test shells and legacy hosts. Generated artifacts do
-// not receive executable scripts.
+// Arrow artifact runtime. The generated artifact talks to the host only through
+// the `host-bridge:summon` virtual module supplied by the Arrow runtime.
 (() => {
   'use strict';
 
   const PARENT = window.parent;
   const SANDBOX_ID = window.__SUMMON_SANDBOX_ID__;
-  const RESOURCE_MAP = normalizeResources(window.__SUMMON_RESOURCES__);
+  const NETWORK_POLICY = window.__SUMMON_NETWORK_POLICY__ === 'restricted-fetch'
+    ? 'restricted-fetch'
+    : 'none';
   if (!SANDBOX_ID || typeof SANDBOX_ID !== 'string') {
-    // No ID means host didn't spawn this correctly. Refuse to install SDK.
+    // No ID means host didn't spawn this correctly. Refuse to boot.
     return;
   }
 
   // Scrub globals so artifact code can't read or overwrite them after bootstrap.
   try {
     delete window.__SUMMON_SANDBOX_ID__;
-    delete window.__SUMMON_RESOURCES__;
+    delete window.__SUMMON_NETWORK_POLICY__;
   } catch (_) { /* sealed elsewhere */ }
-
-  function normalizeResources(raw) {
-    const out = Object.create(null);
-    if (!raw || typeof raw !== 'object') return out;
-    for (const name in raw) {
-      if (!Object.prototype.hasOwnProperty.call(raw, name)) continue;
-      if (!/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(name)) continue;
-      const entry = raw[name];
-      const keys = entry && typeof entry === 'object' ? entry.stateKeys : null;
-      if (!keys || typeof keys !== 'object') continue;
-      const loading = keys.loading;
-      const data = keys.data;
-      const error = keys.error;
-      const empty = keys.empty;
-      if (typeof loading !== 'string' || typeof data !== 'string' || typeof error !== 'string') continue;
-      out[name] = Object.freeze({
-        stateKeys: Object.freeze({
-          loading,
-          data,
-          error,
-          ...(typeof empty === 'string' ? { empty } : {}),
-        }),
-      });
-    }
-    return Object.freeze(out);
-  }
 
   // ----- startup self-test --------------------------------------------------
   // Fail closed if the sandbox is not configured the way Summon requires. Any
@@ -93,16 +68,26 @@
   // -------------------------------------------------------------------------
 
   let currentState = Object.freeze({});
-  const localState = Object.create(null);
   const subscribers = new Set();
-  const mountedIntentKeys = new Set();
   let componentSyncScheduled = false;
   let componentSyncFallbackTimer = 0;
   let componentLayoutPollTimer = 0;
   let componentLayoutSignature = '';
   let componentResizeObserver = null;
   const componentResizeObserved = new Set();
-  const SAFE_ATTR_BINDINGS = Object.freeze(['src', 'alt', 'title', 'aria-label', 'value', 'placeholder', 'disabled']);
+  const MAX_PENDING_TOOL_RESULTS = 32;
+  const pendingToolResults = new Map();
+  let arrowTeardown = null;
+  let renderRevision = 0;
+
+  function cloneStateSnapshot(value) {
+    if (!value || typeof value !== 'object') return Object.freeze({});
+    try {
+      return Object.freeze(JSON.parse(JSON.stringify(value)));
+    } catch (_) {
+      return Object.freeze({});
+    }
+  }
 
   function notify() {
     const snapshot = currentState;
@@ -111,14 +96,158 @@
     }
   }
 
-  function emit(intent, args) {
-    if (typeof intent !== 'string' || !intent) return;
-    PARENT.postMessage({
-      type: 'SUMMON_INTENT',
-      sandbox_id: SANDBOX_ID,
-      intent,
-      args: args == null ? {} : args,
-    }, '*');
+  function emitFatal(reason) {
+    try {
+      PARENT.postMessage({
+        type: 'SUMMON_FATAL',
+        sandbox_id: SANDBOX_ID,
+        reason,
+      }, '*');
+    } catch (_) { /* parent gone */ }
+  }
+
+  function callToolInternal(tool, args) {
+    if (typeof tool !== 'string' || !tool) {
+      return Promise.resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'tool not a non-empty string' });
+    }
+    if (pendingToolResults.size >= MAX_PENDING_TOOL_RESULTS) {
+      return Promise.resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'too many pending tools' });
+    }
+    const requestId = 'arrow-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+    return new Promise((resolve) => {
+      const timeout = window.setTimeout(function () {
+        pendingToolResults.delete(requestId);
+        resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'tool timed out' });
+      }, 15000);
+      pendingToolResults.set(requestId, function (result) {
+        window.clearTimeout(timeout);
+        resolve(result);
+      });
+      PARENT.postMessage({
+        type: 'SUMMON_TOOL_CALL',
+        sandbox_id: SANDBOX_ID,
+        request_id: requestId,
+        tool,
+        args: args == null || typeof args !== 'object' ? {} : args,
+      }, '*');
+    });
+  }
+
+  function renderArrowArtifact(artifact) {
+    const root = document.getElementById('summon-root');
+    if (!root) return;
+    if (!artifact || artifact.runtime !== 'arrow' || !artifact.source || typeof artifact.source !== 'object') {
+      emitFatal('invalid Arrow artifact');
+      return;
+    }
+    if (artifact.network === 'restricted-fetch' && NETWORK_POLICY !== 'restricted-fetch') {
+      emitFatal('Arrow artifact requested restricted fetch without host network grant');
+      return;
+    }
+    if (typeof arrowTeardown === 'function') {
+      try { arrowTeardown(); } catch (_) { /* best effort */ }
+      arrowTeardown = null;
+    }
+    const revision = ++renderRevision;
+    root.replaceChildren();
+    const runtime = window.__SUMMON_ARROW_SANDBOX__;
+    const sandbox = runtime && runtime.sandbox;
+    if (typeof sandbox !== 'function') {
+      emitFatal('Arrow runtime missing — expected window.__SUMMON_ARROW_SANDBOX__.sandbox');
+      return;
+    }
+    try {
+      const view = sandbox(
+        {
+          source: artifact.source,
+          shadowDOM: false,
+          onError: function (error) {
+            emitFatal('Arrow runtime error: ' + String(error && error.message ? error.message : error));
+          },
+        },
+        {
+          output: function (payload) {
+            if (payload && typeof payload === 'object' && payload.type === 'tool') {
+              void callToolInternal(payload.tool, payload.args);
+            }
+          },
+        },
+        {
+          'host-bridge:summon': {
+            getState: function () {
+              return cloneStateSnapshot(currentState);
+            },
+            onState: function (cb) {
+              return onState(cb);
+            },
+            callTool: function (tool, args) {
+              return callToolInternal(tool, args);
+            },
+          },
+        },
+      );
+      const maybeTeardown = view(root);
+      if (typeof maybeTeardown === 'function') arrowTeardown = maybeTeardown;
+      waitForArrowRuntimeReady(root, revision);
+    } catch (err) {
+      emitFatal('Arrow runtime failed to mount: ' + String(err && err.message ? err.message : err));
+    }
+  }
+
+  function emitRendered(revision) {
+    if (revision !== renderRevision) return;
+    try {
+      PARENT.postMessage({ type: 'SUMMON_RENDERED', sandbox_id: SANDBOX_ID, revision }, '*');
+    } catch (_) { /* parent gone */ }
+  }
+
+  function finishArrowRender(revision) {
+    if (revision !== renderRevision) return;
+    scheduleComponentSync();
+    const done = function () {
+      if (revision !== renderRevision) return;
+      scheduleComponentSync();
+      emitRendered(revision);
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(done);
+    } else {
+      setTimeout(done, 0);
+    }
+  }
+
+  function waitForArrowRuntimeReady(root, revision) {
+    const arrowHost = root.querySelector('arrow-sandbox');
+    if (!arrowHost) {
+      finishArrowRender(revision);
+      return;
+    }
+
+    let settled = false;
+    const cleanup = function () {
+      arrowHost.removeEventListener('sandbox-ready', onReady);
+      arrowHost.removeEventListener('sandbox-error', onError);
+    };
+    const onReady = function () {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      finishArrowRender(revision);
+    };
+    const onError = function (event) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const detail = event && event.detail;
+      const message = detail && detail.message ? detail.message : detail;
+      emitFatal('Arrow runtime failed to mount: ' + String(message || 'unknown error'));
+    };
+
+    arrowHost.addEventListener('sandbox-ready', onReady, { once: true });
+    arrowHost.addEventListener('sandbox-error', onError, { once: true });
+    const ready = arrowHost.getAttribute('data-ready');
+    if (ready === 'true') onReady();
+    else if (ready === 'error') onError({ detail: 'unknown error' });
   }
 
   function onState(cb) {
@@ -129,384 +258,11 @@
     return () => subscribers.delete(cb);
   }
 
-  // ── Declarative bindings ───────────────────────────────────────────────────
-  // The LLM authors HTML with `data-summon-*` attributes; this binder is what
-  // makes them live. Two halves:
-  //
-  //   1. Listeners for `data-summon-on-click` and `data-summon-on-submit` —
-  //      installed ONCE on document, dispatched via `closest(...)` so re-renders
-  //      don't re-bind. Always preventDefault().
-  //      `data-summon-on-mount` is handled after render by applyMountIntents().
-  //   2. State-driven attributes — `data-summon-bind` (textContent),
-  //      `data-summon-show`/`data-summon-hide` (visibility) — recomputed from
-  //      currentState after every state push and every render. They're a pure
-  //      function of (DOM, state); recomputing is idempotent and the cheapest
-  //      possible model.
-  //
-  // Generated scripts are not an artifact capability. The `window.sandbox`
-  // object remains a narrow trusted bridge for host-owned tests and legacy
-  // shells, but generated UI should express local behavior with attributes.
-
-  function walkPath(obj, path) {
-    if (!path) return obj;
-    let cur = obj;
-    const parts = path.split('.');
-    for (let i = 0; i < parts.length; i++) {
-      if (cur == null) return undefined;
-      cur = cur[parts[i]];
-    }
-    return cur;
-  }
-
-  function hasPath(obj, path) {
-    if (!path) return true;
-    let cur = obj;
-    const parts = path.split('.');
-    for (let i = 0; i < parts.length; i++) {
-      if (cur == null || !Object.prototype.hasOwnProperty.call(Object(cur), parts[i])) return false;
-      cur = cur[parts[i]];
-    }
-    return true;
-  }
-
-  // Walk up to find the nearest ancestor (inclusive) with a matching foreach
-  // scope name. Scope markers are JS properties on stamped clones — invisible
-  // to the LLM-authored markup.
-  function findScope(name, fromEl) {
-    let el = fromEl;
-    while (el) {
-      if (el.__summon_scope === name) return el;
-      el = el.parentElement;
-    }
-    return null;
-  }
-
-  function findResourceScope(name, fromEl) {
-    let el = fromEl;
-    while (el) {
-      const resource = el.__summon_resource;
-      if (resource && resource.alias === name) return resource;
-      el = el.parentElement;
-    }
-    return null;
-  }
-
-  function resourceStateValue(resource, rest) {
-    const keys = resource && resource.stateKeys;
-    if (!keys) return undefined;
-    const loading = walkPath(currentState, keys.loading);
-    const data = walkPath(currentState, keys.data);
-    const error = walkPath(currentState, keys.error);
-    const empty = keys.empty ? walkPath(currentState, keys.empty) : undefined;
-    if (!rest) return { loading, data, error, empty };
-    const dot = rest.indexOf('.');
-    const head = dot === -1 ? rest : rest.slice(0, dot);
-    const tail = dot === -1 ? '' : rest.slice(dot + 1);
-    let base;
-    if (head === 'loading') base = loading;
-    else if (head === 'data') base = data;
-    else if (head === 'error') base = error;
-    else if (head === 'empty') base = empty;
-    else return undefined;
-    return tail ? walkPath(base, tail) : base;
-  }
-
-  // Resolve a path against either currentState or a foreach scope.
-  // Bare `key` / `nested.key` → root state.
-  // `$name` → the entire item from foreach scope `name`.
-  // `$name.field.sub` → field walk inside that item.
-  // fromEl is the binder/click element — used as the starting point for
-  // scope lookup. Falls back to root state if no scope matches.
-  function resolveKey(path, fromEl) {
-    if (!path) return undefined;
-    if (path.charCodeAt(0) === 0x24 /* $ */) {
-      const dot = path.indexOf('.');
-      const name = dot === -1 ? path.slice(1) : path.slice(1, dot);
-      const rest = dot === -1 ? '' : path.slice(dot + 1);
-      const scopeEl = findScope(name, fromEl);
-      if (scopeEl) {
-        const item = scopeEl.__summon_item;
-        return rest ? walkPath(item, rest) : item;
-      }
-      const resource = findResourceScope(name, fromEl);
-      return resourceStateValue(resource, rest);
-    }
-    if (hasPath(localState, path)) return walkPath(localState, path);
-    return walkPath(currentState, path);
-  }
-
-  function truthy(v) {
-    if (v == null || v === false || v === 0 || v === '') return false;
-    if (Array.isArray(v)) return v.length > 0;
-    if (typeof v === 'object') return Object.keys(v).length > 0;
-    return true;
-  }
-
-  // Recursively replace string leaves matching `^\$\w+(\..+)?$` with their
-  // resolved value. Used at click/submit time to bake the foreach item into
-  // the args payload — `{"picked": "$r"}` becomes `{"picked": <itemObj>}`.
-  function interpolate(value, fromEl) {
-    if (typeof value === 'string') {
-      if (value.length > 1 && value.charCodeAt(0) === 0x24 && /^\$[A-Za-z_]\w*(\..+)?$/.test(value)) {
-        return resolveKey(value, fromEl);
-      }
-      return value;
-    }
-    if (Array.isArray(value)) return value.map((v) => interpolate(v, fromEl));
-    if (value && typeof value === 'object') {
-      const out = {};
-      for (const k in value) {
-        if (Object.prototype.hasOwnProperty.call(value, k)) out[k] = interpolate(value[k], fromEl);
-      }
-      return out;
-    }
-    return value;
-  }
-
-  function seedLocalState(root) {
-    const hosts = root.querySelectorAll('[data-summon-local]');
-    for (const host of hosts) {
-      const raw = host.getAttribute('data-summon-local') || '';
-      if (!raw.trim()) continue;
-      let parsed;
-      try { parsed = JSON.parse(raw); }
-      catch (_) { continue; }
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
-      for (const key in parsed) {
-        if (!Object.prototype.hasOwnProperty.call(parsed, key)) continue;
-        if (!/^[A-Za-z_$][\w$]{0,39}$/.test(key)) continue;
-        if (!Object.prototype.hasOwnProperty.call(localState, key)) {
-          localState[key] = parsed[key];
-        }
-      }
-    }
-  }
-
-  function parseConditionLiteral(raw) {
-    const trimmed = String(raw || '').trim();
-    if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
-      try { return JSON.parse(trimmed); } catch (_) { return trimmed.slice(1, -1); }
-    }
-    if (trimmed.length >= 2 && trimmed[0] === "'" && trimmed[trimmed.length - 1] === "'") {
-      return trimmed.slice(1, -1);
-    }
-    return trimmed;
-  }
-
-  function evalCondition(expr, fromEl) {
-    const raw = String(expr || '').trim();
-    if (!raw) return false;
-    const match = raw.match(/^(!)?(\$?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?:\s*(==|!=)\s*("[^"]*"|'[^']*'))?$/);
-    if (!match) return truthy(resolveKey(raw, fromEl));
-    const negated = !!match[1];
-    const path = match[2];
-    const op = match[3];
-    const literal = match[4];
-    const value = resolveKey(path, fromEl);
-    let result;
-    if (op) {
-      const expected = parseConditionLiteral(literal);
-      result = String(value ?? '') === String(expected);
-      if (op === '!=') result = !result;
-    } else {
-      result = truthy(value);
-    }
-    return negated ? !result : result;
-  }
-
-  function applyResourceScopes(root) {
-    const hosts = root.querySelectorAll('[data-summon-resource]');
-    for (const host of hosts) {
-      const name = host.getAttribute('data-summon-resource') || '';
-      const entry = RESOURCE_MAP[name];
-      if (!entry) {
-        try { delete host.__summon_resource; } catch (_) { host.__summon_resource = undefined; }
-        continue;
-      }
-      const alias = host.getAttribute('data-summon-resource-as') || name;
-      host.__summon_resource = {
-        name,
-        alias,
-        stateKeys: entry.stateKeys,
-      };
-    }
-  }
-
-  // Stamp `<template>` children of every `[data-summon-foreach]` host. Idempotent
-  // by array reference — when state pushes leave the array === to last frame's,
-  // we skip the wipe-and-restamp. Otherwise: remove old clones, clone the
-  // template once per item, hang `__summon_scope` + `__summon_item` on each clone
-  // root for later scoped lookup.
-  function applyForEach(root) {
-    const hosts = root.querySelectorAll('[data-summon-foreach]');
-    for (const host of hosts) {
-      const path = host.getAttribute('data-summon-foreach');
-      const asName = host.getAttribute('data-summon-as') || 'item';
-      const items = resolveKey(path, host);
-      const arr = Array.isArray(items) ? items : [];
-      if (host.__summon_lastItems === arr) continue;
-
-      const tmpl = host.querySelector(':scope > template');
-      if (!tmpl) continue;
-
-      // Wipe previous clones — everything except the template element.
-      const kids = Array.from(host.children);
-      for (const c of kids) if (c !== tmpl) c.remove();
-
-      for (const item of arr) {
-        const frag = tmpl.content.cloneNode(true);
-        const stamped = frag.firstElementChild;
-        if (stamped) {
-          stamped.__summon_scope = asName;
-          stamped.__summon_item = item;
-        }
-        host.appendChild(frag);
-      }
-      host.__summon_lastItems = arr;
-    }
-  }
-
-  function applyAttrBindings(root) {
-    for (const attr of SAFE_ATTR_BINDINGS) {
-      const selector = '[data-summon-attr-' + attr + ']';
-      const els = root.querySelectorAll(selector);
-      for (const el of els) {
-        const raw = el.getAttribute('data-summon-attr-' + attr);
-        const v = attr === 'disabled' ? evalCondition(raw, el) : resolveKey(raw, el);
-        applySafeAttribute(el, attr, v);
-      }
-    }
-  }
-
-  function applySafeAttribute(el, attr, value) {
-    if (attr === 'disabled') {
-      if (truthy(value)) {
-        el.setAttribute('disabled', '');
-        el.disabled = true;
-      } else {
-        el.removeAttribute('disabled');
-        el.disabled = false;
-      }
-      return;
-    }
-
-    if (attr === 'src') {
-      if (el.tagName !== 'IMG') return;
-      const src = value == null ? '' : String(value);
-      if (!src || src.indexOf('data:') === 0) {
-        if (src) el.setAttribute('src', src);
-        else el.removeAttribute('src');
-      } else {
-        el.removeAttribute('src');
-      }
-      return;
-    }
-
-    if (attr === 'value') {
-      const next = value == null ? '' : String(value);
-      if ('value' in el && document.activeElement !== el) el.value = next;
-      el.setAttribute('value', next);
-      return;
-    }
-
-    if (value == null || value === false) {
-      el.removeAttribute(attr);
-    } else {
-      el.setAttribute(attr, String(value));
-    }
-  }
-
-  function applyClassBindings(root) {
-    const els = root.querySelectorAll('*');
-    for (const el of els) {
-      for (const attr of Array.from(el.attributes)) {
-        if (!attr.name.startsWith('data-summon-class-')) continue;
-        const className = attr.name.slice('data-summon-class-'.length);
-        if (!/^[A-Za-z][\w-]{0,63}$/.test(className)) continue;
-        el.classList.toggle(className, evalCondition(attr.value, el));
-      }
-    }
-  }
-
-  function parseMotionEntries(value) {
-    const out = [];
-    for (const part of String(value || '').split(';')) {
-      const trimmed = part.trim();
-      if (!trimmed) continue;
-      const bits = trimmed.split(':');
-      if (bits.length !== 2) continue;
-      const phase = bits[0].trim();
-      const recipe = bits[1].trim();
-      if (!/^(enter|update)$/.test(phase)) continue;
-      if (!/^[a-z][a-z0-9-]{0,31}$/.test(recipe)) continue;
-      out.push({ phase, recipe });
-    }
-    return out;
-  }
-
-  function applyMotion(root) {
-    const motionEls = root.querySelectorAll('[data-summon-motion]');
-    for (const el of motionEls) {
-      const entries = parseMotionEntries(el.getAttribute('data-summon-motion'));
-      for (const entry of entries) {
-        if (entry.phase === 'enter') {
-          el.classList.add('summon-motion-enter-' + entry.recipe);
-        }
-      }
-    }
-    const transitionEls = root.querySelectorAll('[data-summon-transition]');
-    for (const el of transitionEls) {
-      const recipe = (el.getAttribute('data-summon-transition') || '').trim();
-      if (/^[a-z][a-z0-9-]{0,31}$/.test(recipe)) {
-        el.classList.add('summon-transition-' + recipe);
-      }
-    }
-  }
-
-  function triggerUpdateMotion(root) {
-    const motionEls = root.querySelectorAll('[data-summon-motion]');
-    for (const el of motionEls) {
-      const entries = parseMotionEntries(el.getAttribute('data-summon-motion'));
-      for (const entry of entries) {
-        if (entry.phase === 'update') {
-          markTransientClass(el, 'summon-motion-update-' + entry.recipe, 560);
-        }
-      }
-    }
-  }
-
-  function applyBindings() {
-    const root = document.getElementById('summon-root');
-    if (!root) return;
-    seedLocalState(root);
-    // Resource scopes must exist before foreach resolution; foreach must stamp
-    // clones before bind/show/hide queries run.
-    applyResourceScopes(root);
-    applyForEach(root);
-    const binds = root.querySelectorAll('[data-summon-bind]');
-    for (const el of binds) {
-      const v = resolveKey(el.getAttribute('data-summon-bind'), el);
-      el.textContent = v == null ? '' : String(v);
-    }
-    const shows = root.querySelectorAll('[data-summon-show]');
-    for (const el of shows) {
-      el.hidden = !evalCondition(el.getAttribute('data-summon-show'), el);
-    }
-    const hides = root.querySelectorAll('[data-summon-hide]');
-    for (const el of hides) {
-      el.hidden = evalCondition(el.getAttribute('data-summon-hide'), el);
-    }
-    applyAttrBindings(root);
-    applyClassBindings(root);
-    applyMotion(root);
-    syncComponents();
-  }
-
-  function parseArgs(raw) {
+  function parseComponentProps(raw) {
     if (!raw) return {};
     try { return JSON.parse(raw); }
     catch (_) {
-      try { console.warn('summon: invalid data-summon-args JSON:', raw); } catch (__) {}
+      try { console.warn('summon: invalid data-summon-props JSON:', raw); } catch (__) {}
       return {};
     }
   }
@@ -539,9 +295,9 @@
       const name = el.getAttribute('data-summon-component') || '';
       const id = el.getAttribute('data-summon-component-id') || '';
       const rawProps = el.getAttribute('data-summon-props') || '{}';
-      const parsed = parseArgs(rawProps);
+      const parsed = parseComponentProps(rawProps);
       const props = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-        ? interpolate(parsed, el)
+        ? parsed
         : {};
       const rect = el.getBoundingClientRect();
       layoutParts.push(componentLayoutPart(el, rect));
@@ -632,479 +388,10 @@
     }, 100);
   }
 
-  // Collect named form controls into a flat args object. Multi-step thinking:
-  //  - Inputs/selects/textareas with [name] → value.
-  //  - Checkboxes → boolean.
-  //  - Radios → only the checked one's value, keyed by group name.
-  // Anything without [name] is ignored — same as a normal browser submit.
-  function collectFormFields(form) {
-    const out = {};
-    const els = form.querySelectorAll('[name]');
-    for (const el of els) {
-      const name = el.getAttribute('name');
-      if (!name) continue;
-      const tag = el.tagName;
-      const type = el.type;
-      if (tag === 'INPUT' && type === 'checkbox') {
-        out[name] = !!el.checked;
-      } else if (tag === 'INPUT' && type === 'radio') {
-        if (el.checked) out[name] = el.value;
-      } else if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
-        out[name] = el.value;
-      }
-    }
-    return out;
-  }
-
-  function findResourceForElement(fromEl) {
-    let el = fromEl;
-    while (el) {
-      if (el.__summon_resource) return el.__summon_resource;
-      el = el.parentElement;
-    }
-    return null;
-  }
-
-  function emitResourceTrigger(el, includeFormFields) {
-    const resource = findResourceForElement(el);
-    if (!resource || !resource.name) return;
-    const rawArgs = el.getAttribute('data-summon-args') || '';
-    const base = interpolate(parseArgs(rawArgs), el);
-    const args = includeFormFields
-      ? Object.assign({}, base, collectFormFields(el))
-      : base;
-    emit(resource.name, args);
-  }
-
-  function parseLocalValue(raw) {
-    const value = String(raw || '').trim();
-    if (!value) return '';
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    if (value === 'null') return null;
-    if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) return Number(value);
-    if (value.length >= 2 && value[0] === '"' && value[value.length - 1] === '"') {
-      try { return JSON.parse(value); } catch (_) { return value.slice(1, -1); }
-    }
-    if (value.length >= 2 && value[0] === "'" && value[value.length - 1] === "'") {
-      return value.slice(1, -1);
-    }
-    return value;
-  }
-
-  function applyLocalAction(el) {
-    const setValue = el.getAttribute('data-summon-set');
-    const toggleValue = el.getAttribute('data-summon-toggle');
-    let changed = false;
-    if (setValue) {
-      const idx = setValue.indexOf('=');
-      const key = idx === -1 ? '' : setValue.slice(0, idx).trim();
-      const rawValue = idx === -1 ? '' : setValue.slice(idx + 1);
-      if (/^[A-Za-z_$][\w$]{0,39}$/.test(key)) {
-        const next = parseLocalValue(rawValue);
-        if (localState[key] !== next) {
-          localState[key] = next;
-          changed = true;
-        }
-      }
-    }
-    if (toggleValue) {
-      const key = toggleValue.trim();
-      if (/^[A-Za-z_$][\w$]{0,39}$/.test(key)) {
-        localState[key] = !truthy(localState[key]);
-        changed = true;
-      }
-    }
-    if (!changed) return;
-    applyBindings();
-    const root = document.getElementById('summon-root');
-    if (root) triggerUpdateMotion(root);
-    scheduleComponentSync();
-  }
-
-  function mountKeyFor(el, intent, rawArgs) {
-    const section = el.closest('[data-summon-section]');
-    const sectionId = section ? section.getAttribute('data-summon-section') || 'root' : 'root';
-    return sectionId + '\n' + intent + '\n' + (rawArgs || '');
-  }
-
-  function applyMountIntents() {
-    const root = document.getElementById('summon-root');
-    if (!root) return;
-    const mounts = root.querySelectorAll('[data-summon-on-mount]');
-    for (const el of mounts) {
-      const intent = el.getAttribute('data-summon-on-mount');
-      if (!intent) continue;
-      const rawArgs = el.getAttribute('data-summon-args') || '';
-      const key = mountKeyFor(el, intent, rawArgs);
-      if (mountedIntentKeys.has(key)) continue;
-      mountedIntentKeys.add(key);
-      emit(intent, interpolate(parseArgs(rawArgs), el));
-    }
-
-    const resourceMounts = root.querySelectorAll('[data-summon-resource][data-summon-resource-trigger="mount"]');
-    for (const el of resourceMounts) {
-      const resource = findResourceForElement(el);
-      if (!resource || !resource.name) continue;
-      const rawArgs = el.getAttribute('data-summon-args') || '';
-      const key = mountKeyFor(el, resource.name, rawArgs);
-      if (mountedIntentKeys.has(key)) continue;
-      mountedIntentKeys.add(key);
-      emitResourceTrigger(el, false);
-    }
-  }
-
-  // Delegated click. Walks up from event.target to find the closest element
-  // carrying `data-summon-on-click`. Always preventDefault — a click that resolves
-  // to an intent never falls through to the browser's default (form submit,
-  // anchor navigation, etc.). Args are interpolated against the element's
-  // foreach scope (if any) at fire time, so `{"picked":"$r"}` resolves to the
-  // actual item object the user clicked on.
-  document.addEventListener('click', (event) => {
-    const t = event.target;
-    if (!(t instanceof Element)) return;
-    const localEl = t.closest('[data-summon-set],[data-summon-toggle]');
-    if (localEl) {
-      event.preventDefault();
-      applyLocalAction(localEl);
-      return;
-    }
-    const resourceEl = t.closest('[data-summon-resource-trigger="click"]');
-    if (resourceEl) {
-      event.preventDefault();
-      emitResourceTrigger(resourceEl, false);
-      return;
-    }
-    const el = t.closest('[data-summon-on-click]');
-    if (!el) return;
-    event.preventDefault();
-    const intent = el.getAttribute('data-summon-on-click');
-    const parsed = parseArgs(el.getAttribute('data-summon-args'));
-    emit(intent, interpolate(parsed, el));
-  });
-
-  // Delegated submit. Form-only by attribute selector. Auto-collected fields
-  // are spread directly into args; an optional `data-summon-args` JSON object
-  // provides base args (collected fields win on key conflict). Base args are
-  // interpolated against the form's scope so foreach-scoped forms can pass
-  // their item identity through.
-  document.addEventListener('submit', (event) => {
-    const t = event.target;
-    if (!(t instanceof Element)) return;
-    const resourceForm = t.closest('form[data-summon-resource-trigger="submit"]');
-    if (resourceForm) {
-      event.preventDefault();
-      emitResourceTrigger(resourceForm, true);
-      return;
-    }
-    const form = t.closest('form[data-summon-on-submit]');
-    if (!form) return;
-    event.preventDefault();
-    const intent = form.getAttribute('data-summon-on-submit');
-    const base = interpolate(parseArgs(form.getAttribute('data-summon-args')), form);
-    emit(intent, Object.assign({}, base, collectFormFields(form)));
-  });
-
-  // First-paint pass: hides any `data-summon-show` element whose key resolves
-  // to falsy in the empty initial state. Without this, elements meant to be
-  // hidden-by-default flash visible until the first state push.
-  document.addEventListener('DOMContentLoaded', () => {
-    applyBindings();
-    applyMountIntents();
-  });
   window.addEventListener('resize', scheduleComponentSync);
   window.addEventListener('scroll', scheduleComponentSync, { passive: true });
   document.addEventListener('scroll', scheduleComponentSync, { capture: true, passive: true });
   // ───────────────────────────────────────────────────────────────────────────
-
-  // Tracks the <section data-summon-section="..."> elements currently in
-  // #summon-root, keyed by id, so live-paint renders only mount NEW sections
-  // instead of re-creating the whole tree on every section update. Without
-  // this, every entrance animation re-fires on every section arrival.
-  const sectionEls = new Map();
-
-  function indexExistingSections(root) {
-    if (sectionEls.size > 0) return;
-    for (const child of Array.from(root.children)) {
-      if (child.tagName === 'SECTION' && child.hasAttribute('data-summon-section')) {
-        const id = child.getAttribute('data-summon-section');
-        if (id) sectionEls.set(id, child);
-      }
-    }
-  }
-
-  /**
-   * Render a blob of HTML into #summon-root.
-   *
-   * If the incoming HTML is section-structured (top-level
-   * `<section data-summon-section="...">` children, as produced by
-   * SectionAccumulator.compose()), diff by section id: existing sections stay
-   * in place, new sections are appended (so their CSS entrance animation fires
-   * once), changed sections get their innerHTML replaced without remount,
-   * removed sections are pulled out.
-   *
-   * Otherwise (raw artifact HTML, no sections), fall back to a full
-   * innerHTML replace.
-   *
-   * Generated scripts are not an artifact capability. innerHTML-inserted
-   * script tags stay inert, and the sandbox CSP only trusts nonce-authorized
-   * bootstrap scripts.
-   */
-  function renderRoot(html) {
-    const root = document.getElementById('summon-root');
-    if (!root) return;
-    indexExistingSections(root);
-    const incoming = typeof html === 'string' ? html : '';
-
-    const tmp = document.createElement('div');
-    tmp.innerHTML = incoming;
-
-    const newSections = [];
-    for (const child of Array.from(tmp.children)) {
-      if (child.tagName === 'SECTION' && child.hasAttribute('data-summon-section')) {
-        newSections.push(child);
-      }
-    }
-
-    if (newSections.length === 0) {
-      // Full replace — every prior subscriber is now pointing at detached DOM.
-      sectionEls.clear();
-      subscribers.clear();
-      root.innerHTML = incoming;
-      applyBindings();
-      applyMountIntents();
-      return;
-    }
-
-    const wantedOrder = [];
-    const wantedIds = new Set();
-
-    for (const incomingEl of newSections) {
-      const id = incomingEl.getAttribute('data-summon-section');
-      if (!id) continue;
-      wantedOrder.push(id);
-      wantedIds.add(id);
-
-      const existingEl = sectionEls.get(id);
-      if (existingEl) {
-        // Same section, possibly updated content. Replace innerHTML on the
-        // existing element so the entrance animation does NOT re-fire.
-        if (existingEl.innerHTML !== incomingEl.innerHTML) {
-          if (!patchSectionBlocks(existingEl, incomingEl)) {
-            existingEl.innerHTML = incomingEl.innerHTML;
-          }
-        }
-      } else {
-        // New section — appending to #summon-root mounts it for the first time,
-        // which triggers the CSS entrance animation declared on the
-        // [data-summon-section] selector.
-        root.appendChild(incomingEl);
-        sectionEls.set(id, incomingEl);
-      }
-    }
-
-    for (const [id, el] of Array.from(sectionEls.entries())) {
-      if (!wantedIds.has(id)) {
-        el.remove();
-        sectionEls.delete(id);
-      }
-    }
-
-    // Reorder children to match wantedOrder. insertBefore on a node already in
-    // the tree moves it rather than cloning, so this is in-place.
-    for (let i = 0; i < wantedOrder.length; i++) {
-      const desired = sectionEls.get(wantedOrder[i]);
-      if (!desired) continue;
-      if (root.children[i] !== desired) {
-        root.insertBefore(desired, root.children[i] || null);
-      }
-    }
-
-    applyBindings();
-    applyMountIntents();
-  }
-
-  function patchSectionBlocks(existingSection, incomingSection) {
-    var existingBlocks = directBlockChildren(existingSection);
-    var incomingBlocks = directBlockChildren(incomingSection);
-    if (existingBlocks.length === 0 || incomingBlocks.length === 0) return false;
-
-    var existingById = new Map();
-    for (var i = 0; i < existingBlocks.length; i++) {
-      var existingId = existingBlocks[i].getAttribute('data-summon-block');
-      if (existingId) existingById.set(existingId, existingBlocks[i]);
-    }
-
-    var wantedIds = new Set();
-    for (var j = 0; j < incomingBlocks.length; j++) {
-      var incomingBlock = incomingBlocks[j];
-      var id = incomingBlock.getAttribute('data-summon-block');
-      if (!id) continue;
-      wantedIds.add(id);
-      var existingBlock = existingById.get(id);
-      if (existingBlock) {
-        if (existingBlock.innerHTML !== incomingBlock.innerHTML) {
-          existingBlock.innerHTML = incomingBlock.innerHTML;
-        }
-      } else {
-        existingSection.appendChild(incomingBlock);
-        existingById.set(id, incomingBlock);
-      }
-    }
-
-    for (var _i = 0; _i < existingBlocks.length; _i++) {
-      var stale = existingBlocks[_i];
-      var staleId = stale.getAttribute('data-summon-block');
-      if (staleId && !wantedIds.has(staleId)) stale.remove();
-    }
-
-    for (var k = 0; k < incomingBlocks.length; k++) {
-      var wantedId = incomingBlocks[k].getAttribute('data-summon-block');
-      if (!wantedId) continue;
-      var desired = existingById.get(wantedId);
-      if (!desired) continue;
-      if (existingSection.children[k] !== desired) {
-        existingSection.insertBefore(desired, existingSection.children[k] || null);
-      }
-    }
-
-    return true;
-  }
-
-  function directBlockChildren(section) {
-    var out = [];
-    for (var i = 0; i < section.children.length; i++) {
-      var child = section.children[i];
-      if (child.hasAttribute('data-summon-block')) out.push(child);
-    }
-    return out;
-  }
-
-  function patchHtmlNode(patch) {
-    if (!patch || typeof patch !== 'object') return;
-    var sectionId = typeof patch.sectionId === 'string' ? patch.sectionId : '';
-    var nodeId = typeof patch.nodeId === 'string' ? patch.nodeId : '';
-    var parentId = typeof patch.parentId === 'string' ? patch.parentId : '';
-    var html = typeof patch.html === 'string' ? patch.html : '';
-    if (!sectionId || !nodeId) return;
-
-    var root = document.getElementById('summon-root');
-    if (!root) return;
-    indexExistingSections(root);
-
-    var section = sectionEls.get(sectionId);
-    if (!section) {
-      section = document.createElement('section');
-      section.setAttribute('data-summon-section', sectionId);
-      root.appendChild(section);
-      sectionEls.set(sectionId, section);
-    }
-
-    var tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    var incoming = tmp.firstElementChild;
-    if (!incoming || incoming.getAttribute('data-summon-node') !== nodeId) return;
-
-    var parent = parentId ? findSummonNode(section, parentId) : section;
-    if (!parent) return;
-
-    var existing = findSummonNode(section, nodeId);
-    if (existing) {
-      var preservedChildren = directNodeChildren(existing);
-      var incomingChildHost = nodeChildrenHost(incoming);
-      var replacementSlotChanged = false;
-      if (preservedChildren.length > 0) {
-        replacementSlotChanged = prepareNodeChildHost(incomingChildHost);
-      }
-      for (var i = 0; i < preservedChildren.length; i++) {
-        incomingChildHost.appendChild(preservedChildren[i]);
-      }
-      markTransientClass(incoming, 'summon-node-update', 520);
-      existing.replaceWith(incoming);
-      if (replacementSlotChanged) markSlotFilled(incomingChildHost);
-    } else {
-      var childHost = nodeChildrenHost(parent);
-      var slotChanged = prepareNodeChildHost(childHost);
-      markTransientClass(incoming, 'summon-node-enter', 520);
-      childHost.appendChild(incoming);
-      if (slotChanged) markSlotFilled(childHost);
-    }
-
-    applyBindings();
-    applyMountIntents();
-  }
-
-  function findSummonNode(section, nodeId) {
-    var nodes = section.querySelectorAll('[data-summon-node]');
-    for (var i = 0; i < nodes.length; i++) {
-      if (nodes[i].getAttribute('data-summon-node') === nodeId) return nodes[i];
-    }
-    return null;
-  }
-
-  function directNodeChildren(parent) {
-    var out = [];
-    var childHost = nodeChildrenHost(parent);
-    for (var i = 0; i < childHost.children.length; i++) {
-      var child = childHost.children[i];
-      if (child.hasAttribute('data-summon-node')) out.push(child);
-    }
-    return out;
-  }
-
-  function nodeChildrenHost(parent) {
-    if (!parent || typeof parent.querySelector !== 'function') return parent;
-    return parent.querySelector('[data-summon-node-children]') || parent;
-  }
-
-  function prepareNodeChildHost(host) {
-    if (!isNodeChildrenSlot(host)) return false;
-    var hadNodeChildren = directSummonNodeChildCount(host) > 0;
-    var removedSkeletons = removeDirectSkeletons(host);
-    return removedSkeletons > 0 || !hadNodeChildren;
-  }
-
-  function directSummonNodeChildCount(host) {
-    if (!host || !host.children) return 0;
-    var count = 0;
-    for (var i = 0; i < host.children.length; i++) {
-      if (host.children[i].hasAttribute('data-summon-node')) count += 1;
-    }
-    return count;
-  }
-
-  function removeDirectSkeletons(host) {
-    if (!host || !host.children) return 0;
-    var removed = 0;
-    var children = Array.from(host.children);
-    for (var i = 0; i < children.length; i++) {
-      if (children[i].hasAttribute('data-summon-skeleton')) {
-        children[i].remove();
-        removed += 1;
-      }
-    }
-    return removed;
-  }
-
-  function isNodeChildrenSlot(el) {
-    return !!(el && el.hasAttribute && el.hasAttribute('data-summon-node-children'));
-  }
-
-  function markSlotFilled(slot) {
-    if (!isNodeChildrenSlot(slot)) return;
-    markTransientClass(slot, 'summon-slot-filled', 560);
-  }
-
-  function markTransientClass(el, className, durationMs) {
-    if (!el || !el.classList) return;
-    el.classList.remove(className);
-    // Force a style flush so repeated replacements retrigger the animation.
-    void el.offsetWidth;
-    el.classList.add(className);
-    window.setTimeout(function () {
-      if (el && el.classList) el.classList.remove(className);
-    }, durationMs);
-  }
 
   window.addEventListener('message', (event) => {
     const data = event.data;
@@ -1114,64 +401,33 @@
     if (data.type === 'SUMMON_STATE') {
       const next = data.state && typeof data.state === 'object' ? data.state : {};
       currentState = Object.freeze({ ...next });
-      // Subscribers fire first; declarative bindings refresh last so the DOM
-      // ends up consistent with currentState even if a subscriber wrote to a
-      // bound element.
       notify();
-      applyBindings();
-      {
-        const root = document.getElementById('summon-root');
-        if (root) triggerUpdateMotion(root);
-      }
+      scheduleComponentSync();
       return;
     }
 
     if (data.type === 'SUMMON_RENDER') {
-      // renderRoot decides whether to wipe subscribers: a full innerHTML
-      // replace clears them, but a section-by-section diff leaves alive
-      // sections (and their onState subscribers) in place.
-      renderRoot(data.html);
-      return;
-    }
-
-    if (data.type === 'SUMMON_NODE_PATCH') {
-      patchHtmlNode(data.patch);
-      return;
-    }
-
-    if (data.type === 'SUMMON_CHROME') {
-      // Mirror host-declared chrome attributes onto <html>. Host-controlled —
-      // we still validate keys/values defensively because the listener is bound
-      // to `window` and the sandbox_id gate filters ambient frame messages.
-      var attrs = data.attrs;
-      if (!attrs || typeof attrs !== 'object') return;
-      var root = document.documentElement;
-      for (var k in attrs) {
-        if (!Object.prototype.hasOwnProperty.call(attrs, k)) continue;
-        if (!/^[a-z][a-z0-9-]*$/.test(k)) continue;
-        var v = attrs[k];
-        if (v === '' || v == null) {
-          root.removeAttribute('data-summon-' + k);
-        } else {
-          root.setAttribute('data-summon-' + k, String(v));
-        }
+      if (data.artifact) {
+        renderArrowArtifact(data.artifact);
+        return;
       }
       return;
     }
-  });
 
-  const sdk = Object.freeze({
-    get state() { return currentState; },
-    onState,
-    emit,
-  });
+    if (data.type === 'SUMMON_TOOL_RESULT') {
+      var requestId = data.request_id;
+      if (typeof requestId !== 'string') return;
+      var resolve = pendingToolResults.get(requestId);
+      if (!resolve) return;
+      pendingToolResults.delete(requestId);
+      resolve({
+        ok: data.ok === true,
+        state: data.state && typeof data.state === 'object' ? cloneStateSnapshot(data.state) : cloneStateSnapshot(currentState),
+        error: typeof data.error === 'string' ? data.error : undefined,
+      });
+      return;
+    }
 
-  // Install as a non-configurable property so artifact JS can't reassign.
-  Object.defineProperty(window, 'sandbox', {
-    value: sdk,
-    writable: false,
-    configurable: false,
-    enumerable: true,
   });
 
   let readySent = false;
