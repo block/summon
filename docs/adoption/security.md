@@ -40,7 +40,7 @@ for this choice is `SurfacePolicy.tier`.
 | Surface type | API setting | When to use |
 | --- | --- | --- |
 | Read-only | `SurfacePolicy.tier: "static"` | Summaries, cards, explainers, comparisons, and dashboards. Scripts and host tools are omitted. |
-| Declarative interactive | `SurfacePolicy.tier: "declarative"` | Production default for forms, search, pickers, loading/error/data states, foreach lists, and safe attribute binding. Uses only `data-summon-*`. |
+| Arrow interactive | `SurfacePolicy.tier: "declarative"` | Production default for forms, search, pickers, loading/error/data states, and result lists. Generates Arrow runtime artifacts that call host tools through `host-bridge:summon`; the tier name remains `declarative` for API compatibility. |
 | Background host work | `SurfacePolicy.tier: "worker"` | Host-owned background work through worker-backed resources/actions. |
 | Requires approval | `SurfacePolicy.tier: "approval"` | Operations that require a host approval adapter before the handler runs. |
 

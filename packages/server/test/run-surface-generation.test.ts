@@ -159,7 +159,7 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
         },
       ],
       patterns: [
-        { name: 'Search', code: '<form data-summon-resource="search"></form>', intent: 'search' },
+        { name: 'Search', code: 'import { invoke } from "host-bridge:summon";\nconst search = (query: string) => invoke("search", { query });', intent: 'search' },
         { name: 'Choose', code: 'invoke("choose", {})', intent: 'choose' },
       ],
     },

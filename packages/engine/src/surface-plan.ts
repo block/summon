@@ -244,7 +244,7 @@ Runtime rules:
 
 - \`arrow\`: emit one \`op: "artifact"\` line at \`/artifact\` containing an Arrow sandbox source tree with one \`main.ts\` or \`main.js\`.
 - \`static\`: legacy read-only HTML runtime; avoid for new generated surfaces.
-- \`declarative\`: legacy data-summon runtime; avoid for new generated surfaces.
+- \`declarative\`: compatibility policy tier name for Arrow surfaces with host-resource/read authority; do not emit legacy attribute bindings.
 - \`worker\`: use only capabilities the host describes as worker-backed; the worker remains host-owned.
 
 Authority rules:

@@ -169,36 +169,36 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'unsafe-tag':
       return ['Use plain HTML elements; remove iframe/object/embed/link/meta/base-like tags.'];
     case 'inline-handler':
-      return ['Replace inline handlers with declarative data-summon attributes such as data-summon-on-click, data-summon-set, or data-summon-toggle.'];
+      return ['Use Arrow event handlers inside the template and call granted host intents with `invoke()` from `host-bridge:summon`.'];
     case 'static-script':
       return ['Remove script tags in static mode, or express the UI without interactivity.'];
     case 'script-not-granted':
     case 'surface-script-policy-removed':
-      return ['Use declarative data-summon attributes, local state, and motion primitives instead of generated scripts.'];
+      return ['Return an Arrow artifact that uses `reactive()`, Arrow event handlers, and `host-bridge:summon` instead of generated script tags.'];
     case 'unknown-intent':
     case 'intent-trigger-not-granted':
       return ['Use only the granted capabilities and triggers listed in the Capabilities block.'];
     case 'invalid-args-json':
-      return ['Make data-summon-args a valid JSON object on one line.'];
+      return ['Build intent args as plain objects in the Arrow event handler before calling `invoke()`.'];
     case 'unknown-resource':
     case 'non-resource-capability':
     case 'resource-state-keys-incomplete':
       return ['Use only data resources listed under Available data resources.'];
     case 'resource-loading-not-rendered':
-      return ['Add visible UI bound to the data resource loading state, for example `data-summon-show="$alias.loading"`.'];
+      return ['Copy the listed resource loading key into Arrow `reactive()` state and render a visible loading affordance from it.'];
     case 'resource-error-not-rendered':
-      return ['Add visible UI bound to the data resource error state, for example `data-summon-show="$alias.error" data-summon-bind="$alias.error"`.'];
+      return ['Copy the listed resource error key into Arrow `reactive()` state and render visible host error text from it.'];
     case 'resource-data-not-rendered':
-      return ['Wrap result UI in `data-summon-show="$alias.data"` and bind or foreach under the data resource alias.'];
+      return ['Copy the listed resource data key into Arrow `reactive()` state and render result rows only from host data.'];
     case 'resource-empty-not-rendered':
-      return ['Add visible no-results UI bound to the data resource empty state, for example `data-summon-show="$alias.empty"`.'];
+      return ['Copy the listed empty-state key into Arrow `reactive()` state and render no-results copy only from that key.'];
     case 'action-pending-not-rendered':
-      return ['Disable the triggering control with `data-summon-attr-disabled="<pendingKey>"` or show a pending message.'];
+      return ['Copy the listed pending key into Arrow `reactive()` state and render a busy label or disabled-looking state from it.'];
     case 'action-error-not-rendered':
-      return ['Add visible host error UI with `data-summon-show="<errorKey>" data-summon-bind="<errorKey>"`.'];
+      return ['Copy the listed action error key into Arrow `reactive()` state and render visible host error text from it.'];
     case 'unsafe-attr-binding':
     case 'bad-attr-binding-placement':
-      return ['Use only safe data-summon-attr-* bindings on supported elements.'];
+      return ['Use normal quoted Arrow attributes and sanitize dynamic values before rendering them.'];
     case 'host-owned-meta':
       return ['Remove host-owned meta lines; the host emits /surface-policy, /surface-plan, and /surface-contract before model output.'];
     case 'surface-policy-invalid':

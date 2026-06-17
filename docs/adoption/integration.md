@@ -381,8 +381,8 @@ This preserves the main invariant: the sandbox may request only host-allowed
 tool names, and handlers run only after schema validation in the host.
 
 `renderArtifact()` queues a `SUMMON_RENDER` message to the iframe. The sandbox
-then waits for Arrow's runtime mount, applies Summon bindings/component
-measurement, and posts `SUMMON_RENDERED`. Devtools records `render` when the
+then waits for Arrow's runtime mount, runs component placeholder measurement,
+and posts `SUMMON_RENDERED`. Devtools records `render` when the
 host sends an accepted artifact and `rendered` when the iframe has actually
 mounted it. If the Stream drawer shows an accepted `/artifact` but the surface
 is blank, check those Devtools events before changing sandbox code.
@@ -392,17 +392,24 @@ bridge and render state returned by the host:
 
 ```ts
 import { html, reactive } from '@arrow-js/core';
-import { invoke } from 'host-bridge:summon';
+import { getState, invoke, onState } from 'host-bridge:summon';
 
 const state = reactive({ loading: false, results: [], error: '' });
 
+function syncHostState(hostState: Record<string, unknown>) {
+  state.loading = Boolean(hostState.searching);
+  state.error = String(hostState.searchError ?? '');
+  state.results = Array.isArray(hostState.results) ? hostState.results : [];
+}
+
+syncHostState(await getState());
+onState(syncHostState);
+
 async function search(event: Event) {
   event.preventDefault();
-  state.loading = true;
   const result = await invoke('search', { query: 'recipes' });
-  state.loading = false;
-  state.error = result.ok ? '' : result.error ?? 'Search failed';
-  state.results = Array.isArray(result.state?.results) ? result.state.results : [];
+  if (result.ok) syncHostState(result.state);
+  else state.error = result.error ?? 'Search failed';
 }
 
 export default html`

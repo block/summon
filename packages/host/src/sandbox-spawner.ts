@@ -1,5 +1,5 @@
 import type { EventStore } from '@summon-internal/devtools';
-import { hasCompleteResourceStateKeys, type ValidationCapability } from '@summon-internal/engine';
+import type { ValidationCapability } from '@summon-internal/engine';
 import type {
   ArrowNetworkPolicy,
   ArrowSurfaceArtifact,
@@ -49,9 +49,9 @@ export interface SpawnOptions {
    */
   grantedIntents: string[];
   /**
-   * Host-controlled capability grant metadata. Used by the sandbox runtime
-   * only to resolve declarative resource aliases to host-owned state keys.
-   * Intent execution remains governed solely by `grantedIntents`.
+   * Host-controlled capability grant metadata. Intent execution remains
+   * governed solely by `grantedIntents`; this metadata is recorded for
+   * validation, diagnostics, and component/policy context.
    */
   grantedCapabilities?: ValidationCapability[];
   /** Raw bootstrap source; published consumers can use `@anarchitecture/summon/assets`. */
@@ -116,7 +116,6 @@ function buildSrcdoc(params: {
   scriptNonce: string;
   bootstrapSource: string;
   tokensSource: string;
-  resourceMap: ResourceMap;
   networkPolicy: ArrowNetworkPolicy;
   arrowRuntimeSource?: string;
 }): string {
@@ -125,19 +124,15 @@ function buildSrcdoc(params: {
   // bootstrap sends SUMMON_READY, then the host queues the compiled render
   // through SUMMON_RENDER.
   //
-  // The base style block is emitted BEFORE the direction's tokensSource so
-  // directions can override Summon's generic motion helpers.
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta http-equiv="Content-Security-Policy" content="${escapeHtml(cspForNonce(params.scriptNonce, params.networkPolicy))}">
 <meta charset="utf-8">
 <script nonce="${params.scriptNonce}">window.__SUMMON_SANDBOX_ID__=${escapeScriptJson(params.sandboxId)};</script>
-<script nonce="${params.scriptNonce}">window.__SUMMON_RESOURCES__=${escapeScriptJson(params.resourceMap)};</script>
 <script nonce="${params.scriptNonce}">window.__SUMMON_NETWORK_POLICY__=${escapeScriptJson(params.networkPolicy)};</script>
 ${params.arrowRuntimeSource ? `<script nonce="${params.scriptNonce}">${params.arrowRuntimeSource}</script>` : ''}
 <script nonce="${params.scriptNonce}">${params.bootstrapSource}</script>
-<style>${SUMMON_BASE_CSS}</style>
 <style>${params.tokensSource}</style>
 </head>
 <body>
@@ -145,117 +140,6 @@ ${params.arrowRuntimeSource ? `<script nonce="${params.scriptNonce}">${params.ar
 <script nonce="${params.scriptNonce}">window.__SUMMON_SIGNAL_READY__?.();</script>
 </body>
 </html>`;
-}
-
-const SUMMON_BASE_CSS = `
-.summon-motion-enter-rise {
-  animation: summon-motion-rise 0.34s cubic-bezier(0.33, 1, 0.68, 1) both;
-}
-.summon-motion-enter-fade {
-  animation: summon-motion-fade 0.24s ease-out both;
-}
-.summon-motion-enter-fade-slide {
-  animation: summon-motion-fade-slide 0.32s cubic-bezier(0.33, 1, 0.68, 1) both;
-}
-.summon-motion-enter-pop {
-  animation: summon-motion-pop 0.28s cubic-bezier(0.2, 0.9, 0.2, 1.2) both;
-}
-.summon-motion-update-pulse {
-  animation: summon-motion-pulse 0.46s ease-out both;
-}
-.summon-motion-update-fade {
-  animation: summon-motion-update-fade 0.28s ease-out both;
-}
-.summon-motion-update-pop {
-  animation: summon-motion-pop 0.24s cubic-bezier(0.2, 0.9, 0.2, 1.2) both;
-}
-.summon-transition-fade,
-.summon-transition-rise,
-.summon-transition-fade-slide,
-.summon-transition-pop {
-  transition:
-    opacity 0.18s ease-out,
-    filter 0.18s ease-out,
-    transform 0.18s ease-out,
-    box-shadow 0.18s ease-out;
-}
-@keyframes summon-motion-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes summon-motion-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes summon-motion-fade-slide {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes summon-motion-pop {
-  from { opacity: 0; transform: scale(0.985); }
-  to   { opacity: 1; transform: scale(1); }
-}
-@keyframes summon-motion-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
-  35%  { box-shadow: 0 0 0 3px rgba(80, 112, 255, 0.16); }
-  100% { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
-}
-@keyframes summon-motion-update-fade {
-  0%   { opacity: 0.72; }
-  100% { opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .summon-motion-enter-rise,
-  .summon-motion-enter-fade,
-  .summon-motion-enter-fade-slide,
-  .summon-motion-enter-pop,
-  .summon-motion-update-pulse,
-  .summon-motion-update-fade,
-  .summon-motion-update-pop {
-    animation: none;
-  }
-  .summon-transition-fade,
-  .summon-transition-rise,
-  .summon-transition-fade-slide,
-  .summon-transition-pop {
-    transition: none;
-  }
-  .summon-motion-enter-rise,
-  .summon-motion-enter-fade-slide,
-  .summon-motion-enter-pop {
-    opacity: 1;
-    filter: none;
-    transform: none;
-  }
-}
-`;
-
-interface ResourceMapEntry {
-  stateKeys: {
-    loading: string;
-    data: string;
-    error: string;
-    empty?: string;
-  };
-}
-
-type ResourceMap = Record<string, ResourceMapEntry>;
-
-function resourceMapFromCapabilities(capabilities: ValidationCapability[] | undefined): ResourceMap {
-  const out: ResourceMap = {};
-  for (const capability of capabilities ?? []) {
-    if (capability.kind !== 'resource') continue;
-    if (!hasCompleteResourceStateKeys(capability.stateKeys)) continue;
-    out[capability.name] = {
-      stateKeys: {
-        loading: capability.stateKeys.loading,
-        data: capability.stateKeys.data,
-        error: capability.stateKeys.error,
-        ...(capability.stateKeys.empty ? { empty: capability.stateKeys.empty } : {}),
-      },
-    };
-  }
-  return out;
 }
 
 function normalizeComponentDescriptors(raw: unknown): ComponentIslandDescriptor[] {
@@ -306,32 +190,19 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
   // grantedIntents fails closed because `new Set(undefined)` grants nothing.
   const intentAllowlist = new Set(opts.grantedIntents);
   const grantedCapabilities = opts.grantedCapabilities ?? opts.artifact.capabilities ?? [];
-  const resourceMap = resourceMapFromCapabilities(grantedCapabilities);
   const arrowNetworkPolicy = opts.arrowNetworkPolicy ?? 'none';
 
   // Deliberately NOT adding allow-same-origin. That keeps the iframe null-origin:
   // no storage, no parent DOM access, cross-origin isolation applies.
   opts.iframe.setAttribute('sandbox', 'allow-scripts');
+  opts.iframe.dataset.summonSandboxId = sandboxId;
 
   let ready = false;
   const pendingStates: Record<string, unknown>[] = [];
   const pendingDomOps: Array<{ kind: 'artifact'; artifact: ArrowSurfaceArtifact }> = [];
-  // Chrome attributes are merged before flush so a flurry of setChrome calls
-  // pre-ready collapses into a single postMessage. Post-ready, each setChrome
-  // call dispatches immediately.
-  const pendingChrome: Record<string, string> = {};
-  let hasPendingChrome = false;
 
   function flushPending() {
     if (!ready || !opts.iframe.contentWindow) return;
-    if (hasPendingChrome) {
-      opts.iframe.contentWindow.postMessage(
-        { type: 'SUMMON_CHROME', sandbox_id: sandboxId, attrs: { ...pendingChrome } },
-        '*'
-      );
-      for (const k of Object.keys(pendingChrome)) delete pendingChrome[k];
-      hasPendingChrome = false;
-    }
     while (pendingStates.length > 0) {
       const state = pendingStates.shift()!;
       opts.iframe.contentWindow.postMessage({ type: 'SUMMON_STATE', sandbox_id: sandboxId, state }, '*');
@@ -502,7 +373,6 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     scriptNonce,
     bootstrapSource: opts.bootstrapSource,
     tokensSource: opts.tokensSource,
-    resourceMap,
     networkPolicy: arrowNetworkPolicy,
     arrowRuntimeSource: opts.arrowRuntimeSource,
   });
@@ -536,22 +406,15 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       });
       flushPending();
     },
-    setChrome(attrs) {
-      // Validate keys defensively. We get away with `unsafe-inline` everywhere
-      // else because the iframe is null-origin, but `data-summon-<key>` is
-      // host-controlled — keep it boring.
-      for (const [k, v] of Object.entries(attrs)) {
-        if (!/^[a-z][a-z0-9-]*$/.test(k)) continue;
-        pendingChrome[k] = String(v);
-        hasPendingChrome = true;
-      }
-      flushPending();
-    },
     dispose() {
       window.removeEventListener('message', handleMessage);
-      opts.iframe.srcdoc = '';
       ready = false;
       opts.events?.push({ kind: 'sandbox-disposed', at: Date.now(), sandboxId });
+      window.setTimeout(() => {
+        if (opts.iframe.dataset.summonSandboxId !== sandboxId) return;
+        opts.iframe.srcdoc = '';
+        delete opts.iframe.dataset.summonSandboxId;
+      }, 0);
     },
   };
 }

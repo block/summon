@@ -51,8 +51,8 @@ const capabilities: CapabilityPack = {
     },
   ],
   patterns: [
-    { name: 'Search', code: '<form data-summon-resource="search"></form>', intent: 'search' },
-    { name: 'Choose', code: '<button data-summon-on-click="choose"></button>', intent: 'choose' },
+    { name: 'Search', code: 'import { invoke } from "host-bridge:summon";\nconst search = (query: string) => invoke("search", { query });', intent: 'search' },
+    { name: 'Choose', code: 'import { invoke } from "host-bridge:summon";\nconst choose = () => invoke("choose", {});', intent: 'choose' },
   ],
 };
 

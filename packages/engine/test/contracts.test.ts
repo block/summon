@@ -427,7 +427,7 @@ test('system compiler validates against explicit active tokens when direction is
   assert.equal(compiled.validationContext.definedTokens?.has('ghost-config-only'), true);
 });
 
-test('system compiler can produce declarative-only interactive contracts', () => {
+test('system compiler can produce Arrow-native interactive contracts', () => {
   const compiled = compileSystemContracts({
     mode: 'interactive',
     scriptPolicy: 'forbid',
@@ -447,8 +447,12 @@ test('system compiler can produce declarative-only interactive contracts', () =>
           code: '<button id="x">Pick</button><script>document.getElementById("x")?.addEventListener("click", () => sandbox.emit("choose", {option:"A"}))</script>',
         },
         {
-          name: 'declarative pattern',
+          name: 'legacy declarative pattern',
           code: '<button data-summon-on-click="choose" data-summon-args=\'{"option":"A"}\'>Pick</button>',
+        },
+        {
+          name: 'arrow pattern',
+          code: 'import { invoke } from "host-bridge:summon";\nconst choose = () => invoke("choose", { option: "A" });',
         },
       ],
     },
@@ -456,10 +460,13 @@ test('system compiler can produce declarative-only interactive contracts', () =>
 
   assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
   const capabilitiesBlock = compiled.promptBlocks.find((block) => block.id === 'capabilities');
-  assert.match(capabilitiesBlock?.text ?? '', /Declarative-only interactivity/);
+  assert.match(capabilitiesBlock?.text ?? '', /Arrow-native interactivity/);
+  assert.match(capabilitiesBlock?.text ?? '', /host-bridge:summon/);
+  assert.match(capabilitiesBlock?.text ?? '', /onState/);
   assert.match(capabilitiesBlock?.text ?? '', /Do not emit `<script>` tags/);
   assert.doesNotMatch(capabilitiesBlock?.text ?? '', /document\.getElementById/);
-  assert.match(capabilitiesBlock?.text ?? '', /data-summon-on-click="choose"/);
+  assert.doesNotMatch(capabilitiesBlock?.text ?? '', /data-summon-on-click="choose"/);
+  assert.match(capabilitiesBlock?.text ?? '', /arrow pattern/);
 });
 
 test('system compiler rejects removed script policy allow', () => {
@@ -528,5 +535,5 @@ test('system compiler rejects legacy scripted surface plan with script policy al
   assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
   assert.equal(compiled.issues.some((issue) => issue.code === 'surface-script-policy-removed'), true);
   const capabilitiesBlock = compiled.promptBlocks.find((block) => block.id === 'capabilities');
-  assert.match(capabilitiesBlock?.text ?? '', /Script policy — declarative only/);
+  assert.match(capabilitiesBlock?.text ?? '', /Script policy — Arrow host bridge only/);
 });

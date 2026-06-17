@@ -89,19 +89,15 @@ export type {
   TokenContractInput,
 } from './contracts.js';
 export {
-  CAPABILITY_BINDING_SPECS,
-  CAPABILITY_TRIGGER_SPECS,
   defaultTriggersForKind,
   formatCapabilityProtocolContract,
   hasCompleteResourceStateKeys,
 } from './capability-contract.js';
 export type {
   ActionStateKeys,
-  CapabilityBindingSpec,
   CapabilityKind,
   CapabilityStateKeys,
   CapabilityTrigger,
-  CapabilityTriggerSpec,
   ResourceStateKeys,
 } from './capability-contract.js';
 export {

@@ -82,7 +82,7 @@ function buildSrcdoc(params: {
 <head>
 <meta http-equiv="Content-Security-Policy" content="${escapeHtml(cspForNonce(params.nonce))}">
 <meta charset="utf-8">
-<script nonce="${params.nonce}">window.__SUMMON_SANDBOX_ID__=${escapeScriptJson(params.sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+<script nonce="${params.nonce}">window.__SUMMON_SANDBOX_ID__=${escapeScriptJson(params.sandboxId)};</script>
 <script nonce="${params.nonce}">${escapeScript(bootstrapSource)}</script>
 <style>${tokensSource}</style>
 </head>

@@ -7,7 +7,6 @@
 
   const PARENT = window.parent;
   const SANDBOX_ID = window.__SUMMON_SANDBOX_ID__;
-  const RESOURCE_MAP = normalizeResources(window.__SUMMON_RESOURCES__);
   const NETWORK_POLICY = window.__SUMMON_NETWORK_POLICY__ === 'restricted-fetch'
     ? 'restricted-fetch'
     : 'none';
@@ -19,35 +18,8 @@
   // Scrub globals so artifact code can't read or overwrite them after bootstrap.
   try {
     delete window.__SUMMON_SANDBOX_ID__;
-    delete window.__SUMMON_RESOURCES__;
     delete window.__SUMMON_NETWORK_POLICY__;
   } catch (_) { /* sealed elsewhere */ }
-
-  function normalizeResources(raw) {
-    const out = Object.create(null);
-    if (!raw || typeof raw !== 'object') return out;
-    for (const name in raw) {
-      if (!Object.prototype.hasOwnProperty.call(raw, name)) continue;
-      if (!/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(name)) continue;
-      const entry = raw[name];
-      const keys = entry && typeof entry === 'object' ? entry.stateKeys : null;
-      if (!keys || typeof keys !== 'object') continue;
-      const loading = keys.loading;
-      const data = keys.data;
-      const error = keys.error;
-      const empty = keys.empty;
-      if (typeof loading !== 'string' || typeof data !== 'string' || typeof error !== 'string') continue;
-      out[name] = Object.freeze({
-        stateKeys: Object.freeze({
-          loading,
-          data,
-          error,
-          ...(typeof empty === 'string' ? { empty } : {}),
-        }),
-      });
-    }
-    return Object.freeze(out);
-  }
 
   // ----- startup self-test --------------------------------------------------
   // Fail closed if the sandbox is not configured the way Summon requires. Any
@@ -97,16 +69,13 @@
   // -------------------------------------------------------------------------
 
   let currentState = Object.freeze({});
-  const localState = Object.create(null);
   const subscribers = new Set();
-  const mountedIntentKeys = new Set();
   let componentSyncScheduled = false;
   let componentSyncFallbackTimer = 0;
   let componentLayoutPollTimer = 0;
   let componentLayoutSignature = '';
   let componentResizeObserver = null;
   const componentResizeObserved = new Set();
-  const SAFE_ATTR_BINDINGS = Object.freeze(['src', 'alt', 'title', 'aria-label', 'value', 'placeholder', 'disabled']);
   const MAX_PENDING_INTENT_RESULTS = 32;
   const pendingIntentResults = new Map();
   let arrowTeardown = null;
@@ -191,7 +160,6 @@
       arrowTeardown = null;
     }
     const revision = ++renderRevision;
-    mountedIntentKeys.clear();
     root.replaceChildren();
     const runtime = window.__SUMMON_ARROW_SANDBOX__;
     const sandbox = runtime && runtime.sandbox;
@@ -220,6 +188,9 @@
             getState: function () {
               return cloneStateSnapshot(currentState);
             },
+            onState: function (cb) {
+              return onState(cb);
+            },
             invoke: function (intent, args) {
               return invokeIntent(intent, args);
             },
@@ -243,13 +214,9 @@
 
   function finishArrowRender(revision) {
     if (revision !== renderRevision) return;
-    applyBindings();
-    applyMountIntents();
     scheduleComponentSync();
     const done = function () {
       if (revision !== renderRevision) return;
-      applyBindings();
-      applyMountIntents();
       scheduleComponentSync();
       emitRendered(revision);
     };
@@ -302,384 +269,11 @@
     return () => subscribers.delete(cb);
   }
 
-  // ── Declarative bindings ───────────────────────────────────────────────────
-  // Arrow artifacts can author DOM with `data-summon-*` attributes; this binder
-  // is what makes them live. Two halves:
-  //
-  //   1. Listeners for `data-summon-on-click` and `data-summon-on-submit` —
-  //      installed ONCE on document, dispatched via `closest(...)` so re-renders
-  //      don't re-bind. Always preventDefault().
-  //      `data-summon-on-mount` is handled after render by applyMountIntents().
-  //   2. State-driven attributes — `data-summon-bind` (textContent),
-  //      `data-summon-show`/`data-summon-hide` (visibility) — recomputed from
-  //      currentState after every state push and every render. They're a pure
-  //      function of (DOM, state); recomputing is idempotent and the cheapest
-  //      possible model.
-  //
-  // Generated scripts are not an artifact capability. The `window.sandbox`
-  // object remains a narrow trusted bridge for host-owned tests, but generated
-  // UI should express local behavior with attributes or Arrow handlers.
-
-  function walkPath(obj, path) {
-    if (!path) return obj;
-    let cur = obj;
-    const parts = path.split('.');
-    for (let i = 0; i < parts.length; i++) {
-      if (cur == null) return undefined;
-      cur = cur[parts[i]];
-    }
-    return cur;
-  }
-
-  function hasPath(obj, path) {
-    if (!path) return true;
-    let cur = obj;
-    const parts = path.split('.');
-    for (let i = 0; i < parts.length; i++) {
-      if (cur == null || !Object.prototype.hasOwnProperty.call(Object(cur), parts[i])) return false;
-      cur = cur[parts[i]];
-    }
-    return true;
-  }
-
-  // Walk up to find the nearest ancestor (inclusive) with a matching foreach
-  // scope name. Scope markers are JS properties on stamped clones — invisible
-  // to the LLM-authored markup.
-  function findScope(name, fromEl) {
-    let el = fromEl;
-    while (el) {
-      if (el.__summon_scope === name) return el;
-      el = el.parentElement;
-    }
-    return null;
-  }
-
-  function findResourceScope(name, fromEl) {
-    let el = fromEl;
-    while (el) {
-      const resource = el.__summon_resource;
-      if (resource && resource.alias === name) return resource;
-      el = el.parentElement;
-    }
-    return null;
-  }
-
-  function resourceStateValue(resource, rest) {
-    const keys = resource && resource.stateKeys;
-    if (!keys) return undefined;
-    const loading = walkPath(currentState, keys.loading);
-    const data = walkPath(currentState, keys.data);
-    const error = walkPath(currentState, keys.error);
-    const empty = keys.empty ? walkPath(currentState, keys.empty) : undefined;
-    if (!rest) return { loading, data, error, empty };
-    const dot = rest.indexOf('.');
-    const head = dot === -1 ? rest : rest.slice(0, dot);
-    const tail = dot === -1 ? '' : rest.slice(dot + 1);
-    let base;
-    if (head === 'loading') base = loading;
-    else if (head === 'data') base = data;
-    else if (head === 'error') base = error;
-    else if (head === 'empty') base = empty;
-    else return undefined;
-    return tail ? walkPath(base, tail) : base;
-  }
-
-  // Resolve a path against either currentState or a foreach scope.
-  // Bare `key` / `nested.key` → root state.
-  // `$name` → the entire item from foreach scope `name`.
-  // `$name.field.sub` → field walk inside that item.
-  // fromEl is the binder/click element — used as the starting point for
-  // scope lookup. Falls back to root state if no scope matches.
-  function resolveKey(path, fromEl) {
-    if (!path) return undefined;
-    if (path.charCodeAt(0) === 0x24 /* $ */) {
-      const dot = path.indexOf('.');
-      const name = dot === -1 ? path.slice(1) : path.slice(1, dot);
-      const rest = dot === -1 ? '' : path.slice(dot + 1);
-      const scopeEl = findScope(name, fromEl);
-      if (scopeEl) {
-        const item = scopeEl.__summon_item;
-        return rest ? walkPath(item, rest) : item;
-      }
-      const resource = findResourceScope(name, fromEl);
-      return resourceStateValue(resource, rest);
-    }
-    if (hasPath(localState, path)) return walkPath(localState, path);
-    return walkPath(currentState, path);
-  }
-
-  function truthy(v) {
-    if (v == null || v === false || v === 0 || v === '') return false;
-    if (Array.isArray(v)) return v.length > 0;
-    if (typeof v === 'object') return Object.keys(v).length > 0;
-    return true;
-  }
-
-  // Recursively replace string leaves matching `^\$\w+(\..+)?$` with their
-  // resolved value. Used at click/submit time to bake the foreach item into
-  // the args payload — `{"picked": "$r"}` becomes `{"picked": <itemObj>}`.
-  function interpolate(value, fromEl) {
-    if (typeof value === 'string') {
-      if (value.length > 1 && value.charCodeAt(0) === 0x24 && /^\$[A-Za-z_]\w*(\..+)?$/.test(value)) {
-        return resolveKey(value, fromEl);
-      }
-      return value;
-    }
-    if (Array.isArray(value)) return value.map((v) => interpolate(v, fromEl));
-    if (value && typeof value === 'object') {
-      const out = {};
-      for (const k in value) {
-        if (Object.prototype.hasOwnProperty.call(value, k)) out[k] = interpolate(value[k], fromEl);
-      }
-      return out;
-    }
-    return value;
-  }
-
-  function seedLocalState(root) {
-    const hosts = root.querySelectorAll('[data-summon-local]');
-    for (const host of hosts) {
-      const raw = host.getAttribute('data-summon-local') || '';
-      if (!raw.trim()) continue;
-      let parsed;
-      try { parsed = JSON.parse(raw); }
-      catch (_) { continue; }
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) continue;
-      for (const key in parsed) {
-        if (!Object.prototype.hasOwnProperty.call(parsed, key)) continue;
-        if (!/^[A-Za-z_$][\w$]{0,39}$/.test(key)) continue;
-        if (!Object.prototype.hasOwnProperty.call(localState, key)) {
-          localState[key] = parsed[key];
-        }
-      }
-    }
-  }
-
-  function parseConditionLiteral(raw) {
-    const trimmed = String(raw || '').trim();
-    if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
-      try { return JSON.parse(trimmed); } catch (_) { return trimmed.slice(1, -1); }
-    }
-    if (trimmed.length >= 2 && trimmed[0] === "'" && trimmed[trimmed.length - 1] === "'") {
-      return trimmed.slice(1, -1);
-    }
-    return trimmed;
-  }
-
-  function evalCondition(expr, fromEl) {
-    const raw = String(expr || '').trim();
-    if (!raw) return false;
-    const match = raw.match(/^(!)?(\$?[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?:\s*(==|!=)\s*("[^"]*"|'[^']*'))?$/);
-    if (!match) return truthy(resolveKey(raw, fromEl));
-    const negated = !!match[1];
-    const path = match[2];
-    const op = match[3];
-    const literal = match[4];
-    const value = resolveKey(path, fromEl);
-    let result;
-    if (op) {
-      const expected = parseConditionLiteral(literal);
-      result = String(value ?? '') === String(expected);
-      if (op === '!=') result = !result;
-    } else {
-      result = truthy(value);
-    }
-    return negated ? !result : result;
-  }
-
-  function applyResourceScopes(root) {
-    const hosts = root.querySelectorAll('[data-summon-resource]');
-    for (const host of hosts) {
-      const name = host.getAttribute('data-summon-resource') || '';
-      const entry = RESOURCE_MAP[name];
-      if (!entry) {
-        try { delete host.__summon_resource; } catch (_) { host.__summon_resource = undefined; }
-        continue;
-      }
-      const alias = host.getAttribute('data-summon-resource-as') || name;
-      host.__summon_resource = {
-        name,
-        alias,
-        stateKeys: entry.stateKeys,
-      };
-    }
-  }
-
-  // Stamp `<template>` children of every `[data-summon-foreach]` host. Idempotent
-  // by array reference — when state pushes leave the array === to last frame's,
-  // we skip the wipe-and-restamp. Otherwise: remove old clones, clone the
-  // template once per item, hang `__summon_scope` + `__summon_item` on each clone
-  // root for later scoped lookup.
-  function applyForEach(root) {
-    const hosts = root.querySelectorAll('[data-summon-foreach]');
-    for (const host of hosts) {
-      const path = host.getAttribute('data-summon-foreach');
-      const asName = host.getAttribute('data-summon-as') || 'item';
-      const items = resolveKey(path, host);
-      const arr = Array.isArray(items) ? items : [];
-      if (host.__summon_lastItems === arr) continue;
-
-      const tmpl = host.querySelector(':scope > template');
-      if (!tmpl) continue;
-
-      // Wipe previous clones — everything except the template element.
-      const kids = Array.from(host.children);
-      for (const c of kids) if (c !== tmpl) c.remove();
-
-      for (const item of arr) {
-        const frag = tmpl.content.cloneNode(true);
-        const stamped = frag.firstElementChild;
-        if (stamped) {
-          stamped.__summon_scope = asName;
-          stamped.__summon_item = item;
-        }
-        host.appendChild(frag);
-      }
-      host.__summon_lastItems = arr;
-    }
-  }
-
-  function applyAttrBindings(root) {
-    for (const attr of SAFE_ATTR_BINDINGS) {
-      const selector = '[data-summon-attr-' + attr + ']';
-      const els = root.querySelectorAll(selector);
-      for (const el of els) {
-        const raw = el.getAttribute('data-summon-attr-' + attr);
-        const v = attr === 'disabled' ? evalCondition(raw, el) : resolveKey(raw, el);
-        applySafeAttribute(el, attr, v);
-      }
-    }
-  }
-
-  function applySafeAttribute(el, attr, value) {
-    if (attr === 'disabled') {
-      if (truthy(value)) {
-        el.setAttribute('disabled', '');
-        el.disabled = true;
-      } else {
-        el.removeAttribute('disabled');
-        el.disabled = false;
-      }
-      return;
-    }
-
-    if (attr === 'src') {
-      if (el.tagName !== 'IMG') return;
-      const src = value == null ? '' : String(value);
-      if (!src || src.indexOf('data:') === 0) {
-        if (src) el.setAttribute('src', src);
-        else el.removeAttribute('src');
-      } else {
-        el.removeAttribute('src');
-      }
-      return;
-    }
-
-    if (attr === 'value') {
-      const next = value == null ? '' : String(value);
-      if ('value' in el && document.activeElement !== el) el.value = next;
-      el.setAttribute('value', next);
-      return;
-    }
-
-    if (value == null || value === false) {
-      el.removeAttribute(attr);
-    } else {
-      el.setAttribute(attr, String(value));
-    }
-  }
-
-  function applyClassBindings(root) {
-    const els = root.querySelectorAll('*');
-    for (const el of els) {
-      for (const attr of Array.from(el.attributes)) {
-        if (!attr.name.startsWith('data-summon-class-')) continue;
-        const className = attr.name.slice('data-summon-class-'.length);
-        if (!/^[A-Za-z][\w-]{0,63}$/.test(className)) continue;
-        el.classList.toggle(className, evalCondition(attr.value, el));
-      }
-    }
-  }
-
-  function parseMotionEntries(value) {
-    const out = [];
-    for (const part of String(value || '').split(';')) {
-      const trimmed = part.trim();
-      if (!trimmed) continue;
-      const bits = trimmed.split(':');
-      if (bits.length !== 2) continue;
-      const phase = bits[0].trim();
-      const recipe = bits[1].trim();
-      if (!/^(enter|update)$/.test(phase)) continue;
-      if (!/^[a-z][a-z0-9-]{0,31}$/.test(recipe)) continue;
-      out.push({ phase, recipe });
-    }
-    return out;
-  }
-
-  function applyMotion(root) {
-    const motionEls = root.querySelectorAll('[data-summon-motion]');
-    for (const el of motionEls) {
-      const entries = parseMotionEntries(el.getAttribute('data-summon-motion'));
-      for (const entry of entries) {
-        if (entry.phase === 'enter') {
-          el.classList.add('summon-motion-enter-' + entry.recipe);
-        }
-      }
-    }
-    const transitionEls = root.querySelectorAll('[data-summon-transition]');
-    for (const el of transitionEls) {
-      const recipe = (el.getAttribute('data-summon-transition') || '').trim();
-      if (/^[a-z][a-z0-9-]{0,31}$/.test(recipe)) {
-        el.classList.add('summon-transition-' + recipe);
-      }
-    }
-  }
-
-  function triggerUpdateMotion(root) {
-    const motionEls = root.querySelectorAll('[data-summon-motion]');
-    for (const el of motionEls) {
-      const entries = parseMotionEntries(el.getAttribute('data-summon-motion'));
-      for (const entry of entries) {
-        if (entry.phase === 'update') {
-          markTransientClass(el, 'summon-motion-update-' + entry.recipe, 560);
-        }
-      }
-    }
-  }
-
-  function applyBindings() {
-    const root = document.getElementById('summon-root');
-    if (!root) return;
-    seedLocalState(root);
-    // Resource scopes must exist before foreach resolution; foreach must stamp
-    // clones before bind/show/hide queries run.
-    applyResourceScopes(root);
-    applyForEach(root);
-    const binds = root.querySelectorAll('[data-summon-bind]');
-    for (const el of binds) {
-      const v = resolveKey(el.getAttribute('data-summon-bind'), el);
-      el.textContent = v == null ? '' : String(v);
-    }
-    const shows = root.querySelectorAll('[data-summon-show]');
-    for (const el of shows) {
-      el.hidden = !evalCondition(el.getAttribute('data-summon-show'), el);
-    }
-    const hides = root.querySelectorAll('[data-summon-hide]');
-    for (const el of hides) {
-      el.hidden = evalCondition(el.getAttribute('data-summon-hide'), el);
-    }
-    applyAttrBindings(root);
-    applyClassBindings(root);
-    applyMotion(root);
-    syncComponents();
-  }
-
-  function parseArgs(raw) {
+  function parseComponentProps(raw) {
     if (!raw) return {};
     try { return JSON.parse(raw); }
     catch (_) {
-      try { console.warn('summon: invalid data-summon-args JSON:', raw); } catch (__) {}
+      try { console.warn('summon: invalid data-summon-props JSON:', raw); } catch (__) {}
       return {};
     }
   }
@@ -712,9 +306,9 @@
       const name = el.getAttribute('data-summon-component') || '';
       const id = el.getAttribute('data-summon-component-id') || '';
       const rawProps = el.getAttribute('data-summon-props') || '{}';
-      const parsed = parseArgs(rawProps);
+      const parsed = parseComponentProps(rawProps);
       const props = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-        ? interpolate(parsed, el)
+        ? parsed
         : {};
       const rect = el.getBoundingClientRect();
       layoutParts.push(componentLayoutPart(el, rect));
@@ -805,200 +399,10 @@
     }, 100);
   }
 
-  // Collect named form controls into a flat args object. Multi-step thinking:
-  //  - Inputs/selects/textareas with [name] → value.
-  //  - Checkboxes → boolean.
-  //  - Radios → only the checked one's value, keyed by group name.
-  // Anything without [name] is ignored — same as a normal browser submit.
-  function collectFormFields(form) {
-    const out = {};
-    const els = form.querySelectorAll('[name]');
-    for (const el of els) {
-      const name = el.getAttribute('name');
-      if (!name) continue;
-      const tag = el.tagName;
-      const type = el.type;
-      if (tag === 'INPUT' && type === 'checkbox') {
-        out[name] = !!el.checked;
-      } else if (tag === 'INPUT' && type === 'radio') {
-        if (el.checked) out[name] = el.value;
-      } else if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') {
-        out[name] = el.value;
-      }
-    }
-    return out;
-  }
-
-  function findResourceForElement(fromEl) {
-    let el = fromEl;
-    while (el) {
-      if (el.__summon_resource) return el.__summon_resource;
-      el = el.parentElement;
-    }
-    return null;
-  }
-
-  function emitResourceTrigger(el, includeFormFields) {
-    const resource = findResourceForElement(el);
-    if (!resource || !resource.name) return;
-    const rawArgs = el.getAttribute('data-summon-args') || '';
-    const base = interpolate(parseArgs(rawArgs), el);
-    const args = includeFormFields
-      ? Object.assign({}, base, collectFormFields(el))
-      : base;
-    emit(resource.name, args);
-  }
-
-  function parseLocalValue(raw) {
-    const value = String(raw || '').trim();
-    if (!value) return '';
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    if (value === 'null') return null;
-    if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value)) return Number(value);
-    if (value.length >= 2 && value[0] === '"' && value[value.length - 1] === '"') {
-      try { return JSON.parse(value); } catch (_) { return value.slice(1, -1); }
-    }
-    if (value.length >= 2 && value[0] === "'" && value[value.length - 1] === "'") {
-      return value.slice(1, -1);
-    }
-    return value;
-  }
-
-  function applyLocalAction(el) {
-    const setValue = el.getAttribute('data-summon-set');
-    const toggleValue = el.getAttribute('data-summon-toggle');
-    let changed = false;
-    if (setValue) {
-      const idx = setValue.indexOf('=');
-      const key = idx === -1 ? '' : setValue.slice(0, idx).trim();
-      const rawValue = idx === -1 ? '' : setValue.slice(idx + 1);
-      if (/^[A-Za-z_$][\w$]{0,39}$/.test(key)) {
-        const next = parseLocalValue(rawValue);
-        if (localState[key] !== next) {
-          localState[key] = next;
-          changed = true;
-        }
-      }
-    }
-    if (toggleValue) {
-      const key = toggleValue.trim();
-      if (/^[A-Za-z_$][\w$]{0,39}$/.test(key)) {
-        localState[key] = !truthy(localState[key]);
-        changed = true;
-      }
-    }
-    if (!changed) return;
-    applyBindings();
-    const root = document.getElementById('summon-root');
-    if (root) triggerUpdateMotion(root);
-    scheduleComponentSync();
-  }
-
-  function mountKeyFor(el, intent, rawArgs) {
-    const index = Array.prototype.indexOf.call(document.querySelectorAll('[data-summon-on-mount]'), el);
-    return String(index) + '\n' + intent + '\n' + (rawArgs || '');
-  }
-
-  function applyMountIntents() {
-    const root = document.getElementById('summon-root');
-    if (!root) return;
-    const mounts = root.querySelectorAll('[data-summon-on-mount]');
-    for (const el of mounts) {
-      const intent = el.getAttribute('data-summon-on-mount');
-      if (!intent) continue;
-      const rawArgs = el.getAttribute('data-summon-args') || '';
-      const key = mountKeyFor(el, intent, rawArgs);
-      if (mountedIntentKeys.has(key)) continue;
-      mountedIntentKeys.add(key);
-      emit(intent, interpolate(parseArgs(rawArgs), el));
-    }
-
-    const resourceMounts = root.querySelectorAll('[data-summon-resource][data-summon-resource-trigger="mount"]');
-    for (const el of resourceMounts) {
-      const resource = findResourceForElement(el);
-      if (!resource || !resource.name) continue;
-      const rawArgs = el.getAttribute('data-summon-args') || '';
-      const key = mountKeyFor(el, resource.name, rawArgs);
-      if (mountedIntentKeys.has(key)) continue;
-      mountedIntentKeys.add(key);
-      emitResourceTrigger(el, false);
-    }
-  }
-
-  // Delegated click. Walks up from event.target to find the closest element
-  // carrying `data-summon-on-click`. Always preventDefault — a click that resolves
-  // to an intent never falls through to the browser's default (form submit,
-  // anchor navigation, etc.). Args are interpolated against the element's
-  // foreach scope (if any) at fire time, so `{"picked":"$r"}` resolves to the
-  // actual item object the user clicked on.
-  document.addEventListener('click', (event) => {
-    const t = event.target;
-    if (!(t instanceof Element)) return;
-    const localEl = t.closest('[data-summon-set],[data-summon-toggle]');
-    if (localEl) {
-      event.preventDefault();
-      applyLocalAction(localEl);
-      return;
-    }
-    const resourceEl = t.closest('[data-summon-resource-trigger="click"]');
-    if (resourceEl) {
-      event.preventDefault();
-      emitResourceTrigger(resourceEl, false);
-      return;
-    }
-    const el = t.closest('[data-summon-on-click]');
-    if (!el) return;
-    event.preventDefault();
-    const intent = el.getAttribute('data-summon-on-click');
-    const parsed = parseArgs(el.getAttribute('data-summon-args'));
-    emit(intent, interpolate(parsed, el));
-  });
-
-  // Delegated submit. Form-only by attribute selector. Auto-collected fields
-  // are spread directly into args; an optional `data-summon-args` JSON object
-  // provides base args (collected fields win on key conflict). Base args are
-  // interpolated against the form's scope so foreach-scoped forms can pass
-  // their item identity through.
-  document.addEventListener('submit', (event) => {
-    const t = event.target;
-    if (!(t instanceof Element)) return;
-    const resourceForm = t.closest('form[data-summon-resource-trigger="submit"]');
-    if (resourceForm) {
-      event.preventDefault();
-      emitResourceTrigger(resourceForm, true);
-      return;
-    }
-    const form = t.closest('form[data-summon-on-submit]');
-    if (!form) return;
-    event.preventDefault();
-    const intent = form.getAttribute('data-summon-on-submit');
-    const base = interpolate(parseArgs(form.getAttribute('data-summon-args')), form);
-    emit(intent, Object.assign({}, base, collectFormFields(form)));
-  });
-
-  // First-paint pass: hides any `data-summon-show` element whose key resolves
-  // to falsy in the empty initial state. Without this, elements meant to be
-  // hidden-by-default flash visible until the first state push.
-  document.addEventListener('DOMContentLoaded', () => {
-    applyBindings();
-    applyMountIntents();
-  });
   window.addEventListener('resize', scheduleComponentSync);
   window.addEventListener('scroll', scheduleComponentSync, { passive: true });
   document.addEventListener('scroll', scheduleComponentSync, { capture: true, passive: true });
   // ───────────────────────────────────────────────────────────────────────────
-
-  function markTransientClass(el, className, durationMs) {
-    if (!el || !el.classList) return;
-    el.classList.remove(className);
-    // Force a style flush so repeated replacements retrigger the animation.
-    void el.offsetWidth;
-    el.classList.add(className);
-    window.setTimeout(function () {
-      if (el && el.classList) el.classList.remove(className);
-    }, durationMs);
-  }
 
   window.addEventListener('message', (event) => {
     const data = event.data;
@@ -1008,15 +412,8 @@
     if (data.type === 'SUMMON_STATE') {
       const next = data.state && typeof data.state === 'object' ? data.state : {};
       currentState = Object.freeze({ ...next });
-      // Subscribers fire first; declarative bindings refresh last so the DOM
-      // ends up consistent with currentState even if a subscriber wrote to a
-      // bound element.
       notify();
-      applyBindings();
-      {
-        const root = document.getElementById('summon-root');
-        if (root) triggerUpdateMotion(root);
-      }
+      scheduleComponentSync();
       return;
     }
 
@@ -1042,25 +439,6 @@
       return;
     }
 
-    if (data.type === 'SUMMON_CHROME') {
-      // Mirror host-declared chrome attributes onto <html>. Host-controlled —
-      // we still validate keys/values defensively because the listener is bound
-      // to `window` and the sandbox_id gate filters ambient frame messages.
-      var attrs = data.attrs;
-      if (!attrs || typeof attrs !== 'object') return;
-      var root = document.documentElement;
-      for (var k in attrs) {
-        if (!Object.prototype.hasOwnProperty.call(attrs, k)) continue;
-        if (!/^[a-z][a-z0-9-]*$/.test(k)) continue;
-        var v = attrs[k];
-        if (v === '' || v == null) {
-          root.removeAttribute('data-summon-' + k);
-        } else {
-          root.setAttribute('data-summon-' + k, String(v));
-        }
-      }
-      return;
-    }
   });
 
   const sdk = Object.freeze({

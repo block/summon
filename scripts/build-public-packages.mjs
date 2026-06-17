@@ -107,8 +107,6 @@ const coreExports = {
   './engine': {
     values: {
       './_internal/engine/index.js': [
-        'CAPABILITY_BINDING_SPECS',
-        'CAPABILITY_TRIGGER_SPECS',
         'DEFAULT_SURFACE_CEILING',
         'DEFAULT_SURFACE_PLAN',
         'DEFAULT_VALIDATION_LIMITS',
@@ -543,7 +541,6 @@ const reactExports = {
       './_internal/react/index.js': [
         'ReactComponentRuntimeContext',
         'ReactComponentWithRuntimeDefinition',
-        'SummonSurfaceChrome',
         'SummonSurfaceHandle',
         'SummonSurfaceProps',
       ],

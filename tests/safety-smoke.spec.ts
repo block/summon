@@ -47,7 +47,7 @@ function arrowHtmlArtifact(html: string): any {
     value: {
       runtime: 'arrow',
       source: {
-        'main.ts': `export default html\`${source}\``,
+        'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\``,
       },
     },
   };
@@ -83,7 +83,7 @@ test('bootstrap self-test fails closed on unsafe sandbox config', async ({ page 
 test('strict input keeps sensitive entry in host overlay', async ({ page }) => {
   await page.goto('/strict');
 
-  const hostInput = page.locator('[data-summon-strict-slot="card_number"] input');
+  const hostInput = page.locator('[data-strict-slot="card_number"] input');
   await expect(hostInput).toBeVisible();
   await hostInput.fill('4242 4242 4242 4242');
 
@@ -135,7 +135,7 @@ test('sandbox ignores legacy HTML render and node patch messages', async ({ page
       <head>
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'; child-src 'none'; media-src 'none'; object-src 'none'; worker-src 'none'">
         <meta charset="utf-8">
-        <script>window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+        <script>window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};</script>
         <script>${bootstrapSource}</script>
       </head>
       <body><div id="summon-root"></div></body>
@@ -176,8 +176,8 @@ test('sandbox ignores legacy HTML render and node patch messages', async ({ page
   expect(executed).toBe(false);
 });
 
-test('sandbox render keeps generated scripts inert while local state and motion work', async ({ page }) => {
-  const sandboxId = 'local-state-test';
+test('sandbox Arrow onState bridge syncs host pushes without legacy attributes', async ({ page }) => {
+  const sandboxId = 'arrow-on-state-test';
   await page.setContent(`
     <script>
       window.__summonMessages = [];
@@ -191,13 +191,35 @@ test('sandbox render keeps generated scripts inert while local state and motion 
       <head>
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'; child-src 'none'; media-src 'none'; object-src 'none'; worker-src 'none'">
         <meta charset="utf-8">
-        <script nonce="${nonce}">window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+        <script nonce="${nonce}">window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};</script>
         <script nonce="${nonce}">
           window.__SUMMON_ARROW_SANDBOX__ = {
-            sandbox(options) {
+            sandbox(options, adapter, imports) {
               return function mount(root) {
-                root.innerHTML = String(options.source["main.html"] || "");
-                return function teardown() { root.replaceChildren(); };
+                const bridge = imports["host-bridge:summon"];
+                const state = { count: 0, label: "Waiting" };
+                root.innerHTML = '<main><p id="label"></p><output id="count"></output><button id="increment">Increment</button></main>';
+                const label = root.querySelector("#label");
+                const count = root.querySelector("#count");
+                function render() {
+                  label.textContent = state.label;
+                  count.textContent = String(state.count);
+                }
+                const unsubscribe = bridge.onState((hostState) => {
+                  state.count = Number(hostState.count ?? state.count);
+                  state.label = String(hostState.label ?? state.label);
+                  render();
+                });
+                root.querySelector("#increment").addEventListener("click", async () => {
+                  const result = await bridge.invoke("counter", { delta: 1 });
+                  if (result.ok) {
+                    state.count = Number(result.state.count ?? state.count);
+                    state.label = String(result.state.label ?? state.label);
+                    render();
+                  }
+                });
+                render();
+                return function teardown() { unsubscribe(); root.replaceChildren(); };
               };
             },
           };
@@ -214,13 +236,6 @@ test('sandbox render keeps generated scripts inert while local state and motion 
     return messages.some((message) => message?.type === 'SUMMON_READY');
   })).toBe(true);
 
-  const html = `<div data-summon-local='{"tab":"overview","expanded":false}'>
-    <button id="activity-tab" data-summon-set="tab=activity" data-summon-class-active='tab == "activity"'>Activity</button>
-    <button id="toggle" data-summon-toggle="expanded">Toggle</button>
-    <section id="overview" data-summon-show='tab == "overview"'>Overview</section>
-    <section id="activity-panel" data-summon-show='tab == "activity"' data-summon-motion="enter:rise; update:pulse" data-summon-transition="fade-slide">Activity panel</section>
-    <div id="details" data-summon-show="expanded">Details</div>
-  </div><script>parent.postMessage({type:"EXECUTED"}, "*")</script>`;
   await page.locator('#sandbox').evaluate((iframe, payload) => {
     (iframe as HTMLIFrameElement).contentWindow?.postMessage({
       type: 'SUMMON_RENDER',
@@ -228,31 +243,40 @@ test('sandbox render keeps generated scripts inert while local state and motion 
       artifact: {
         runtime: 'arrow',
         source: {
-          'main.html': payload.html,
+          'main.ts': [
+            'import { html, reactive } from "@arrow-js/core";',
+            'import { invoke, onState } from "host-bridge:summon";',
+            'const state = reactive({ count: 0, label: "" });',
+            'onState((hostState) => { state.count = Number(hostState.count ?? state.count); state.label = String(hostState.label ?? state.label); });',
+            'async function increment() { await invoke("counter", { delta: 1 }); }',
+            'export default html`<main><p id="label">${() => state.label}</p><output id="count">${() => state.count}</output><button id="increment" @click="${increment}">Increment</button></main>`;',
+          ].join('\\n'),
         },
       },
     }, '*');
-  }, { sandboxId, html });
+  }, { sandboxId });
 
   const sandbox = page.frameLocator('#sandbox');
-  await expect(sandbox.locator('#overview')).toBeVisible();
-  await expect(sandbox.locator('#activity-panel')).toBeHidden();
-  await expect(sandbox.locator('#details')).toBeHidden();
-  await sandbox.locator('#activity-tab').click();
-  await expect(sandbox.locator('#activity-tab')).toHaveClass(/active/);
-  await expect(sandbox.locator('#overview')).toBeHidden();
-  await expect(sandbox.locator('#activity-panel')).toBeVisible();
-  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-motion-enter-rise/);
-  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-transition-fade-slide/);
-  await expect(sandbox.locator('#activity-panel')).toHaveClass(/summon-motion-update-pulse/);
-  await sandbox.locator('#toggle').click();
-  await expect(sandbox.locator('#details')).toBeVisible();
+  await expect(sandbox.locator('#label')).toHaveText('Waiting');
+  await expect(sandbox.locator('#count')).toHaveText('0');
+  await expect(sandbox.locator('[data-summon-bind],[data-summon-show],[data-summon-on-click],[data-summon-local]')).toHaveCount(0);
 
-  const executed = await page.evaluate(() => {
+  await page.locator('#sandbox').evaluate((iframe, payload) => {
+    (iframe as HTMLIFrameElement).contentWindow?.postMessage({
+      type: 'SUMMON_STATE',
+      sandbox_id: payload.sandboxId,
+      state: { count: 7, label: 'Host pushed' },
+    }, '*');
+  }, { sandboxId });
+
+  await expect(sandbox.locator('#label')).toHaveText('Host pushed');
+  await expect(sandbox.locator('#count')).toHaveText('7');
+
+  await sandbox.locator('#increment').click();
+  await expect.poll(async () => page.evaluate(() => {
     const messages = (window as any).__summonMessages as any[];
-    return messages.some((message) => message?.type === 'EXECUTED');
-  });
-  expect(executed).toBe(false);
+    return messages.find((message) => message?.type === 'SUMMON_INTENT' && message.intent === 'counter')?.args;
+  })).toEqual({ delta: 1 });
 });
 
 test('generate showcase uses the agent broker by default', async ({ page }) => {

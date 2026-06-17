@@ -12,6 +12,7 @@ import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import type { ActiveContract, Mode } from '../../../showcase.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
+import { applyTokenOverrideCss } from '../surfaceHelpers.js';
 import type { ChildSurfaceModel, LogEntry, StreamOptions, StreamResult } from '../types.js';
 
 export function useGenerationRuns({
@@ -96,7 +97,11 @@ export function useGenerationRuns({
   const generate = useCallback(async (runPrompt: string) => {
     abortRef.current?.abort();
     const abort = new AbortController();
-    const runTokensSource = activeTokensSourceOverride ?? tokensFor(directionId);
+    const baseTokensSource = tokensFor(directionId);
+    const runTokenOverrides = Object.entries(activeContract.tokenOverrides ?? {})
+      .map(([token, value]) => ({ token, value }));
+    const runTokensSource = activeTokensSourceOverride ??
+      (runTokenOverrides.length > 0 ? applyTokenOverrideCss(baseTokensSource, runTokenOverrides) : baseTokensSource);
     abortRef.current = abort;
     clearApprovals('Approval request was replaced');
     setChildren([]);

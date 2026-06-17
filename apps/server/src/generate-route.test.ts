@@ -186,8 +186,11 @@ test('api generate sends narrowed contract and stream meta shape through package
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(systemText, /Search host-owned dinner data/);
   assert.match(systemText, /host-resource/);
-  assert.match(systemText, /Declarative-only interactivity/);
+  assert.match(systemText, /Arrow-native interactivity/);
+  assert.match(systemText, /host-bridge:summon/);
+  assert.match(systemText, /onState/);
   assert.doesNotMatch(systemText, /Rules for scripts/);
+  assert.doesNotMatch(systemText, /data-summon-on-click/);
   assert.doesNotMatch(systemText, /\bchoose\b/);
 
   const lines = body

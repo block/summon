@@ -38,10 +38,6 @@ import {
 } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 
-export interface SummonSurfaceChrome {
-  [key: string]: string;
-}
-
 export interface SummonSurfaceProps {
   envelope?: SurfaceEnvelope | null;
   artifact?: ArrowSurfaceArtifact | null;
@@ -56,7 +52,6 @@ export interface SummonSurfaceProps {
   arrowNetworkPolicy?: ArrowNetworkPolicy;
   tokensSource?: string;
   initialState?: Record<string, unknown>;
-  chrome?: SummonSurfaceChrome;
   onIntent?: (intent: string, args: Record<string, unknown>) => void;
   onIntentRejected?: (reason: string, raw: unknown) => void;
   onEvent?: (event: DevtoolsEvent) => void;
@@ -74,7 +69,6 @@ export interface SummonSurfaceHandle {
   sandboxId: string | null;
   renderArtifact(artifact: ArrowSurfaceArtifact): void;
   pushState(state: Record<string, unknown>): void;
-  setChrome(chrome: SummonSurfaceChrome): void;
 }
 
 export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>(function SummonSurface(
@@ -100,9 +94,6 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     },
     pushState(state: Record<string, unknown>) {
       handleRef.current?.pushState(state);
-    },
-    setChrome(chrome: SummonSurfaceChrome) {
-      handleRef.current?.setChrome(chrome);
     },
   }), []);
 
@@ -236,7 +227,6 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       },
     });
     handleRef.current = handle;
-    if (props.chrome) handle.setChrome(props.chrome);
     if (lastRenderedArtifactRef.current !== null) {
       handle.renderArtifact(lastRenderedArtifactRef.current);
     }
@@ -255,7 +245,6 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     props.arrowRuntimeSource,
     props.arrowNetworkPolicy,
     props.capabilityRegistry,
-    props.chrome,
     props.componentRegistry,
     props.envelope,
     props.artifact,

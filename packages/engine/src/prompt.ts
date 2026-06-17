@@ -12,7 +12,6 @@ import type { DirectionOpts } from './direction-validator.js';
 import {
   type ActionStateKeys,
   defaultTriggersForKind,
-  formatCapabilityProtocolContract,
   type CapabilityKind,
   type CapabilityStateKeys,
   type CapabilityTrigger,
@@ -126,14 +125,15 @@ Rules:
 - For host actions and resources, import from \`host-bridge:summon\`:
 
 \`\`\`ts
-import { invoke, getState } from "host-bridge:summon"
+import { invoke, getState, onState } from "host-bridge:summon"
 \`\`\`
 
 - Call \`await invoke(intentName, args)\` for granted host capabilities. The result is \`{ ok, state, error? }\`.
 - Call \`await getState()\` to read the latest host-pushed state.
+- Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
 - Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host capabilities.
-- Do not emit \`set /screen\`, \`add /section/*\`, \`data-summon-*\` bindings, scripts, host-owned meta lines, HTML fragments, or multiple lines.
+- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, host-owned meta lines, HTML fragments, or multiple lines. The only prefixed attributes allowed in Arrow source are \`data-summon-component\`, \`data-summon-component-id\`, and \`data-summon-props\` from the Component islands block.
 - Keep the JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.
 
 ## Arrow/CSS rules
@@ -188,14 +188,15 @@ Rules:
 - For host actions and resources, import from \`host-bridge:summon\`:
 
 \`\`\`ts
-import { invoke, getState } from "host-bridge:summon"
+import { invoke, getState, onState } from "host-bridge:summon"
 \`\`\`
 
 - Call \`await invoke(intentName, args)\` for granted host capabilities. The result is \`{ ok, state, error? }\`.
 - Call \`await getState()\` to read the latest host-pushed state.
+- Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
 - Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host capabilities.
-- Do not emit \`set /screen\`, \`add /section/*\`, \`data-summon-*\` bindings, scripts, or host-owned meta lines.
+- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, or host-owned meta lines. The only prefixed attributes allowed in Arrow source are \`data-summon-component\`, \`data-summon-component-id\`, and \`data-summon-props\` from the Component islands block.
 - Keep every JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.`;
 
 /**
@@ -550,65 +551,128 @@ export function buildCapabilitiesBlock(
   ].filter(Boolean).join('\n\n');
 
   const promptPatterns = (pack.patterns ?? []).filter(
-    (pattern) => !/<\s*script\b/i.test(pattern.code),
+    (pattern) =>
+      !/<\s*script\b/i.test(pattern.code) &&
+      !/\bdata-summon-(?!(?:component|component-id|props)\b)[a-z0-9-]+/i.test(pattern.code),
   );
   const patternsBlock =
     promptPatterns.length > 0
       ? `\n\n### Patterns\n\n${promptPatterns
-          .map((p) => `**${p.name}:**\n\`\`\`html\n${p.code.trim()}\n\`\`\``)
+          .map((p) => `**${p.name}:**\n\`\`\`ts\n${p.code.trim()}\n\`\`\``)
           .join('\n\n')}`
       : '';
-  const scriptPolicyBlock = `### Script policy — declarative only
+  const scriptPolicyBlock = `### Script policy — Arrow host bridge only
 
-This host has NOT granted custom artifact scripts. Do not emit \`<script>\` tags. Do not rely on \`sandbox.emit\`, \`sandbox.onState\`, custom event listeners, timers, computed DOM mutations, or local script state.
+This host has NOT granted custom artifact scripts. Do not emit \`<script>\` tags. All behavior lives in the Arrow entry module you return as \`main.ts\` or \`main.js\`.
 
-All interactivity for this generation must use declarative \`data-summon-*\` attributes. Use \`data-summon-local\`, \`data-summon-set\`, \`data-summon-toggle\`, \`data-summon-show\`, \`data-summon-hide\`, \`data-summon-class-*\`, \`data-summon-motion\`, and \`data-summon-transition\` for tabs, disclosures, selection, staged reveal, local visual state, and simple motion. If the requested behavior cannot be expressed with those attributes and the granted capabilities, leave that control out or state the limitation in the UI.`;
+Use Arrow \`reactive()\` state for local UI state, Arrow event handlers for clicks/submits/input, and the \`host-bridge:summon\` virtual module for host state and capabilities. Do not use \`window.sandbox\`, direct DOM listeners, timers, storage, or native bridges. If a requested behavior cannot be expressed with Arrow plus the granted capabilities, leave that control out or state the limitation in the UI.`;
 
-  const actionWiring = 'via `data-summon-on-click`, `data-summon-on-submit`, or `data-summon-resource-trigger`';
+  const actionWiring = 'by calling `await invoke("<intent>", args)` from an Arrow event handler';
   const intentNames = new Set(pack.intents.map((intent) => intent.name));
   const examples: string[] = [];
   if (intentNames.has('counter')) {
-    examples.push(`<!-- Counter: click + bind -->
-<button data-summon-on-click="counter" data-summon-args='{"delta":1}'>+</button>
-<button data-summon-on-click="counter" data-summon-args='{"delta":-1}'>−</button>
-<output data-summon-bind="count">0</output>`);
+    examples.push(`// Counter: Arrow event handlers + host state sync
+import { html, reactive } from "@arrow-js/core";
+import { invoke, onState } from "host-bridge:summon";
+
+const state = reactive({ count: 0 });
+onState((hostState) => {
+  state.count = Number(hostState.count ?? state.count ?? 0);
+});
+
+async function change(delta: number) {
+  const result = await invoke("counter", { delta });
+  if (result.ok) state.count = Number(result.state.count ?? state.count);
+}
+
+export default html\`
+  <button @click="\${() => change(-1)}" aria-label="Decrease">-</button>
+  <output>\${() => state.count}</output>
+  <button @click="\${() => change(1)}" aria-label="Increase">+</button>
+\`;`);
   }
   if (intentNames.has('submit')) {
-    examples.push(`<!-- Form: submit + show success/error -->
-<form data-summon-on-submit="submit">
-  <input name="title" placeholder="Title">
-  <input name="notes" placeholder="Notes">
-  <button>Save</button>
-</form>
-<p data-summon-show="submitted">Saved.</p>
-<p data-summon-show="submitError" data-summon-bind="submitError"></p>`);
+    examples.push(`// Form: collect an event snapshot, invoke the host, render host-owned state
+import { html, reactive } from "@arrow-js/core";
+import { invoke, onState } from "host-bridge:summon";
+
+const state = reactive({ submitted: false, submitError: "" });
+onState((hostState) => {
+  state.submitted = Boolean(hostState.submitted);
+  state.submitError = String(hostState.submitError ?? "");
+});
+
+async function save(event: SubmitEvent) {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const fields = Object.fromEntries(new FormData(form).entries());
+  const result = await invoke("submit", fields);
+  state.submitted = Boolean(result.state.submitted);
+  state.submitError = String(result.state.submitError ?? result.error ?? "");
+}
+
+export default html\`
+  <form @submit="\${save}">
+    <input name="title" placeholder="Title">
+    <input name="notes" placeholder="Notes">
+    <button>Save</button>
+  </form>
+  <p>\${() => state.submitted ? "Saved." : ""}</p>
+  <p>\${() => state.submitError}</p>
+\`;`);
   }
   if (intentNames.has('log')) {
-    examples.push(`<!-- List of items: foreach + scoped bind + click-with-item -->
-<ul data-summon-foreach="results" data-summon-as="r">
-  <template>
-    <li data-summon-on-click="log" data-summon-args='{"payload":{"picked":"$r"}}'>
-      <strong data-summon-bind="$r.title"></strong>
-      <span data-summon-bind="$r.snippet"></span>
-    </li>
-  </template>
-</ul>`);
+    examples.push(`// Result row: pass the selected item through an Arrow handler
+import { html, reactive } from "@arrow-js/core";
+import { invoke, onState } from "host-bridge:summon";
+
+const state = reactive({ results: [] as Array<{ title: string; snippet: string }> });
+onState((hostState) => {
+  state.results = Array.isArray(hostState.results) ? hostState.results : [];
+});
+
+async function pick(result: { title: string; snippet: string }) {
+  await invoke("log", { payload: { picked: result } });
+}
+
+export default html\`
+  <ul>
+    \${() => state.results.map((result) => html\`
+      <li @click="\${() => pick(result)}">
+        <strong>\${result.title}</strong>
+        <span>\${result.snippet}</span>
+      </li>
+    \`)}
+  </ul>
+\`;`);
   }
   const examplesBlock = examples.length > 0
-    ? `\n\n**Examples:**\n\n\`\`\`html\n${examples.join('\n\n')}\n\`\`\``
+    ? `\n\n**Examples:**\n\n\`\`\`ts\n${examples.join('\n\n')}\n\`\`\``
     : '';
 
   return `## Capabilities — this generation is INTERACTIVE
 
-**Declarative-only interactivity.** The sandbox runtime binds a small set of \`data-summon-*\` attributes to host state, local ephemeral state, motion recipes, and intents. Custom artifact scripts are not granted for this generation.
+**Arrow-native interactivity.** Generated surfaces run as Arrow artifacts. Use Arrow \`reactive()\` for state, Arrow event handlers for user input, and \`host-bridge:summon\` for host tools and host-pushed state.
 
-Do NOT build CSS-only state machines using \`:has()\`, \`:checked\` sibling selectors, \`<details>\` chained to other elements, or \`:target\` URL hash tricks for state. Those patterns are clever but fragile; the declarative attributes below are shorter and more reliable.
+Do NOT build CSS-only state machines using \`:has()\`, \`:checked\` sibling selectors, \`<details>\` chained to other elements, or \`:target\` URL hash tricks for state. Use Arrow state and handlers instead.
+
+### Host bridge
+
+Import the bridge in your Arrow entry file:
+
+\`\`\`ts
+import { invoke, getState, onState } from "host-bridge:summon";
+\`\`\`
+
+- \`await invoke(intentName, args)\` calls a granted host capability and resolves to \`{ ok, state, error? }\`.
+- \`await getState()\` reads the latest host-owned state snapshot.
+- \`onState((state) => { ... })\` subscribes to host \`pushState()\` updates and returns an unsubscribe function.
+- Copy host-owned keys into your Arrow \`reactive()\` object from \`getState()\`, \`onState()\`, and successful \`invoke()\` results.
 
 ### Available capabilities
 
 ${capabilitySections}
 
-${formatCapabilityProtocolContract()}
 ${examplesBlock}
 
 ${scriptPolicyBlock}
@@ -625,15 +689,15 @@ Dead buttons are worse than no buttons. When in doubt, leave it out.
 
 Only the intents listed above exist. Any concept that isn't in the intent list does not exist — don't add controls that imply capabilities you don't have. When in doubt, route the user-visible action through the closest matching intent or drop the control.
 
-Data resources expose host-owned loading/data/error state and may expose \`$alias.empty\` when the host declares an empty-state key. Use \`mount\` only for initial read-oriented loads granted by the resource; use \`submit\` for forms and \`click\` only when the resource grants a click trigger. Bind \`$alias.loading\` for busy UI, \`$alias.error\` for host errors, \`$alias.data\` for validated result data, and \`$alias.empty\` only for real no-results copy after a successful host result.
+Data resources expose host-owned loading/data/error state keys and may expose an empty-state key. Use \`mount\` only for initial read-oriented loads granted by the resource; use \`submit\` for forms and \`click\` only when the resource grants a click trigger. Mirror the listed loading key for busy UI, error key for host errors, data key for validated result data, and empty key only for real no-results copy after a successful host result.
 
-Default data is real host state. A data resource starts at \`{loading:false, data:defaultData ?? null, error:null, empty:false when declared}\`, and loading/error/invalid-result states keep the data value at \`defaultData ?? null\` with \`empty:false\`. Never hallucinate fetched rows, profiles, images, or counts before a successful data resource result. Wrap result UI in \`data-summon-show="$alias.data"\`; for arrays, put \`data-summon-foreach="$alias.data"\` on the result list so no rows render until the host data exists. Render "no results" from \`$alias.empty\`, not from missing or pre-load data.
+Default data is real host state. A data resource starts at \`{loading:false, data:defaultData ?? null, error:null, empty:false when declared}\`, and loading/error/invalid-result states keep the data value at \`defaultData ?? null\` with \`empty:false\`. Never hallucinate fetched rows, profiles, images, or counts before a successful data resource result. Render array rows from the host data key only after it exists. Render "no results" from the declared empty key, not from missing or pre-load data.
 
 Controlled actions expose host-owned pending/done/error keys when listed under Action state. Use \`pending\` to disable or mark the triggering control busy, show \`error\` as host failure text, and show \`done\` only for useful success confirmation. Do not fake completed, approved, or failed states in local markup.
 
 ### Initial state
 
-Action-owned state starts empty unless the host declares controlled action state, in which case pending/done/error start false/false/null. Data-resource lifecycle keys start from the default state described above. Render defensively: show an empty-state message only from declared empty state or a form before data exists, never placeholder fetched data. \`data-summon-show\` reads as falsy for missing keys, so wrapping action result UI in \`data-summon-show="<resultKey>"\` is a clean empty-state default.${patternsBlock}`;
+Action-owned state starts empty unless the host declares controlled action state, in which case pending/done/error start false/false/null. Data-resource lifecycle keys start from the default state described above. Render defensively: show an empty-state message only from declared empty state or a form before data exists, never placeholder fetched data.${patternsBlock}`;
 }
 
 export function buildComponentsBlock(pack: ComponentPack | null | undefined): string {
@@ -698,7 +762,7 @@ Rules:
 - Do not use a component island for something your Arrow template and CSS can express well.
 - Component islands do not grant new host actions. If the component needs durable host behavior, it must route through an already-granted intent or host-owned component code.
 
-Props may include scoped values such as \`"$row.title"\` or \`"$resource.data"\` when the placeholder lives inside a foreach/resource scope; the sandbox resolves those before asking the host to render.${examplesBlock}`;
+If props depend on Arrow state, compute the JSON from Arrow with a quoted attribute expression such as \`data-summon-props="\${() => JSON.stringify({ value: state.revenue })}"\` and keep \`data-summon-component-id\` stable across renders.${examplesBlock}`;
 }
 
 function normalizeTriggers(intent: IntentSpec): CapabilityTrigger[] {

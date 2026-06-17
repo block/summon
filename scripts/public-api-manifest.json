@@ -162,8 +162,6 @@
     "./engine": {
       "file": "engine",
       "values": [
-        "CAPABILITY_BINDING_SPECS",
-        "CAPABILITY_TRIGGER_SPECS",
         "DEFAULT_SURFACE_CEILING",
         "DEFAULT_SURFACE_PLAN",
         "DEFAULT_VALIDATION_LIMITS",
@@ -442,7 +440,6 @@
       "types": [
         "ReactComponentRuntimeContext",
         "ReactComponentWithRuntimeDefinition",
-        "SummonSurfaceChrome",
         "SummonSurfaceHandle",
         "SummonSurfaceProps"
       ]

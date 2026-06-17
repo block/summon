@@ -71,6 +71,59 @@ test('accepts valid Arrow artifacts', () => {
   assert.deepEqual(issues, []);
 });
 
+test('blocks legacy data-summon binding attributes in Arrow artifacts', () => {
+  const issues = validateProtocolLine(
+    {
+      op: 'artifact',
+      path: '/artifact',
+      value: {
+        runtime: 'arrow',
+        source: {
+          'main.ts': [
+            'import { html } from "@arrow-js/core";',
+            'export default html`',
+            '<section data-summon-local="{&quot;open&quot;:false}">',
+            '<button data-summon-on-click="save" data-summon-bind="label">Save</button>',
+            '<p data-summon-show="saveError"></p>',
+            '<div data-summon-resource="search" data-summon-resource-trigger="submit"></div>',
+            '</section>`;',
+          ].join('\n'),
+        },
+      },
+    },
+    baseContext,
+  );
+  assert.deepEqual(codes(issues), ['unsupported-legacy-data-summon-binding']);
+  assert.match(issues[0]?.message ?? '', /data-summon-bind/);
+  assert.match(issues[0]?.message ?? '', /data-summon-local/);
+  assert.match(issues[0]?.message ?? '', /data-summon-on-click/);
+  assert.match(issues[0]?.message ?? '', /data-summon-resource/);
+  assert.match(issues[0]?.message ?? '', /data-summon-resource-trigger/);
+  assert.match(issues[0]?.message ?? '', /data-summon-show/);
+});
+
+test('allows trusted component placeholder attributes in Arrow artifacts', () => {
+  const issues = validateProtocolLine(
+    {
+      op: 'artifact',
+      path: '/artifact',
+      value: {
+        runtime: 'arrow',
+        source: {
+          'main.ts': [
+            'import { html } from "@arrow-js/core";',
+            'export default html`',
+            '<div data-summon-component="MetricCard" data-summon-component-id="metric-1" data-summon-props="{&quot;label&quot;:&quot;Revenue&quot;}"></div>',
+            '`;',
+          ].join('\n'),
+        },
+      },
+    },
+    baseContext,
+  );
+  assert.deepEqual(issues, []);
+});
+
 test('parser rejects legacy section protocol ops', () => {
   assert.throws(
     () => parseProtocolLineStrict(JSON.stringify({ op: 'set', path: '/screen', value: { sections: ['hero'] } })),

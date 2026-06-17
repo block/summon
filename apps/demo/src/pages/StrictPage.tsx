@@ -179,7 +179,7 @@ export function StrictPage() {
       </div>
 
       {overlayStyle ? (
-        <div data-summon-strict-slot="card_number" style={overlayStyle}>
+        <div data-strict-slot="card_number" style={overlayStyle}>
           <input
             type="text"
             inputMode="numeric"

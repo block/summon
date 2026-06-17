@@ -20,6 +20,12 @@ const OPTIONAL_FILES = new Set(['main.css']);
 const MODULE_RE = /^[A-Za-z0-9_./-]+\.(?:ts|js|mjs|css)$/;
 const UNSUPPORTED_IDL_PROPERTY_BINDING_RE = /(^|[\s`<])\.[A-Za-z_$][A-Za-z0-9_$-]*\s*=/m;
 const UNSUPPORTED_OPEN_TAG_EXPRESSION_RE = /<[^>`]*\s\$\{/m;
+const DATA_SUMMON_ATTR_RE = /\b(data-summon-[a-z0-9-]+)\b/gi;
+const TRUSTED_COMPONENT_PLACEHOLDER_ATTRS = new Set([
+  'data-summon-component',
+  'data-summon-component-id',
+  'data-summon-props',
+]);
 
 export function isArrowSurfaceArtifact(value: unknown): value is ArrowSurfaceArtifact {
   return normalizeArrowSurfaceArtifact(value).artifact !== null;
@@ -118,6 +124,14 @@ export function validateArrowSurfaceArtifact(
         `/artifact/${path}`,
       ));
     }
+    const legacyDataSummonAttrs = unsupportedDataSummonAttrs(contents);
+    if (legacyDataSummonAttrs.length > 0) {
+      issues.push(arrowIssue(
+        'unsupported-legacy-data-summon-binding',
+        `Arrow artifacts must use Arrow reactive state and host-bridge:summon instead of legacy Summon binding attributes in "${path}": ${legacyDataSummonAttrs.join(', ')}.`,
+        `/artifact/${path}`,
+      ));
+    }
   }
   return issues;
 }
@@ -144,4 +158,14 @@ function arrowIssue(code: string, message: string, path = '/artifact'): Contract
 
 function byteLength(value: string): number {
   return new TextEncoder().encode(value).length;
+}
+
+function unsupportedDataSummonAttrs(contents: string): string[] {
+  const attrs = new Set<string>();
+  for (const match of contents.matchAll(DATA_SUMMON_ATTR_RE)) {
+    const attr = match[1]?.toLowerCase();
+    if (!attr || TRUSTED_COMPONENT_PLACEHOLDER_ATTRS.has(attr)) continue;
+    attrs.add(attr);
+  }
+  return Array.from(attrs).sort();
 }

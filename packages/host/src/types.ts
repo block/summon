@@ -23,22 +23,6 @@ export interface RenderMessage {
   artifact?: ArrowSurfaceArtifact;
 }
 
-/**
- * Host → iframe declaration of chrome attributes the artifact's CSS may
- * target. Each entry becomes `<html data-summon-<key>="<value>">` inside the
- * sandbox document, set before any artifact CSS evaluates against it (or
- * applied live mid-stream via `setChrome`). Used for orthogonal axes the
- * artifact shouldn't author itself — posture, theme, density.
- *
- * The host decides the keys; the iframe just mirrors them. Keys must be
- * lowercase ASCII (kebab-case allowed); values are coerced to strings.
- */
-export interface ChromeMessage {
-  type: 'SUMMON_CHROME';
-  sandbox_id: string;
-  attrs: Record<string, string>;
-}
-
 /** Messages from the sandbox iframe back to the host. */
 export interface IntentMessage {
   type: 'SUMMON_INTENT';
@@ -118,15 +102,6 @@ export interface SandboxHandle {
   pushState(state: Record<string, unknown>): void;
   /** Replace the Arrow source artifact inside #summon-root. */
   renderArtifact(artifact: ArrowSurfaceArtifact): void;
-  /**
-   * Declare chrome attributes that should appear on the sandbox document's
-   * `<html>` element. Each entry becomes `data-summon-<key>="<value>"` and is
-   * applied live — including before the first render — so artifact CSS can
-   * target e.g. `[data-summon-posture="tap"]` without round-trips. Calls are
-   * additive: keys present in a previous call but absent from the new one
-   * are left in place. Pass an empty string to clear a key explicitly.
-   */
-  setChrome(attrs: Record<string, string>): void;
   /** Tear down the sandbox: removes listeners, clears srcdoc. */
   dispose(): void;
 }
