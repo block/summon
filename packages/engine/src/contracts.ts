@@ -1,18 +1,15 @@
 import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
-  SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   buildCapabilitiesBlock,
   buildComponentsBlock,
   buildDirectionBlock,
   buildLayoutBlock,
   buildOverrideBlock,
-  buildPosturesBlock,
   buildSurfaceContractBlock,
   type CapabilityPack,
   type ComponentPack,
   type DirectionInput,
-  type PostureRegistry,
   type ScriptPolicy,
   type SummonLayout,
   type TokenOverride,
@@ -46,8 +43,6 @@ export type ContractIssueSource =
   | 'direction'
   | 'capability'
   | 'layout'
-  | 'edit'
-  | 'repair'
   | 'system';
 
 export type ContractIssueSeverity = 'block' | 'warn';
@@ -142,7 +137,6 @@ export interface SystemContractInput {
   components?: ComponentPack | null;
   scriptPolicy?: ScriptPolicy;
   tokenOverrides?: TokenOverride[];
-  postures?: PostureRegistry | null;
   surfacePlan?: SurfacePlan | null;
   surfaceContract?: SurfaceContractView | null;
   activeTokensCss?: string | null;
@@ -357,14 +351,10 @@ export function compileSystemContracts(
       text: SUMMON_FIXED_INSTRUCTIONS,
       cache: 'ephemeral',
     },
-    {
-      id: 'arrow-artifact-runtime',
-      text: SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
-      cache: 'ephemeral',
-    },
   ];
   const issues: ContractIssue[] = [];
   const startupLines: ProtocolLine[] = [];
+  const activeSurfacePlan = input.surfaceContract?.surface.plan ?? input.surfacePlan ?? null;
 
   let activeTokensCss = input.activeTokensCss ?? null;
   if (input.direction) {
@@ -392,22 +382,12 @@ export function compileSystemContracts(
       text: buildLayoutBlock(input.layout),
       cache: 'ephemeral',
     });
-    startupLines.push(layoutScreenProtocolLine(input.layout));
-  }
-
-  if (input.editBlock) {
-    promptBlocks.push({
-      id: 'edit',
-      text: input.editBlock,
-      cache: 'ephemeral',
-    });
   }
 
   if (input.experimentalPromptBlock) {
     promptBlocks.push(input.experimentalPromptBlock);
   }
 
-  const activeSurfacePlan = input.surfaceContract?.surface.plan ?? input.surfacePlan ?? null;
   if (input.surfaceContract) {
     promptBlocks.push({
       id: 'surface-contract',
@@ -452,14 +432,6 @@ export function compileSystemContracts(
     });
   }
 
-  if (input.postures?.postures.length) {
-    promptBlocks.push({
-      id: 'postures',
-      text: buildPosturesBlock(input.postures),
-      cache: 'ephemeral',
-    });
-  }
-
   return {
     promptBlocks,
     issues,
@@ -474,13 +446,5 @@ export function compileSystemContracts(
       surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
     },
-  };
-}
-
-function layoutScreenProtocolLine(layout: SummonLayout): ProtocolLine {
-  return {
-    op: 'set',
-    path: '/screen',
-    value: { sections: layout.slots.map((slot) => slot.id) },
   };
 }

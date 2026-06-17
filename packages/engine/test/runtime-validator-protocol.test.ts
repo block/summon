@@ -8,14 +8,6 @@ import {
 } from '../src/index.ts';
 import { baseContext, codes } from './runtime-validator-fixtures.ts';
 
-test('blocks invalid section paths', () => {
-  const issues = validateProtocolLine(
-    { op: 'add', path: '/section/Bad_Section', html: '<p>Hi</p>' },
-    baseContext,
-  );
-  assert.deepEqual(codes(issues), ['invalid-section-path']);
-});
-
 test('rejects malformed JSONL before validation', () => {
   assert.equal(parseProtocolLine('not-json'), null);
 });
@@ -24,38 +16,6 @@ test('strict protocol parser rejects oversized lines', () => {
   assert.throws(
     () => parseProtocolLineStrict('{"op":"meta","path":"/x"}', { maxLineBytes: 4 }),
     (err) => err instanceof ProtocolParseError && err.code === 'oversized-line',
-  );
-});
-
-test('blocks malformed screen declarations', () => {
-  const issues = validateProtocolLine(
-    { op: 'set', path: '/screen', value: { sections: ['hero', 'hero'] } },
-    baseContext,
-  );
-  assert.deepEqual(codes(issues), ['duplicate-section-id']);
-});
-
-test('blocks malformed block declarations and paths', () => {
-  assert.deepEqual(
-    codes(validateProtocolLine(
-      { op: 'set', path: '/section/hero', value: { blocks: ['headline', 'headline'] } },
-      baseContext,
-    )),
-    ['duplicate-block-id'],
-  );
-  assert.deepEqual(
-    codes(validateProtocolLine(
-      { op: 'set', path: '/section/hero', value: { blocks: [] } },
-      baseContext,
-    )),
-    ['invalid-block-count'],
-  );
-  assert.deepEqual(
-    codes(validateProtocolLine(
-      { op: 'add', path: '/section/hero/block/Bad_Block', html: '<p>Hi</p>' },
-      baseContext,
-    )),
-    ['invalid-block-path'],
   );
 });
 
@@ -83,18 +43,6 @@ test('blocks generated host-owned surface meta paths', () => {
   );
 });
 
-test('allows safe static markup', () => {
-  const issues = validateProtocolLine(
-    {
-      op: 'add',
-      path: '/section/hero',
-      html: '<p style="color:var(--color-text);margin:var(--space-2);">Hi</p>',
-    },
-    baseContext,
-  );
-  assert.deepEqual(issues, []);
-});
-
 test('accepts valid Arrow artifacts', () => {
   const issues = validateProtocolLine(
     {
@@ -103,7 +51,7 @@ test('accepts valid Arrow artifacts', () => {
       value: {
         runtime: 'arrow',
         source: {
-          'main.ts': 'export default html`<button>Save</button>`',
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<button>Save</button>`',
           'main.css': 'button { color: var(--color-text); }',
         },
       },
@@ -121,6 +69,17 @@ test('accepts valid Arrow artifacts', () => {
     },
   );
   assert.deepEqual(issues, []);
+});
+
+test('parser rejects legacy section protocol ops', () => {
+  assert.throws(
+    () => parseProtocolLineStrict(JSON.stringify({ op: 'set', path: '/screen', value: { sections: ['hero'] } })),
+    (err) => err instanceof ProtocolParseError && err.code === 'invalid-op',
+  );
+  assert.throws(
+    () => parseProtocolLineStrict(JSON.stringify({ op: 'add', path: '/section/hero', html: '<p>Hi</p>' })),
+    (err) => err instanceof ProtocolParseError && err.code === 'invalid-op',
+  );
 });
 
 test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
@@ -158,5 +117,39 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
       baseContext,
     )),
     ['arrow-network-not-granted'],
+  );
+
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'import { html } from "@arrow-js/core"; export default html`<input .value="${() => "nope"}" />`',
+          },
+        },
+      },
+      baseContext,
+    )),
+    ['unsupported-arrow-idl-binding'],
+  );
+
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'import { html } from "@arrow-js/core"; export default html`<button ${() => "disabled"}>Save</button>`',
+          },
+        },
+      },
+      baseContext,
+    )),
+    ['unsupported-arrow-open-tag-expression'],
   );
 });

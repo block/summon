@@ -4,20 +4,11 @@ export {
   isProtocolLine,
   parseProtocolLine,
   parseProtocolLineStrict,
-  blockTargetFromPath,
-  htmlNodePatchFromLine,
-  htmlNodeTargetFromPath,
-  sectionIdFromSectionPath,
 } from './protocol.js';
 export type {
   ProtocolLine,
-  AddLine,
-  SetLine,
   MetaLine,
   ArtifactLine,
-  BlockTarget,
-  HtmlNodePatch,
-  HtmlNodeTarget,
   ProtocolParseErrorCode,
   ProtocolParseOptions,
 } from './protocol.js';
@@ -36,24 +27,13 @@ export {
   normalizeValidationLimits,
 } from './validation-limits.js';
 export type { ValidationLimits } from './validation-limits.js';
-export { SectionAccumulator } from './section-accumulator.js';
-export type {
-  SectionAccumulatorSnapshot,
-  SectionApplyKind,
-  SectionApplyResult,
-  SectionSnapshotEntry,
-} from './section-accumulator.js';
 export { StreamGraph } from './stream-graph.js';
 export type {
-  StreamGraphBlock,
-  StreamGraphEdge,
+  StreamGraphArtifact,
   StreamGraphHealth,
-  StreamGraphNode,
-  StreamGraphSection,
   StreamGraphSnapshot,
 } from './stream-graph.js';
 export {
-  SUMMON_SYSTEM_PROMPT,
   SUMMON_FIXED_INSTRUCTIONS,
   SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   buildDirectionBlock,
@@ -61,7 +41,6 @@ export {
   buildCapabilitiesBlock,
   buildComponentsBlock,
   buildOverrideBlock,
-  buildPosturesBlock,
   buildSurfaceContractBlock,
 } from './prompt.js';
 export type {
@@ -80,8 +59,6 @@ export type {
   CapabilitiesBlockOptions,
   ScriptPolicy,
   TokenOverride,
-  PostureContract,
-  PostureRegistry,
 } from './prompt.js';
 export {
   compileTokenContract,
@@ -154,15 +131,9 @@ export type {
   ValidationResult,
 } from './direction-validator.js';
 export {
-  ARTIFACT_COMPILER_VERSION,
-  compileArtifactHtml,
   validateProtocolLine,
-  validateHtmlFragment,
 } from './runtime-validator.js';
 export type {
-  ArtifactCompileResult,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
   ValidationContext,
   ValidationCapability,
   ValidationComponent,
@@ -231,6 +202,4 @@ export type {
   ProtocolHardenerOptions,
   ProtocolHardenerResult,
   ProtocolSkipMetaValue,
-  RepairFeedbackMetaValue,
-  ScreenSynthesizedMetaValue,
 } from './protocol-hardener.js';

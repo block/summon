@@ -30,11 +30,11 @@ const defaultTokens = readFileSync(
   'utf-8',
 );
 
-test('fixed prompt describes skeleton-first progressive rendering', () => {
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Progressive rendering contract/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /placeholder `add \/section\/<id>`/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /later accepted `add` lines for the same section as replacements/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /complete, validated JSONL protocol lines/);
+test('fixed prompt describes Arrow-only artifact output', () => {
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Output protocol — Arrow JSONL only/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /"op":"artifact"/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /"runtime":"arrow"/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Do not emit `set \/screen`, `add \/section\/\*`/);
 });
 
 test('token compiler emits prompt vocabulary and validates from the token contract', () => {
@@ -75,7 +75,7 @@ test('system compiler includes component island prompt and validation metadata',
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'arrow-artifact-runtime', 'components'],
+    ['fixed', 'components'],
   );
   const block = compiled.promptBlocks.find((promptBlock) => promptBlock.id === 'components');
   assert.match(block?.text ?? '', /Component islands/);
@@ -156,37 +156,26 @@ test('system compiler returns deterministic prompt block order and validation co
       product: 'Ghost Product',
     },
     layout,
-    editBlock: 'Edit block.',
     capabilities,
     tokenOverrides: [{ token: 'color-accent', baseValue: 'blue', newValue: 'red' }],
-    postures: { postures: [{ name: 'brief', description: 'Short response.' }] },
   });
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
     [
       'fixed',
-      'arrow-artifact-runtime',
       'direction:demo',
       'ghost',
       'layout:two-slot',
-      'edit',
       'capabilities',
       'token-overrides',
-      'postures',
     ],
   );
   assert.equal(compiled.validationContext.mode, 'interactive');
   assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
   assert.deepEqual([...(compiled.validationContext.allowedIntents ?? [])], ['choose']);
   assert.equal(compiled.validationContext.definedTokens?.has('color-bg'), true);
-  assert.deepEqual(compiled.startupLines, [
-    {
-      op: 'set',
-      path: '/screen',
-      value: { sections: ['summary', 'details'] },
-    },
-  ]);
+  assert.deepEqual(compiled.startupLines, []);
 });
 
 test('system compiler includes a host-owned surface plan block', () => {
@@ -194,10 +183,11 @@ test('system compiler includes a host-owned surface plan block', () => {
     mode: 'interactive',
     surfacePlan: {
       purpose: 'explore',
-      runtime: 'declarative',
+      runtime: 'arrow',
       data: 'host-resource',
       authority: 'read',
       persistence: 'replayable',
+      network: 'none',
     },
     capabilities: {
       intents: [
@@ -216,15 +206,16 @@ test('system compiler includes a host-owned surface plan block', () => {
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'arrow-artifact-runtime', 'surface-plan', 'capabilities'],
+    ['fixed', 'surface-plan', 'capabilities'],
   );
   assert.equal(compiled.validationContext.scriptPolicy, 'forbid');
   assert.deepEqual(compiled.validationContext.surfacePlan, {
     purpose: 'explore',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'host-resource',
     authority: 'read',
     persistence: 'replayable',
+    network: 'none',
   });
   const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-plan');
   assert.match(surfaceBlock?.text ?? '', /host-owned runtime contract/);
@@ -273,11 +264,11 @@ test('system compiler includes compact surface contract view without dropping de
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'arrow-artifact-runtime', 'surface-contract', 'capabilities', 'components'],
+    ['fixed', 'surface-contract', 'capabilities', 'components'],
   );
   const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-contract');
   assert.match(surfaceBlock?.text ?? '', /compact, read-only view/);
-  assert.match(surfaceBlock?.text ?? '', /freeform HTML\/CSS/);
+  assert.match(surfaceBlock?.text ?? '', /Arrow/);
   assert.match(surfaceBlock?.text ?? '', /Do not emit `\/surface-contract`, `\/surface-policy`, or `\/surface-plan`/);
   assert.match(surfaceBlock?.text ?? '', /`search` \(resource\)/);
   assert.match(surfaceBlock?.text ?? '', /`MetricCard`/);

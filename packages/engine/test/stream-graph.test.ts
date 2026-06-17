@@ -1,121 +1,64 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  compileSystemContracts,
   StreamGraph,
   type ContractIssue,
-  type RepairFeedbackMetaValue,
-  type SummonLayout,
 } from '../src/index.ts';
 
-test('screen declaration creates ordered edges and missing declared nodes', () => {
+const artifact = {
+  runtime: 'arrow',
+  source: {
+    'main.ts': 'export default html`<p>Hello</p>`',
+  },
+};
+
+test('artifact lines create ordered Arrow revisions', () => {
   const graph = new StreamGraph();
-  graph.applyLine({ op: 'set', path: '/screen', value: { sections: ['hero', 'details'] } });
+  graph.applyLine({ op: 'artifact', path: '/artifact', value: artifact });
+  graph.applyLine({
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'arrow',
+      source: {
+        'main.ts': 'export default html`<p>Updated</p>`',
+        'main.css': 'p { color: var(--color-text); }',
+      },
+    },
+  });
 
   const snap = graph.snapshot();
-  assert.deepEqual(snap.edges, [
-    { from: 'screen', to: 'hero', order: 0 },
-    { from: 'screen', to: 'details', order: 1 },
-  ]);
+  assert.equal(snap.artifacts.length, 2);
   assert.deepEqual(
-    snap.sections.map(({ id, declared, present, revision, bytes }) => ({
-      id,
-      declared,
-      present,
+    snap.artifacts.map(({ revision, runtime, firstSeenLine, lastUpdatedLine }) => ({
       revision,
-      bytes,
+      runtime,
+      firstSeenLine,
+      lastUpdatedLine,
     })),
     [
-      { id: 'hero', declared: true, present: false, revision: 0, bytes: 0 },
-      { id: 'details', declared: true, present: false, revision: 0, bytes: 0 },
+      { revision: 1, runtime: 'arrow', firstSeenLine: 1, lastUpdatedLine: 1 },
+      { revision: 2, runtime: 'arrow', firstSeenLine: 1, lastUpdatedLine: 2 },
     ],
   );
-  assert.deepEqual(snap.health.missingDeclared, ['hero', 'details']);
-  assert.equal(snap.health.complete, false);
-});
-
-test('section adds mark nodes present and increment revisions on replacement', () => {
-  const graph = new StreamGraph();
-  graph.applyLine({ op: 'set', path: '/screen', value: { sections: ['hero'] } });
-  graph.applyLine({ op: 'add', path: '/section/hero', html: '<p>Hero</p>' });
-  graph.applyLine({ op: 'add', path: '/section/hero', html: '<p>Updated</p>' });
-
-  const hero = graph.snapshot().sections[0]!;
-  assert.equal(hero.present, true);
-  assert.equal(hero.revision, 2);
-  assert.equal(hero.bytes, '<p>Updated</p>'.length);
-  assert.equal(hero.firstDeclaredLine, 1);
-  assert.equal(hero.firstSeenLine, 2);
-  assert.equal(hero.lastUpdatedLine, 3);
-  assert.deepEqual(graph.snapshot().health.missingDeclared, []);
-});
-
-test('block fragments add optional diagnostics under section nodes', () => {
-  const graph = new StreamGraph();
-  graph.applyLine({ op: 'set', path: '/screen', value: { sections: ['summary'] } });
-  graph.applyLine({ op: 'set', path: '/section/summary', value: { blocks: ['headline', 'metrics'] } });
-  graph.applyLine({ op: 'add', path: '/section/summary/block/headline', html: '<h1>Ready</h1>' });
-
-  const summary = graph.snapshot().sections[0]!;
-  assert.equal(summary.present, true);
-  assert.equal(summary.revision, 1);
-  assert.equal(summary.declaredBlockCount, 2);
-  assert.equal(summary.presentBlockCount, 1);
-  assert.deepEqual(
-    summary.blocks?.map(({ id, declared, present, revision }) => ({ id, declared, present, revision })),
-    [
-      { id: 'headline', declared: true, present: true, revision: 1 },
-      { id: 'metrics', declared: true, present: false, revision: 0 },
-    ],
-  );
-});
-
-test('block path issues attach to parent section and block diagnostics', () => {
-  const graph = new StreamGraph();
-  const issue: ContractIssue = {
-    source: 'protocol',
-    severity: 'warn',
-    code: 'undeclared-block',
-    message: 'Block was not declared',
-    path: '/section/summary/block/metrics',
-  };
-
-  graph.recordIssue(issue);
-
-  const summary = graph.snapshot().sections[0]!;
-  assert.equal(summary.id, 'summary');
-  assert.equal(summary.lastIssue?.code, 'undeclared-block');
-  assert.equal(summary.lastBlockIssue?.code, 'undeclared-block');
-  assert.equal(summary.blocks?.[0]?.id, 'metrics');
-  assert.equal(summary.blocks?.[0]?.lastIssue?.code, 'undeclared-block');
-});
-
-test('add-before-screen records undeclared present state', () => {
-  const graph = new StreamGraph();
-  graph.applyLine({ op: 'add', path: '/section/hero', html: '<p>Hero</p>' });
-
-  const snap = graph.snapshot();
-  assert.deepEqual(snap.health.undeclaredPresent, ['hero']);
-  assert.equal(snap.health.complete, false);
-  assert.equal(snap.sections[0]?.declared, false);
-  assert.equal(snap.sections[0]?.present, true);
+  assert.equal(snap.health.complete, true);
 });
 
 test('contract issues update skipped and blocked health counters', () => {
   const graph = new StreamGraph();
+  graph.applyLine({ op: 'artifact', path: '/artifact', value: artifact });
   const skipped: ContractIssue = {
     source: 'protocol',
     severity: 'warn',
-    code: 'undeclared-section',
-    message: 'Section was not declared',
-    path: '/section/details',
+    code: 'protocol-skip',
+    message: 'Protocol line skipped',
   };
   const blocked: ContractIssue = {
-    source: 'html',
+    source: 'protocol',
     severity: 'block',
-    code: 'external-url',
-    message: 'External URL is not allowed',
-    path: '/section/details',
+    code: 'invalid-arrow-artifact',
+    message: 'Artifact line value must be an Arrow artifact object',
+    path: '/artifact',
   };
 
   graph.recordIssue(skipped);
@@ -124,8 +67,8 @@ test('contract issues update skipped and blocked health counters', () => {
   const snap = graph.snapshot();
   assert.equal(snap.health.skippedCount, 1);
   assert.equal(snap.health.blockedCount, 1);
-  assert.equal(snap.sections[0]?.id, 'details');
-  assert.equal(snap.sections[0]?.lastIssue?.code, 'external-url');
+  assert.equal(snap.health.complete, false);
+  assert.equal(snap.artifacts[0]?.lastIssue?.code, 'invalid-arrow-artifact');
 });
 
 test('validation summary merges aggregate graph health', () => {
@@ -136,76 +79,17 @@ test('validation summary merges aggregate graph health', () => {
     value: {
       blocked: 2,
       warnings: 3,
-      codes: {
-        'undeclared-section': 2,
-        'token-contract-warning': 1,
-        'external-url': 2,
-      },
     },
   });
 
   const snap = graph.snapshot();
-  assert.equal(snap.health.skippedCount, 2);
+  assert.equal(snap.health.skippedCount, 3);
   assert.equal(snap.health.blockedCount, 2);
-});
-
-test('repair feedback updates repaired and blocked status', () => {
-  const graph = new StreamGraph();
-  const issue: ContractIssue = {
-    source: 'html',
-    severity: 'block',
-    code: 'unsafe-tag',
-    message: 'Unsafe tag',
-    path: '/section/hero',
-  };
-  const blocked: RepairFeedbackMetaValue = {
-    schemaId: 'summon.repair-feedback.v2',
-    status: 'blocked',
-    target: '/section/hero',
-    issues: [issue],
-    retryable: true,
-    hints: ['Repair it.'],
-  };
-  const repaired: RepairFeedbackMetaValue = {
-    ...blocked,
-    status: 'repaired',
-    retryable: false,
-  };
-
-  graph.recordRepairFeedback(blocked);
-  graph.recordRepairFeedback(repaired);
-
-  const snap = graph.snapshot();
-  assert.equal(snap.health.blockedCount, 1);
-  assert.equal(snap.health.repairedCount, 1);
-  assert.equal(snap.sections[0]?.lastIssue?.code, 'unsafe-tag');
-});
-
-test('startup layout lines seed graph state', () => {
-  const layout: SummonLayout = {
-    id: 'two-slot',
-    slots: [
-      { id: 'summary', purpose: 'main answer' },
-      { id: 'details', purpose: 'supporting detail' },
-    ],
-  };
-  const contracts = compileSystemContracts({
-    mode: 'static',
-    layout,
-  });
-  const graph = new StreamGraph();
-  for (const line of contracts.startupLines) graph.applyLine(line);
-
-  assert.deepEqual(graph.snapshot().edges, [
-    { from: 'screen', to: 'summary', order: 0 },
-    { from: 'screen', to: 'details', order: 1 },
-  ]);
 });
 
 test('snapshots, hydrates, and resets deterministically', () => {
   const graph = new StreamGraph();
-  graph.applyLine({ op: 'set', path: '/screen', value: { sections: ['hero'] } });
-  graph.applyLine({ op: 'add', path: '/section/hero', html: '<p>Hero</p>' });
+  graph.applyLine({ op: 'artifact', path: '/artifact', value: artifact });
   graph.applyLine({
     op: 'meta',
     path: '/protocol-skip',
@@ -222,15 +106,11 @@ test('snapshots, hydrates, and resets deterministically', () => {
 
   restored.reset();
   assert.deepEqual(restored.snapshot(), {
-    sections: [],
-    edges: [],
+    artifacts: [],
     health: {
       complete: true,
-      missingDeclared: [],
-      undeclaredPresent: [],
       skippedCount: 0,
       blockedCount: 0,
-      repairedCount: 0,
     },
   });
 });

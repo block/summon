@@ -4,7 +4,6 @@ import {
   compileSurfacePolicy,
   normalizeSurfacePolicy,
 } from '@anarchitecture/summon';
-import { deriveSurfacePlanControls } from '@anarchitecture/summon/engine';
 import { GALLERY_PRESETS } from '../../surface-gallery/src/presets.js';
 import { baseDemoComponentPack } from './components.js';
 import {
@@ -96,9 +95,8 @@ test('showcase scenarios declare contract-complete surfaces', () => {
     assert.ok(scenario.surfacePlan.data);
     assert.ok(scenario.surfacePlan.authority);
     assert.ok(scenario.surfacePlan.persistence);
-    const controls = deriveSurfacePlanControls(scenario.surfacePlan);
-    assert.equal(scenario.mode, controls.mode);
-    assert.equal(scenario.scriptPolicy ?? controls.scriptPolicy, controls.scriptPolicy);
+    assert.equal(scenario.mode, compiled.mode);
+    assert.equal(scenario.scriptPolicy ?? compiled.scriptPolicy, compiled.scriptPolicy);
   }
 });
 

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { type CapabilityPack } from '@anarchitecture/summon';
 import {
+  isArrowSurfaceArtifact,
   parseProtocolLine,
-  SectionAccumulator,
   type ValidationCapability,
 } from '@anarchitecture/summon/engine';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
@@ -93,7 +93,6 @@ function BatchTile({
 
   useEffect(() => {
     let cancelled = false;
-    const acc = new SectionAccumulator();
     const start = performance.now();
     let byteCount = 0;
 
@@ -103,7 +102,6 @@ function BatchTile({
       setStatus('streaming');
       setBytes(0);
       setIntent(null);
-      const renderIncrementally = run.interactivity === 'static';
 
       try {
         const res = await fetch('/api/generate', {
@@ -133,9 +131,8 @@ function BatchTile({
           if (parsed.op === 'meta' && parsed.path === '/agent-policy-resolution') {
             setIntent({ text: `agent policy: ${summarizeAgentMeta(parsed.value)}` });
           }
-          const changed = acc.apply(parsed);
-          if (renderIncrementally && changed && acc.hasAnySection()) {
-            surfaceRef.current?.render(acc.compose());
+          if (parsed.op === 'artifact' && isArrowSurfaceArtifact(parsed.value)) {
+            surfaceRef.current?.renderArtifact(parsed.value);
           }
         };
 
@@ -155,9 +152,6 @@ function BatchTile({
         }
         const tail = buffer.trim();
         if (tail) processLine(tail);
-        if (!renderIncrementally && acc.hasAnySection()) {
-          surfaceRef.current?.render(acc.compose());
-        }
 
         const ms = Math.round(performance.now() - start);
         if (cancelled) return;
@@ -203,7 +197,6 @@ function BatchTile({
           ref={surfaceRef}
           title={run.prompt}
           className={cn('block w-full border-0 bg-surface-raised', stacked ? 'h-[880px]' : 'h-[760px]')}
-          html=""
           tokensSource={run.tokensCss}
           capabilityRegistry={registry}
           grantedCapabilities={validationCapabilities ?? undefined}

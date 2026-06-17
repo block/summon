@@ -1,7 +1,7 @@
 // Summon sandbox bootstrap — runs FIRST inside every sandbox iframe, before any
-// compiled artifact HTML. Installs window.sandbox (frozen) as the trusted
-// bridge for controlled test shells and legacy hosts. Generated artifacts do
-// not receive executable scripts.
+// Arrow artifact runtime. Installs window.sandbox (frozen) as the trusted
+// bridge for controlled host capabilities. Generated artifacts do not receive
+// executable scripts.
 (() => {
   'use strict';
 
@@ -107,8 +107,19 @@
   let componentResizeObserver = null;
   const componentResizeObserved = new Set();
   const SAFE_ATTR_BINDINGS = Object.freeze(['src', 'alt', 'title', 'aria-label', 'value', 'placeholder', 'disabled']);
+  const MAX_PENDING_INTENT_RESULTS = 32;
   const pendingIntentResults = new Map();
   let arrowTeardown = null;
+  let renderRevision = 0;
+
+  function cloneStateSnapshot(value) {
+    if (!value || typeof value !== 'object') return Object.freeze({});
+    try {
+      return Object.freeze(JSON.parse(JSON.stringify(value)));
+    } catch (_) {
+      return Object.freeze({});
+    }
+  }
 
   function notify() {
     const snapshot = currentState;
@@ -139,13 +150,16 @@
 
   function invokeIntent(intent, args) {
     if (typeof intent !== 'string' || !intent) {
-      return Promise.resolve({ ok: false, state: currentState, error: 'intent not a non-empty string' });
+      return Promise.resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'intent not a non-empty string' });
+    }
+    if (pendingIntentResults.size >= MAX_PENDING_INTENT_RESULTS) {
+      return Promise.resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'too many pending intents' });
     }
     const requestId = 'arrow-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
     return new Promise((resolve) => {
       const timeout = window.setTimeout(function () {
         pendingIntentResults.delete(requestId);
-        resolve({ ok: false, state: currentState, error: 'intent timed out' });
+        resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'intent timed out' });
       }, 15000);
       pendingIntentResults.set(requestId, function (result) {
         window.clearTimeout(timeout);
@@ -176,6 +190,8 @@
       try { arrowTeardown(); } catch (_) { /* best effort */ }
       arrowTeardown = null;
     }
+    const revision = ++renderRevision;
+    mountedIntentKeys.clear();
     root.replaceChildren();
     const runtime = window.__SUMMON_ARROW_SANDBOX__;
     const sandbox = runtime && runtime.sandbox;
@@ -202,7 +218,7 @@
         {
           'host-bridge:summon': {
             getState: function () {
-              return currentState;
+              return cloneStateSnapshot(currentState);
             },
             invoke: function (intent, args) {
               return invokeIntent(intent, args);
@@ -212,9 +228,70 @@
       );
       const maybeTeardown = view(root);
       if (typeof maybeTeardown === 'function') arrowTeardown = maybeTeardown;
+      waitForArrowRuntimeReady(root, revision);
     } catch (err) {
       emitFatal('Arrow runtime failed to mount: ' + String(err && err.message ? err.message : err));
     }
+  }
+
+  function emitRendered(revision) {
+    if (revision !== renderRevision) return;
+    try {
+      PARENT.postMessage({ type: 'SUMMON_RENDERED', sandbox_id: SANDBOX_ID, revision }, '*');
+    } catch (_) { /* parent gone */ }
+  }
+
+  function finishArrowRender(revision) {
+    if (revision !== renderRevision) return;
+    applyBindings();
+    applyMountIntents();
+    scheduleComponentSync();
+    const done = function () {
+      if (revision !== renderRevision) return;
+      applyBindings();
+      applyMountIntents();
+      scheduleComponentSync();
+      emitRendered(revision);
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(done);
+    } else {
+      setTimeout(done, 0);
+    }
+  }
+
+  function waitForArrowRuntimeReady(root, revision) {
+    const arrowHost = root.querySelector('arrow-sandbox');
+    if (!arrowHost) {
+      finishArrowRender(revision);
+      return;
+    }
+
+    let settled = false;
+    const cleanup = function () {
+      arrowHost.removeEventListener('sandbox-ready', onReady);
+      arrowHost.removeEventListener('sandbox-error', onError);
+    };
+    const onReady = function () {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      finishArrowRender(revision);
+    };
+    const onError = function (event) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      const detail = event && event.detail;
+      const message = detail && detail.message ? detail.message : detail;
+      emitFatal('Arrow runtime failed to mount: ' + String(message || 'unknown error'));
+    };
+
+    arrowHost.addEventListener('sandbox-ready', onReady, { once: true });
+    arrowHost.addEventListener('sandbox-error', onError, { once: true });
+    const ready = arrowHost.getAttribute('data-ready');
+    if (ready === 'true') onReady();
+    else if (ready === 'error') onError({ detail: 'unknown error' });
   }
 
   function onState(cb) {
@@ -226,8 +303,8 @@
   }
 
   // ── Declarative bindings ───────────────────────────────────────────────────
-  // The LLM authors HTML with `data-summon-*` attributes; this binder is what
-  // makes them live. Two halves:
+  // Arrow artifacts can author DOM with `data-summon-*` attributes; this binder
+  // is what makes them live. Two halves:
   //
   //   1. Listeners for `data-summon-on-click` and `data-summon-on-submit` —
   //      installed ONCE on document, dispatched via `closest(...)` so re-renders
@@ -240,8 +317,8 @@
   //      possible model.
   //
   // Generated scripts are not an artifact capability. The `window.sandbox`
-  // object remains a narrow trusted bridge for host-owned tests and legacy
-  // shells, but generated UI should express local behavior with attributes.
+  // object remains a narrow trusted bridge for host-owned tests, but generated
+  // UI should express local behavior with attributes or Arrow handlers.
 
   function walkPath(obj, path) {
     if (!path) return obj;
@@ -819,9 +896,8 @@
   }
 
   function mountKeyFor(el, intent, rawArgs) {
-    const section = el.closest('[data-summon-section]');
-    const sectionId = section ? section.getAttribute('data-summon-section') || 'root' : 'root';
-    return sectionId + '\n' + intent + '\n' + (rawArgs || '');
+    const index = Array.prototype.indexOf.call(document.querySelectorAll('[data-summon-on-mount]'), el);
+    return String(index) + '\n' + intent + '\n' + (rawArgs || '');
   }
 
   function applyMountIntents() {
@@ -913,284 +989,6 @@
   document.addEventListener('scroll', scheduleComponentSync, { capture: true, passive: true });
   // ───────────────────────────────────────────────────────────────────────────
 
-  // Tracks the <section data-summon-section="..."> elements currently in
-  // #summon-root, keyed by id, so live-paint renders only mount NEW sections
-  // instead of re-creating the whole tree on every section update. Without
-  // this, every entrance animation re-fires on every section arrival.
-  const sectionEls = new Map();
-
-  function indexExistingSections(root) {
-    if (sectionEls.size > 0) return;
-    for (const child of Array.from(root.children)) {
-      if (child.tagName === 'SECTION' && child.hasAttribute('data-summon-section')) {
-        const id = child.getAttribute('data-summon-section');
-        if (id) sectionEls.set(id, child);
-      }
-    }
-  }
-
-  /**
-   * Render a blob of HTML into #summon-root.
-   *
-   * If the incoming HTML is section-structured (top-level
-   * `<section data-summon-section="...">` children, as produced by
-   * SectionAccumulator.compose()), diff by section id: existing sections stay
-   * in place, new sections are appended (so their CSS entrance animation fires
-   * once), changed sections get their innerHTML replaced without remount,
-   * removed sections are pulled out.
-   *
-   * Otherwise (raw artifact HTML, no sections), fall back to a full
-   * innerHTML replace.
-   *
-   * Generated scripts are not an artifact capability. innerHTML-inserted
-   * script tags stay inert, and the sandbox CSP only trusts nonce-authorized
-   * bootstrap scripts.
-   */
-  function renderRoot(html) {
-    const root = document.getElementById('summon-root');
-    if (!root) return;
-    indexExistingSections(root);
-    const incoming = typeof html === 'string' ? html : '';
-
-    const tmp = document.createElement('div');
-    tmp.innerHTML = incoming;
-
-    const newSections = [];
-    for (const child of Array.from(tmp.children)) {
-      if (child.tagName === 'SECTION' && child.hasAttribute('data-summon-section')) {
-        newSections.push(child);
-      }
-    }
-
-    if (newSections.length === 0) {
-      // Full replace — every prior subscriber is now pointing at detached DOM.
-      sectionEls.clear();
-      subscribers.clear();
-      root.innerHTML = incoming;
-      applyBindings();
-      applyMountIntents();
-      return;
-    }
-
-    const wantedOrder = [];
-    const wantedIds = new Set();
-
-    for (const incomingEl of newSections) {
-      const id = incomingEl.getAttribute('data-summon-section');
-      if (!id) continue;
-      wantedOrder.push(id);
-      wantedIds.add(id);
-
-      const existingEl = sectionEls.get(id);
-      if (existingEl) {
-        // Same section, possibly updated content. Replace innerHTML on the
-        // existing element so the entrance animation does NOT re-fire.
-        if (existingEl.innerHTML !== incomingEl.innerHTML) {
-          if (!patchSectionBlocks(existingEl, incomingEl)) {
-            existingEl.innerHTML = incomingEl.innerHTML;
-          }
-        }
-      } else {
-        // New section — appending to #summon-root mounts it for the first time,
-        // which triggers the CSS entrance animation declared on the
-        // [data-summon-section] selector.
-        root.appendChild(incomingEl);
-        sectionEls.set(id, incomingEl);
-      }
-    }
-
-    for (const [id, el] of Array.from(sectionEls.entries())) {
-      if (!wantedIds.has(id)) {
-        el.remove();
-        sectionEls.delete(id);
-      }
-    }
-
-    // Reorder children to match wantedOrder. insertBefore on a node already in
-    // the tree moves it rather than cloning, so this is in-place.
-    for (let i = 0; i < wantedOrder.length; i++) {
-      const desired = sectionEls.get(wantedOrder[i]);
-      if (!desired) continue;
-      if (root.children[i] !== desired) {
-        root.insertBefore(desired, root.children[i] || null);
-      }
-    }
-
-    applyBindings();
-    applyMountIntents();
-  }
-
-  function patchSectionBlocks(existingSection, incomingSection) {
-    var existingBlocks = directBlockChildren(existingSection);
-    var incomingBlocks = directBlockChildren(incomingSection);
-    if (existingBlocks.length === 0 || incomingBlocks.length === 0) return false;
-
-    var existingById = new Map();
-    for (var i = 0; i < existingBlocks.length; i++) {
-      var existingId = existingBlocks[i].getAttribute('data-summon-block');
-      if (existingId) existingById.set(existingId, existingBlocks[i]);
-    }
-
-    var wantedIds = new Set();
-    for (var j = 0; j < incomingBlocks.length; j++) {
-      var incomingBlock = incomingBlocks[j];
-      var id = incomingBlock.getAttribute('data-summon-block');
-      if (!id) continue;
-      wantedIds.add(id);
-      var existingBlock = existingById.get(id);
-      if (existingBlock) {
-        if (existingBlock.innerHTML !== incomingBlock.innerHTML) {
-          existingBlock.innerHTML = incomingBlock.innerHTML;
-        }
-      } else {
-        existingSection.appendChild(incomingBlock);
-        existingById.set(id, incomingBlock);
-      }
-    }
-
-    for (var _i = 0; _i < existingBlocks.length; _i++) {
-      var stale = existingBlocks[_i];
-      var staleId = stale.getAttribute('data-summon-block');
-      if (staleId && !wantedIds.has(staleId)) stale.remove();
-    }
-
-    for (var k = 0; k < incomingBlocks.length; k++) {
-      var wantedId = incomingBlocks[k].getAttribute('data-summon-block');
-      if (!wantedId) continue;
-      var desired = existingById.get(wantedId);
-      if (!desired) continue;
-      if (existingSection.children[k] !== desired) {
-        existingSection.insertBefore(desired, existingSection.children[k] || null);
-      }
-    }
-
-    return true;
-  }
-
-  function directBlockChildren(section) {
-    var out = [];
-    for (var i = 0; i < section.children.length; i++) {
-      var child = section.children[i];
-      if (child.hasAttribute('data-summon-block')) out.push(child);
-    }
-    return out;
-  }
-
-  function patchHtmlNode(patch) {
-    if (!patch || typeof patch !== 'object') return;
-    var sectionId = typeof patch.sectionId === 'string' ? patch.sectionId : '';
-    var nodeId = typeof patch.nodeId === 'string' ? patch.nodeId : '';
-    var parentId = typeof patch.parentId === 'string' ? patch.parentId : '';
-    var html = typeof patch.html === 'string' ? patch.html : '';
-    if (!sectionId || !nodeId) return;
-
-    var root = document.getElementById('summon-root');
-    if (!root) return;
-    indexExistingSections(root);
-
-    var section = sectionEls.get(sectionId);
-    if (!section) {
-      section = document.createElement('section');
-      section.setAttribute('data-summon-section', sectionId);
-      root.appendChild(section);
-      sectionEls.set(sectionId, section);
-    }
-
-    var tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    var incoming = tmp.firstElementChild;
-    if (!incoming || incoming.getAttribute('data-summon-node') !== nodeId) return;
-
-    var parent = parentId ? findSummonNode(section, parentId) : section;
-    if (!parent) return;
-
-    var existing = findSummonNode(section, nodeId);
-    if (existing) {
-      var preservedChildren = directNodeChildren(existing);
-      var incomingChildHost = nodeChildrenHost(incoming);
-      var replacementSlotChanged = false;
-      if (preservedChildren.length > 0) {
-        replacementSlotChanged = prepareNodeChildHost(incomingChildHost);
-      }
-      for (var i = 0; i < preservedChildren.length; i++) {
-        incomingChildHost.appendChild(preservedChildren[i]);
-      }
-      markTransientClass(incoming, 'summon-node-update', 520);
-      existing.replaceWith(incoming);
-      if (replacementSlotChanged) markSlotFilled(incomingChildHost);
-    } else {
-      var childHost = nodeChildrenHost(parent);
-      var slotChanged = prepareNodeChildHost(childHost);
-      markTransientClass(incoming, 'summon-node-enter', 520);
-      childHost.appendChild(incoming);
-      if (slotChanged) markSlotFilled(childHost);
-    }
-
-    applyBindings();
-    applyMountIntents();
-  }
-
-  function findSummonNode(section, nodeId) {
-    var nodes = section.querySelectorAll('[data-summon-node]');
-    for (var i = 0; i < nodes.length; i++) {
-      if (nodes[i].getAttribute('data-summon-node') === nodeId) return nodes[i];
-    }
-    return null;
-  }
-
-  function directNodeChildren(parent) {
-    var out = [];
-    var childHost = nodeChildrenHost(parent);
-    for (var i = 0; i < childHost.children.length; i++) {
-      var child = childHost.children[i];
-      if (child.hasAttribute('data-summon-node')) out.push(child);
-    }
-    return out;
-  }
-
-  function nodeChildrenHost(parent) {
-    if (!parent || typeof parent.querySelector !== 'function') return parent;
-    return parent.querySelector('[data-summon-node-children]') || parent;
-  }
-
-  function prepareNodeChildHost(host) {
-    if (!isNodeChildrenSlot(host)) return false;
-    var hadNodeChildren = directSummonNodeChildCount(host) > 0;
-    var removedSkeletons = removeDirectSkeletons(host);
-    return removedSkeletons > 0 || !hadNodeChildren;
-  }
-
-  function directSummonNodeChildCount(host) {
-    if (!host || !host.children) return 0;
-    var count = 0;
-    for (var i = 0; i < host.children.length; i++) {
-      if (host.children[i].hasAttribute('data-summon-node')) count += 1;
-    }
-    return count;
-  }
-
-  function removeDirectSkeletons(host) {
-    if (!host || !host.children) return 0;
-    var removed = 0;
-    var children = Array.from(host.children);
-    for (var i = 0; i < children.length; i++) {
-      if (children[i].hasAttribute('data-summon-skeleton')) {
-        children[i].remove();
-        removed += 1;
-      }
-    }
-    return removed;
-  }
-
-  function isNodeChildrenSlot(el) {
-    return !!(el && el.hasAttribute && el.hasAttribute('data-summon-node-children'));
-  }
-
-  function markSlotFilled(slot) {
-    if (!isNodeChildrenSlot(slot)) return;
-    markTransientClass(slot, 'summon-slot-filled', 560);
-  }
-
   function markTransientClass(el, className, durationMs) {
     if (!el || !el.classList) return;
     el.classList.remove(className);
@@ -1227,10 +1025,6 @@
         renderArrowArtifact(data.artifact);
         return;
       }
-      // renderRoot decides whether to wipe subscribers: a full innerHTML
-      // replace clears them, but a section-by-section diff leaves alive
-      // sections (and their onState subscribers) in place.
-      renderRoot(data.html);
       return;
     }
 
@@ -1242,14 +1036,9 @@
       pendingIntentResults.delete(requestId);
       resolve({
         ok: data.ok === true,
-        state: data.state && typeof data.state === 'object' ? data.state : currentState,
+        state: data.state && typeof data.state === 'object' ? cloneStateSnapshot(data.state) : cloneStateSnapshot(currentState),
         error: typeof data.error === 'string' ? data.error : undefined,
       });
-      return;
-    }
-
-    if (data.type === 'SUMMON_NODE_PATCH') {
-      patchHtmlNode(data.patch);
       return;
     }
 

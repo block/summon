@@ -9,12 +9,6 @@ import { createDemoCapabilityRegistry, type DemoHandlerOptions } from './capabil
 
 export type Mode = SurfacePlanMode;
 
-export interface RepairOptions {
-  enabled: boolean;
-  maxAttempts?: number;
-  maxTargets?: number;
-}
-
 export interface ShowcaseScenario {
   id: string;
   label: string;
@@ -27,7 +21,6 @@ export interface ShowcaseScenario {
   scriptPolicy?: ScriptPolicy;
   layoutId?: string;
   tokenOverrides?: Record<string, string>;
-  repair?: RepairOptions;
   directionId?: string | null;
 }
 
@@ -43,7 +36,6 @@ export interface ActiveContract {
   scriptPolicy: ScriptPolicy;
   layoutId?: string;
   tokenOverrides?: Record<string, string>;
-  repair?: RepairOptions;
   directionId?: string | null;
   modelProvider?: string | null;
   generationModel?: string;
@@ -51,7 +43,6 @@ export interface ActiveContract {
   customModel?: boolean;
   modelOptions?: {
     maxOutputTokens?: number;
-    repairMaxOutputTokens?: number;
     anthropicThinking?: 'adaptive' | 'off';
     effort?: 'low' | 'medium' | 'high';
   };
@@ -68,7 +59,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'host-resource',
         authority: 'read',
         persistence: 'replayable',
@@ -85,7 +76,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['ai'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'host-resource',
         authority: 'read',
         persistence: 'replayable',
@@ -102,7 +93,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['github_lookup'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'host-resource',
         authority: 'read',
         persistence: 'replayable',
@@ -125,7 +116,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
       surfacePlan: {
         purpose: 'review',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -141,7 +132,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'static', purpose: 'compare' },
       surfacePlan: {
         purpose: 'compare',
-        runtime: 'static',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'none',
         persistence: 'replayable',
@@ -158,7 +149,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'compare', grants: ['choose'] },
       surfacePlan: {
         purpose: 'compare',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -175,7 +166,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
       surfacePlan: {
         purpose: 'collect',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -192,7 +183,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'worker', purpose: 'review', grants: ['analysis', 'compute_score'] },
       surfacePlan: {
         purpose: 'review',
-        runtime: 'worker',
+        runtime: 'arrow',
         data: 'worker',
         authority: 'host-action',
         persistence: 'replayable',
@@ -209,7 +200,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'approval', purpose: 'operate', grants: ['publish_summary'] },
       surfacePlan: {
         purpose: 'operate',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'approval-gated',
         persistence: 'replayable',
@@ -226,7 +217,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -247,7 +238,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -266,7 +257,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     layoutId: 'card-structured',
       surfacePlan: {
         purpose: 'collect',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -283,26 +274,8 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search', 'summon'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'host-resource',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
-    },
-  {
-    id: 'repair-diagnostics',
-    label: 'Validation Retry Diagnostics',
-    prompt:
-      'build a compact onboarding checklist with validated submit controls and clear section structure; if a section is rejected, retry it within the same section',
-    mode: 'interactive',
-    capabilityNames: ['submit'],
-    surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
-    repair: { enabled: true, maxAttempts: 1, maxTargets: 2 },
-      surfacePlan: {
-        purpose: 'collect',
-        runtime: 'declarative',
-        data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
         network: 'none',
@@ -321,7 +294,7 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
     surfacePolicy: { tier: 'declarative', purpose: 'review', grants: ['choose'] },
       surfacePlan: {
         purpose: 'review',
-        runtime: 'declarative',
+        runtime: 'arrow',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',

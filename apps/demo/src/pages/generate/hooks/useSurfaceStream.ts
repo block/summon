@@ -4,7 +4,6 @@ import {
   normalizeSurfacePlan,
   type ArrowSurfaceArtifact,
   type ProtocolLine,
-  type SectionAccumulator,
   type SurfaceContractView,
   type SurfacePlan,
   type ValidationContext,
@@ -24,7 +23,6 @@ import {
   ghostRootFromSelection,
   parseAppliedTokenOverrides,
   parseSurfaceContractView,
-  summarizeRepairMeta,
   summarizeStreamGraphMeta,
   summarizeValidationMeta,
   surfaceRequestFor,
@@ -51,7 +49,6 @@ async function* chunksWithByteCounts(
 
 export function useSurfaceStream({
   surfaceRef,
-  accRef,
   modeRef,
   artifactRevisionRef,
   directionId,
@@ -68,13 +65,11 @@ export function useSurfaceStream({
   setActiveTokensSourceOverride,
   setSurfaceTokensSource,
   setCurrentValidationSummary,
-  setCurrentRepairSummary,
   setCurrentStreamHealth,
   setStatus,
   setArtifactRevision,
 }: {
   surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
-  accRef: MutableRefObject<SectionAccumulator>;
   modeRef: MutableRefObject<Mode>;
   artifactRevisionRef: MutableRefObject<number>;
   directionId: string | null;
@@ -91,7 +86,6 @@ export function useSurfaceStream({
   setActiveTokensSourceOverride: (value: string | null) => void;
   setSurfaceTokensSource: (value: string) => void;
   setCurrentValidationSummary: (value: string | null) => void;
-  setCurrentRepairSummary: (value: string | null) => void;
   setCurrentStreamHealth: (value: string | null) => void;
   setStatus: (value: string) => void;
   setArtifactRevision: (value: number) => void;
@@ -145,17 +139,11 @@ export function useSurfaceStream({
       logLine('op-meta', `shape -> ${shape || JSON.stringify(line.value)}`);
       return;
     }
-    if (line.op === 'meta' && line.path === '/experimental-fragments') {
-      logLine('op-meta', `fragments -> ${JSON.stringify(line.value)}`);
-      return;
-    }
     if (line.op === 'meta' && line.path === '/token-overrides') {
       const applied = parseAppliedTokenOverrides(line.value);
       const css = applyTokenOverrideCss(tokensFor(directionId), applied);
       setActiveTokensSourceOverride(css);
       setSurfaceTokensSource(css);
-      const composed = accRef.current.hasAnySection() ? accRef.current.compose() : '';
-      window.setTimeout(() => surfaceRef.current?.render(composed), 0);
       const rejected = Array.isArray((line.value as { rejected?: unknown } | undefined)?.rejected)
         ? ((line.value as { rejected?: unknown[] }).rejected ?? []).length
         : 0;
@@ -178,8 +166,6 @@ export function useSurfaceStream({
       if (typeof value?.css === 'string') {
         setActiveTokensSourceOverride(value.css);
         setSurfaceTokensSource(value.css);
-        const composed = accRef.current.hasAnySection() ? accRef.current.compose() : '';
-        window.setTimeout(() => surfaceRef.current?.render(composed), 0);
       }
       const source = typeof value?.source === 'string' ? value.source : 'unknown';
       const kind = typeof value?.kind === 'string' ? value.kind : 'unknown';
@@ -188,23 +174,18 @@ export function useSurfaceStream({
       return;
     }
     if (line.op === 'meta' && line.path === '/ghost-review-packet') {
-      const value = line.value as { baseDirectionId?: unknown; styleSource?: unknown; declaredSections?: unknown; validation?: { blocked?: unknown; warnings?: unknown } } | undefined;
+      const value = line.value as { baseDirectionId?: unknown; styleSource?: unknown; artifactFiles?: unknown; validation?: { blocked?: unknown; warnings?: unknown } } | undefined;
       const base = typeof value?.baseDirectionId === 'string' ? value.baseDirectionId : 'none';
       const style = typeof value?.styleSource === 'string' ? value.styleSource : 'unknown';
-      const sections = Array.isArray(value?.declaredSections) ? value.declaredSections.filter((section): section is string => typeof section === 'string') : [];
+      const artifactFiles = Array.isArray(value?.artifactFiles) ? value.artifactFiles.filter((file): file is string => typeof file === 'string') : [];
       const blocked = typeof value?.validation?.blocked === 'number' ? value.validation.blocked : 0;
       const warnings = typeof value?.validation?.warnings === 'number' ? value.validation.warnings : 0;
-      logLine('op-meta', `fingerprint review packet -> base=${base}; style=${style}; sections=${sections.join(', ') || 'none'}; validation=${blocked}/${warnings}`);
+      logLine('op-meta', `fingerprint review packet -> base=${base}; style=${style}; artifact=${artifactFiles.join(', ') || 'none'}; validation=${blocked}/${warnings}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/validation-summary') {
       setCurrentValidationSummary(summarizeValidationMeta(line.value));
       logLine('op-meta', `validation -> ${JSON.stringify(line.value)}`);
-      return;
-    }
-    if (line.op === 'meta' && line.path === '/repair-summary') {
-      setCurrentRepairSummary(summarizeRepairMeta(line.value));
-      logLine('op-meta', `validation retry -> ${JSON.stringify(line.value)}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/stream-graph-summary') {
@@ -225,12 +206,6 @@ export function useSurfaceStream({
       logLine('op-meta', `skip ${JSON.stringify(line.value)}`);
       return;
     }
-    if (line.op === 'meta' && line.path === '/screen-synthesized') {
-      const value = line.value as { sections?: unknown } | undefined;
-      const sections = Array.isArray(value?.sections) ? value.sections.filter((section): section is string => typeof section === 'string') : [];
-      logLine('op-meta', `screen synthesized -> ${sections.join(', ') || '(none)'}`);
-      return;
-    }
     if (line.op === 'meta') {
       logLine('op-meta', `meta ${line.path} = ${JSON.stringify(line.value)}`);
       return;
@@ -245,26 +220,7 @@ export function useSurfaceStream({
       setArtifactRevision(artifactRevisionRef.current);
       return;
     }
-    if (line.op === 'set') {
-      const changed = context.applyResult?.changed ?? false;
-      logLine('op-set', `set ${line.path} = ${JSON.stringify(line.value)}`);
-      if (changed) {
-        artifactRevisionRef.current += 1;
-        setArtifactRevision(artifactRevisionRef.current);
-      }
-      return;
-    }
-    if (line.op === 'add') {
-      const changed = context.applyResult?.changed ?? false;
-      const preview = (line.html ?? '').slice(0, 120).replace(/\s+/g, ' ');
-      logLine('op-add', `add ${line.path} (${(line.html ?? '').length} chars): ${preview}${(line.html ?? '').length > 120 ? '...' : ''}`);
-      if (changed) {
-        artifactRevisionRef.current += 1;
-        setArtifactRevision(artifactRevisionRef.current);
-      }
-    }
   }, [
-    accRef,
     appendDevEvent,
     artifactRevisionRef,
     directionId,
@@ -276,7 +232,6 @@ export function useSurfaceStream({
     setCurrentAgentIntentSummary,
     setCurrentAgentPolicySummary,
     setCurrentEffectiveSurfacePlan,
-    setCurrentRepairSummary,
     setCurrentShape,
     setCurrentStreamHealth,
     setCurrentSurfaceContractView,
@@ -284,7 +239,6 @@ export function useSurfaceStream({
     setMode,
     setStatus,
     setSurfaceTokensSource,
-    surfaceRef,
     tokensFor,
   ]);
 
@@ -302,7 +256,6 @@ export function useSurfaceStream({
       capabilities: capabilityPack.intents,
       components: components?.components ?? [],
       surfacePlan: active.surfacePlan,
-      ...(opts.fragmentMode ? { experimentalFragmentMode: opts.fragmentMode } : {}),
     };
 
     const response = await fetch('/api/generate', {
@@ -330,12 +283,9 @@ export function useSurfaceStream({
         surfaceCeiling: demoSurfaceCeiling,
         ...(agent ? { agent } : {}),
         scriptPolicy: active.scriptPolicy,
-        ...(opts.fragmentMode !== 'section' && !opts.edit ? { fragmentMode: opts.fragmentMode } : {}),
         ...surfaceRequest,
         ...(active.tokenOverrides ? { tokenOverrides: active.tokenOverrides } : {}),
         ...(opts.layout ? { layout: opts.layout } : {}),
-        ...(opts.edit ? { edit: opts.edit } : {}),
-        ...(active.repair ? { repair: active.repair } : {}),
       }),
       signal: opts.signal,
     });
@@ -354,19 +304,7 @@ export function useSurfaceStream({
       setBytes(byteTotal);
     }), {
       mode: () => modeRef.current,
-      accumulator: accRef.current,
-      shouldApplyLine: (line) => {
-        if (
-          opts.edit &&
-          line.op !== 'meta' &&
-          accRef.current.hasAnySection() &&
-          artifactRevisionRef.current !== opts.edit.baseRevision
-        ) {
-          logLine('op-meta', `stale edit discarded (base rev ${opts.edit.baseRevision}, current rev ${artifactRevisionRef.current})`);
-          return 'stop';
-        }
-        return 'apply';
-      },
+      shouldApplyLine: () => 'apply',
       onLine: (line, context) => {
         appendDevEvent({ kind: 'protocol-line', at: Date.now(), line });
         if (line.op !== 'meta') applyLineTo(line, context);
@@ -388,23 +326,24 @@ export function useSurfaceStream({
           kind: 'stream-graph',
           at: Date.now(),
           health: snapshot.health,
-          sections: snapshot.sections.map(({ id, declared, present, revision, bytes }) => ({
-            id,
-            declared,
-            present,
+          artifacts: snapshot.artifacts.map(({ revision, runtime, bytes, firstSeenLine, lastUpdatedLine }) => ({
             revision,
+            runtime,
             bytes,
+            firstSeenLine,
+            lastUpdatedLine,
           })),
         });
       },
-      onRenderHtml: (html) => {
-        surfaceRef.current?.render(html);
-      },
-      onNodePatch: (patch) => {
-        surfaceRef.current?.patchNode(patch);
-      },
       validationContext,
     });
+    if (
+      active.surfacePlan.runtime === 'arrow' &&
+      !result.protocolLines.some((line) => line.op === 'artifact' && line.path === '/artifact')
+    ) {
+      const message = 'Arrow runtime expected one /artifact line, but the model produced no accepted Arrow artifact';
+      throw new Error(message);
+    }
 
     return {
       ...result,
@@ -412,7 +351,6 @@ export function useSurfaceStream({
       shape: shapeFromStream,
     };
   }, [
-    accRef,
     appendDevEvent,
     applyLineTo,
     artifactRevisionRef,

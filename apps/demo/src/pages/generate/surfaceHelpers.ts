@@ -47,8 +47,6 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
       return { category: 'Layout', description: 'Host layout slots constrain the generated card shape.' };
     case 'sibling-summon':
       return { category: 'Composition', description: 'Parent surface can summon a sibling sandbox with narrowed host tools.' };
-    case 'repair-diagnostics':
-      return { category: 'Diagnostics', description: 'Validation retry generation with diagnostics.' };
     default:
       return { category: 'Showcase', description: 'Surface-configured Summon generation scenario.' };
   }
@@ -138,23 +136,14 @@ export function summarizeValidationMeta(value: unknown): string {
   return `${blocked}/${warnings}`;
 }
 
-export function summarizeRepairMeta(value: unknown): string {
-  const summary = value as { queued?: unknown; repaired?: unknown; failed?: unknown } | undefined;
-  const queued = typeof summary?.queued === 'number' ? summary.queued : 0;
-  const repaired = typeof summary?.repaired === 'number' ? summary.repaired : 0;
-  const failed = typeof summary?.failed === 'number' ? summary.failed : 0;
-  return `${repaired}/${queued}${failed ? ` failed=${failed}` : ''}`;
-}
-
 export function summarizeStreamGraphMeta(value: unknown): string {
   const summary = value as
-    | { health?: { complete?: unknown; missingDeclared?: unknown[]; blockedCount?: unknown; repairedCount?: unknown } }
+    | { artifacts?: unknown[]; health?: { complete?: unknown; blockedCount?: unknown; skippedCount?: unknown } }
     | undefined;
   const complete = summary?.health?.complete === true;
-  const missing = Array.isArray(summary?.health?.missingDeclared) ? summary.health.missingDeclared.length : 0;
+  const artifacts = Array.isArray(summary?.artifacts) ? summary.artifacts.length : 0;
   const blocked = typeof summary?.health?.blockedCount === 'number' ? summary.health.blockedCount : 0;
-  const repaired = typeof summary?.health?.repairedCount === 'number' ? summary.health.repairedCount : 0;
-  return `${complete ? 'complete' : 'open'} · missing=${missing} blocked=${blocked} retried=${repaired}`;
+  return `${complete ? 'complete' : 'blocked'} · artifacts=${artifacts} blocked=${blocked}`;
 }
 
 export function parseSurfaceContractView(value: unknown): SurfaceContractView | null {
@@ -242,7 +231,6 @@ export function buildContractRows({
   currentShape,
   currentStreamHealth,
   currentSurfaceContractView,
-  currentRepairSummary,
   currentValidationSummary,
 }: {
   active: ActiveContract;
@@ -254,7 +242,6 @@ export function buildContractRows({
   currentShape: string | null;
   currentStreamHealth: string | null;
   currentSurfaceContractView: SurfaceContractView | null;
-  currentRepairSummary: string | null;
   currentValidationSummary: string | null;
 }) {
   const requested = active.surfacePlan;
@@ -276,6 +263,9 @@ export function buildContractRows({
   const stream = currentStreamHealth ?? 'pending';
   const effectivePlan = contract?.surface.plan ?? currentEffectiveSurfacePlan;
   const effective = effectivePlan ? planText(effectivePlan) : 'pending';
+  const runtime = effectivePlan
+    ? `${displayPlanPart(effectivePlan.runtime)} · ${contract?.surface.mode ?? active.mode} · network ${effectivePlan.network ?? 'none'}`
+    : `${displayPlanPart(active.surfacePlan.runtime)} · ${active.mode} · pending`;
   const provider = modelProviders.find((item) => item.id === active.modelProvider);
   const selectedModel = active.generationModel
     ?? provider?.defaults?.generationModel
@@ -293,10 +283,9 @@ export function buildContractRows({
     ['effective', 'Effective safety plan', effective, effectivePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${toolCount}: ${hostTools}`, toolCount ? 'neutral' : 'pending'],
     ['components', 'Trusted components', `${componentCount}: ${components}`, componentCount ? 'good' : 'pending'],
-    ['runtime', 'Runtime', `${contract?.surface.mode ?? active.mode} · scripts ${contract?.surface.scriptPolicy ?? active.scriptPolicy}`, (contract?.surface.scriptPolicy ?? active.scriptPolicy) === 'allow' ? 'warn' : 'neutral'],
+    ['runtime', 'Sandbox runtime', runtime, effectivePlan ? 'good' : 'pending'],
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
     ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
-    ['repair', 'Validation retry', active.repair?.enabled ? (currentRepairSummary ?? 'on') : 'off', active.repair?.enabled ? 'warn' : 'pending'],
     ['tokens', 'Tokens', active.tokenOverrides ? 'override' : 'base', active.tokenOverrides ? 'good' : 'pending'],
     ['shape', 'Shape', currentShape ?? 'pending', currentShape ? 'neutral' : 'pending'],
   ].map(([key, label, value, tone]) => ({ key, label, value, tone })) as Array<{

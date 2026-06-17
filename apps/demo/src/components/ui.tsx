@@ -107,7 +107,7 @@ export function statusToneClass(status?: string): string {
 }
 
 export function devtoolsEventKindClass(kind: string): string {
-  if (kind === 'sandbox-spawned' || kind === 'sandbox-ready') return 'text-good';
+  if (kind === 'sandbox-spawned' || kind === 'sandbox-ready' || kind === 'rendered') return 'text-good';
   if (kind === 'sandbox-fatal' || kind === 'sandbox-disposed' || kind === 'intent-rejected' || kind === 'protocol-parse-error') {
     return 'text-danger';
   }

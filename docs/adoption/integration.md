@@ -283,11 +283,6 @@ this order before model-authored output:
 2. `/surface-plan` - the compiled safety plan.
 3. `/surface-contract` - the compact derived `SurfaceContractView`.
 
-To enable validation retries, pass
-`repair: { enabled: true, provider, maxAttempts, maxTargets }`. The provider
-receives the compiled prompt blocks and a single replacement prompt; return one
-replacement JSONL line for the same section path.
-
 ## 5. Render In The Sandbox
 
 The client should let `@anarchitecture/summon` own chunk decoding, protocol
@@ -329,7 +324,6 @@ const islands = createComponentIslandRegistry({
 sandbox = spawnSandbox({
   iframe,
   artifact: {
-    html: '',
     intents: policy.intents,
     capabilities: grantedCapabilities,
     components: componentContract.validationComponents,
@@ -369,10 +363,15 @@ await consumeSurfaceStream(response.body!, {
     if (line.path === '/surface-contract') renderContractSummary(line.value);
   },
   onGraph: (snapshot) => {
-    events.push({ kind: 'stream-graph', at: Date.now(), health: snapshot.health });
+    events.push({
+      kind: 'stream-graph',
+      at: Date.now(),
+      health: snapshot.health,
+      artifacts: snapshot.artifacts,
+    });
   },
-  onRenderHtml: (html) => {
-    sandbox?.render(html);
+  onArtifact: (artifact) => {
+    sandbox?.renderArtifact(artifact);
   },
 });
 ```
@@ -380,32 +379,45 @@ await consumeSurfaceStream(response.body!, {
 This preserves the main invariant: the sandbox may request only host-allowed
 tool names, and handlers run only after schema validation in the host.
 
-Generated data-resource UI should use safe `data-summon-*` bindings instead of
-inline handlers:
+Generated data-resource UI should invoke host tools through the Arrow host
+bridge and render state returned by the host:
 
-```html
-<form data-summon-resource="search" data-summon-resource-trigger="submit">
-  <input name="query" placeholder="Search recipes" />
-  <button type="submit">Search</button>
-  <p data-summon-show="$search.loading">Searching...</p>
-  <p data-summon-show="$search.error" data-summon-text="$search.error"></p>
-  <ul data-summon-foreach="$search.data">
-    <li>
-      <span data-summon-text="$item.title"></span>
-      <span data-summon-text="$item.timeMinutes"></span>
-    </li>
-  </ul>
-</form>
+```ts
+import { html, reactive } from '@arrow-js/core';
+import { invoke } from 'host-bridge:summon';
+
+const state = reactive({ loading: false, results: [], error: '' });
+
+async function search(event: Event) {
+  event.preventDefault();
+  state.loading = true;
+  const result = await invoke('search', { query: 'recipes' });
+  state.loading = false;
+  state.error = result.ok ? '' : result.error ?? 'Search failed';
+  state.results = Array.isArray(result.state?.results) ? result.state.results : [];
+}
+
+export default html`
+  <form @submit="${search}">
+    <button>Search</button>
+    <p>${() => state.loading ? 'Searching...' : ''}</p>
+    <p>${() => state.error}</p>
+    <ul>${() => state.results.map((item) => html`<li>${item.title}</li>`)}</ul>
+  </form>
+`;
 ```
 
-Trusted component placeholders follow the same declarative pattern:
+Trusted component placeholders are still DOM placeholders inside the Arrow
+artifact:
 
-```html
-<div
-  data-summon-component="MetricCard"
-  data-summon-component-id="revenue"
-  data-summon-props='{"label":"Revenue","value":"$284,120","delta":"+3.2%"}'
-></div>
+```ts
+export default html`
+  <div
+    data-summon-component="MetricCard"
+    data-summon-component-id="revenue"
+    data-summon-props='{"label":"Revenue","value":"$284,120","delta":"+3.2%"}'
+  ></div>
+`;
 ```
 
 ## 6. Inspect Diagnostics
@@ -414,7 +426,7 @@ Diagnostics are for failures and maintainer investigation, not the first thing
 an adopter needs to learn.
 
 - If generation fails, inspect `/error`, `/validation-summary`,
-  `/validation-blocked`, and validation retry feedback in the Stream drawer.
+  `/validation-blocked`, and `/protocol-skip` in the Stream drawer.
 - If a generated control does nothing, inspect Devtools for rejected host tool
   requests, host dispatch, handler completion, and pushed state.
 - If trusted components do not appear, inspect component sync and component

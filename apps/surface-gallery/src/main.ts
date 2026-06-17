@@ -1,5 +1,4 @@
 import {
-  compileArtifactHtml,
   compileSurfacePolicy,
   PolicyEngine,
   type ApprovalDecision,
@@ -16,8 +15,8 @@ import {
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import { SectionAccumulator, type ProtocolLine, type SurfaceContractView, type ValidationContext } from '@anarchitecture/summon/engine';
-import { bootstrapSource, tokensSource } from '@anarchitecture/summon/assets';
+import { type ProtocolLine, type SurfaceContractView, type ValidationContext } from '@anarchitecture/summon/engine';
+import { arrowRuntimeSource, bootstrapSource, tokensSource } from '@anarchitecture/summon/assets';
 import { createGalleryCapabilityRegistry } from './capabilities.js';
 import {
   allGalleryComponentNames,
@@ -146,7 +145,6 @@ const eventCount = document.getElementById('event-count')!;
 const eventLog = document.getElementById('event-log')!;
 
 const events = createEventStore({ bufferSize: 120 });
-const accumulator = new SectionAccumulator();
 const hostMessages: string[] = [];
 
 type InspectorTab = 'contract' | 'stream' | 'state';
@@ -251,7 +249,7 @@ function selectPreset(id: string): void {
   welcome.hidden = false;
 }
 
-function respawnSandbox(initialHtml = ''): void {
+function respawnSandbox(): void {
   clearApprovalCards('Approval request was replaced');
   islands?.destroy();
   islands = null;
@@ -290,7 +288,6 @@ function respawnSandbox(initialHtml = ''): void {
     capabilityContract.validationCapabilities,
     componentContract?.validationComponents,
   );
-  const compiledInitialHtml = compileArtifactHtml(initialHtml, validationContext).html;
   renderState(initialState);
 
   if (compiledPolicy.mode === 'interactive') {
@@ -311,7 +308,7 @@ function respawnSandbox(initialHtml = ''): void {
   handle = spawnSandbox({
     iframe,
     artifact: {
-      html: compiledInitialHtml,
+      runtime: 'arrow',
       intents: [],
       capabilities: capabilityContract.validationCapabilities,
       components: componentContract?.validationComponents,
@@ -322,10 +319,12 @@ function respawnSandbox(initialHtml = ''): void {
       ? capabilityContract.validationCapabilities
       : [],
     bootstrapSource,
+    arrowRuntimeSource,
     tokensSource: activeTokensSourceOverride ?? tokensSource,
     events,
     onIntent: (intent, args) => {
-      void policy?.dispatch(intent, args);
+      if (!policy) return {};
+      return policy.dispatch(intent, args).then((result) => result.state);
     },
     onComponents: (components, sandboxId) => {
       islands?.sync(components, {
@@ -344,7 +343,6 @@ function respawnSandbox(initialHtml = ''): void {
 async function generateSelectedSurface(): Promise<void> {
   abortController?.abort();
   abortController = new AbortController();
-  accumulator.reset();
   events.clear();
   hostMessages.length = 0;
   currentSurfaceContractView = null;
@@ -395,8 +393,6 @@ async function generateSelectedSurface(): Promise<void> {
 
     await consumeSurfaceStream(response.body, {
       mode: compiledPolicy.mode,
-      renderMode: 'live',
-      accumulator,
       validationContext: validationContextForPolicy(
         compiledPolicy,
         compiledPolicy.policy.grants,
@@ -405,10 +401,10 @@ async function generateSelectedSurface(): Promise<void> {
       ),
       onLine: (line, context) => handleLine(line, context),
       onMeta: (line) => handleMeta(line),
-      onRenderHtml: (html) => {
+      onArtifact: (artifact) => {
         surfaceRenderedDuringRun = true;
         welcome.hidden = true;
-        handle?.render(html);
+        handle?.renderArtifact(artifact);
       },
       onParseError: (raw) => {
         events.push({ kind: 'protocol-parse-error', at: Date.now(), raw });
@@ -501,8 +497,7 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
     const value = line.value as { css?: unknown };
     if (typeof value.css === 'string' && value.css.trim()) {
       activeTokensSourceOverride = value.css;
-      const composed = accumulator.hasAnySection() ? accumulator.compose() : null;
-      respawnSandbox(composed ?? '');
+      respawnSandbox();
     }
   }
   skippedCountEl.textContent = String(skippedLines);
@@ -886,6 +881,8 @@ function describeEvent(event: DevtoolsEvent): string {
       return `state ${Object.keys(event.patch).join(', ') || 'updated'}`;
     case 'component-error':
       return `component ${event.code}: ${event.reason}`;
+    case 'rendered':
+      return `rendered revision ${event.revision}`;
     case 'stream-lifecycle':
       return `stream ${event.phase}${event.ok === undefined ? '' : event.ok ? ' ok' : ' error'}`;
     case 'surface-contract':

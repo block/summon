@@ -1,8 +1,6 @@
 import type {
   ArrowNetworkPolicy,
   ArrowSurfaceArtifact,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
   ValidationCapability,
   ValidationComponent,
 } from '@summon-internal/engine';
@@ -10,9 +8,6 @@ import type {
 export type {
   ArrowNetworkPolicy,
   ArrowSurfaceArtifact,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
-  HtmlNodePatch,
 } from '@summon-internal/engine';
 
 /** Messages from host into the sandbox iframe. */
@@ -22,16 +17,9 @@ export interface StateMessage {
   state: Record<string, unknown>;
 }
 
-export interface NodePatchMessage {
-  type: 'SUMMON_NODE_PATCH';
-  sandbox_id: string;
-  patch: CompiledHtmlNodePatch;
-}
-
 export interface RenderMessage {
   type: 'SUMMON_RENDER';
   sandbox_id: string;
-  html?: CompiledArtifactHtml;
   artifact?: ArrowSurfaceArtifact;
 }
 
@@ -96,6 +84,12 @@ export interface ReadyMessage {
   sandbox_id: string;
 }
 
+export interface RenderedMessage {
+  type: 'SUMMON_RENDERED';
+  sandbox_id: string;
+  revision: number;
+}
+
 /**
  * Sent by bootstrap when its startup self-test detects the sandbox is not
  * configured the way Summon requires (e.g. someone added `allow-same-origin`,
@@ -109,7 +103,12 @@ export interface FatalMessage {
   reason: string;
 }
 
-export type SandboxInboundMessage = IntentMessage | ReadyMessage | FatalMessage | ComponentsMessage;
+export type SandboxInboundMessage =
+  | IntentMessage
+  | ReadyMessage
+  | RenderedMessage
+  | FatalMessage
+  | ComponentsMessage;
 
 /** A spawned sandbox instance. */
 export interface SandboxHandle {
@@ -117,12 +116,8 @@ export interface SandboxHandle {
   iframe: HTMLIFrameElement;
   /** Push new state into the sandbox. Replaces current state on the sandbox side. */
   pushState(state: Record<string, unknown>): void;
-  /** Replace the compiled HTML inside #summon-root. */
-  render(html: CompiledArtifactHtml): void;
   /** Replace the Arrow source artifact inside #summon-root. */
   renderArtifact(artifact: ArrowSurfaceArtifact): void;
-  /** Patch one validated data-summon-node subtree in place. Experimental. */
-  patchNode(patch: CompiledHtmlNodePatch): void;
   /**
    * Declare chrome attributes that should appear on the sandbox document's
    * `<html>` element. Each entry becomes `data-summon-<key>="<value>"` and is
@@ -138,15 +133,13 @@ export interface SandboxHandle {
 
 /** Artifact — generated HTML plus advisory declarations used for diagnostics and replay. */
 export interface Artifact {
-  runtime?: 'html' | 'arrow';
+  runtime?: 'arrow';
   /** Intents the artifact declares it may emit. Execution is governed by host grants. */
   intents: string[];
   /** Advisory capabilities the artifact claims to use. Execution is still governed by grants. */
   capabilities?: ValidationCapability[];
   /** Advisory components the artifact claims to use. Host registry remains the rendering grant. */
   components?: ValidationComponent[];
-  /** Compiled canonical HTML body to render inside the sandbox. */
-  html?: CompiledArtifactHtml;
   /** Arrow source artifact to render inside the sandbox. */
   arrow?: ArrowSurfaceArtifact;
   /** Optional initial state pushed after SANDBOX_READY. */

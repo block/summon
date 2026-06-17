@@ -4,7 +4,7 @@ const cards = [
   {
     href: "/generate",
     title: "Generate",
-    body: "One prompt. Watch Claude paint a UI section-by-section into a locked-down iframe, live as each line of JSONL arrives.",
+    body: "One prompt. Watch Claude stream an Arrow artifact into a locked-down iframe, live as each JSONL line arrives.",
     icon: (
       <>
         <path d="M3 12c2-4 3.5-4 5.5 0s3.5 4 5.5 0 3.5-4 5.5 0" />
@@ -23,21 +23,6 @@ const cards = [
         <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
         <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
         <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
-      </>
-    ),
-  },
-  {
-    href: "/fragment-compare",
-    title: "Fragment compare",
-    body: "Run one prompt in two locked iframes at the same time: section stream versus experimental block stream.",
-    icon: (
-      <>
-        <path d="M4 5h7v14H4z" />
-        <path d="M13 5h7v14h-7z" />
-        <path d="M7.5 9h0" />
-        <path d="M16.5 9h0" />
-        <path d="M7 13h1" />
-        <path d="M16 13h1" />
       </>
     ),
   },

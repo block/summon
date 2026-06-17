@@ -4,7 +4,6 @@ import type {
   ArrowNetworkPolicy,
   ArrowSurfaceArtifact,
   Artifact,
-  CompiledHtmlNodePatch,
   ComponentIslandDescriptor,
   SandboxHandle,
   SandboxInboundMessage,
@@ -126,10 +125,8 @@ function buildSrcdoc(params: {
   // bootstrap sends SUMMON_READY, then the host queues the compiled render
   // through SUMMON_RENDER.
   //
-  // The base style block (entrance animation for live-paint sections) is
-  // emitted BEFORE the direction's tokensSource so directions can override —
-  // e.g., a direction wanting no decorative motion can redeclare the
-  // `[data-summon-section]` rule with `animation: none`.
+  // The base style block is emitted BEFORE the direction's tokensSource so
+  // directions can override Summon's generic motion helpers.
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -151,19 +148,6 @@ ${params.arrowRuntimeSource ? `<script nonce="${params.scriptNonce}">${params.ar
 }
 
 const SUMMON_BASE_CSS = `
-[data-summon-section] {
-  animation: summon-section-in 0.45s cubic-bezier(0.33, 1, 0.68, 1) both;
-}
-.summon-node-enter {
-  animation: summon-node-enter 0.32s cubic-bezier(0.33, 1, 0.68, 1) both;
-  will-change: opacity, filter, transform;
-}
-.summon-node-update {
-  animation: summon-node-update 0.42s ease-out both;
-}
-.summon-slot-filled {
-  animation: summon-slot-filled 0.42s ease-out both;
-}
 .summon-motion-enter-rise {
   animation: summon-motion-rise 0.34s cubic-bezier(0.33, 1, 0.68, 1) both;
 }
@@ -195,45 +179,6 @@ const SUMMON_BASE_CSS = `
     transform 0.18s ease-out,
     box-shadow 0.18s ease-out;
 }
-[data-summon-skeleton] {
-  position: relative;
-  overflow: hidden;
-  min-height: 0.8em;
-  border-radius: 6px;
-  color: transparent !important;
-  background: rgba(127, 127, 127, 0.14);
-  pointer-events: none;
-  user-select: none;
-}
-[data-summon-skeleton] > * {
-  visibility: hidden;
-}
-[data-summon-skeleton]::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
-  animation: summon-skeleton-sheen 1.35s ease-in-out infinite;
-}
-@keyframes summon-section-in {
-  from { opacity: 0; filter: blur(8px); transform: translateY(8px); }
-  to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
-}
-@keyframes summon-node-enter {
-  from { opacity: 0; filter: blur(5px); transform: translateY(6px); }
-  to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
-}
-@keyframes summon-node-update {
-  0%   { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
-  35%  { box-shadow: 0 0 0 2px rgba(80, 112, 255, 0.18); }
-  100% { box-shadow: 0 0 0 0 rgba(80, 112, 255, 0); }
-}
-@keyframes summon-slot-filled {
-  0%   { box-shadow: inset 0 0 0 0 rgba(80, 112, 255, 0); }
-  45%  { box-shadow: inset 0 0 0 1px rgba(80, 112, 255, 0.12); }
-  100% { box-shadow: inset 0 0 0 0 rgba(80, 112, 255, 0); }
-}
 @keyframes summon-motion-rise {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -259,23 +204,14 @@ const SUMMON_BASE_CSS = `
   0%   { opacity: 0.72; }
   100% { opacity: 1; }
 }
-@keyframes summon-skeleton-sheen {
-  0%   { transform: translateX(-100%); }
-  60%, 100% { transform: translateX(100%); }
-}
 @media (prefers-reduced-motion: reduce) {
-  [data-summon-section],
-  .summon-node-enter,
-  .summon-node-update,
-  .summon-slot-filled,
   .summon-motion-enter-rise,
   .summon-motion-enter-fade,
   .summon-motion-enter-fade-slide,
   .summon-motion-enter-pop,
   .summon-motion-update-pulse,
   .summon-motion-update-fade,
-  .summon-motion-update-pop,
-  [data-summon-skeleton]::after {
+  .summon-motion-update-pop {
     animation: none;
   }
   .summon-transition-fade,
@@ -284,7 +220,9 @@ const SUMMON_BASE_CSS = `
   .summon-transition-pop {
     transition: none;
   }
-  .summon-node-enter {
+  .summon-motion-enter-rise,
+  .summon-motion-enter-fade-slide,
+  .summon-motion-enter-pop {
     opacity: 1;
     filter: none;
     transform: none;
@@ -377,11 +315,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
 
   let ready = false;
   const pendingStates: Record<string, unknown>[] = [];
-  const pendingDomOps: Array<
-    | { kind: 'render'; html: string }
-    | { kind: 'artifact'; artifact: ArrowSurfaceArtifact }
-    | { kind: 'node-patch'; patch: CompiledHtmlNodePatch }
-  > = [];
+  const pendingDomOps: Array<{ kind: 'artifact'; artifact: ArrowSurfaceArtifact }> = [];
   // Chrome attributes are merged before flush so a flurry of setChrome calls
   // pre-ready collapses into a single postMessage. Post-ready, each setChrome
   // call dispatches immediately.
@@ -404,13 +338,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     }
     while (pendingDomOps.length > 0) {
       const op = pendingDomOps.shift()!;
-      if (op.kind === 'render') {
-        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', sandbox_id: sandboxId, html: op.html }, '*');
-      } else if (op.kind === 'artifact') {
-        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', sandbox_id: sandboxId, artifact: op.artifact }, '*');
-      } else {
-        opts.iframe.contentWindow.postMessage({ type: 'SUMMON_NODE_PATCH', sandbox_id: sandboxId, patch: op.patch }, '*');
-      }
+      opts.iframe.contentWindow.postMessage({ type: 'SUMMON_RENDER', sandbox_id: sandboxId, artifact: op.artifact }, '*');
     }
   }
 
@@ -441,6 +369,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     if (
       data.type !== 'SUMMON_INTENT' &&
       data.type !== 'SUMMON_READY' &&
+      data.type !== 'SUMMON_RENDERED' &&
       data.type !== 'SUMMON_FATAL' &&
       data.type !== 'SUMMON_COMPONENTS'
     ) {
@@ -487,6 +416,16 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       }
       opts.events?.push({ kind: 'sandbox-ready', at: Date.now(), sandboxId });
       flushPending();
+      return;
+    }
+
+    if (data.type === 'SUMMON_RENDERED') {
+      opts.events?.push({
+        kind: 'rendered',
+        at: Date.now(),
+        sandboxId,
+        revision: typeof data.revision === 'number' ? data.revision : 0,
+      });
       return;
     }
 
@@ -567,9 +506,6 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     networkPolicy: arrowNetworkPolicy,
     arrowRuntimeSource: opts.arrowRuntimeSource,
   });
-  if (opts.artifact.html) {
-    pendingDomOps.push({ kind: 'render', html: opts.artifact.html });
-  }
   if (opts.artifact.arrow) {
     pendingDomOps.push({ kind: 'artifact', artifact: opts.artifact.arrow });
   }
@@ -590,16 +526,6 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       pendingStates.push(state);
       flushPending();
     },
-    render(html) {
-      pendingDomOps.push({ kind: 'render', html });
-      opts.events?.push({
-        kind: 'render',
-        at: Date.now(),
-        sandboxId,
-        bytes: html.length,
-      });
-      flushPending();
-    },
     renderArtifact(artifact) {
       pendingDomOps.push({ kind: 'artifact', artifact });
       opts.events?.push({
@@ -607,16 +533,6 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
         at: Date.now(),
         sandboxId,
         bytes: JSON.stringify(artifact.source).length,
-      });
-      flushPending();
-    },
-    patchNode(patch) {
-      pendingDomOps.push({ kind: 'node-patch', patch });
-      opts.events?.push({
-        kind: 'render',
-        at: Date.now(),
-        sandboxId,
-        bytes: patch.html.length,
       });
       flushPending();
     },

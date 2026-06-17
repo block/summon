@@ -6,9 +6,7 @@ import type {
   DirectionContractInput,
   GhostGenerationContext,
   ProtocolLine,
-  RepairFeedbackMetaValue,
   ScriptPolicy,
-  SectionAccumulatorSnapshot,
   StreamGraphSnapshot,
   SummonLayout,
   SurfacePolicy,
@@ -33,40 +31,6 @@ export type SummonModelChunk =
 export type SummonModelProvider = (
   request: SummonModelRequest,
 ) => AsyncIterable<SummonModelChunk> | Promise<AsyncIterable<SummonModelChunk>>;
-
-export interface GenerateEditInput {
-  baseRevision: number | null;
-  sections: SectionAccumulatorSnapshot['sections'];
-  targetSections?: string[];
-  issues?: unknown[];
-}
-
-export interface SummonRepairRequest {
-  prompt: string;
-  promptBlocks: ContractPromptBlock[];
-  target: string;
-  sectionId: string;
-  issue: ContractIssue;
-  rejectedLine: ProtocolLine;
-  feedback: RepairFeedbackMetaValue;
-  attempt: number;
-  signal?: AbortSignal;
-}
-
-export type SummonRepairProvider = (
-  request: SummonRepairRequest,
-) =>
-  | string
-  | Promise<string>
-  | AsyncIterable<SummonModelChunk>
-  | Promise<AsyncIterable<SummonModelChunk>>;
-
-export interface RepairOptions {
-  enabled: boolean;
-  maxAttempts?: number;
-  maxTargets?: number;
-  provider?: SummonRepairProvider;
-}
 
 export interface ResolvedSurfaceGenerationPlan {
   mode: 'static' | 'interactive';
@@ -95,8 +59,6 @@ export interface SurfaceGenerationInput {
   direction?: DirectionContractInput | null;
   ghost?: GhostGenerationContext | null;
   layout?: SummonLayout | null;
-  edit?: GenerateEditInput | null;
-  editBlock?: string | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
   capabilities?: CapabilityPack | null;
   components?: ComponentPack | null;
@@ -105,19 +67,8 @@ export interface SurfaceGenerationInput {
   surfacePlan?: SurfacePlan | null;
   tokenOverrides?: TokenOverride[];
   activeTokensCss?: string | null;
-  experimentalFragmentMode?: 'section' | 'block-v0' | 'html-node-v0';
   preludeLines?: ProtocolLine[];
-  repair?: RepairOptions | null;
-  initialScreenSections?: string[];
-  allowedSectionIds?: Iterable<string>;
   signal?: AbortSignal;
-}
-
-export interface RepairStats {
-  queued: number;
-  cancelled: number;
-  repaired: number;
-  failed: number;
 }
 
 export interface SurfaceGenerationSummary {
@@ -126,7 +77,6 @@ export interface SurfaceGenerationSummary {
   validationIssues: ContractIssue[];
   streamGraph: StreamGraphSnapshot;
   blocked: boolean;
-  repairStats: RepairStats | null;
 }
 
 export type GenerationSummary = SurfaceGenerationSummary;

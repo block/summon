@@ -95,7 +95,7 @@ test('static mode defaults to inert Arrow surface metadata', () => {
 
   assert.equal(resolved.explicitAccepted, false);
   assert.equal(resolved.source, 'default');
-  assert.equal(resolved.mode, 'interactive');
+  assert.equal(resolved.mode, 'static');
   assert.equal(resolved.scriptPolicy, 'forbid');
   assert.deepEqual(resolved.surfacePlan, {
     purpose: 'inform',

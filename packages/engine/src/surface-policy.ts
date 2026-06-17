@@ -149,7 +149,7 @@ export function compileSurfacePolicy(
     policy: effective,
     capabilities: narrowCapabilityPack(capabilityPack, selectedIntents, effective.grants),
     components: selectedComponents.length > 0 ? { components: selectedComponents } : null,
-    mode: surfacePlan.runtime === 'static' ? 'static' : 'interactive',
+    mode: effective.tier === 'static' ? 'static' : 'interactive',
     scriptPolicy: 'forbid',
     surfacePlan,
     surfaceCeiling: exactCeiling(surfacePlan),
@@ -272,7 +272,7 @@ function planForPolicy(
   if (policy.tier === 'static') {
     return {
       purpose: policy.purpose,
-      runtime: 'static',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'none',
       persistence: policy.persistence,
@@ -295,9 +295,7 @@ function planForPolicy(
 
   return {
     purpose: policy.purpose,
-    runtime: policy.tier === 'worker'
-        ? 'worker'
-        : 'declarative',
+    runtime: 'arrow',
     data,
     authority,
     persistence: policy.persistence,

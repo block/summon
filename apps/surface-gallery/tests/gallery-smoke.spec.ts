@@ -7,6 +7,24 @@ function streamBody(lines: unknown[]): string {
   return `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`;
 }
 
+function arrowArtifact(source: string): object {
+  return {
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'arrow',
+      source: {
+        'main.ts': source,
+      },
+    },
+  };
+}
+
+function arrowHtmlArtifact(html: string): object {
+  const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+  return arrowArtifact(`import { html } from "@arrow-js/core";\nexport default html\`${source}\`;`);
+}
+
 function modelProviderPayload(): object {
   return {
     defaultProvider: 'anthropic',
@@ -26,12 +44,11 @@ function modelProviderPayload(): object {
       defaults: {
         generationModel: 'claude-sonnet-4-6',
         utilityModel: 'claude-haiku-4-5',
-        modelOptions: { maxOutputTokens: 64000, repairMaxOutputTokens: 12000 },
+        modelOptions: { maxOutputTokens: 64000 },
       },
       controls: {
         customModels: true,
         maxOutputTokens: { default: 64000, presets: [12000, 64000] },
-        repairMaxOutputTokens: { default: 12000, presets: [4000, 12000] },
       },
     }],
   };
@@ -76,30 +93,23 @@ async function startProgressiveApiServer(): Promise<Server> {
       await delay(180);
       writeProtocolLine(res, { op: 'meta', path: '/status', value: 'writing' });
       await delay(250);
-      writeProtocolLine(res, { op: 'set', path: '/screen', value: { sections: ['main'] } });
-      writeProtocolLine(res, {
-        op: 'add',
-        path: '/section/main',
-        html: '<article style="padding:24px;font-family:system-ui;"><h1>Drafting surface</h1><p>Gathering the shape.</p></article>',
-      });
+      writeProtocolLine(res, arrowHtmlArtifact(
+        '<article style="padding:24px;font-family:system-ui;"><h1>Drafting surface</h1><p>Gathering the shape.</p></article>',
+      ));
       await delay(900);
-      writeProtocolLine(res, {
-        op: 'add',
-        path: '/section/main',
-        html: '<article style="padding:24px;font-family:system-ui;"><h1>Final answer</h1><p>Ready to inspect.</p></article>',
-      });
+      writeProtocolLine(res, arrowHtmlArtifact(
+        '<article style="padding:24px;font-family:system-ui;"><h1>Final answer</h1><p>Ready to inspect.</p></article>',
+      ));
       writeProtocolLine(res, {
         op: 'meta',
         path: '/stream-graph-summary',
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       });
       res.end();
@@ -148,10 +158,10 @@ test('gallery shows progressive placeholder before final stream replacement', as
 
     const frame = page.frameLocator('#sandbox');
     await expect(frame.locator('h1')).toContainText('Drafting surface');
-    await expect(page.locator('#accepted-count')).toContainText('2');
+    await expect(page.locator('#accepted-count')).toContainText('1');
     await expect(frame.locator('h1')).toContainText('Final answer');
     await expect(frame.locator('text=Drafting surface')).toHaveCount(0);
-    await expect(page.locator('#accepted-count')).toContainText('3');
+    await expect(page.locator('#accepted-count')).toContainText('2');
     await expect(page.locator('#status')).toContainText('done');
     await expect(page.locator('#tab-contract')).toHaveAttribute('aria-selected', 'true');
   } finally {
@@ -187,39 +197,53 @@ test('mocked generation renders and generated host tool requests update host sta
           path: '/surface-plan',
           value: {
             purpose: 'compare',
-            runtime: 'declarative',
+            runtime: 'arrow',
             data: 'embedded',
             authority: 'host-action',
             persistence: 'replayable',
           },
         },
         { op: 'meta', path: '/status', value: 'writing' },
-        { op: 'set', path: '/screen', value: { sections: ['main'] } },
-        {
-          op: 'add',
-          path: '/section/main',
-          html: `
-            <article style="padding:24px;font-family:system-ui;">
-              <h1>Pick a launch path</h1>
-              <button data-summon-on-click="choose" data-summon-args='{"option":"Balanced path"}' data-summon-attr-disabled="choosePending">Save Balanced path</button>
-              <p id="saving" data-summon-show="choosePending">Saving...</p>
-              <p id="save-error" data-summon-show="chooseError" data-summon-bind="chooseError"></p>
-              <p id="saved" data-summon-show="chooseDone">Saved.</p>
-              <p data-summon-show="lastChoice">Saved <span data-summon-bind="lastChoice"></span></p>
-            </article>`,
-        },
+        arrowArtifact(`import { html, reactive } from "@arrow-js/core";
+import { invoke } from "host-bridge:summon";
+
+const state = reactive({ saving: false, saved: false, error: "", lastChoice: "" });
+
+async function saveChoice() {
+  state.saving = true;
+  state.saved = false;
+  state.error = "";
+  const result = await invoke("choose", { option: "Balanced path" });
+  state.saving = false;
+  if (result.ok) {
+    const next = result.state || {};
+    state.saved = true;
+    state.lastChoice = String(next.lastChoice || "Balanced path");
+  } else {
+    state.error = result.error || "Save failed";
+  }
+}
+
+export default html\`
+  <article style="padding:24px;font-family:system-ui;">
+    <h1>Pick a launch path</h1>
+    <button @click="\${saveChoice}">Save Balanced path</button>
+    <p id="saving" style="\${() => state.saving ? "" : "display:none"}">Saving...</p>
+    <p id="save-error" style="\${() => state.error ? "" : "display:none"}">\${() => state.error}</p>
+    <p id="saved" style="\${() => state.saved ? "" : "display:none"}">Saved.</p>
+    <p style="\${() => state.lastChoice ? "" : "display:none"}">Saved <span>\${() => state.lastChoice}</span></p>
+  </article>
+\`;`),
         {
           op: 'meta',
           path: '/stream-graph-summary',
           value: {
             health: {
               complete: true,
-              missingDeclared: [],
               blockedCount: 0,
               skippedCount: 0,
-              repairedCount: 0,
             },
-            sections: [],
+            artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
         },
       ]),
@@ -255,7 +279,7 @@ test('mocked generation renders and generated host tool requests update host sta
   await expect(frame.locator('#saved')).toBeVisible();
   await expect(page.locator('#state-preview')).toContainText('Balanced path');
   await expect(page.locator('#state-preview')).toContainText('chooseDone');
-  await expect(page.locator('#event-log')).toContainText('host dispatch choose');
+  await expect(page.locator('#event-log')).toContainText('host settled choose ok');
 });
 
 test('host search resource renders host-owned empty state', async ({ page }) => {
@@ -293,43 +317,53 @@ test('host search resource renders host-owned empty state', async ({ page }) => 
           path: '/surface-plan',
           value: {
             purpose: 'explore',
-            runtime: 'declarative',
+            runtime: 'arrow',
             data: 'host-resource',
             authority: 'read',
             persistence: 'replayable',
           },
         },
-        { op: 'set', path: '/screen', value: { sections: ['main'] } },
-        {
-          op: 'add',
-          path: '/section/main',
-          html: `
-            <section data-summon-resource="search" data-summon-resource-as="s" style="padding:24px;font-family:system-ui;">
-              <h1>Recipe search</h1>
-              <form data-summon-resource-trigger="submit">
-                <input name="query" value="zzzzzz">
-                <button data-summon-attr-disabled="$s.loading">Search</button>
-              </form>
-              <p id="loading" data-summon-show="$s.loading">Searching...</p>
-              <p id="error" data-summon-show="$s.error" data-summon-bind="$s.error"></p>
-              <p id="empty" data-summon-show="$s.empty">No recipes found.</p>
-              <ul id="results" data-summon-show="$s.data" data-summon-foreach="$s.data" data-summon-as="result">
-                <template><li data-summon-bind="$result.title"></li></template>
-              </ul>
-            </section>`,
-        },
+        arrowArtifact(`import { html, reactive } from "@arrow-js/core";
+import { invoke } from "host-bridge:summon";
+
+const state = reactive({ loading: false, empty: false, error: "" });
+
+async function submitSearch() {
+  state.loading = true;
+  state.empty = false;
+  state.error = "";
+  const result = await invoke("search", { query: "zzzzzz" });
+  state.loading = false;
+  if (result.ok) {
+    const next = result.state || {};
+    state.empty = Boolean(next.noResults);
+  } else {
+    state.error = result.error || "Search failed";
+  }
+}
+
+export default html\`
+  <section style="padding:24px;font-family:system-ui;">
+    <h1>Recipe search</h1>
+    <form @submit="\${submitSearch}">
+      <input name="query" value="zzzzzz">
+      <button>Search</button>
+    </form>
+    <p id="loading" style="\${() => state.loading ? "" : "display:none"}">Searching...</p>
+    <p id="error" style="\${() => state.error ? "" : "display:none"}">\${() => state.error}</p>
+    <p id="empty" style="\${() => state.empty ? "" : "display:none"}">No recipes found.</p>
+  </section>
+\`;`),
         {
           op: 'meta',
           path: '/stream-graph-summary',
           value: {
             health: {
               complete: true,
-              missingDeclared: [],
               blockedCount: 0,
               skippedCount: 0,
-              repairedCount: 0,
             },
-            sections: [],
+            artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
         },
       ]),
@@ -384,39 +418,62 @@ test('approval refund uses host-owned approval card for approve and deny decisio
           path: '/surface-plan',
           value: {
             purpose: 'operate',
-            runtime: 'declarative',
+            runtime: 'arrow',
             data: 'embedded',
             authority: 'approval-gated',
             persistence: 'ephemeral',
           },
         },
-        { op: 'set', path: '/screen', value: { sections: ['main'] } },
-        {
-          op: 'add',
-          path: '/section/main',
-          html: `
-            <article style="padding:24px;font-family:system-ui;">
-              <h1>Refund review</h1>
-              <button data-summon-on-click="issue_refund" data-summon-args='{"title":"Approval smoke","amount":"$842.15"}'>Request refund</button>
-              <p id="waiting" data-summon-show="refundApprovalPending">Waiting for host approval</p>
-              <p id="approved" data-summon-show="refundApprovalApproved">Approved</p>
-              <p id="denied" data-summon-show="refundApprovalDenied">Denied</p>
-              <p id="failed" data-summon-show="refundApprovalError" data-summon-bind="refundApprovalError"></p>
-              <p id="refunded" data-summon-show="refundIssued">Refunded <span data-summon-bind="refundAmount"></span></p>
-            </article>`,
-        },
+        arrowArtifact(`import { html, reactive } from "@arrow-js/core";
+import { invoke } from "host-bridge:summon";
+
+const state = reactive({
+  waiting: false,
+  approved: false,
+  denied: false,
+  failed: "",
+  refunded: false,
+  amount: "",
+});
+
+async function requestRefund() {
+  state.waiting = true;
+  state.approved = false;
+  state.denied = false;
+  state.failed = "";
+  state.refunded = false;
+  state.amount = "";
+  const result = await invoke("issue_refund", { title: "Approval smoke", amount: "$842.15" });
+  const next = result.state || {};
+  state.waiting = false;
+  state.approved = Boolean(next.refundApprovalApproved);
+  state.denied = Boolean(next.refundApprovalDenied);
+  state.refunded = Boolean(next.refundIssued);
+  state.amount = String(next.refundAmount || "");
+  if (!result.ok && !state.denied) state.failed = result.error || "Refund failed";
+}
+
+export default html\`
+  <article style="padding:24px;font-family:system-ui;">
+    <h1>Refund review</h1>
+    <button @click="\${requestRefund}">Request refund</button>
+    <p id="waiting" style="\${() => state.waiting ? "" : "display:none"}">Waiting for host approval</p>
+    <p id="approved" style="\${() => state.approved ? "" : "display:none"}">Approved</p>
+    <p id="denied" style="\${() => state.denied ? "" : "display:none"}">Denied</p>
+    <p id="failed" style="\${() => state.failed ? "" : "display:none"}">\${() => state.failed}</p>
+    <p id="refunded" style="\${() => state.refunded ? "" : "display:none"}">Refunded <span>\${() => state.amount}</span></p>
+  </article>
+\`;`),
         {
           op: 'meta',
           path: '/stream-graph-summary',
           value: {
             health: {
               complete: true,
-              missingDeclared: [],
               blockedCount: 0,
               skippedCount: 0,
-              repairedCount: 0,
             },
-            sections: [],
+            artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
         },
       ]),
@@ -435,7 +492,12 @@ test('approval refund uses host-owned approval card for approve and deny decisio
   });
 
   const frame = page.frameLocator('#sandbox');
-  await frame.getByRole('button', { name: 'Request refund' }).click();
+  const requestRefund = async () => {
+    await frame.getByRole('button', { name: 'Request refund' }).evaluate((button) => {
+      (button as HTMLButtonElement).click();
+    });
+  };
+  await requestRefund();
   await expect(page.locator('[data-approval-card]')).toContainText('Issue refund: Approval smoke');
   await expect(page.locator('[data-approval-card]')).toContainText('card-presentment');
   await expect(frame.locator('#waiting')).toBeVisible();
@@ -448,7 +510,7 @@ test('approval refund uses host-owned approval card for approve and deny decisio
 
   await page.locator('#run').click();
   await expect(page.locator('#status')).toContainText('done');
-  await frame.getByRole('button', { name: 'Request refund' }).click();
+  await requestRefund();
   await expect(page.locator('[data-approval-card]')).toContainText('Issue refund: Approval smoke');
   await page.locator('[data-approval-card]').getByRole('button', { name: 'Deny' }).click();
   await expect(page.locator('[data-approval-card]')).toHaveCount(0);
@@ -482,26 +544,23 @@ test('component island preset renders host overlays and reports invalid props', 
           path: '/surface-plan',
           value: {
             purpose: 'review',
-            runtime: 'declarative',
+            runtime: 'arrow',
             data: 'embedded',
             authority: 'host-action',
             persistence: 'replayable',
           },
         },
-        { op: 'set', path: '/screen', value: { sections: ['main'] } },
-        { op: 'add', path: '/section/main', html },
+        arrowHtmlArtifact(html),
         {
           op: 'meta',
           path: '/stream-graph-summary',
           value: {
             health: {
               complete: true,
-              missingDeclared: [],
               blockedCount: 0,
               skippedCount: 0,
-              repairedCount: 0,
             },
-            sections: [],
+            artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
         },
       ]),
@@ -528,6 +587,13 @@ test('component island preset renders host overlays and reports invalid props', 
 
 test('gallery loads Ghost root preset and sends Ghost generation payload', async ({ page }) => {
   let captured: any = null;
+  await page.route('**/api/model-providers', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(modelProviderPayload()),
+    });
+  });
   await page.route('**/api/ghost-roots', async (route) => {
     await route.fulfill({
       status: 200,
@@ -572,21 +638,21 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
           path: '/surface-plan',
           value: {
             purpose: 'review',
-            runtime: 'declarative',
+            runtime: 'arrow',
             data: 'embedded',
             authority: 'host-action',
             persistence: 'replayable',
           },
         },
-        { op: 'set', path: '/screen', value: { sections: ['main'] } },
-        { op: 'add', path: '/section/main', html: '<section><h1>Checkout Review</h1></section>' },
+        arrowHtmlArtifact('<section><h1>Checkout Review</h1></section>'),
         {
           op: 'meta',
           path: '/ghost-review-packet',
           value: {
             source: 'root',
             product: 'Checkout',
-            sections: [{ id: 'main', html: '<section><h1>Checkout Review</h1></section>' }],
+            artifactRuntime: 'arrow',
+            artifactFiles: ['main.ts'],
           },
         },
         {
@@ -595,12 +661,10 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
           value: {
             health: {
               complete: true,
-              missingDeclared: [],
               blockedCount: 0,
               skippedCount: 0,
-              repairedCount: 0,
             },
-            sections: [],
+            artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
         },
       ]),

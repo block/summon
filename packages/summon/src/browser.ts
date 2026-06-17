@@ -6,8 +6,6 @@ export {
 } from '@summon-internal/host/browser';
 export type {
   Artifact,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
   ComponentIslandBounds,
   ComponentIslandDescriptor,
   ComponentIslandError,
@@ -34,7 +32,6 @@ export type {
   SurfaceStreamLineDecision,
   SurfaceStreamOptions,
   SurfaceStreamParseError,
-  SurfaceStreamRenderMode,
   SurfaceStreamResult,
   SurfaceStreamSource,
 } from '@summon-internal/host/browser';

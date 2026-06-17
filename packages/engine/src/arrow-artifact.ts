@@ -18,6 +18,8 @@ const DEFAULT_MAX_SOURCE_BYTES = 256 * 1024;
 const ENTRY_FILES = new Set(['main.ts', 'main.js']);
 const OPTIONAL_FILES = new Set(['main.css']);
 const MODULE_RE = /^[A-Za-z0-9_./-]+\.(?:ts|js|mjs|css)$/;
+const UNSUPPORTED_IDL_PROPERTY_BINDING_RE = /(^|[\s`<])\.[A-Za-z_$][A-Za-z0-9_$-]*\s*=/m;
+const UNSUPPORTED_OPEN_TAG_EXPRESSION_RE = /<[^>`]*\s\$\{/m;
 
 export function isArrowSurfaceArtifact(value: unknown): value is ArrowSurfaceArtifact {
   return normalizeArrowSurfaceArtifact(value).artifact !== null;
@@ -100,6 +102,23 @@ export function validateArrowSurfaceArtifact(
   if (options.network === 'none' && normalized.network === 'restricted-fetch') {
     issues.push(arrowIssue('arrow-network-not-granted', 'Arrow artifact requested restricted fetch without a host network grant'));
   }
+  for (const [path, contents] of Object.entries(normalized.source)) {
+    if (path.endsWith('.css')) continue;
+    if (UNSUPPORTED_IDL_PROPERTY_BINDING_RE.test(contents)) {
+      issues.push(arrowIssue(
+        'unsupported-arrow-idl-binding',
+        `Arrow sandbox does not support IDL property bindings in "${path}" such as ".value=". Use normal HTML attributes and event target snapshots instead.`,
+        `/artifact/${path}`,
+      ));
+    }
+    if (UNSUPPORTED_OPEN_TAG_EXPRESSION_RE.test(contents)) {
+      issues.push(arrowIssue(
+        'unsupported-arrow-open-tag-expression',
+        `Arrow sandbox does not support standalone template expressions inside opening tags in "${path}". Put expressions in text, node positions, or quoted attribute values only.`,
+        `/artifact/${path}`,
+      ));
+    }
+  }
   return issues;
 }
 
@@ -113,13 +132,13 @@ export function normalizeArrowSourcePath(path: string): string | null {
   return normalized;
 }
 
-function arrowIssue(code: string, message: string): ContractIssue {
+function arrowIssue(code: string, message: string, path = '/artifact'): ContractIssue {
   return contractIssue({
     source: 'protocol',
     severity: 'block',
     code,
     message,
-    path: '/artifact',
+    path,
   });
 }
 

@@ -1,13 +1,7 @@
-export { validateProtocolLine } from './runtime-validator/protocol.js';
 export {
-  ARTIFACT_COMPILER_VERSION,
-  compileArtifactHtml,
-  validateHtmlFragment,
-} from './runtime-validator/html.js';
+  validateProtocolLine,
+} from './runtime-validator/protocol.js';
 export type {
-  ArtifactCompileResult,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
   ValidationContext,
   ValidationCapability,
   ValidationComponent,

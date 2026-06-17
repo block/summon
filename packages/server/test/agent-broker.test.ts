@@ -49,6 +49,20 @@ const capabilities: CapabilityPack = {
   ],
 };
 
+function arrowProtocolLine(html: string): string {
+  const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+  return `${JSON.stringify({
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'arrow',
+      source: {
+        'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\`;`,
+      },
+    },
+  })}\n`;
+}
+
 const multiToolCapabilities: CapabilityPack = {
   intents: [
     ...capabilities.intents,
@@ -115,7 +129,7 @@ test('planAgentSurface proposes and compiles a declarative policy', async () => 
   assert.deepEqual(plan.compiledPolicy.issues, []);
     assert.deepEqual(plan.compiledPolicy.surfacePlan, {
       purpose: 'explore',
-      runtime: 'declarative',
+      runtime: 'arrow',
       data: 'host-resource',
       authority: 'read',
       persistence: 'replayable',
@@ -209,7 +223,7 @@ test('planAgentSurface selects host actions only from explicit action phrasing',
   assert.deepEqual(plan.surfacePolicy.grants, ['choose']);
     assert.deepEqual(plan.compiledPolicy.surfacePlan, {
       purpose: 'operate',
-      runtime: 'declarative',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',
@@ -282,8 +296,7 @@ test('host policy resolver can force a static fallback', async () => {
 test('runAgentSurfaceGeneration emits agent diagnostics before policy metadata', async () => {
   const lines: ProtocolLine[] = [];
   const provider: SummonModelProvider = async function* () {
-    yield '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n';
-    yield '{"op":"add","path":"/section/hero","html":"<section><h1>Dinner finder</h1><p>Ready.</p></section>"}\n';
+    yield arrowProtocolLine('<section><h1>Dinner finder</h1><p>Ready.</p></section>');
   };
 
   const summary = await runAgentSurfaceGeneration({

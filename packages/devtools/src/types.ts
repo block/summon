@@ -91,7 +91,7 @@ export interface StatePushedEvent extends BaseEvent {
 /** A streaming protocol line was successfully parsed. */
 export interface ProtocolLineEvent extends BaseEvent {
   kind: 'protocol-line';
-  line: { op: 'add' | 'set' | 'meta' | 'artifact'; path: string; html?: string; value?: unknown };
+  line: { op: 'meta' | 'artifact'; path: string; value?: unknown };
 }
 
 /** A line in the LLM stream did not parse as a protocol line. */
@@ -111,18 +111,15 @@ export interface StreamGraphEvent extends BaseEvent {
   kind: 'stream-graph';
   health: {
     complete: boolean;
-    missingDeclared: string[];
-    undeclaredPresent: string[];
     skippedCount: number;
     blockedCount: number;
-    repairedCount: number;
   };
-  sections: Array<{
-    id: string;
-    declared: boolean;
-    present: boolean;
+  artifacts: Array<{
     revision: number;
+    runtime: 'arrow';
     bytes: number;
+    firstSeenLine?: number;
+    lastUpdatedLine?: number;
   }>;
 }
 
@@ -148,12 +145,19 @@ export interface SurfaceContractEvent extends BaseEvent {
   };
 }
 
-/** Host pushed full HTML into the sandbox via SUMMON_RENDER. */
+/** Host pushed an Arrow artifact into the sandbox via SUMMON_RENDER. */
 export interface RenderEvent extends BaseEvent {
   kind: 'render';
   sandboxId: string;
-  /** byte length of the html payload — full text is omitted to keep the ring buffer small. */
+  /** Approximate byte length of the artifact payload. */
   bytes: number;
+}
+
+/** The sandbox finished mounting the latest Arrow artifact. */
+export interface RenderedEvent extends BaseEvent {
+  kind: 'rendered';
+  sandboxId: string;
+  revision: number;
 }
 
 export interface ComponentSyncEvent extends BaseEvent {
@@ -193,6 +197,7 @@ export type DevtoolsEvent =
   | SurfacePlanEvent
   | SurfaceContractEvent
   | RenderEvent
+  | RenderedEvent
   | ComponentSyncEvent
   | ComponentErrorEvent;
 

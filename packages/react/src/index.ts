@@ -4,15 +4,9 @@ import {
   type ComponentRegistry,
 } from '@anarchitecture/summon';
 import {
-  compileArtifactHtml,
   isArrowSurfaceArtifact,
-  SectionAccumulator,
   type ArtifactLine,
   type ArrowNetworkPolicy,
-  type CompiledArtifactHtml,
-  type CompiledHtmlNodePatch,
-  type HtmlNodePatch,
-  type ProtocolLine,
   type ArrowSurfaceArtifact,
   type ValidationContext,
 } from '@anarchitecture/summon/engine';
@@ -51,8 +45,6 @@ export interface SummonSurfaceChrome {
 export interface SummonSurfaceProps {
   envelope?: SurfaceEnvelope | null;
   artifact?: ArrowSurfaceArtifact | null;
-  html?: string;
-  protocolLines?: ProtocolLine[];
   artifactIntents?: string[];
   grantedIntents?: string[];
   grantedCapabilities?: Artifact['capabilities'];
@@ -80,9 +72,7 @@ export interface SummonSurfaceProps {
 export interface SummonSurfaceHandle {
   iframe: HTMLIFrameElement | null;
   sandboxId: string | null;
-  render(html: string): void;
   renderArtifact(artifact: ArrowSurfaceArtifact): void;
-  patchNode(patch: HtmlNodePatch): void;
   pushState(state: Record<string, unknown>): void;
   setChrome(chrome: SummonSurfaceChrome): void;
 }
@@ -94,7 +84,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const handleRef = useRef<SandboxHandle | null>(null);
   const validationContextRef = useRef<ValidationContext | null>(null);
-  const lastRenderedHtmlRef = useRef<CompiledArtifactHtml | null>(null);
+  const lastRenderedArtifactRef = useRef<ArrowSurfaceArtifact | null>(null);
   const events = useMemo(() => createEventStore(), []);
 
   useImperativeHandle(ref, () => ({
@@ -104,33 +94,9 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     get sandboxId() {
       return handleRef.current?.sandboxId ?? null;
     },
-    render(html: string) {
-      const compiled = compileForRender(html, validationContextRef.current ?? defaultValidationContext());
-      lastRenderedHtmlRef.current = compiled;
-      preflightComponentProps(
-        compiled,
-        props.componentRegistry,
-        handleRef.current?.sandboxId ?? undefined,
-        events,
-        props.onComponentError,
-      );
-      handleRef.current?.render(compiled);
-    },
     renderArtifact(artifact: ArrowSurfaceArtifact) {
+      lastRenderedArtifactRef.current = artifact;
       handleRef.current?.renderArtifact(artifact);
-    },
-    patchNode(patch: HtmlNodePatch) {
-      const compiled = compilePatchForRender(patch, validationContextRef.current ?? defaultValidationContext());
-      if (compiled) {
-        preflightComponentProps(
-          compiled.html,
-          props.componentRegistry,
-          handleRef.current?.sandboxId ?? undefined,
-          events,
-          props.onComponentError,
-        );
-        handleRef.current?.patchNode(compiled);
-      }
     },
     pushState(state: Record<string, unknown>) {
       handleRef.current?.pushState(state);
@@ -141,8 +107,8 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
   }), []);
 
   useEffect(() => {
-    lastRenderedHtmlRef.current = null;
-  }, [props.envelope, props.artifact, props.html, props.protocolLines]);
+    lastRenderedArtifactRef.current = null;
+  }, [props.envelope, props.artifact]);
 
   useEffect(() => {
     if (!props.onEvent) return;
@@ -195,14 +161,12 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     });
 
     const artifact: Artifact = {
-      runtime: arrowArtifact ? 'arrow' : 'html',
+      runtime: 'arrow',
       // Advisory only. spawnSandbox receives host grants below.
       intents: props.artifactIntents ?? props.envelope?.grants.intents ?? grantedIntents,
       capabilities: props.envelope?.grants.capabilities ?? props.grantedCapabilities,
       components: props.artifactComponents ?? props.envelope?.grants.components ?? componentContract?.validationComponents,
-      ...(arrowArtifact
-        ? { arrow: arrowArtifact }
-        : { html: resolveCompiledHtml(props, validationContext) }),
+      ...(arrowArtifact ? { arrow: arrowArtifact } : {}),
       initialState,
     };
     const grantedComponentNames = new Set((artifact.components ?? []).map((component) => component.name));
@@ -272,18 +236,9 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       },
     });
     handleRef.current = handle;
-    if (artifact.html) {
-      preflightComponentProps(
-        artifact.html,
-        props.componentRegistry,
-        handle.sandboxId,
-        events,
-        props.onComponentError,
-      );
-    }
     if (props.chrome) handle.setChrome(props.chrome);
-    if (lastRenderedHtmlRef.current !== null) {
-      handle.render(lastRenderedHtmlRef.current);
+    if (lastRenderedArtifactRef.current !== null) {
+      handle.renderArtifact(lastRenderedArtifactRef.current);
     }
 
     return () => {
@@ -308,14 +263,12 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     props.grantedIntents,
     props.grantedCapabilities,
     props.artifactComponents,
-    props.html,
     props.initialState,
     props.onIntent,
     props.onIntentRejected,
     props.onFatal,
     props.onComponentError,
     props.onHandlerError,
-    props.protocolLines,
     props.tokensSource,
   ]);
 
@@ -375,18 +328,9 @@ export function defineReactComponent<T, P = T>(
   };
 }
 
-function resolveCompiledHtml(props: SummonSurfaceProps, context: ValidationContext): CompiledArtifactHtml {
-  if (props.envelope) return props.envelope.compiledHtml;
-  if (props.html !== undefined) return compileForRender(props.html, context);
-  if (!props.protocolLines) return compileForRender('', context);
-  const accumulator = new SectionAccumulator();
-  for (const line of props.protocolLines) accumulator.apply(line);
-  return compileForRender(accumulator.compose(), context);
-}
-
 function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact | null {
   if (props.artifact) return props.artifact;
-  const lines = props.envelope?.protocolLines ?? props.protocolLines;
+  const lines = props.envelope?.protocolLines;
   if (!lines) return null;
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
@@ -397,87 +341,6 @@ function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact |
     }
   }
   return null;
-}
-
-function compileForRender(html: string, context: ValidationContext): CompiledArtifactHtml {
-  const result = compileArtifactHtml(html, context);
-  if (result.issues.some((issue) => issue.severity === 'block')) {
-    return '' as CompiledArtifactHtml;
-  }
-  return result.html;
-}
-
-function compilePatchForRender(
-  patch: HtmlNodePatch,
-  context: ValidationContext,
-): CompiledHtmlNodePatch | null {
-  const result = compileArtifactHtml(patch.html, {
-    ...context,
-    experimentalFragmentMode: 'html-node-v0',
-  });
-  if (result.issues.some((issue) => issue.severity === 'block')) return null;
-  return {
-    sectionId: patch.sectionId,
-    nodeId: patch.nodeId,
-    ...(patch.parentId ? { parentId: patch.parentId } : {}),
-    html: result.html,
-  };
-}
-
-function preflightComponentProps(
-  html: CompiledArtifactHtml,
-  componentRegistry: ComponentRegistry | null | undefined,
-  sandboxId: string | undefined,
-  events: ReturnType<typeof createEventStore>,
-  onError: ((error: ComponentIslandError) => void) | undefined,
-): void {
-  if (!componentRegistry || typeof DOMParser === 'undefined') return;
-  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
-  const placeholders = doc.querySelectorAll('[data-summon-component]');
-  for (const placeholder of placeholders) {
-    const componentName = placeholder.getAttribute('data-summon-component') ?? '';
-    const componentId = placeholder.getAttribute('data-summon-component-id') ?? undefined;
-    const rawProps = placeholder.getAttribute('data-summon-props') ?? '{}';
-    let props: unknown;
-    try {
-      props = JSON.parse(rawProps);
-    } catch {
-      emitComponentPreflightError({
-        code: 'props-invalid',
-        componentId,
-        componentName,
-        sandboxId,
-        reason: `component "${componentName}" props are not valid JSON`,
-      }, events, onError);
-      continue;
-    }
-    const parsed = componentRegistry.validateProps(componentName, props);
-    if (parsed.ok) continue;
-    emitComponentPreflightError({
-      code: parsed.error?.startsWith('unknown component') ? 'unknown-component' : 'props-invalid',
-      componentId,
-      componentName,
-      sandboxId,
-      reason: parsed.error ?? 'component props failed validation',
-    }, events, onError);
-  }
-}
-
-function emitComponentPreflightError(
-  error: ComponentIslandError,
-  events: ReturnType<typeof createEventStore>,
-  onError: ((error: ComponentIslandError) => void) | undefined,
-): void {
-  events.push({
-    kind: 'component-error',
-    at: Date.now(),
-    code: error.code,
-    sandboxId: error.sandboxId,
-    componentId: error.componentId,
-    componentName: error.componentName,
-    reason: error.reason,
-  });
-  onError?.(error);
 }
 
 function validationContextFromProps(

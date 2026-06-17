@@ -10,7 +10,6 @@
         "SURFACE_TIER_VALUES",
         "compileSurfaceContractView",
         "compileSurfacePolicy",
-        "compileArtifactHtml",
         "createCapabilityRegistry",
         "createComponentRegistry",
         "defineAction",
@@ -54,9 +53,6 @@
         "ComponentRenderer",
         "ComponentSpec",
         "ComponentSurface",
-        "ArtifactCompileResult",
-        "CompiledArtifactHtml",
-        "CompiledHtmlNodePatch",
         "CompileSurfaceContractViewOptions",
         "CompiledSurfacePolicy",
         "CompileSurfacePolicyOptions",
@@ -83,7 +79,11 @@
     },
     "./assets": {
       "file": "assets",
-      "values": ["arrowRuntimeSource", "bootstrapSource", "tokensSource"],
+      "values": [
+        "arrowRuntimeSource",
+        "bootstrapSource",
+        "tokensSource"
+      ],
       "types": []
     },
     "./browser": {
@@ -98,8 +98,6 @@
         "Artifact",
         "ArrowNetworkPolicy",
         "ArrowSurfaceArtifact",
-        "CompiledArtifactHtml",
-        "CompiledHtmlNodePatch",
         "ComponentIslandBounds",
         "ComponentIslandDescriptor",
         "ComponentIslandError",
@@ -126,14 +124,15 @@
         "SurfaceStreamLineDecision",
         "SurfaceStreamOptions",
         "SurfaceStreamParseError",
-        "SurfaceStreamRenderMode",
         "SurfaceStreamResult",
         "SurfaceStreamSource"
       ]
     },
     "./devtools": {
       "file": "devtools",
-      "values": ["createEventStore"],
+      "values": [
+        "createEventStore"
+      ],
       "types": [
         "BaseEvent",
         "ComponentErrorEvent",
@@ -177,7 +176,6 @@
         "SUMMON_ARROW_ARTIFACT_INSTRUCTIONS",
         "SUMMON_FIXED_INSTRUCTIONS",
         "SUMMON_PROTOCOL_VERSION",
-        "SUMMON_SYSTEM_PROMPT",
         "SURFACE_AUTHORITY_VALUES",
         "SURFACE_DATA_VALUES",
         "SURFACE_NETWORK_VALUES",
@@ -185,7 +183,6 @@
         "SURFACE_PURPOSE_VALUES",
         "SURFACE_RUNTIME_VALUES",
         "SURFACE_TIER_VALUES",
-        "SectionAccumulator",
         "StreamGraph",
         "TOKEN_CONTRACT",
         "buildCapabilitiesBlock",
@@ -193,14 +190,12 @@
         "buildDirectionBlock",
         "buildLayoutBlock",
         "buildOverrideBlock",
-        "buildPosturesBlock",
         "buildSurfaceContractBlock",
         "buildSurfacePlanBlock",
         "coerceOpts",
         "compileCapabilityContract",
         "compileComponentContract",
         "compileDirectionContract",
-        "compileArtifactHtml",
         "compileSurfaceContractView",
         "compileSurfacePolicy",
         "compileSystemContracts",
@@ -232,12 +227,10 @@
         "surfacePlanWithinCeiling",
         "validateArrowSurfaceArtifact",
         "validateDirection",
-        "validateHtmlFragment",
         "validateProtocolLine",
         "withIssueSeverity"
       ],
       "types": [
-        "AddLine",
         "ArtifactLine",
         "ArrowArtifactValidationOptions",
         "ArrowNetworkPolicy",
@@ -255,9 +248,6 @@
         "CompiledCapabilityContract",
         "CompiledComponentContract",
         "CompiledDirectionContract",
-        "ArtifactCompileResult",
-        "CompiledArtifactHtml",
-        "CompiledHtmlNodePatch",
         "CompiledSurfacePolicy",
         "CompiledSystemContracts",
         "CompiledTokenContract",
@@ -280,14 +270,11 @@
         "GhostGenerationContext",
         "GhostGenerationSource",
         "GhostTokenSourceKind",
-        "HtmlNodePatch",
         "IntentSpec",
         "MetaLine",
         "NormalizedSurfacePolicy",
         "OptOutGroup",
         "OptOutValue",
-        "PostureContract",
-        "PostureRegistry",
         "ProtocolHardener",
         "ProtocolHardenerOptions",
         "ProtocolHardenerResult",
@@ -295,17 +282,9 @@
         "ProtocolParseErrorCode",
         "ProtocolParseOptions",
         "ProtocolSkipMetaValue",
-        "RepairFeedbackMetaValue",
-        "ScreenSynthesizedMetaValue",
         "ScriptPolicy",
-        "SectionAccumulatorSnapshot",
-        "SectionApplyKind",
-        "SectionApplyResult",
-        "SectionSnapshotEntry",
-        "SetLine",
-        "StreamGraphEdge",
+        "StreamGraphArtifact",
         "StreamGraphHealth",
-        "StreamGraphSection",
         "StreamGraphSnapshot",
         "SummonLayout",
         "SummonLayoutSlot",
@@ -348,7 +327,10 @@
         "isSurfaceEnvelope",
         "parseSurfaceEnvelope"
       ],
-      "types": ["CreateSurfaceEnvelopeInput", "SurfaceEnvelope"]
+      "types": [
+        "CreateSurfaceEnvelopeInput",
+        "SurfaceEnvelope"
+      ]
     },
     "./host": {
       "file": "host",
@@ -383,8 +365,6 @@
         "Artifact",
         "ArrowNetworkPolicy",
         "ArrowSurfaceArtifact",
-        "CompiledArtifactHtml",
-        "CompiledHtmlNodePatch",
         "CapabilityDefinition",
         "CapabilityRegistry",
         "ComponentDefinition",
@@ -430,7 +410,6 @@
         "SurfaceStreamLineDecision",
         "SurfaceStreamOptions",
         "SurfaceStreamParseError",
-        "SurfaceStreamRenderMode",
         "SurfaceStreamResult",
         "SurfaceStreamSource",
         "TypedIntentEntry"
@@ -456,7 +435,10 @@
   "packages/summon-react": {
     ".": {
       "file": "index",
-      "values": ["SummonSurface", "defineReactComponent"],
+      "values": [
+        "SummonSurface",
+        "defineReactComponent"
+      ],
       "types": [
         "ReactComponentRuntimeContext",
         "ReactComponentWithRuntimeDefinition",
@@ -471,7 +453,6 @@
       "file": "index",
       "values": [
         "defaultHostPolicyResolver",
-        "generateSurfaceStream",
         "inferSurfaceIntent",
         "planAgentSurface",
         "policyFromIntent",
@@ -493,7 +474,6 @@
         "AgentSurfacePlanningOptions",
         "ContractIssue",
         "ContractPromptBlock",
-        "GenerateEditInput",
         "GenerateSurfaceInput",
         "GenerationSummary",
         "GhostGenerationContext",
@@ -501,16 +481,11 @@
         "HostPolicyResolver",
         "ProtocolLine",
         "ProtocolSkipMetaValue",
-        "RepairFeedbackMetaValue",
-        "RepairOptions",
-        "RepairStats",
         "ResolvedSurfaceGenerationPlan",
         "ResolveSurfaceGenerationPlanInput",
         "SummonModelChunk",
         "SummonModelProvider",
         "SummonModelRequest",
-        "SummonRepairProvider",
-        "SummonRepairRequest",
         "SurfaceIntent",
         "SurfaceIntentDataNeed",
         "SurfaceIntentInteraction",

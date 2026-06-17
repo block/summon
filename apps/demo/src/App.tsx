@@ -7,7 +7,6 @@ import { ThemeProvider, ThemeToggle } from './theme.js';
 const AdversarialPage = lazy(() => import('./pages/AdversarialPage.js').then((module) => ({ default: module.AdversarialPage })));
 const BatchPage = lazy(() => import('./pages/BatchPage.js').then((module) => ({ default: module.BatchPage })));
 const FatalPage = lazy(() => import('./pages/FatalPage.js').then((module) => ({ default: module.FatalPage })));
-const FragmentComparePage = lazy(() => import('./pages/FragmentComparePage.js').then((module) => ({ default: module.FragmentComparePage })));
 const GeneratePage = lazy(() => import('./pages/generate/GeneratePage.js').then((module) => ({ default: module.GeneratePage })));
 const StrictPage = lazy(() => import('./pages/StrictPage.js').then((module) => ({ default: module.StrictPage })));
 
@@ -27,7 +26,6 @@ function AppRoutes() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/generate" element={<GeneratePage />} />
           <Route path="/batch" element={<BatchPage />} />
-          <Route path="/fragment-compare" element={<FragmentComparePage />} />
           <Route path="/adversarial" element={<AdversarialPage />} />
           <Route path="/strict" element={<StrictPage />} />
           <Route path="/fatal" element={<FatalPage />} />

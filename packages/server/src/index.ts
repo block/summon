@@ -1,4 +1,3 @@
-export { generateSurfaceStream } from './compat.js';
 export {
   defaultHostPolicyResolver,
   inferSurfaceIntent,
@@ -6,7 +5,6 @@ export {
   policyFromIntent,
   runAgentSurfaceGeneration,
 } from './agent-broker.js';
-export { buildEditBlock } from './edit.js';
 export { resolveSurfaceGenerationPlan } from './plan.js';
 export { runSurfaceGeneration } from './runner.js';
 export { summarizeContractIssues } from './summary.js';
@@ -32,19 +30,14 @@ export type {
 } from './agent-broker.js';
 
 export type {
-  GenerateEditInput,
   GenerateSurfaceInput,
   GenerationSummary,
   GhostGenerationContext,
-  RepairOptions,
-  RepairStats,
   ResolvedSurfaceGenerationPlan,
   ResolveSurfaceGenerationPlanInput,
   SummonModelChunk,
   SummonModelProvider,
   SummonModelRequest,
-  SummonRepairProvider,
-  SummonRepairRequest,
   SurfaceGenerationInput,
   SurfaceGenerationSummary,
 } from './types.js';
@@ -54,5 +47,4 @@ export type {
   ContractPromptBlock,
   ProtocolLine,
   ProtocolSkipMetaValue,
-  RepairFeedbackMetaValue,
 } from '@summon-internal/engine';

@@ -175,7 +175,7 @@ describe('Ghost adapter', () => {
     assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('using the fallback Summon direction tokens')));
   });
 
-  it('builds review packet metadata from relay context and accepted protocol lines', async () => {
+  it('builds review packet metadata from relay context and accepted Arrow artifacts', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -190,9 +190,17 @@ describe('Ghost adapter', () => {
       prompt: 'show the state of the queue',
       validation: { blocked: 0, warnings: 1, codes: { 'unknown-token': 1 } },
       acceptedLines: [
-        { op: 'set', path: '/screen', value: { sections: ['header', 'content'] } },
-        { op: 'add', path: '/section/header', html: '<h1>Queue</h1>' },
-        { op: 'add', path: '/section/content', html: '<p>12 pending</p>' },
+        {
+          op: 'artifact',
+          path: '/artifact',
+          value: {
+            runtime: 'arrow',
+            source: {
+              'main.ts': 'export default html`<h1>Queue</h1>`',
+              'main.css': 'h1 { color: var(--color-text); }',
+            },
+          },
+        },
       ],
     });
 
@@ -207,11 +215,8 @@ describe('Ghost adapter', () => {
       packet.fingerprintProvenance.layers.map(({ relativeRoot, memoryDir, dir }) => ({ relativeRoot, memoryDir, dir })),
       [{ relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' }],
     );
-    assert.deepEqual(packet.declaredSections, ['header', 'content']);
-    assert.deepEqual(packet.sections, [
-      { id: 'header', html: '<h1>Queue</h1>' },
-      { id: 'content', html: '<p>12 pending</p>' },
-    ]);
+    assert.equal(packet.artifactRuntime, 'arrow');
+    assert.deepEqual(packet.artifactFiles, ['main.css', 'main.ts']);
     assert.equal(packet.tokenSource.kind, 'summon-default');
     assert.equal('css' in packet.tokenSource, false);
   });

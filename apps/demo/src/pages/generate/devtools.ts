@@ -7,7 +7,7 @@ export type ExtraDevtoolsEvent =
   | { kind: 'protocol-line'; at: number; line: ProtocolLine }
   | { kind: 'protocol-parse-error'; at: number; raw: string }
   | { kind: 'stream-lifecycle'; at: number; phase: 'start' | 'end'; ok?: boolean }
-  | { kind: 'stream-graph'; at: number; health: SurfaceStreamResult['streamGraph']['health']; sections: Array<{ id: string; declared: boolean; present: boolean; revision: number; bytes: number }> }
+  | { kind: 'stream-graph'; at: number; health: SurfaceStreamResult['streamGraph']['health']; artifacts: SurfaceStreamResult['streamGraph']['artifacts'] }
   | { kind: 'surface-plan'; at: number; plan: SurfacePlan }
   | { kind: 'surface-contract'; at: number; contract: SurfaceContractView };
 
@@ -36,6 +36,8 @@ export function formatDevtoolsEvent(ev: DevtoolsEvent | ExtraDevtoolsEvent): str
       return `${ev.componentName ?? ev.componentId ?? 'component'} ${ev.code ?? 'error'}: ${ev.reason}`;
     case 'render':
       return `${ev.bytes.toLocaleString()} B`;
+    case 'rendered':
+      return `revision ${ev.revision}`;
     case 'protocol-line':
       return `${ev.line.op} ${ev.line.path}`;
     case 'protocol-parse-error':
@@ -43,7 +45,7 @@ export function formatDevtoolsEvent(ev: DevtoolsEvent | ExtraDevtoolsEvent): str
     case 'stream-lifecycle':
       return ev.phase === 'start' ? 'start' : `end ok=${ev.ok}`;
     case 'stream-graph':
-      return `sections=${ev.sections.length} missing=${ev.health.missingDeclared.length} skipped=${ev.health.skippedCount} retried=${ev.health.repairedCount}`;
+      return `artifacts=${ev.artifacts.length} skipped=${ev.health.skippedCount} blocked=${ev.health.blockedCount}`;
     case 'surface-plan':
       return planText(ev.plan as SurfacePlan);
     case 'surface-contract':

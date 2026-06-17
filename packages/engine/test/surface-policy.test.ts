@@ -99,7 +99,7 @@ test('compiles static policy to static embedded plan with no packs', () => {
   assert.equal(compiled.components, null);
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'compare',
-    runtime: 'static',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'none',
     persistence: 'replayable',
@@ -122,7 +122,7 @@ test('compiles declarative policy and narrows grants, components, and patterns',
   assert.deepEqual(compiled.components?.components.map((component) => component.name), ['MetricCard']);
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'explore',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'host-resource',
     authority: 'host-action',
     persistence: 'replayable',
@@ -138,7 +138,7 @@ test('rejects removed scripted policy tier', () => {
   assert.deepEqual(compiled.issues.map((issue) => issue.code), ['surface-policy-invalid']);
   assert.equal(compiled.mode, 'static');
   assert.equal(compiled.scriptPolicy, 'forbid');
-  assert.equal(compiled.surfacePlan.runtime, 'static');
+  assert.equal(compiled.surfacePlan.runtime, 'arrow');
 });
 
 test('compiles worker policy and requires worker-backed surface area', () => {
@@ -150,7 +150,7 @@ test('compiles worker policy and requires worker-backed surface area', () => {
   assert.deepEqual(compiled.issues, []);
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'review',
-    runtime: 'worker',
+    runtime: 'arrow',
     data: 'worker',
     authority: 'host-action',
     persistence: 'replayable',
@@ -171,7 +171,7 @@ test('compiles approval policy and requires approval-gated grant', () => {
   assert.equal(compiled.scriptPolicy, 'forbid');
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'operate',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'approval-gated',
     persistence: 'replayable',

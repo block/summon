@@ -123,8 +123,8 @@ export interface GhostReviewPacket {
     warnings: number;
     codes: Record<string, number>;
   };
-  declaredSections: string[];
-  sections: Array<{ id: string; html: string }>;
+  artifactRuntime: 'arrow' | null;
+  artifactFiles: string[];
 }
 
 export type ParseGhostRequestResult =
@@ -319,12 +319,7 @@ export function buildGhostReviewPacket(input: {
   acceptedLines: ProtocolLine[];
   prompt: string;
 }): GhostReviewPacket {
-  const declaredSections = declaredSectionsFromLines(input.acceptedLines);
-  const sectionsById = new Map<string, string>();
-  for (const line of input.acceptedLines) {
-    if (line.op !== 'add' || !line.path.startsWith('/section/')) continue;
-    sectionsById.set(line.path.slice('/section/'.length), line.html ?? '');
-  }
+  const artifactFiles = artifactFilesFromLines(input.acceptedLines);
   return {
     schema: 'summon.ghost-fingerprint-generation/v1',
     source: input.context.source,
@@ -346,8 +341,8 @@ export function buildGhostReviewPacket(input: {
     mode: input.mode,
     layoutId: input.layoutId,
     validation: input.validation,
-    declaredSections,
-    sections: [...sectionsById.entries()].map(([id, html]) => ({ id, html })),
+    artifactRuntime: artifactFiles.length > 0 ? 'arrow' : null,
+    artifactFiles,
   };
 }
 
@@ -576,13 +571,15 @@ function normalizeTargetPath(raw: unknown):
   return { ok: true, path: segments.join('/') };
 }
 
-function declaredSectionsFromLines(lines: ProtocolLine[]): string[] {
+function artifactFilesFromLines(lines: ProtocolLine[]): string[] {
   for (let index = lines.length - 1; index >= 0; index--) {
     const line = lines[index];
-    if (line?.op !== 'set' || line.path !== '/screen') continue;
-    const value = line.value as { sections?: unknown } | undefined;
-    if (!value || !Array.isArray(value.sections)) continue;
-    return value.sections.filter((section): section is string => typeof section === 'string');
+    if (line?.op !== 'artifact') continue;
+    const value = line.value as { runtime?: unknown; source?: unknown } | undefined;
+    if (value?.runtime !== 'arrow' || !value.source || typeof value.source !== 'object' || Array.isArray(value.source)) {
+      continue;
+    }
+    return Object.keys(value.source).sort();
   }
   return [];
 }

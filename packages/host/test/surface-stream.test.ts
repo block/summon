@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { ProtocolLine } from '@summon-internal/engine';
-import {
-  SectionAccumulator,
-  StreamGraph,
-} from '@summon-internal/engine';
+import { StreamGraph } from '@summon-internal/engine';
 import {
   consumeSurfaceStream,
   type SurfaceStreamContext,
@@ -12,90 +9,111 @@ import {
 
 const encoder = new TextEncoder();
 
-test('consumeSurfaceStream parses split string chunks and renders static updates live', async () => {
-  const renders: string[] = [];
+function artifactLine(source = 'import { html } from "@arrow-js/core";\nexport default html`<p>Arrow</p>`'): string {
+  return `${JSON.stringify({
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'arrow',
+      source: {
+        'main.ts': source,
+      },
+    },
+  })}\n`;
+}
+
+test('consumeSurfaceStream parses split chunks and delivers Arrow artifacts', async () => {
+  const artifacts: string[] = [];
   const graphSnapshots: number[] = [];
   const lines: ProtocolLine[] = [];
-
+  const line = artifactLine();
   const result = await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n{"op":"add","path":"/section',
-    '/hero","html":"<p>Hello</p>"}\n',
-  ], {
-    mode: 'static',
-    onLine: (line) => lines.push(line),
-    onGraph: (snapshot) => graphSnapshots.push(snapshot.sections.length),
-    onRenderHtml: (html) => renders.push(html),
-  });
-
-  assert.equal(result.protocolLines.length, 2);
-  assert.deepEqual(lines.map((line) => line.op), ['set', 'add']);
-  assert.equal(renders.length, 1);
-  assert.equal(renders[0], '<section data-summon-section="hero">\n<p>Hello</p>\n</section>');
-  assert.equal(result.html, renders[0]);
-  assert.equal(result.streamGraph.health.complete, true);
-  assert.ok(graphSnapshots.length >= 2);
-});
-
-test('consumeSurfaceStream accepts Uint8Array chunks', async () => {
-  const result = await consumeSurfaceStream([
-    encoder.encode('{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n'),
-    encoder.encode('{"op":"add","path":"/section/hero","html":"<p>Bytes</p>"}\n'),
-  ], {
-    mode: 'static',
-  });
-
-  assert.equal(result.protocolLines.length, 2);
-  assert.match(result.html, /Bytes/);
-});
-
-test('consumeSurfaceStream delivers Arrow artifacts without HTML rendering', async () => {
-  const artifacts: string[] = [];
-  const renders: string[] = [];
-  const result = await consumeSurfaceStream([
-    `${JSON.stringify({
-      op: 'artifact',
-      path: '/artifact',
-      value: {
-        runtime: 'arrow',
-        source: {
-          'main.ts': 'export default html`<p>Arrow</p>`',
-        },
-      },
-    })}\n`,
+    line.slice(0, 35),
+    line.slice(35),
   ], {
     mode: 'interactive',
+    onLine: (accepted) => lines.push(accepted),
+    onGraph: (snapshot) => graphSnapshots.push(snapshot.health.blockedCount),
     onArtifact: (artifact) => artifacts.push(artifact.source['main.ts'] ?? ''),
-    onRenderHtml: (html) => renders.push(html),
   });
 
   assert.equal(result.protocolLines.length, 1);
-  assert.deepEqual(artifacts, ['export default html`<p>Arrow</p>`']);
-  assert.deepEqual(renders, []);
-  assert.equal(result.html, '');
+  assert.deepEqual(lines.map((accepted) => accepted.op), ['artifact']);
+  assert.equal(artifacts.length, 1);
+  assert.match(artifacts[0]!, /Arrow/);
+  assert.equal(result.streamGraph.health.complete, true);
+  assert.ok(graphSnapshots.length >= 1);
 });
 
-test('consumeSurfaceStream accepts ReadableStream sources', async () => {
-  const source = new ReadableStream<Uint8Array>({
+test('consumeSurfaceStream accepts Uint8Array and ReadableStream sources', async () => {
+  const readable = new ReadableStream<Uint8Array>({
     start(controller) {
-      controller.enqueue(encoder.encode('{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n'));
-      controller.enqueue(encoder.encode('{"op":"add","path":"/section/hero","html":"<p>Readable</p>"}\n'));
+      controller.enqueue(encoder.encode(artifactLine()));
       controller.close();
     },
   });
 
-  const result = await consumeSurfaceStream(source, {
+  const bytesResult = await consumeSurfaceStream([
+    encoder.encode(artifactLine()),
+  ], {
+    mode: 'static',
+  });
+  const streamResult = await consumeSurfaceStream(readable, {
     mode: 'static',
   });
 
-  assert.equal(result.protocolLines.length, 2);
-  assert.match(result.html, /Readable/);
+  assert.equal(bytesResult.protocolLines.length, 1);
+  assert.equal(streamResult.protocolLines.length, 1);
+});
+
+test('consumeSurfaceStream blocks invalid Arrow artifacts before callback delivery', async () => {
+  const artifacts: string[] = [];
+  const result = await consumeSurfaceStream([
+    artifactLine('import { html } from "@arrow-js/core";\nexport default html`<input .value=${state.title}>`'),
+  ], {
+    mode: 'interactive',
+    onArtifact: (artifact) => artifacts.push(artifact.source['main.ts'] ?? ''),
+  });
+
+  assert.deepEqual(artifacts, []);
+  assert.equal(result.protocolLines.length, 0);
+  assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
+    'unsupported-arrow-idl-binding',
+  ]);
+  assert.equal(result.streamGraph.health.blockedCount, 1);
+});
+
+test('consumeSurfaceStream rejects legacy section protocol at parse boundary', async () => {
+  const result = await consumeSurfaceStream([
+    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+    '{"op":"add","path":"/section/hero","html":"<p>Legacy</p>"}\n',
+  ], {
+    mode: 'interactive',
+    validationContext: {
+      mode: 'interactive',
+      scriptPolicy: 'forbid',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'arrow',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'replayable',
+        network: 'none',
+      },
+    },
+  });
+
+  assert.equal(result.protocolLines.length, 0);
+  assert.deepEqual(result.validationIssues.map((issue) => issue.code), []);
+  assert.equal(result.parseErrors.length, 2);
+  assert.equal(result.streamGraph.health.blockedCount, 0);
 });
 
 test('consumeSurfaceStream records malformed lines and calls parse-error callback', async () => {
   const parseErrors: string[] = [];
   const result = await consumeSurfaceStream([
     'not jsonl\n',
-    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
+    artifactLine(),
   ], {
     mode: 'static',
     onParseError: (raw) => parseErrors.push(raw),
@@ -109,17 +127,16 @@ test('consumeSurfaceStream records malformed lines and calls parse-error callbac
 test('consumeSurfaceStream delivers meta lines and collects validation-blocked issues', async () => {
   const metas: string[] = [];
   const result = await consumeSurfaceStream([
-    JSON.stringify({
+    `${JSON.stringify({
       op: 'meta',
       path: '/validation-blocked',
       value: {
-        source: 'html',
+        source: 'protocol',
         severity: 'block',
-        code: 'unsafe-tag',
-        message: 'bad tag',
+        code: 'arrow-only-protocol',
+        message: 'old protocol',
       },
-    }),
-    '\n',
+    })}\n`,
   ], {
     mode: 'interactive',
     onMeta: (line) => metas.push(line.path),
@@ -127,16 +144,16 @@ test('consumeSurfaceStream delivers meta lines and collects validation-blocked i
 
   assert.deepEqual(metas, ['/validation-blocked']);
   assert.equal(result.validationIssues.length, 1);
-  assert.equal(result.validationIssues[0]?.code, 'unsafe-tag');
+  assert.equal(result.validationIssues[0]?.code, 'arrow-only-protocol');
   assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
 test('consumeSurfaceStream collects validation-summary examples without duplicating blocked issues', async () => {
   const blocked = {
-    source: 'html',
+    source: 'protocol',
     severity: 'block',
-    code: 'unsafe-tag',
-    message: 'bad tag',
+    code: 'arrow-only-protocol',
+    message: 'old protocol',
   } as const;
   const warning = {
     source: 'token',
@@ -153,7 +170,7 @@ test('consumeSurfaceStream collects validation-summary examples without duplicat
       value: {
         blocked: 1,
         warnings: 1,
-        codes: { 'unsafe-tag': 1, 'unknown-token': 1 },
+        codes: { 'arrow-only-protocol': 1, 'unknown-token': 1 },
         examples: [blocked, warning],
       },
     })}\n`,
@@ -162,149 +179,47 @@ test('consumeSurfaceStream collects validation-summary examples without duplicat
   });
 
   assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
-    'unsafe-tag',
+    'arrow-only-protocol',
     'unknown-token',
   ]);
 });
 
-test('consumeSurfaceStream renders interactive streams only at completion', async () => {
-  const renders: string[] = [];
-  const result = await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["hero","body"]}}\n',
-    '{"op":"add","path":"/section/hero","html":"<h1>Title</h1>"}\n',
-    '{"op":"add","path":"/section/body","html":"<p>Done</p>"}\n',
-  ], {
-    mode: 'interactive',
-    onRenderHtml: (html) => renders.push(html),
-  });
-
-  assert.equal(renders.length, 1);
-  assert.equal(renders[0], result.html);
-  assert.match(result.html, /Title/);
-  assert.match(result.html, /Done/);
-});
-
-test('consumeSurfaceStream live render mode renders interactive section replacements', async () => {
-  const renders: string[] = [];
-  const result = await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
-    '{"op":"add","path":"/section/hero","html":"<div aria-busy=\\"true\\">Drafting...</div>"}\n',
-    '{"op":"add","path":"/section/hero","html":"<article><h1>Final answer</h1></article>"}\n',
-  ], {
-    mode: 'interactive',
-    renderMode: 'live',
-    onRenderHtml: (html) => renders.push(html),
-  });
-
-  assert.equal(renders.length, 2);
-  assert.match(renders[0]!, /Drafting/);
-  assert.doesNotMatch(renders[1]!, /Drafting/);
-  assert.match(renders[1]!, /Final answer/);
-  assert.equal(renders[1], result.html);
-});
-
-test('consumeSurfaceStream emits live html node patches when a hook is provided', async () => {
-  const renders: string[] = [];
-  const patches: string[] = [];
-  const result = await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["main"]}}\n',
-    '{"op":"add","path":"/section/main/node/root","html":"<div data-summon-node=\\"root\\"></div>"}\n',
-    '{"op":"add","path":"/section/main/node/headline","parent":"root","html":"<header data-summon-node=\\"headline\\"><h1>Ready</h1></header>"}\n',
-  ], {
-    mode: 'static',
-    renderMode: 'live',
-    onRenderHtml: (html) => renders.push(html),
-    onNodePatch: (patch) => patches.push(`${patch.sectionId}/${patch.nodeId}/${patch.parentId ?? ''}`),
-  });
-
-  assert.deepEqual(renders, []);
-  assert.deepEqual(patches, ['main/root/', 'main/headline/root']);
-  assert.match(result.html, /data-summon-node="headline"/);
-});
-
-test('consumeSurfaceStream falls back to composed html for node patches without a hook', async () => {
-  const renders: string[] = [];
-  await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["main"]}}\n',
-    '{"op":"add","path":"/section/main/node/root","html":"<div data-summon-node=\\"root\\"></div>"}\n',
-  ], {
-    mode: 'static',
-    renderMode: 'live',
-    onRenderHtml: (html) => renders.push(html),
-  });
-
-  assert.equal(renders.length, 1);
-  assert.match(renders[0]!, /data-summon-node="root"/);
-});
-
-test('consumeSurfaceStream manual render mode does not call render callback', async () => {
-  let renderCount = 0;
-  const result = await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
-    '{"op":"add","path":"/section/hero","html":"<p>Manual</p>"}\n',
-  ], {
-    mode: 'static',
-    renderMode: 'manual',
-    onRenderHtml: () => {
-      renderCount += 1;
-    },
-  });
-
-  assert.equal(renderCount, 0);
-  assert.match(result.html, /Manual/);
-});
-
-test('consumeSurfaceStream can discard a line and keep consuming', async () => {
-  const result = await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["hero","body"]}}\n',
-    '{"op":"add","path":"/section/hero","html":"<p>Discard</p>"}\n',
-    '{"op":"add","path":"/section/body","html":"<p>Keep</p>"}\n',
-  ], {
-    mode: 'static',
-    shouldApplyLine: (line) => line.path === '/section/hero' ? 'discard' : 'apply',
-  });
-
-  assert.equal(result.discarded, true);
-  assert.equal(result.stopped, false);
-  assert.equal(result.protocolLines.length, 2);
-  assert.doesNotMatch(result.html, /Discard/);
-  assert.match(result.html, /Keep/);
-});
-
-test('consumeSurfaceStream can stop before applying a line', async () => {
+test('consumeSurfaceStream can discard or stop before applying a line', async () => {
   const contexts: SurfaceStreamContext[] = [];
-  const result = await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
-    '{"op":"add","path":"/section/hero","html":"<p>Stop</p>"}\n',
-    '{"op":"add","path":"/section/hero","html":"<p>Ignored</p>"}\n',
+  let decisions = 0;
+  const discardResult = await consumeSurfaceStream([
+    artifactLine(),
+    artifactLine('import { html } from "@arrow-js/core";\nexport default html`<p>Keep</p>`'),
   ], {
     mode: 'static',
-    shouldApplyLine: (line, context) => {
-      contexts.push(context);
-      return line.op === 'add' ? 'stop' : 'apply';
-    },
+    shouldApplyLine: () => decisions++ === 0 ? 'discard' : 'apply',
+    onLine: (_line, context) => contexts.push(context),
   });
 
-  assert.equal(result.stopped, true);
-  assert.equal(result.discarded, true);
-  assert.equal(result.protocolLines.length, 1);
-  assert.equal(contexts.at(-1)?.acceptedStructuralLines, 1);
-  assert.equal(result.html, '');
+  assert.equal(discardResult.discarded, true);
+  assert.equal(discardResult.stopped, false);
+  assert.equal(discardResult.protocolLines.length, 1);
+
+  const stopResult = await consumeSurfaceStream([
+    artifactLine(),
+  ], {
+    mode: 'static',
+    shouldApplyLine: () => 'stop',
+  });
+
+  assert.equal(stopResult.stopped, true);
+  assert.equal(stopResult.discarded, true);
+  assert.equal(stopResult.protocolLines.length, 0);
 });
 
-test('consumeSurfaceStream can use supplied accumulator and graph instances', async () => {
-  const accumulator = new SectionAccumulator();
+test('consumeSurfaceStream can use a supplied graph instance', async () => {
   const streamGraph = new StreamGraph();
-
   const result = await consumeSurfaceStream([
-    '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
-    '{"op":"add","path":"/section/hero","html":"<p>Shared</p>"}\n',
+    artifactLine(),
   ], {
     mode: () => 'interactive',
-    accumulator,
     streamGraph,
   });
 
-  assert.equal(result.html, accumulator.compose());
   assert.deepEqual(result.streamGraph, streamGraph.snapshot());
 });

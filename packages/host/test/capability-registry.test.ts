@@ -893,48 +893,59 @@ test('approval action prepares a frozen request for host approval and approved h
 });
 
 test('surface envelope serializes replay metadata', () => {
+  const artifact = {
+    runtime: 'arrow' as const,
+    source: {
+      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+    },
+  };
   const envelope = createSurfaceEnvelope({
     prompt: 'compare options',
     surfacePlan: {
       purpose: 'compare',
-      runtime: 'static',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'none',
       persistence: 'replayable',
+      network: 'none',
     },
-    protocolLines: [{ op: 'set', path: '/screen', value: { sections: ['hero'] } }],
-    html: '<section>Saved</section>',
+    artifact,
+    protocolLines: [{ op: 'artifact', path: '/artifact', value: artifact }],
     grants: { intents: [] },
     metadata: { directionId: 'ghost', mode: 'static' },
     runtimeVersion: 'test',
   });
 
-  assert.equal(envelope.version, 2);
+  assert.equal(envelope.version, 3);
   assert.equal(envelope.prompt, 'compare options');
-  assert.equal(envelope.compiledHtml, '<section>Saved</section>');
-  assert.equal(envelope.compilerIssues.length, 0);
-  assert.equal(envelope.compilerVersion, 'summon-artifact-compiler-v2');
+  assert.deepEqual(envelope.artifact, artifact);
   assert.equal(envelope.metadata.directionId, 'ghost');
   assert.deepEqual(envelope.protocolLines, [
-    { op: 'set', path: '/screen', value: { sections: ['hero'] } },
+    { op: 'artifact', path: '/artifact', value: artifact },
   ]);
 });
 
 test('surface envelope parser accepts valid replay envelopes', () => {
+  const artifact = {
+    runtime: 'arrow' as const,
+    source: {
+      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+    },
+  };
   const envelope = createSurfaceEnvelope({
     prompt: 'compare options',
     surfacePlan: {
       purpose: 'compare',
-      runtime: 'static',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'none',
       persistence: 'replayable',
+      network: 'none',
     },
+    artifact,
     protocolLines: [
-      { op: 'set', path: '/screen', value: { sections: ['hero'] } },
-      { op: 'add', path: '/section/hero', html: '<p>Saved</p>' },
+      { op: 'artifact', path: '/artifact', value: artifact },
     ],
-    html: '<section>Saved</section>',
     grants: { intents: [] },
     metadata: { mode: 'static' },
   });
@@ -943,28 +954,35 @@ test('surface envelope parser accepts valid replay envelopes', () => {
 });
 
 test('surface envelope parser rejects malformed, wrong-version, and escalating envelopes', () => {
+  const artifact = {
+    runtime: 'arrow' as const,
+    source: {
+      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+    },
+  };
   const envelope = createSurfaceEnvelope({
     prompt: 'pick an option',
     surfacePlan: {
       purpose: 'collect',
-      runtime: 'declarative',
+      runtime: 'arrow',
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',
+      network: 'none',
     },
+    artifact,
     protocolLines: [
       {
         op: 'add',
         path: '/section/hero',
-        html: '<button data-summon-on-click="delete_everything">Bad</button>',
-      },
+        html: '<p>Legacy</p>',
+      } as never,
     ],
-    html: '<button data-summon-on-click="delete_everything">Bad</button>',
     grants: { intents: ['choose'], capabilities: [{ name: 'choose', triggers: ['click'] }] },
     metadata: { mode: 'interactive' },
   });
 
   assert.equal(parseSurfaceEnvelope('{bad'), null);
-  assert.equal(parseSurfaceEnvelope({ ...envelope, version: 3 }), null);
+  assert.equal(parseSurfaceEnvelope({ ...envelope, version: 2 }), null);
   assert.equal(parseSurfaceEnvelope(envelope), null);
 });

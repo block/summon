@@ -10,7 +10,6 @@ const expectedRootExports = [
   'SURFACE_PERSISTENCE_VALUES',
   'SURFACE_PURPOSE_VALUES',
   'SURFACE_TIER_VALUES',
-  'compileArtifactHtml',
   'compileSurfaceContractView',
   'compileSurfacePolicy',
   'createCapabilityRegistry',
@@ -32,7 +31,6 @@ const expectedRootExports = [
 
 const expectedServerExports = [
   'defaultHostPolicyResolver',
-  'generateSurfaceStream',
   'inferSurfaceIntent',
   'planAgentSurface',
   'policyFromIntent',
@@ -106,7 +104,6 @@ assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js
   'compileSystemContracts',
   'createProtocolHardener',
   'parseProtocolLine',
-  'SectionAccumulator',
   'surfaceContractViewFromCompiledPolicy',
   'StreamGraph',
 ]);

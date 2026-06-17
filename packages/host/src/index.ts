@@ -75,7 +75,6 @@ export type {
   SurfaceStreamLineDecision,
   SurfaceStreamOptions,
   SurfaceStreamParseError,
-  SurfaceStreamRenderMode,
   SurfaceStreamResult,
   SurfaceStreamSource,
 } from './surface-stream.js';
@@ -90,8 +89,6 @@ export type {
 } from './strict-input.js';
 export type {
   Artifact,
-  CompiledArtifactHtml,
-  CompiledHtmlNodePatch,
   ComponentIslandBounds,
   ComponentIslandDescriptor,
   ComponentsMessage,

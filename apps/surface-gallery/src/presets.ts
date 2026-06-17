@@ -53,7 +53,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       watchFor: [
         'The generated surface can still use strong layout, typography, tables, timelines, and inline SVG.',
         'The authority meter stays at none/read-only and scripts remain forbidden.',
-        'The boundary prompt is blocked or repaired without changing the host-selected policy.',
+        'The boundary prompt is blocked without changing the host-selected policy.',
       ],
       takeaway: 'Expression can be large even when authority is zero.',
     },
@@ -211,7 +211,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
     notes: {
       setup: 'Run this preset and switch to the Stream inspector if it does not switch automatically.',
       watchFor: [
-        'Validation should block or repair unsafe tags, scripts, and external URLs.',
+        'Validation should block unsafe tags, scripts, and external URLs.',
         'Unknown intents should be rejected by the bridge and/or validator.',
         'The sandbox boundary remains unchanged despite the prompt.',
       ],

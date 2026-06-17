@@ -14,7 +14,7 @@ function collectPageErrors(page: Page): Error[] {
 
 const hostSearchPlan = {
   purpose: 'explore',
-  runtime: 'declarative',
+  runtime: 'arrow',
   data: 'host-resource',
   authority: 'read',
   persistence: 'replayable',
@@ -22,7 +22,7 @@ const hostSearchPlan = {
 
 const componentIslandsPlan = {
   purpose: 'review',
-  runtime: 'declarative',
+  runtime: 'arrow',
   data: 'embedded',
   authority: 'host-action',
   persistence: 'replayable',
@@ -39,12 +39,28 @@ function jsonl(lines: any[]): string {
   return `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`;
 }
 
+function arrowHtmlArtifact(html: string): any {
+  const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+  return {
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'arrow',
+      source: {
+        'main.ts': `export default html\`${source}\``,
+      },
+    },
+  };
+}
+
 test('adversarial sandbox boundary holds', async ({ page }) => {
   await page.goto('/adversarial');
 
   const summary = page.locator('#summary');
   await expect(summary).toContainText('Sandbox boundary holding.', { timeout: 30_000 });
-  await expect(summary).toContainText(/All 25 tests passed/);
+  await expect(summary).toContainText(/All \d+ tests passed/);
+  const passedCount = Number((await summary.textContent())?.match(/All (\d+) tests passed/)?.[1] ?? 0);
+  expect(passedCount).toBeGreaterThanOrEqual(25);
   await expect(page.locator('#results .fail')).toHaveCount(0);
 
   const results = page.locator('#results');
@@ -105,8 +121,8 @@ test('generate page boots without server credentials', async ({ page }) => {
   expect(pageErrors.map((error) => error.message)).toEqual([]);
 });
 
-test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => {
-  const sandboxId = 'node-patch-test';
+test('sandbox ignores legacy HTML render and node patch messages', async ({ page }) => {
+  const sandboxId = 'legacy-message-test';
   await page.setContent(`
     <script>
       window.__summonMessages = [];
@@ -132,89 +148,32 @@ test('sandbox node patches preserve untouched sibling DOM', async ({ page }) => 
     return messages.some((message) => message?.type === 'SUMMON_READY');
   })).toBe(true);
 
-  async function patchNode(patch: any) {
-    await page.locator('#sandbox').evaluate((iframe, payload) => {
-      (iframe as HTMLIFrameElement).contentWindow?.postMessage({
-        type: 'SUMMON_NODE_PATCH',
-        sandbox_id: payload.sandboxId,
-        patch: payload.patch,
-      }, '*');
-    }, { patch, sandboxId });
-  }
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'root',
-    html: '<div data-summon-node="root"></div>',
-  });
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'a',
-    parentId: 'root',
-    html: '<label data-summon-node="a">Name <input value=""></label>',
-  });
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'b',
-    parentId: 'root',
-    html: '<p data-summon-node="b">Draft</p>',
-  });
+  await page.locator('#sandbox').evaluate((iframe, payload) => {
+    const win = (iframe as HTMLIFrameElement).contentWindow;
+    win?.postMessage({
+      type: 'SUMMON_RENDER',
+      sandbox_id: payload.sandboxId,
+      html: '<h1 id="legacy-html">Legacy HTML</h1><script>parent.postMessage({type:"EXECUTED"}, "*")</script>',
+    }, '*');
+    win?.postMessage({
+      type: 'SUMMON_NODE_PATCH',
+      sandbox_id: payload.sandboxId,
+      patch: {
+        sectionId: 'main',
+        nodeId: 'root',
+        html: '<div data-summon-node="root">Legacy patch</div>',
+      },
+    }, '*');
+  }, { sandboxId });
 
   const sandbox = page.frameLocator('#sandbox');
-  const input = sandbox.locator('[data-summon-node="a"] input');
-  await expect(input).toBeVisible();
-  await input.fill('sticky value');
-  await expect(input).toBeFocused();
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'b',
-    parentId: 'root',
-    html: '<p data-summon-node="b">Final</p>',
+  await expect(sandbox.locator('#legacy-html')).toHaveCount(0);
+  await expect(sandbox.locator('[data-summon-node="root"]')).toHaveCount(0);
+  const executed = await page.evaluate(() => {
+    const messages = (window as any).__summonMessages as any[];
+    return messages.some((message) => message?.type === 'EXECUTED');
   });
-
-  await expect(sandbox.locator('[data-summon-node="b"]')).toContainText('Final');
-  await expect(input).toHaveValue('sticky value');
-  await expect(input).toBeFocused();
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'card',
-    parentId: 'root',
-    html: '<article data-summon-node="card"><h2>Sales</h2><div class="slot" data-summon-node-children><div data-summon-skeleton></div><div data-summon-skeleton><span>Loading</span></div></div></article>',
-  });
-  const card = sandbox.locator('[data-summon-node="card"]');
-  await expect(card).toHaveClass(/summon-node-enter/);
-  await expect(sandbox.locator('[data-summon-node="card"] [data-summon-node-children] > [data-summon-skeleton]')).toHaveCount(2);
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'card-value',
-    parentId: 'card',
-    html: '<p data-summon-node="card-value">Inside card</p>',
-  });
-
-  const cardSlot = sandbox.locator('[data-summon-node="card"] [data-summon-node-children]');
-  const cardSlotChild = sandbox.locator(
-    '[data-summon-node="card"] [data-summon-node-children] > [data-summon-node="card-value"]',
-  );
-  await expect(cardSlot).toHaveClass(/summon-slot-filled/);
-  await expect(sandbox.locator('[data-summon-node="card"] [data-summon-node-children] > [data-summon-skeleton]')).toHaveCount(0);
-  await expect(cardSlotChild).toContainText('Inside card');
-  await expect(cardSlotChild).toHaveClass(/summon-node-enter/);
-  await expect(cardSlotChild).not.toHaveClass(/summon-node-enter/);
-
-  await patchNode({
-    sectionId: 'main',
-    nodeId: 'card',
-    parentId: 'root',
-    html: '<article data-summon-node="card"><h2>Sales updated</h2><div class="slot" data-summon-node-children></div></article>',
-  });
-
-  await expect(card).toHaveClass(/summon-node-update/);
-  await expect(card).toContainText('Sales updated');
-  await expect(cardSlotChild).toContainText('Inside card');
-  await expect(cardSlotChild).not.toHaveClass(/summon-node-update/);
+  expect(executed).toBe(false);
 });
 
 test('sandbox render keeps generated scripts inert while local state and motion work', async ({ page }) => {
@@ -233,6 +192,16 @@ test('sandbox render keeps generated scripts inert while local state and motion 
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; frame-src 'none'; child-src 'none'; media-src 'none'; object-src 'none'; worker-src 'none'">
         <meta charset="utf-8">
         <script nonce="${nonce}">window.__SUMMON_SANDBOX_ID__=${JSON.stringify(sandboxId)};window.__SUMMON_RESOURCES__={};</script>
+        <script nonce="${nonce}">
+          window.__SUMMON_ARROW_SANDBOX__ = {
+            sandbox(options) {
+              return function mount(root) {
+                root.innerHTML = String(options.source["main.html"] || "");
+                return function teardown() { root.replaceChildren(); };
+              };
+            },
+          };
+        </script>
         <script nonce="${nonce}">${bootstrapSource}</script>
       </head>
       <body><div id="summon-root"></div></body>
@@ -256,7 +225,12 @@ test('sandbox render keeps generated scripts inert while local state and motion 
     (iframe as HTMLIFrameElement).contentWindow?.postMessage({
       type: 'SUMMON_RENDER',
       sandbox_id: payload.sandboxId,
-      html: payload.html,
+      artifact: {
+        runtime: 'arrow',
+        source: {
+          'main.html': payload.html,
+        },
+      },
     }, '*');
   }, { sandboxId, html });
 
@@ -326,11 +300,15 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
       },
       { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'explore', grants: ['search'] } },
       { op: 'meta', path: '/surface-plan', value: hostSearchPlan },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
       {
-        op: 'add',
-        path: '/section/main',
-        html: '<section><h1>Dinner Finder</h1><button data-summon-intent="search">Search</button></section>',
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'export default html`<section><h1>Dinner Finder</h1><button>Search</button></section>`',
+          },
+        },
       },
       {
         op: 'meta',
@@ -338,12 +316,10 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);
@@ -365,6 +341,45 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
   await expect(page.locator('#log')).toContainText('agent policy');
 });
 
+test('generate showcase renders Arrow artifacts in the sandbox', async ({ page }) => {
+  await page.route('**/api/generate', async (route) => {
+    const body = jsonl([
+      { op: 'meta', path: '/surface-plan', value: { ...hostSearchPlan, data: 'embedded', authority: 'none' } },
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'export default html`<section id="arrow-probe" style="color:black;padding:20px"><h1>Arrow rendered</h1><p>Inside sandbox.</p></section>`',
+          },
+        },
+      },
+      {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: true,
+            blockedCount: 0,
+            skippedCount: 0,
+          },
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
+        },
+      },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#iframe-status')).toContainText('done');
+  const sandbox = page.frameLocator('#sandbox');
+  await expect(sandbox.locator('#arrow-probe')).toBeVisible({ timeout: 15_000 });
+  await expect(sandbox.locator('#arrow-probe')).toContainText('Arrow rendered');
+});
+
 test('batch page brokers each generation request', async ({ page }) => {
   const captured: any[] = [];
   await page.route('**/api/generate', async (route) => {
@@ -373,8 +388,7 @@ test('batch page brokers each generation request', async ({ page }) => {
     const body = jsonl([
       { op: 'meta', path: '/agent-intent', value: { purpose: 'inform', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
       { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'inform', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html: '<section><h1>Batch brokered</h1></section>' },
+      arrowHtmlArtifact('<section><h1>Batch brokered</h1></section>'),
     ]);
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
   });
@@ -391,67 +405,10 @@ test('batch page brokers each generation request', async ({ page }) => {
   await expect(page.locator('#grid')).toContainText('agent policy');
 });
 
-test('fragment compare launches section and html node streams from the same prompt', async ({ page }) => {
-  const captured: any[] = [];
-  let releaseBoth!: () => void;
-  const bothArrived = new Promise<void>((resolve) => {
-    releaseBoth = resolve;
-  });
-
-  await page.route('**/api/generate', async (route) => {
-    const request = route.request().postDataJSON();
-    captured.push(request);
-    if (captured.length === 2) releaseBoth();
-    await bothArrived;
-
-    const body = request.fragmentMode === 'html-node-v0'
-      ? jsonl([
-          { op: 'meta', path: '/agent-intent', value: { purpose: 'review', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
-          { op: 'meta', path: '/experimental-fragments', value: { mode: 'html-node-v0' } },
-          { op: 'set', path: '/screen', value: { sections: ['main'] } },
-          { op: 'add', path: '/section/main/node/root', html: '<div data-summon-node="root"></div>' },
-          { op: 'add', path: '/section/main/node/card', parent: 'root', html: '<article data-summon-node="card"><h1>Node stream</h1><div data-summon-node-children><div data-summon-skeleton></div></div></article>' },
-          { op: 'add', path: '/section/main/node/body', parent: 'card', html: '<p data-summon-node="body">Rendered as HTML node patches.</p>' },
-        ])
-      : jsonl([
-          { op: 'meta', path: '/agent-intent', value: { purpose: 'review', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-          { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'review', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
-          { op: 'set', path: '/screen', value: { sections: ['main'] } },
-          { op: 'add', path: '/section/main', html: '<section><h1>Section stream</h1><p>Rendered as section fragments.</p></section>' },
-        ]);
-    await route.fulfill({ status: 200, contentType: 'text/plain', body });
-  });
-
-  await page.goto('/fragment-compare');
-  await expect(page.locator('#prompt-preset-matrix')).toContainText('Operational workflows');
-  await expect(page.locator('#prompt-preset-matrix')).toContainText('Complex');
-  await page.getByRole('button', { name: /Operational workflows, Complex: Migration Control/ }).click();
-  const prompt = await page.locator('#prompt').inputValue();
-  expect(prompt).toContain('migration control room');
-  await page.locator('#run').click();
-
-  await expect.poll(() => captured.length).toBe(2);
-  const sectionRequest = captured.find((request) => request.fragmentMode !== 'html-node-v0');
-  const nodeRequest = captured.find((request) => request.fragmentMode === 'html-node-v0');
-  expect(sectionRequest?.prompt).toBe(prompt);
-  expect(nodeRequest?.prompt).toBe(prompt);
-  expect(sectionRequest?.agent).toEqual({ enabled: true });
-  expect(nodeRequest?.agent).toEqual({ enabled: true });
-  expect(sectionRequest?.surfacePlan).toBeUndefined();
-  expect(nodeRequest?.surfacePlan).toBeUndefined();
-  expect(sectionRequest?.directionId).toBe('');
-  expect(nodeRequest?.directionId).toBe('');
-  expect(sectionRequest?.modelOptions).toEqual(nodeRequest?.modelOptions);
-  expect(sectionRequest?.modelOptions?.anthropicThinking).toBe('off');
-  expect(sectionRequest?.fragmentMode).toBeUndefined();
-  expect(nodeRequest?.fragmentMode).toBe('html-node-v0');
-
-  await expect(page.locator('#section-status')).toContainText('done');
-  await expect(page.locator('#block-status')).toContainText('done');
-  await expect(page.frameLocator('#section-frame').locator('body')).toContainText('Section stream');
-  await expect(page.frameLocator('#block-frame').locator('body')).toContainText('Node stream');
-  await expect(page.locator('#block-metrics')).toContainText('patches');
+test('unknown demo routes redirect to Arrow generate workbench', async ({ page }) => {
+  await page.goto('/unknown-route');
+  await expect(page).toHaveURL(/\/generate$/);
+  await expect(page.locator('#scenario')).toContainText('Host Data Search');
 });
 
 test('generate showcase sends raw SurfacePlan from the advanced override', async ({ page }) => {
@@ -470,29 +427,17 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
           rejected: [],
         },
       },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      {
-        op: 'add',
-        path: '/section/main',
-        html: '<section><form data-summon-on-submit="submit"><input name="title"><button>Save</button></form></section>',
-      },
-      {
-        op: 'meta',
-        path: '/repair-summary',
-        value: { queued: 0, cancelled: 0, repaired: 0, failed: 0 },
-      },
+      arrowHtmlArtifact('<section><form id="override-form"><label>Title <input name="title" /></label><button>Save</button></form></section>'),
       {
         op: 'meta',
         path: '/stream-graph-summary',
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);
@@ -500,14 +445,13 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
   });
 
   await page.goto('/generate');
-  await expect(page.locator('#scenario')).toContainText('Validation Retry Diagnostics');
-  await page.locator('#scenario').selectOption('repair-diagnostics');
+  await expect(page.locator('#scenario')).toContainText('Declarative form');
+  await page.locator('#scenario').selectOption('declarative-form');
   await page.getByRole('button', { name: 'Options' }).click();
   await page.locator('#token-preset').selectOption('accent-blue');
 
-  await expect(page.locator('#prompt')).toHaveValue(/onboarding checklist/);
-  await expect(page.locator('#scenario')).toHaveValue('repair-diagnostics');
-  await expect(page.locator('#repair-enabled')).toBeChecked();
+  await expect(page.locator('#prompt')).toHaveValue(/team lunch order/);
+  await expect(page.locator('#scenario')).toHaveValue('declarative-form');
   await expect(page.locator('#custom-contract-panel')).toBeHidden();
   await page.locator('#custom-contract-enabled').check();
   await expect(page.locator('#custom-contract-panel')).toBeVisible();
@@ -516,10 +460,10 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
 
   await page.locator('#go').click();
   await expect(page.locator('#iframe-status')).toContainText('done');
-  await expect(page.frameLocator('#sandbox').locator('form')).toBeVisible();
+  await expect(page.frameLocator('#sandbox').locator('#override-form')).toBeVisible();
   await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.locator('#contract-summary [data-contract-row="effective"]')).toContainText(
-    'collect · declarative',
+    'collect · arrow',
   );
 
   expect(captured).toBeTruthy();
@@ -528,7 +472,7 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
   expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toEqual({
     purpose: 'collect',
-    runtime: 'declarative',
+    runtime: 'arrow',
     data: 'embedded',
     authority: 'host-action',
     persistence: 'replayable',
@@ -540,7 +484,7 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
     'color-accent': '#0f8cff',
     'color-accent-fg': '#ffffff',
   });
-  expect(captured.repair).toEqual({ enabled: true, maxAttempts: 1, maxTargets: 2 });
+  expect(captured.repair).toBeUndefined();
 });
 
 test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page }) => {
@@ -615,17 +559,14 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
       },
       { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'review', grants: ['choose'] } },
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html: '<section><h1>Checkout Review</h1><button data-summon-on-click="choose">Accept</button></section>' },
       {
-        op: 'meta',
-        path: '/ghost-token-source',
+        op: 'artifact',
+        path: '/artifact',
         value: {
-          kind: 'css',
-          source: 'ghost-config-token-css',
-          css: ':root { --color-bg: #fafafa; --color-accent: #1a73e8; }',
-          baseDirectionId: 'ghost',
-          warnings: [],
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'export default html`<section><h1>Checkout Review</h1><button>Accept</button></section>`',
+          },
         },
       },
       {
@@ -634,7 +575,8 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
         value: {
           baseDirectionId: 'ghost',
           styleSource: 'ghost-config-token-css',
-          declaredSections: ['main'],
+          artifactRuntime: 'arrow',
+          artifactFiles: ['main.ts'],
           validation: { blocked: 0, warnings: 0 },
         },
       },
@@ -644,12 +586,10 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);
@@ -663,7 +603,7 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
 
   await expect(page.locator('#iframe-status')).toContainText('done');
   await expect(page.locator('#log')).toContainText('fingerprint context');
-  await expect(page.locator('#log')).toContainText('Checkout Review');
+  await expect(page.frameLocator('#sandbox').locator('h1')).toContainText('Checkout Review');
   await expect(page.locator('#log')).toContainText('fingerprint review packet');
 
   expect(captured).toBeTruthy();
@@ -720,20 +660,17 @@ test('component islands render in host overlay without widening the sandbox', as
         },
       },
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html },
+      arrowHtmlArtifact(html),
       {
         op: 'meta',
         path: '/stream-graph-summary',
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);
@@ -802,20 +739,17 @@ test('component island prop failures do not render host DOM and emit diagnostics
       </section>`;
     const body = jsonl([
       { op: 'meta', path: '/surface-plan', value: componentIslandsPlan },
-      { op: 'set', path: '/screen', value: { sections: ['main'] } },
-      { op: 'add', path: '/section/main', html },
+      arrowHtmlArtifact(html),
       {
         op: 'meta',
         path: '/stream-graph-summary',
         value: {
           health: {
             complete: true,
-            missingDeclared: [],
             blockedCount: 0,
             skippedCount: 0,
-            repairedCount: 0,
           },
-          sections: [],
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
       },
     ]);

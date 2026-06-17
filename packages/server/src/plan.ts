@@ -1,9 +1,9 @@
 import {
   DEFAULT_SURFACE_CEILING,
   constrainSurfacePlan,
-  deriveSurfacePlanControls,
   normalizeSurfaceCeiling,
   normalizeSurfacePlan,
+  surfacePlanScriptPolicy,
   surfacePlanWithinCeiling,
   type SurfacePlan,
 } from '@summon-internal/engine';
@@ -19,26 +19,20 @@ export function resolveSurfaceGenerationPlan(
   const explicit = normalizeSurfacePlan(input.rawSurfacePlan);
   const explicitAccepted = Boolean(explicit && surfacePlanWithinCeiling(explicit, ceiling));
   const source = explicitAccepted ? 'explicit' : 'default';
-  let surfacePlan = explicitAccepted ? explicit! : defaultSurfacePlanForMode(input.mode);
+  let surfacePlan = explicitAccepted ? explicit! : defaultSurfacePlan();
 
   surfacePlan = constrainSurfacePlan(surfacePlan, ceiling);
 
-  const { mode, scriptPolicy } = deriveSurfacePlanControls(surfacePlan);
+  const mode = surfacePlanNeedsInteractivity(surfacePlan) ? 'interactive' : input.mode;
+  const scriptPolicy = surfacePlanScriptPolicy(surfacePlan);
   return { mode, scriptPolicy, surfacePlan, ceiling, explicitAccepted, source };
 }
 
-function defaultSurfacePlanForMode(mode: ResolveSurfaceGenerationPlanInput['mode']): SurfacePlan {
-  if (mode === 'static') {
-    return {
-      purpose: 'inform',
-      runtime: 'arrow',
-      data: 'embedded',
-      authority: 'none',
-      persistence: 'replayable',
-      network: 'none',
-    };
-  }
+function surfacePlanNeedsInteractivity(plan: SurfacePlan): boolean {
+  return plan.data !== 'embedded' || plan.authority !== 'none';
+}
 
+function defaultSurfacePlan(): SurfacePlan {
   return {
     purpose: 'inform',
     runtime: 'arrow',

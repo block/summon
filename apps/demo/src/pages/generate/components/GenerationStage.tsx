@@ -63,7 +63,6 @@ export function GenerationStage({
           id="sandbox"
           className="h-full min-h-0 w-full border-0 bg-surface-raised"
           title="Summon generate sandbox"
-          html=""
           tokensSource={surfaceTokensSource}
           capabilityRegistry={capabilityRegistry}
           componentRegistry={componentRegistry}
