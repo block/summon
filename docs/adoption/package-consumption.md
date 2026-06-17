@@ -30,7 +30,7 @@ import { createComponentRegistry } from '@anarchitecture/summon';
 
 <SummonSurface
   envelope={savedEnvelope}
-  capabilityRegistry={capabilityRegistry}
+  toolRegistry={toolRegistry}
   componentRegistry={componentRegistry}
 />;
 ```
@@ -96,7 +96,7 @@ Spawn the iframe with host-owned contracts:
 
 ```ts
 const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
-  capabilities: capabilityContract.pack,
+  tools: toolContract.pack,
   components: componentContract.pack,
 });
 
@@ -114,20 +114,20 @@ const policy = new PolicyEngine({
 handle = spawnSandbox({
   iframe,
   artifact: {
-    intents: policy.intents,
-    capabilities: capabilityContract.validationCapabilities,
+    tools: policy.tools,
+    validationTools: toolContract.validationTools,
     components: componentContract.validationComponents,
     initialState: policy.getState(),
   },
-  grantedIntents: policy.intents,
-  grantedCapabilities: capabilityContract.validationCapabilities,
+  grantedTools: policy.tools,
+  validationTools: toolContract.validationTools,
   bootstrapSource,
   tokensSource,
-  onIntent: (intent, args) => void policy.dispatch(intent, args),
+  onToolCall: (tool, args) => void policy.dispatch(tool, args),
   onComponents: (components, sandboxId) => {
     islands.sync(components, {
       sandboxId,
-      emitIntent: (intent, args = {}) => void policy.dispatch(intent, args),
+      callTool: (tool, args = {}) => void policy.dispatch(tool, args),
     });
   },
 });
@@ -137,7 +137,7 @@ const response = await fetch('/api/generate', {
   body: JSON.stringify({
     prompt,
     surfacePolicy,
-    capabilities: capabilityContract.pack,
+    tools: toolContract.pack,
     components: componentContract.pack,
   }),
 });
@@ -146,9 +146,8 @@ await consumeSurfaceStream(response.body!, {
   mode: compiledPolicy.mode,
   validationContext: {
     mode: compiledPolicy.mode,
-    scriptPolicy: compiledPolicy.scriptPolicy,
-    allowedIntents: policy.intents,
-    capabilities: capabilityContract.validationCapabilities,
+    allowedTools: policy.tools,
+    tools: toolContract.validationTools,
     components: componentContract.validationComponents,
     surfacePlan: compiledPolicy.surfacePlan,
   },
@@ -178,7 +177,7 @@ a replay summary.
 
 For agent-driven hosts, use `runAgentSurfaceGeneration(input, emit)` when the
 end user should not choose Summon-specific configs. The broker converts the
-prompt to an advisory `SurfaceIntent`, proposes a `SurfacePolicy`, narrows it
+prompt to an advisory `SurfaceGoal`, proposes a `SurfacePolicy`, narrows it
 through host-owned policy, then calls the same `runSurfaceGeneration()`
 lifecycle.
 

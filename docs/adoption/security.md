@@ -17,7 +17,7 @@ The hard boundary is the browser sandbox:
   object/embed content, and storage-backed same-origin access.
 - The bridge accepts only messages carrying the per-sandbox random
   `sandbox_id`.
-- Host-owned allowlists (`grantedIntents` and `grantedCapabilities`) decide
+- Host-owned allowlists (`grantedTools` and `validationTools`) decide
   which generated requests can run.
 - `PolicyEngine` validates request args before host handlers run.
 - Data resources fetch through host-owned handlers and validate returned data
@@ -48,14 +48,16 @@ Declarative interactive surfaces still support clicks, submits,
 mount-triggered reads, data resources, loading/error/data bindings, foreach
 templates, text binding, safe image/data attributes, local ephemeral state, and
 host-owned motion recipes. Generated `<script>` tags are not a public artifact
-capability.
+tool.
 
 ## Advanced Safety Details
 
 Summon compiles the host-selected `SurfacePolicy` into a stricter `SurfacePlan`
-with exact runtime, data, authority, persistence, and script policy for
-validation and diagnostics. Shape describes visual composition; posture
-describes the act; the surface config describes the public host decision.
+with Arrow runtime diagnostics, data, authority, persistence, and network
+metadata for validation and diagnostics. Shape describes visual composition;
+posture describes the act; the surface config describes the public host
+decision. Generated artifacts are always Arrow sandbox source trees; legacy
+scripted-plan request fields are rejected before generation.
 
 Summon also derives a `SurfaceContractView` from the compiled policy. It is a
 compact diagnostic and prompt-facing view of the selected policy, narrowed host
@@ -111,9 +113,9 @@ requires a compatible host registry for the same reason.
   validated state and data URLs, not credentials or network endpoints.
 - Treat component definitions as trusted host code. Register only components
   whose data and authority match the selected surface config.
-- Use declarative local state and motion primitives for tabs, disclosures,
-  selection, staged reveal, and visual feedback. Do not grant custom generated
-  scripts.
+- Use Arrow local state and motion primitives for tabs, disclosures, selection,
+  staged reveal, and visual feedback. Do not grant custom generated scripts;
+  legacy script-control request fields are rejected before generation.
 - Run the adversarial browser harness before changing iframe sandbox
   attributes, CSP, postMessage routing, bootstrap startup checks, or script
   execution behavior.

@@ -108,11 +108,11 @@ export function statusToneClass(status?: string): string {
 
 export function devtoolsEventKindClass(kind: string): string {
   if (kind === 'sandbox-spawned' || kind === 'sandbox-ready' || kind === 'rendered') return 'text-good';
-  if (kind === 'sandbox-fatal' || kind === 'sandbox-disposed' || kind === 'intent-rejected' || kind === 'protocol-parse-error') {
+  if (kind === 'sandbox-fatal' || kind === 'sandbox-disposed' || kind === 'tool-rejected' || kind === 'protocol-parse-error') {
     return 'text-danger';
   }
-  if (kind === 'intent-emitted' || kind === 'intent-dispatched' || kind === 'state-pushed') return 'text-info';
-  if (kind === 'intent-settled') return 'text-ink-soft';
+  if (kind === 'tool-called' || kind === 'tool-dispatched' || kind === 'state-pushed') return 'text-info';
+  if (kind === 'tool-settled') return 'text-ink-soft';
   return 'text-ink-muted';
 }
 

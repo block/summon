@@ -1,6 +1,6 @@
 import {
   compileTokenContract,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
   type ProtocolLine,
   type SurfacePlan,
@@ -89,7 +89,7 @@ export interface GhostSurfacePromptOptions {
   mode: 'static' | 'interactive';
   surfacePlan: SurfacePlan;
   shape?: string | null;
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   components?: ComponentPack | null;
 }
 
@@ -350,7 +350,7 @@ function buildSummonFingerprintSurfaceBrief(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): string {
-  const capabilityNames = options.capabilities?.intents.map((intent) => intent.name) ?? [];
+  const toolNames = options.tools?.tools.map((tool) => tool.name) ?? [];
   const componentNames = options.components?.components.map((component) => component.name) ?? [];
   const details = [
     `Product: ${context.product}`,
@@ -359,7 +359,7 @@ function buildSummonFingerprintSurfaceBrief(
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
     `Mode: ${options.mode}`,
     options.shape ? `Response shape hint: ${options.shape}` : null,
-    capabilityNames.length > 0 ? `Granted host capabilities: ${capabilityNames.join(', ')}` : 'Granted host capabilities: none',
+    toolNames.length > 0 ? `Granted host tools: ${toolNames.join(', ')}` : 'Granted host tools: none',
     componentNames.length > 0 ? `Granted host components: ${componentNames.join(', ')}` : null,
   ].filter((line): line is string => Boolean(line));
 
@@ -372,9 +372,9 @@ function buildSummonFingerprintSurfaceBrief(
     '',
     'Generation rules:',
     '',
-    '- Compose from the fingerprint prose, inventory, and composition layers. Prose states intent; inventory supplies material and evidence; composition supplies reusable surface patterns.',
-    '- Do not imitate Ghost UI as a visual style. Use inventory examples only when they support the selected intent and composition pattern.',
-    '- The agent broker controls host authority and capabilities. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
+    '- Compose from the fingerprint prose, inventory, and composition layers. Prose states tool; inventory supplies material and evidence; composition supplies reusable surface patterns.',
+    '- Do not imitate Ghost UI as a visual style. Use inventory examples only when they support the selected tool and composition pattern.',
+    '- The agent broker controls host authority and tools. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
     '- Treat checks as validation constraints, not as content to render.',
   ].join('\n');
 }

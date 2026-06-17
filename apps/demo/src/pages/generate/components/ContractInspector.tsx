@@ -5,7 +5,6 @@ import {
   SURFACE_NETWORK_VALUES,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
-  SURFACE_RUNTIME_VALUES,
   type SurfaceContractView,
   type SurfacePlan,
 } from '@anarchitecture/summon/engine';
@@ -284,9 +283,6 @@ export function ContractInspector({
           <div className="grid grid-cols-1 gap-2" aria-label="Surface config controls">
             <select id="surface-purpose" className={selectClassName} title="Surface purpose" value={surfacePlan.purpose} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, purpose: event.target.value as SurfacePlan['purpose'] }))}>
               {SURFACE_PURPOSE_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
-            <select id="surface-runtime" className={selectClassName} title="Surface runtime" value={surfacePlan.runtime} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, runtime: event.target.value as SurfacePlan['runtime'] }))}>
-              {SURFACE_RUNTIME_VALUES.filter((value) => value === 'arrow').map((value) => <option key={value} value={value}>Arrow sandbox</option>)}
             </select>
             <select id="surface-data" className={selectClassName} title="Surface data" value={surfacePlan.data} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, data: event.target.value as SurfacePlan['data'] }))}>
               {SURFACE_DATA_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}

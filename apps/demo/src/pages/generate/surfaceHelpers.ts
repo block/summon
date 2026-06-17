@@ -1,17 +1,18 @@
 import {
   parseTokenValues,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
   type SurfaceContractView,
   type SurfacePlan,
+  type SurfacePolicy,
 } from '@anarchitecture/summon/engine';
 import { narrowComponentPack } from '../../components.js';
 import {
-  narrowCapabilityPack,
+  narrowToolPack,
   type ActiveContract,
   type ShowcaseScenario,
 } from '../../showcase.js';
-import { baseCapabilityPack, baseComponentPack, scenarioCategoryOrder } from './constants.js';
+import { baseToolPack, baseComponentPack, scenarioCategoryOrder } from './constants.js';
 import type { ModelProviderInfo, StreamOptionsPayload } from './types.js';
 
 export function describeScenario(scenario: ShowcaseScenario): { category: string; description: string } {
@@ -88,8 +89,8 @@ export function scenarioUsesFixedPolicy(scenario: ShowcaseScenario): boolean {
   return false;
 }
 
-export function capabilityPackFor(active: ActiveContract): CapabilityPack {
-  return narrowCapabilityPack(baseCapabilityPack, active.capabilityNames);
+export function toolPackFor(active: ActiveContract): ToolPack {
+  return narrowToolPack(baseToolPack, active.toolNames);
 }
 
 export function componentPackFor(active: ActiveContract): ComponentPack | null {
@@ -102,15 +103,36 @@ export function agentBrokerRequestFor(active: ActiveContract): { enabled: true }
   return active.agentBroker ? { enabled: true } : undefined;
 }
 
-export function explicitSurfaceRequestFor(active: ActiveContract): Pick<StreamOptionsPayload, 'surfacePolicy' | 'surfacePlan'> {
+export function explicitSurfaceRequestFor(active: ActiveContract): Pick<StreamOptionsPayload, 'surfacePolicy'> {
   if (active.surfacePolicy) return { surfacePolicy: active.surfacePolicy };
-  return { surfacePlan: active.surfacePlan };
+  return {};
 }
 
 export function surfaceRequestFor(active: ActiveContract): StreamOptionsPayload {
   const agent = agentBrokerRequestFor(active);
   if (agent) return {};
   return explicitSurfaceRequestFor(active);
+}
+
+export function surfacePolicyForPlan(
+  plan: SurfacePlan,
+  toolNames: string[],
+  componentNames: string[] | undefined,
+): SurfacePolicy {
+  const tier = plan.authority === 'approval-gated'
+    ? 'approval'
+    : plan.data === 'worker'
+      ? 'worker'
+      : plan.data === 'host-resource' || plan.authority !== 'none'
+        ? 'declarative'
+        : 'static';
+  return {
+    tier,
+    purpose: plan.purpose,
+    persistence: plan.persistence,
+    ...(tier !== 'static' && toolNames.length > 0 ? { grants: toolNames } : {}),
+    ...(componentNames?.length ? { components: componentNames } : {}),
+  };
 }
 
 export function ghostSelectionValue(rootId: string): string {
@@ -155,7 +177,7 @@ export function parseSurfaceContractView(value: unknown): SurfaceContractView | 
   return contract as SurfaceContractView;
 }
 
-export function agentIntentText(value: unknown): string {
+export function agentGoalText(value: unknown): string {
   if (!value || typeof value !== 'object') return JSON.stringify(value);
   const item = value as Record<string, unknown>;
   const parts = [
@@ -164,8 +186,8 @@ export function agentIntentText(value: unknown): string {
     typeof item.dataNeed === 'string' ? item.dataNeed : null,
     typeof item.sideEffect === 'string' ? item.sideEffect : null,
   ].filter((part): part is string => Boolean(part));
-  const grants = Array.isArray(item.requestedCapabilities)
-    ? item.requestedCapabilities.filter((name): name is string => typeof name === 'string')
+  const grants = Array.isArray(item.requestedTools)
+    ? item.requestedTools.filter((name): name is string => typeof name === 'string')
     : [];
   const components = Array.isArray(item.requestedComponents)
     ? item.requestedComponents.filter((name): name is string => typeof name === 'string')
@@ -174,7 +196,7 @@ export function agentIntentText(value: unknown): string {
     grants.length ? `tools=${grants.join(',')}` : '',
     components.length ? `components=${components.join(',')}` : '',
   ].filter(Boolean).join(' ');
-  return `${parts.join(' · ') || 'intent'}${access ? ` · ${access}` : ''}`;
+  return `${parts.join(' · ') || 'tool'}${access ? ` · ${access}` : ''}`;
 }
 
 export function agentPolicyText(value: unknown): string {
@@ -184,14 +206,14 @@ export function agentPolicyText(value: unknown): string {
     ? item.surfacePolicy as Record<string, unknown>
     : null;
   const source = typeof item.source === 'string' ? item.source : 'broker';
-  const intentSource = typeof item.intentSource === 'string' ? item.intentSource : '';
+  const goalSource = typeof item.goalSource === 'string' ? item.goalSource : '';
   const tier = typeof policy?.tier === 'string' ? policy.tier : 'policy';
   const purpose = typeof policy?.purpose === 'string' ? policy.purpose : 'inform';
   const fallback = item.fallback === true ? ' · fallback' : '';
-  const rejectedCapabilities = Array.isArray(item.rejectedCapabilities) ? item.rejectedCapabilities.length : 0;
+  const rejectedTools = Array.isArray(item.rejectedTools) ? item.rejectedTools.length : 0;
   const rejectedComponents = Array.isArray(item.rejectedComponents) ? item.rejectedComponents.length : 0;
-  const rejected = rejectedCapabilities + rejectedComponents;
-  const sourceText = intentSource ? `${source}/${intentSource}` : source;
+  const rejected = rejectedTools + rejectedComponents;
+  const sourceText = goalSource ? `${source}/${goalSource}` : source;
   return `${sourceText} · ${tier}/${purpose}${fallback}${rejected ? ` · rejected=${rejected}` : ''}`;
 }
 
@@ -225,7 +247,7 @@ export function buildContractRows({
   active,
   selectedScenario,
   modelProviders,
-  currentAgentIntentSummary,
+  currentAgentGoalSummary,
   currentAgentPolicySummary,
   currentEffectiveSurfacePlan,
   currentShape,
@@ -236,7 +258,7 @@ export function buildContractRows({
   active: ActiveContract;
   selectedScenario: ShowcaseScenario;
   modelProviders: ModelProviderInfo[];
-  currentAgentIntentSummary: string | null;
+  currentAgentGoalSummary: string | null;
   currentAgentPolicySummary: string | null;
   currentEffectiveSurfacePlan: SurfacePlan | null;
   currentShape: string | null;
@@ -246,18 +268,18 @@ export function buildContractRows({
 }) {
   const requested = active.surfacePlan;
   const broker = active.agentBroker
-    ? currentAgentPolicySummary ?? currentAgentIntentSummary ?? 'planning on run'
+    ? currentAgentPolicySummary ?? currentAgentGoalSummary ?? 'planning on run'
     : scenarioUsesFixedPolicy(selectedScenario)
       ? 'fixed policy'
       : 'manual surface config';
   const contract = currentSurfaceContractView;
   const hostTools = contract
     ? contract.tools.map((tool) => tool.name).join(', ') || 'none'
-    : active.capabilityNames.length ? active.capabilityNames.join(', ') : 'none';
+    : active.toolNames.length ? active.toolNames.join(', ') : 'none';
   const components = contract
     ? contract.components.map((component) => component.name).join(', ') || 'none'
     : active.componentNames?.length ? active.componentNames.join(', ') : 'none';
-  const toolCount = contract?.tools.length ?? active.capabilityNames.length;
+  const toolCount = contract?.tools.length ?? active.toolNames.length;
   const componentCount = contract?.components.length ?? active.componentNames?.length ?? 0;
   const validation = currentValidationSummary ?? 'pending';
   const stream = currentStreamHealth ?? 'pending';

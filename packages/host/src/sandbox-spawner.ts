@@ -1,5 +1,5 @@
 import type { EventStore } from '@summon-internal/devtools';
-import type { ValidationCapability } from '@summon-internal/engine';
+import type { ValidationTool } from '@summon-internal/engine';
 import type {
   ArrowNetworkPolicy,
   ArrowSurfaceArtifact,
@@ -40,20 +40,20 @@ export interface SpawnOptions {
   iframe: HTMLIFrameElement;
   artifact: Artifact;
   /**
-   * Host-controlled allowlist of intents this sandbox may emit. The bridge
-   * enforces it; anything else is rejected before reaching `onIntent`.
+   * Host-controlled allowlist of tools this sandbox may emit. The bridge
+   * enforces it; anything else is rejected before reaching `onToolCall`.
    *
    * This is required even for static/read-only surfaces. Pass `[]` when the
-   * host grants no executable intents. `artifact.intents` is advisory only and
+   * host grants no executable tools. `artifact.tools` is advisory only and
    * never becomes executable authority.
    */
-  grantedIntents: string[];
+  grantedTools: string[];
   /**
-   * Host-controlled capability grant metadata. Intent execution remains
-   * governed solely by `grantedIntents`; this metadata is recorded for
+   * Host-controlled tool grant metadata. Tool execution remains
+   * governed solely by `grantedTools`; this metadata is recorded for
    * validation, diagnostics, and component/policy context.
    */
-  grantedCapabilities?: ValidationCapability[];
+  validationTools?: ValidationTool[];
   /** Raw bootstrap source; published consumers can use `@anarchitecture/summon/assets`. */
   bootstrapSource: string;
   /** Raw token CSS source; published consumers can use `@anarchitecture/summon/assets`. */
@@ -69,13 +69,13 @@ export interface SpawnOptions {
    * derive this from generated artifact metadata.
    */
   arrowNetworkPolicy?: ArrowNetworkPolicy;
-  /** Receives only intents that passed the bridge allowlist. */
-  onIntent?: (intent: string, args: Record<string, unknown>) =>
+  /** Receives only tools that passed the bridge allowlist. */
+  onToolCall?: (tool: string, args: Record<string, unknown>) =>
     | void
     | Record<string, unknown>
     | Promise<void | Record<string, unknown>>;
-  /** Receives intents that were rejected by the allowlist. Useful for logging / tests. */
-  onIntentRejected?: (reason: string, raw: unknown) => void;
+  /** Receives tools that were rejected by the allowlist. Useful for logging / tests. */
+  onToolRejected?: (reason: string, raw: unknown) => void;
   /** Receives sandbox-measured component island placeholders. */
   onComponents?: (components: ComponentIslandDescriptor[], sandboxId: string) => void;
   /**
@@ -86,8 +86,8 @@ export interface SpawnOptions {
   onSandboxFatal?: (reason: string) => void;
   /**
    * Optional devtools event store. When set, the spawner pushes lifecycle and
-   * intent-bridge events into it (sandbox-spawned/ready/fatal/disposed,
-   * intent-emitted/rejected, render). Behavior is identical when omitted.
+   * tool-bridge events into it (sandbox-spawned/ready/fatal/disposed,
+   * tool-called/rejected, render). Behavior is identical when omitted.
    */
   events?: EventStore;
 }
@@ -187,9 +187,9 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
   const sandboxId = randomSandboxId();
   const scriptNonce = randomSandboxId();
   // Bridge allowlist comes only from the host grant. A JS caller that omits
-  // grantedIntents fails closed because `new Set(undefined)` grants nothing.
-  const intentAllowlist = new Set(opts.grantedIntents);
-  const grantedCapabilities = opts.grantedCapabilities ?? opts.artifact.capabilities ?? [];
+  // grantedTools fails closed because `new Set(undefined)` grants nothing.
+  const toolAllowlist = new Set(opts.grantedTools);
+  const validationTools = opts.validationTools ?? opts.artifact.validationTools ?? [];
   const arrowNetworkPolicy = opts.arrowNetworkPolicy ?? 'none';
 
   // Deliberately NOT adding allow-same-origin. That keeps the iframe null-origin:
@@ -213,14 +213,14 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     }
   }
 
-  function postIntentResult(requestId: string | undefined, result: {
+  function postToolResult(requestId: string | undefined, result: {
     ok: boolean;
     state?: Record<string, unknown>;
     error?: string;
   }) {
     if (!requestId || !opts.iframe.contentWindow) return;
     opts.iframe.contentWindow.postMessage({
-      type: 'SUMMON_INTENT_RESULT',
+      type: 'SUMMON_TOOL_RESULT',
       sandbox_id: sandboxId,
       request_id: requestId,
       ok: result.ok,
@@ -238,7 +238,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     // delivered to the host page — only those claiming to speak the Summon
     // protocol should reach the sandbox_id gate below.
     if (
-      data.type !== 'SUMMON_INTENT' &&
+      data.type !== 'SUMMON_TOOL_CALL' &&
       data.type !== 'SUMMON_READY' &&
       data.type !== 'SUMMON_RENDERED' &&
       data.type !== 'SUMMON_FATAL' &&
@@ -261,8 +261,8 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     // A nonce miss is silently dropped rather than reported as a rejection.
     // The listener is bound to `window`, so on a page with multiple sandboxes
     // every listener sees every sibling's messages. Those aren't this
-    // sandbox's intents to validate — they're not addressed to it. Reserving
-    // onIntentRejected for messages that *do* claim this sandbox's identity
+    // sandbox's tools to validate — they're not addressed to it. Reserving
+    // onToolRejected for messages that *do* claim this sandbox's identity
     // (and fail later checks) keeps the rejection signal meaningful.
     if (data.sandbox_id !== sandboxId) {
       return;
@@ -270,7 +270,7 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
 
     if (data.type === 'SUMMON_FATAL') {
       // Bootstrap's self-test failed. Tear down: never set ready, never push
-      // state, never deliver intents. The sandbox is structurally unsound.
+      // state, never deliver tools. The sandbox is structurally unsound.
       const reason = typeof data.reason === 'string' ? data.reason : 'unknown';
       window.removeEventListener('message', handleMessage);
       opts.iframe.srcdoc = '';
@@ -317,57 +317,60 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
       return;
     }
 
-    if (data.type === 'SUMMON_INTENT') {
-      const { intent, args } = data;
-      if (typeof intent !== 'string' || !intent) {
+    if (data.type === 'SUMMON_TOOL_CALL') {
+      const { tool, args } = data;
+      if (typeof tool !== 'string' || !tool) {
         opts.events?.push({
-          kind: 'intent-rejected',
+          kind: 'tool-rejected',
           at: Date.now(),
           sandboxId,
-          reason: 'intent not a non-empty string',
+          reason: 'tool not a non-empty string',
           raw: data,
         });
-        opts.onIntentRejected?.('intent not a non-empty string', data);
-        postIntentResult(data.request_id, { ok: false, error: 'intent not a non-empty string' });
+        opts.onToolRejected?.('tool not a non-empty string', data);
+        postToolResult(data.request_id, { ok: false, error: 'tool not a non-empty string' });
         return;
       }
-      if (!intentAllowlist.has(intent)) {
+      if (!toolAllowlist.has(tool)) {
         opts.events?.push({
-          kind: 'intent-rejected',
+          kind: 'tool-rejected',
           at: Date.now(),
           sandboxId,
-          reason: `intent "${intent}" not granted`,
+          reason: `tool "${tool}" not granted`,
           raw: data,
         });
-        opts.onIntentRejected?.(`intent "${intent}" not granted`, data);
-        postIntentResult(data.request_id, { ok: false, error: `intent "${intent}" not granted` });
+        opts.onToolRejected?.(`tool "${tool}" not granted`, data);
+        postToolResult(data.request_id, { ok: false, error: `tool "${tool}" not granted` });
         return;
       }
       const safeArgs =
         args && typeof args === 'object' ? (args as Record<string, unknown>) : {};
       opts.events?.push({
-        kind: 'intent-emitted',
+        kind: 'tool-called',
         at: Date.now(),
         sandboxId,
-        intent,
+        tool,
         args: safeArgs,
       });
-      void Promise.resolve(opts.onIntent?.(intent, safeArgs))
+      void Promise.resolve(opts.onToolCall?.(tool, safeArgs))
         .then((state) => {
-          postIntentResult(data.request_id, {
+          postToolResult(data.request_id, {
             ok: true,
             state: state && typeof state === 'object' && !Array.isArray(state) ? state : {},
           });
         })
         .catch((err) => {
           const error = err instanceof Error ? err.message : String(err);
-          postIntentResult(data.request_id, { ok: false, error });
+          postToolResult(data.request_id, { ok: false, error });
         });
     }
   }
 
   window.addEventListener('message', handleMessage);
 
+  if (opts.artifact.arrow) {
+    pendingDomOps.push({ kind: 'artifact', artifact: opts.artifact.arrow });
+  }
   opts.iframe.srcdoc = buildSrcdoc({
     sandboxId,
     scriptNonce,
@@ -376,17 +379,14 @@ export function spawnSandbox(opts: SpawnOptions): SandboxHandle {
     networkPolicy: arrowNetworkPolicy,
     arrowRuntimeSource: opts.arrowRuntimeSource,
   });
-  if (opts.artifact.arrow) {
-    pendingDomOps.push({ kind: 'artifact', artifact: opts.artifact.arrow });
-  }
 
   opts.events?.push({
     kind: 'sandbox-spawned',
     at: Date.now(),
     sandboxId,
-    grantedIntents: Array.from(intentAllowlist),
-    artifactCapabilities: opts.artifact.capabilities,
-    grantedCapabilities,
+    grantedTools: Array.from(toolAllowlist),
+    artifactTools: opts.artifact.tools,
+    validationTools,
   });
 
   return {

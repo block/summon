@@ -3,6 +3,6 @@ export {
 } from './runtime-validator/protocol.js';
 export type {
   ValidationContext,
-  ValidationCapability,
+  ValidationTool,
   ValidationComponent,
 } from './runtime-validator/types.js';

@@ -85,7 +85,6 @@ export interface StreamResult extends SurfaceStreamResult {
 
 export interface StreamOptionsPayload {
   surfacePolicy?: SurfacePolicy;
-  surfacePlan?: SurfacePlan;
 }
 
 export interface LogEntry {

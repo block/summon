@@ -9,7 +9,7 @@ Use this when wiring Summon into a host app or server. The product model is:
 5. Render it in the sandbox.
 6. Inspect diagnostics when needed.
 
-The TypeScript APIs still use precise runtime names such as capability,
+The TypeScript APIs still use precise runtime names such as tool,
 `SurfacePolicy`, and `PolicyEngine`. In adopter-facing prose, think of them as
 host tools, surface config, and host dispatch.
 
@@ -22,13 +22,13 @@ receives only a description of the tool.
 ```ts
 import { z } from 'zod';
 import {
-  createCapabilityRegistry,
+  createToolRegistry,
   defineAction,
   defineApprovalAction,
   defineDataResource,
 } from '@anarchitecture/summon';
 
-const registry = createCapabilityRegistry([
+const registry = createToolRegistry([
   defineAction({
     name: 'choose_recipe',
     description: 'Remember the recipe the user picked.',
@@ -64,11 +64,11 @@ const registry = createCapabilityRegistry([
   }),
 ]);
 
-const capabilityContract = registry.toContract();
+const toolContract = registry.toContract();
 ```
 
-`capabilityContract.pack` is model-facing. `capabilityContract.validationCapabilities`
-and `capabilityContract.initialState` are runtime-facing.
+`toolContract.pack` is model-facing. `toolContract.validationTools`
+and `toolContract.initialState` are runtime-facing.
 
 Data resources can expose a host-owned empty state when "no results" is a
 merchant-facing condition. Add `stateKeys.empty` and, when array length is not
@@ -191,8 +191,9 @@ safety details, but it cannot widen what the host allowed.
 ### Agent-Driven Configs
 
 When a user is talking to an agent or another harness, the user should not need
-to choose Summon tiers, grants, script policy, or surface plans. Use the server
-broker to translate the prompt into a bounded host-owned config:
+to choose Summon tiers, grants, or surface plans. Generated artifacts always run
+through the Arrow sandbox; hosts grant tools through policy. Use the
+server broker to translate the prompt into a bounded host-owned config:
 
 ```ts
 import { runAgentSurfaceGeneration } from '@anarchitecture/summon-server';
@@ -200,7 +201,7 @@ import { runAgentSurfaceGeneration } from '@anarchitecture/summon-server';
 await runAgentSurfaceGeneration({
   prompt,
   modelProvider,
-  capabilities: capabilityContract.pack,
+  tools: toolContract.pack,
   components: componentContract.pack,
   hostPolicyResolver: ({ proposedSurfacePolicy }) => {
     return productPolicy.narrow(proposedSurfacePolicy);
@@ -208,13 +209,13 @@ await runAgentSurfaceGeneration({
 }, emit);
 ```
 
-The broker emits `/agent-intent` and `/agent-policy-resolution` diagnostics,
-including whether the intent came from a provided value, model classifier, or
+The broker emits `/agent-goal` and `/agent-policy-resolution` diagnostics,
+including whether the goal came from a provided value, model classifier, or
 deterministic fallback. Generation then continues through the normal
 `/surface-policy`, `/surface-plan`, and `/surface-contract` path.
-`SurfaceIntent` is an experimental planning shape, not an authority contract.
-The inferred intent is advisory: the host resolver and `compileSurfacePolicy()`
-still decide which tools, components, runtime, and approval paths are actually
+`SurfaceGoal` is an experimental planning shape, not an authority contract.
+The inferred goal is advisory: the host resolver and `compileSurfacePolicy()`
+still decide which tools, components, data, authority, and approval paths are actually
 available.
 
 ### Surface Contract View
@@ -226,7 +227,8 @@ this generated surface do?"
 
 The view includes:
 
-- The normalized host policy, compiled `SurfacePlan`, mode, and script policy.
+- The normalized host policy, compiled `SurfacePlan`, and derived static or
+  interactive mode.
 - Narrowed host tools/resources, including triggers, schemas, state keys, result
   schema, and surface data/authority.
 - Narrowed trusted components, including prop schema, sizing, and surface
@@ -265,7 +267,7 @@ await runSurfaceGeneration({
   layout,
   // Full host tool/component catalog. Summon narrows it from the surface config
   // before constructing model-facing and validation contracts.
-  capabilities: capabilityContract.pack,
+  tools: toolContract.pack,
   components: componentContract.pack,
   activeTokensCss: direction?.tokensCss ?? null,
   preludeLines: [
@@ -304,14 +306,14 @@ import {
 } from '@anarchitecture/summon/assets';
 
 const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
-  capabilities: capabilityContract.pack,
+  tools: toolContract.pack,
   components: componentContract.pack,
 });
 
 let sandbox: SandboxHandle | null = null;
-const grantedCapabilities = capabilityContract.validationCapabilities;
+const validationTools = toolContract.validationTools;
 const policy = new PolicyEngine({
-  initialState: capabilityContract.initialState,
+  initialState: toolContract.initialState,
   handlers: registry.toPolicyHandlers(),
   onStateChange: (state) => sandbox?.pushState(state),
 });
@@ -324,23 +326,23 @@ const islands = createComponentIslandRegistry({
 sandbox = spawnSandbox({
   iframe,
   artifact: {
-    intents: policy.intents,
-    capabilities: grantedCapabilities,
+    tools: policy.tools,
+    validationTools: validationTools,
     components: componentContract.validationComponents,
     initialState: policy.getState(),
   },
-  grantedIntents: policy.intents,
-  grantedCapabilities,
+  grantedTools: policy.tools,
+  validationTools,
   bootstrapSource,
   tokensSource,
-  onIntent: (intent, args) => {
-    void policy.dispatch(intent, args);
+  onToolCall: (tool, args) => {
+    void policy.dispatch(tool, args);
   },
   onComponents: (components, sandboxId) => {
     islands.sync(components, {
       sandboxId,
-      emitIntent: (intent, args = {}) => {
-        void policy.dispatch(intent, args);
+      callTool: (tool, args = {}) => {
+        void policy.dispatch(tool, args);
       },
     });
   },
@@ -351,7 +353,7 @@ const response = await fetch('/api/generate', {
   body: JSON.stringify({
     prompt,
     surfacePolicy,
-    capabilities: capabilityContract.pack,
+    tools: toolContract.pack,
     components: componentContract.pack,
   }),
 });
@@ -387,12 +389,12 @@ host sends an accepted artifact and `rendered` when the iframe has actually
 mounted it. If the Stream drawer shows an accepted `/artifact` but the surface
 is blank, check those Devtools events before changing sandbox code.
 
-Generated data-resource UI should invoke host tools through the Arrow host
+Generated data-resource UI should callTool host tools through the Arrow host
 bridge and render state returned by the host:
 
 ```ts
 import { html, reactive } from '@arrow-js/core';
-import { getState, invoke, onState } from 'host-bridge:summon';
+import { getState, callTool, onState } from 'host-bridge:summon';
 
 const state = reactive({ loading: false, results: [], error: '' });
 
@@ -407,7 +409,7 @@ onState(syncHostState);
 
 async function search(event: Event) {
   event.preventDefault();
-  const result = await invoke('search', { query: 'recipes' });
+  const result = await callTool('search', { query: 'recipes' });
   if (result.ok) syncHostState(result.state);
   else state.error = result.error ?? 'Search failed';
 }

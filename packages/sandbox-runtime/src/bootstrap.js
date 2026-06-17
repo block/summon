@@ -1,7 +1,6 @@
 // Summon sandbox bootstrap — runs FIRST inside every sandbox iframe, before any
-// Arrow artifact runtime. Installs window.sandbox (frozen) as the trusted
-// bridge for controlled host capabilities. Generated artifacts do not receive
-// executable scripts.
+// Arrow artifact runtime. The generated artifact talks to the host only through
+// the `host-bridge:summon` virtual module supplied by the Arrow runtime.
 (() => {
   'use strict';
 
@@ -11,7 +10,7 @@
     ? 'restricted-fetch'
     : 'none';
   if (!SANDBOX_ID || typeof SANDBOX_ID !== 'string') {
-    // No ID means host didn't spawn this correctly. Refuse to install SDK.
+    // No ID means host didn't spawn this correctly. Refuse to boot.
     return;
   }
 
@@ -76,8 +75,8 @@
   let componentLayoutSignature = '';
   let componentResizeObserver = null;
   const componentResizeObserved = new Set();
-  const MAX_PENDING_INTENT_RESULTS = 32;
-  const pendingIntentResults = new Map();
+  const MAX_PENDING_TOOL_RESULTS = 32;
+  const pendingToolResults = new Map();
   let arrowTeardown = null;
   let renderRevision = 0;
 
@@ -97,16 +96,6 @@
     }
   }
 
-  function emit(intent, args) {
-    if (typeof intent !== 'string' || !intent) return;
-    PARENT.postMessage({
-      type: 'SUMMON_INTENT',
-      sandbox_id: SANDBOX_ID,
-      intent,
-      args: args == null ? {} : args,
-    }, '*');
-  }
-
   function emitFatal(reason) {
     try {
       PARENT.postMessage({
@@ -117,28 +106,28 @@
     } catch (_) { /* parent gone */ }
   }
 
-  function invokeIntent(intent, args) {
-    if (typeof intent !== 'string' || !intent) {
-      return Promise.resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'intent not a non-empty string' });
+  function callToolInternal(tool, args) {
+    if (typeof tool !== 'string' || !tool) {
+      return Promise.resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'tool not a non-empty string' });
     }
-    if (pendingIntentResults.size >= MAX_PENDING_INTENT_RESULTS) {
-      return Promise.resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'too many pending intents' });
+    if (pendingToolResults.size >= MAX_PENDING_TOOL_RESULTS) {
+      return Promise.resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'too many pending tools' });
     }
     const requestId = 'arrow-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
     return new Promise((resolve) => {
       const timeout = window.setTimeout(function () {
-        pendingIntentResults.delete(requestId);
-        resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'intent timed out' });
+        pendingToolResults.delete(requestId);
+        resolve({ ok: false, state: cloneStateSnapshot(currentState), error: 'tool timed out' });
       }, 15000);
-      pendingIntentResults.set(requestId, function (result) {
+      pendingToolResults.set(requestId, function (result) {
         window.clearTimeout(timeout);
         resolve(result);
       });
       PARENT.postMessage({
-        type: 'SUMMON_INTENT',
+        type: 'SUMMON_TOOL_CALL',
         sandbox_id: SANDBOX_ID,
         request_id: requestId,
-        intent,
+        tool,
         args: args == null || typeof args !== 'object' ? {} : args,
       }, '*');
     });
@@ -178,8 +167,8 @@
         },
         {
           output: function (payload) {
-            if (payload && typeof payload === 'object' && payload.type === 'intent') {
-              void invokeIntent(payload.intent, payload.args);
+            if (payload && typeof payload === 'object' && payload.type === 'tool') {
+              void callToolInternal(payload.tool, payload.args);
             }
           },
         },
@@ -191,8 +180,8 @@
             onState: function (cb) {
               return onState(cb);
             },
-            invoke: function (intent, args) {
-              return invokeIntent(intent, args);
+            callTool: function (tool, args) {
+              return callToolInternal(tool, args);
             },
           },
         },
@@ -425,12 +414,12 @@
       return;
     }
 
-    if (data.type === 'SUMMON_INTENT_RESULT') {
+    if (data.type === 'SUMMON_TOOL_RESULT') {
       var requestId = data.request_id;
       if (typeof requestId !== 'string') return;
-      var resolve = pendingIntentResults.get(requestId);
+      var resolve = pendingToolResults.get(requestId);
       if (!resolve) return;
-      pendingIntentResults.delete(requestId);
+      pendingToolResults.delete(requestId);
       resolve({
         ok: data.ok === true,
         state: data.state && typeof data.state === 'object' ? cloneStateSnapshot(data.state) : cloneStateSnapshot(currentState),
@@ -439,20 +428,6 @@
       return;
     }
 
-  });
-
-  const sdk = Object.freeze({
-    get state() { return currentState; },
-    onState,
-    emit,
-  });
-
-  // Install as a non-configurable property so artifact JS can't reassign.
-  Object.defineProperty(window, 'sandbox', {
-    value: sdk,
-    writable: false,
-    configurable: false,
-    enumerable: true,
   });
 
   let readySent = false;

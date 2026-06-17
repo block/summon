@@ -1,6 +1,6 @@
 /**
  * Sample asks for the demo. Every entry is phrased as a real-life user
- * intent — wanting to do something, see something, decide something, or
+ * tool — wanting to do something, see something, decide something, or
  * a mini-app for a real situation. **Never** a UI description ("a form
  * with three fields…"); the LLM infers shape, layout, and interactivity
  * from the ask. The point of this file is to stress-test that inference.

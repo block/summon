@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseCapabilityPack } from './capability-pack.js';
+import { parseToolPack } from './tool-pack.js';
 
-test('parseCapabilityPack preserves valid surface metadata', () => {
-  const pack = parseCapabilityPack({
-    intents: [
+test('parseToolPack preserves valid surface metadata', () => {
+  const pack = parseToolPack({
+    tools: [
       {
         name: 'analysis',
         description: 'Run worker analysis.',
@@ -26,15 +26,15 @@ test('parseCapabilityPack preserves valid surface metadata', () => {
     ],
   });
 
-  assert.deepEqual(pack?.intents.map((intent) => intent.surface), [
+  assert.deepEqual(pack?.tools.map((tool) => tool.surface), [
     { data: 'worker', authority: 'read' },
     { authority: 'approval-gated' },
   ]);
 });
 
-test('parseCapabilityPack drops invalid surface fields without dropping intent', () => {
-  const pack = parseCapabilityPack({
-    intents: [
+test('parseToolPack drops invalid surface fields without dropping tool', () => {
+  const pack = parseToolPack({
+    tools: [
       {
         name: 'lookup',
         description: 'Lookup something.',
@@ -53,7 +53,7 @@ test('parseCapabilityPack drops invalid surface fields without dropping intent',
     ],
   });
 
-  assert.equal(pack?.intents.length, 2);
-  assert.equal(pack?.intents[0]?.surface, undefined);
-  assert.deepEqual(pack?.intents[1]?.surface, { data: 'worker' });
+  assert.equal(pack?.tools.length, 2);
+  assert.equal(pack?.tools[0]?.surface, undefined);
+  assert.deepEqual(pack?.tools[1]?.surface, { data: 'worker' });
 });

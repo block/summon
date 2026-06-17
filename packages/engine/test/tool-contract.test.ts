@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  buildCapabilitiesBlock,
-  compileCapabilityContract,
-  formatCapabilityProtocolContract,
+  buildToolsBlock,
+  compileToolContract,
+  formatToolProtocolContract,
 } from '../src/index.ts';
 
-test('capability protocol contract documents Arrow host bridge', () => {
-  const text = formatCapabilityProtocolContract();
+test('tool protocol contract documents Arrow host bridge', () => {
+  const text = formatToolProtocolContract();
 
   assert.match(text, /Arrow host bridge/);
   assert.match(text, /host-bridge:summon/);
-  assert.match(text, /invoke/);
+  assert.match(text, /callTool/);
   assert.match(text, /getState/);
   assert.match(text, /onState/);
   assert.match(text, /reactive\(\)/);
@@ -20,9 +20,9 @@ test('capability protocol contract documents Arrow host bridge', () => {
   assert.doesNotMatch(text, /data-summon-bind/);
 });
 
-test('capability compiler returns prompt, pack, intent names, and validation metadata', () => {
-  const contract = compileCapabilityContract({
-    intents: [
+test('tool compiler returns prompt, pack, tool names, and validation metadata', () => {
+  const contract = compileToolContract({
+    tools: [
       {
         name: 'search',
         description: 'Run a search.',
@@ -47,8 +47,8 @@ test('capability compiler returns prompt, pack, intent names, and validation met
     ],
   });
 
-  assert.deepEqual(contract.intentNames, ['search', 'save']);
-  assert.deepEqual(contract.validationCapabilities, [
+  assert.deepEqual(contract.toolNames, ['search', 'save']);
+  assert.deepEqual(contract.validationTools, [
     {
       name: 'search',
       kind: 'resource',
@@ -71,13 +71,13 @@ test('capability compiler returns prompt, pack, intent names, and validation met
     saveDone: false,
     saveError: null,
   });
-  assert.equal(contract.promptBlock?.id, 'capabilities');
+  assert.equal(contract.promptBlock?.id, 'tools');
   assert.match(contract.promptBlock?.text ?? '', /Available data resources/);
 });
 
-test('capabilities block renders Arrow-native protocol docs', () => {
-  const text = buildCapabilitiesBlock({
-    intents: [
+test('tools block renders Arrow-native protocol docs', () => {
+  const text = buildToolsBlock({
+    tools: [
       {
         name: 'search',
         description: 'Run a search.',
@@ -110,7 +110,7 @@ test('capabilities block renders Arrow-native protocol docs', () => {
       },
       {
         name: 'arrow search',
-        code: 'import { invoke, onState } from "host-bridge:summon";\nconst run = () => invoke("search", { query: "boots" });\nonState(() => {});',
+        code: 'import { callTool, onState } from "host-bridge:summon";\nconst run = () => callTool("search", { query: "boots" });\nonState(() => {});',
       },
     ],
   });
@@ -119,7 +119,7 @@ test('capabilities block renders Arrow-native protocol docs', () => {
   assert.match(text, /Arrow-native interactivity/);
   assert.match(text, /host-bridge:summon/);
   assert.match(text, /reactive\(\)/);
-  assert.match(text, /invoke/);
+  assert.match(text, /callTool/);
   assert.match(text, /getState/);
   assert.match(text, /onState/);
   assert.match(text, /Default data: `\[\]`/);
@@ -136,9 +136,9 @@ test('capabilities block renders Arrow-native protocol docs', () => {
   assert.match(text, /arrow search/);
 });
 
-test('capabilities block filters script patterns even with script allow policy', () => {
-  const text = buildCapabilitiesBlock({
-    intents: [
+test('tools block filters script patterns', () => {
+  const text = buildToolsBlock({
+    tools: [
       {
         name: 'choose',
         description: 'Choose an option.',
@@ -152,9 +152,9 @@ test('capabilities block filters script patterns even with script allow policy',
         code: '<button id="x">Pick</button><script>document.getElementById("x")?.addEventListener("click", () => sandbox.emit("choose", {option:"A"}))</script>',
       },
     ],
-  }, { scriptPolicy: 'allow' });
+  });
 
-  assert.match(text, /Script policy — Arrow host bridge only/);
+  assert.match(text, /Host tool bridge/);
   assert.doesNotMatch(text, /Rules for scripts/);
   assert.doesNotMatch(text, /document\.getElementById/);
 });

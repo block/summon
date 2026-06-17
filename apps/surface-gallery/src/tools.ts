@@ -1,5 +1,5 @@
 import {
-  createCapabilityRegistry,
+  createToolRegistry,
   defineAction,
   defineApprovalAction,
   defineDataResource,
@@ -7,12 +7,12 @@ import {
   defineWorkerResource,
   type ApprovalDecision,
   type ApprovalRequest,
-  type CapabilityDefinition,
-  type CapabilityRegistry,
+  type ToolDefinition,
+  type ToolRegistry,
 } from '@anarchitecture/summon';
 import { z } from 'zod';
 
-export interface GalleryCapabilityOptions {
+export interface GalleryToolOptions {
   onLog?: (message: string) => void;
   onStatePreview?: (state: Record<string, unknown>) => void;
   modelSelection?: () => object;
@@ -55,23 +55,23 @@ interface RefundPlan {
   rail: string;
 }
 
-export function createGalleryCapabilityRegistry(
-  capabilityNames?: readonly string[],
-  opts: GalleryCapabilityOptions = {},
-): CapabilityRegistry {
-  const allowed = capabilityNames ? new Set(capabilityNames) : null;
-  return createCapabilityRegistry(
-    galleryCapabilityDefinitions(opts).filter((definition) =>
+export function createGalleryToolRegistry(
+  toolNames?: readonly string[],
+  opts: GalleryToolOptions = {},
+): ToolRegistry {
+  const allowed = toolNames ? new Set(toolNames) : null;
+  return createToolRegistry(
+    galleryToolDefinitions(opts).filter((definition) =>
       allowed ? allowed.has(definition.name) : true,
     ),
   );
 }
 
-export function allGalleryCapabilityNames(): string[] {
-  return galleryCapabilityDefinitions({}).map((definition) => definition.name);
+export function allGalleryToolNames(): string[] {
+  return galleryToolDefinitions({}).map((definition) => definition.name);
 }
 
-function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): CapabilityDefinition<any>[] {
+function galleryToolDefinitions(opts: GalleryToolOptions): ToolDefinition<any>[] {
   const log = opts.onLog ?? (() => {});
   const statePreview = opts.onStatePreview ?? (() => {});
   const choices: string[] = [];
@@ -92,7 +92,7 @@ function galleryCapabilityDefinitions(opts: GalleryCapabilityOptions): Capabilit
         {
           name: 'Search resource',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ searching: false, results: [] as Array<{ title: string; snippet: string }>, searchError: "", noResults: false });
 onState((hostState) => {
@@ -105,7 +105,7 @@ onState((hostState) => {
 async function search(event: SubmitEvent) {
   event.preventDefault();
   const query = String(new FormData(event.currentTarget as HTMLFormElement).get("query") ?? "");
-  await invoke("search", { query });
+  await callTool("search", { query });
 }
 
 export default html\`
@@ -150,7 +150,7 @@ export default html\`
         {
           name: 'Save a choice',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ choosePending: false, chooseError: "", lastChoice: "" });
 onState((hostState) => {
@@ -160,7 +160,7 @@ onState((hostState) => {
 });
 
 async function choose() {
-  await invoke("choose", { option: "Balanced path" });
+  await callTool("choose", { option: "Balanced path" });
 }
 
 export default html\`
@@ -239,7 +239,7 @@ export default html\`
         {
           name: 'Approval-gated refund',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ refundApprovalPending: false, refundApprovalDenied: false, refundApprovalError: "", refundIssued: false, refundAmount: "" });
 onState((hostState) => {
@@ -251,7 +251,7 @@ onState((hostState) => {
 });
 
 async function refund() {
-  await invoke("issue_refund", { title: "Refund disputed transaction", amount: "$842.15" });
+  await callTool("issue_refund", { title: "Refund disputed transaction", amount: "$842.15" });
 }
 
 export default html\`
@@ -286,7 +286,7 @@ export default html\`
         {
           name: 'Background analysis',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ analysisLoading: false, analysisResult: null as null | { topic: string; score: number; summary: string }, analysisError: "" });
 onState((hostState) => {
@@ -298,7 +298,7 @@ onState((hostState) => {
 async function analyze(event: SubmitEvent) {
   event.preventDefault();
   const topic = String(new FormData(event.currentTarget as HTMLFormElement).get("topic") ?? "");
-  await invoke("analysis", { topic });
+  await callTool("analysis", { topic });
 }
 
 export default html\`

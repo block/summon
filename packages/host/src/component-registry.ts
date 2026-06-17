@@ -7,14 +7,14 @@ import type {
 } from '@summon-internal/engine';
 import { compileComponentContract } from '@summon-internal/engine';
 import type { ZodType, ZodTypeAny } from 'zod';
-import { formatZodSchema } from './capability-registry.js';
+import { formatZodSchema } from './tool-registry.js';
 
 export interface ComponentRenderContext<T = unknown> {
   container: HTMLElement;
   props: T;
   componentId: string;
   sandboxId: string;
-  emitIntent: (intent: string, args?: Record<string, unknown>) => void;
+  callTool: (tool: string, args?: Record<string, unknown>) => void;
 }
 
 export type ComponentRenderer<T = unknown> = (ctx: ComponentRenderContext<T>) => void;

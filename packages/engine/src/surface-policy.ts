@@ -3,17 +3,15 @@ import {
   type ContractIssue,
 } from './contracts.js';
 import type {
-  CapabilityPack,
+  ToolPack,
   ComponentPack,
-  IntentSpec,
-  ScriptPolicy,
+  ToolSpec,
 } from './prompt.js';
 import {
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   type ComponentSurface,
   type SurfaceAuthority,
-  type SurfaceCeiling,
   type SurfaceData,
   type SurfacePersistence,
   type SurfacePlan,
@@ -47,18 +45,16 @@ export interface NormalizedSurfacePolicy {
 }
 
 export interface CompileSurfacePolicyOptions {
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   components?: ComponentPack | null;
 }
 
 export interface CompiledSurfacePolicy {
   policy: NormalizedSurfacePolicy;
-  capabilities: CapabilityPack | null;
+  tools: ToolPack | null;
   components: ComponentPack | null;
   mode: SurfacePlanMode;
-  scriptPolicy: ScriptPolicy;
   surfacePlan: SurfacePlan;
-  surfaceCeiling: SurfaceCeiling;
   issues: ContractIssue[];
 }
 
@@ -109,23 +105,23 @@ export function compileSurfacePolicy(
     ));
   }
 
-  const capabilityPack = options.capabilities ?? null;
+  const toolPack = options.tools ?? null;
   const componentPack = options.components ?? null;
-  const intentsByName = new Map((capabilityPack?.intents ?? []).map((intent) => [intent.name, intent]));
+  const toolsByName = new Map((toolPack?.tools ?? []).map((tool) => [tool.name, tool]));
   const componentsByName = new Map((componentPack?.components ?? []).map((component) => [component.name, component]));
 
-  const selectedIntents: IntentSpec[] = [];
+  const selectedTools: ToolSpec[] = [];
   for (const grant of effective.grants) {
-    const intent = intentsByName.get(grant);
-    if (!intent) {
+    const tool = toolsByName.get(grant);
+    if (!tool) {
       issues.push(surfacePolicyIssue(
         'surface-policy-unknown-grant',
         `SurfacePolicy references unknown grant "${grant}"`,
       ));
       continue;
     }
-    selectedIntents.push(intent);
-    validateIntentForTier(effective.tier, intent, issues);
+    selectedTools.push(tool);
+    validateToolForTier(effective.tier, tool, issues);
   }
 
   const selectedComponents: ComponentPack['components'] = [];
@@ -142,57 +138,55 @@ export function compileSurfacePolicy(
     validateComponentForTier(effective.tier, component.surface, component.name, issues);
   }
 
-  validateTierRequirements(effective, selectedIntents, selectedComponents, issues);
+  validateTierRequirements(effective, selectedTools, selectedComponents, issues);
 
-  const surfacePlan = planForPolicy(effective, selectedIntents, selectedComponents);
+  const surfacePlan = planForPolicy(effective, selectedTools, selectedComponents);
   return {
     policy: effective,
-    capabilities: narrowCapabilityPack(capabilityPack, selectedIntents, effective.grants),
+    tools: narrowToolPack(toolPack, selectedTools, effective.grants),
     components: selectedComponents.length > 0 ? { components: selectedComponents } : null,
     mode: effective.tier === 'static' ? 'static' : 'interactive',
-    scriptPolicy: 'forbid',
     surfacePlan,
-    surfaceCeiling: exactCeiling(surfacePlan),
     issues,
   };
 }
 
-function validateIntentForTier(
+function validateToolForTier(
   tier: SurfaceTier,
-  intent: IntentSpec,
+  tool: ToolSpec,
   issues: ContractIssue[],
 ): void {
-  const data = intentData(intent);
-  const authority = intentAuthority(intent);
+  const data = toolData(tool);
+  const authority = toolAuthority(tool);
   if (tier === 'static') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
-      `Static SurfacePolicy cannot use grant "${intent.name}"`,
+      `Static SurfacePolicy cannot use grant "${tool.name}"`,
     ));
     return;
   }
   if (tier === 'declarative' && data === 'worker') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
-      `${tier} SurfacePolicy cannot use worker-backed grant "${intent.name}"`,
+      `${tier} SurfacePolicy cannot use worker-backed grant "${tool.name}"`,
     ));
   }
   if (tier === 'declarative' && authority === 'approval-gated') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
-      `${tier} SurfacePolicy cannot use approval-gated grant "${intent.name}"`,
+      `${tier} SurfacePolicy cannot use approval-gated grant "${tool.name}"`,
     ));
   }
   if (tier === 'worker' && data !== 'worker') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
-      `Worker SurfacePolicy can only use worker-backed grants; "${intent.name}" is not worker-backed`,
+      `Worker SurfacePolicy can only use worker-backed grants; "${tool.name}" is not worker-backed`,
     ));
   }
   if (tier === 'approval' && authority !== 'approval-gated') {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-exceeded',
-      `Approval SurfacePolicy can only use approval-gated grants; "${intent.name}" is ${authority}`,
+      `Approval SurfacePolicy can only use approval-gated grants; "${tool.name}" is ${authority}`,
     ));
   }
 }
@@ -239,13 +233,13 @@ function validateComponentForTier(
 
 function validateTierRequirements(
   policy: NormalizedSurfacePolicy,
-  intents: IntentSpec[],
+  tools: ToolSpec[],
   components: ComponentPack['components'],
   issues: ContractIssue[],
 ): void {
   if (
     policy.tier === 'worker' &&
-    !intents.some((intent) => intentData(intent) === 'worker') &&
+    !tools.some((tool) => toolData(tool) === 'worker') &&
     !components.some((component) => (component.surface?.data ?? 'embedded') === 'worker')
   ) {
     issues.push(surfacePolicyIssue(
@@ -255,7 +249,7 @@ function validateTierRequirements(
   }
   if (
     policy.tier === 'approval' &&
-    !intents.some((intent) => intentAuthority(intent) === 'approval-gated')
+    !tools.some((tool) => toolAuthority(tool) === 'approval-gated')
   ) {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-requirement',
@@ -266,7 +260,7 @@ function validateTierRequirements(
 
 function planForPolicy(
   policy: NormalizedSurfacePolicy,
-  intents: IntentSpec[],
+  tools: ToolSpec[],
   components: ComponentPack['components'],
 ): SurfacePlan {
   if (policy.tier === 'static') {
@@ -283,13 +277,13 @@ function planForPolicy(
   const data = policy.tier === 'worker'
     ? 'worker'
     : strongestData([
-        ...intents.map(intentData),
+        ...tools.map(toolData),
         ...components.map((component) => component.surface?.data ?? 'embedded'),
       ]);
   const authority = policy.tier === 'approval'
     ? 'approval-gated'
     : strongestAuthority([
-        ...intents.map(intentAuthority),
+        ...tools.map(toolAuthority),
         ...components.map((component) => component.surface?.authority ?? 'none'),
       ]);
 
@@ -303,30 +297,30 @@ function planForPolicy(
   };
 }
 
-function narrowCapabilityPack(
-  pack: CapabilityPack | null,
-  intents: IntentSpec[],
+function narrowToolPack(
+  pack: ToolPack | null,
+  tools: ToolSpec[],
   selectedGrantNames: string[],
-): CapabilityPack | null {
-  if (!pack || intents.length === 0) return null;
+): ToolPack | null {
+  if (!pack || tools.length === 0) return null;
   const grants = new Set(selectedGrantNames);
   const patterns = (pack.patterns ?? []).filter((pattern) =>
-    pattern.intent === undefined || grants.has(pattern.intent),
+    pattern.tool === undefined || grants.has(pattern.tool),
   );
   return {
-    intents,
+    tools,
     ...(patterns.length > 0 ? { patterns } : {}),
   };
 }
 
-function intentData(intent: IntentSpec): SurfaceData {
-  return intent.surface?.data ??
-    (intent.kind === 'resource' ? 'host-resource' : 'embedded');
+function toolData(tool: ToolSpec): SurfaceData {
+  return tool.surface?.data ??
+    (tool.kind === 'resource' ? 'host-resource' : 'embedded');
 }
 
-function intentAuthority(intent: IntentSpec): SurfaceAuthority {
-  return intent.surface?.authority ??
-    (intent.kind === 'resource' ? 'read' : 'host-action');
+function toolAuthority(tool: ToolSpec): SurfaceAuthority {
+  return tool.surface?.authority ??
+    (tool.kind === 'resource' ? 'read' : 'host-action');
 }
 
 function strongestData(values: SurfaceData[]): SurfaceData {
@@ -340,17 +334,6 @@ function strongestAuthority(values: SurfaceAuthority[]): SurfaceAuthority {
   if (values.includes('host-action')) return 'host-action';
   if (values.includes('read')) return 'read';
   return 'none';
-}
-
-function exactCeiling(plan: SurfacePlan): SurfaceCeiling {
-  return {
-    purposes: [plan.purpose],
-    runtimes: [plan.runtime],
-    data: [plan.data],
-    authorities: [plan.authority],
-    persistences: [plan.persistence],
-    networks: [plan.network ?? 'none'],
-  };
 }
 
 function surfacePolicyIssue(code: string, message: string): ContractIssue {

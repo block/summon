@@ -38,7 +38,7 @@ export {
   SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   buildDirectionBlock,
   buildLayoutBlock,
-  buildCapabilitiesBlock,
+  buildToolsBlock,
   buildComponentsBlock,
   buildOverrideBlock,
   buildSurfaceContractBlock,
@@ -48,22 +48,20 @@ export type {
   DirectionInput,
   SummonLayout,
   SummonLayoutSlot,
-  IntentSpec,
+  ToolSpec,
   DataResourceSpec,
-  CapabilityPattern,
-  CapabilityPack,
+  ToolPattern,
+  ToolPack,
   ComponentExample,
   ComponentPack,
   ComponentSizing,
   ComponentSpec,
-  CapabilitiesBlockOptions,
-  ScriptPolicy,
   TokenOverride,
 } from './prompt.js';
 export {
   compileTokenContract,
   compileDirectionContract,
-  compileCapabilityContract,
+  compileToolContract,
   compileComponentContract,
   compileSystemContracts,
   contractIssue,
@@ -71,7 +69,7 @@ export {
   withIssueSeverity,
 } from './contracts.js';
 export type {
-  CompiledCapabilityContract,
+  CompiledToolContract,
   CompiledComponentContract,
   CompiledDirectionContract,
   CompiledSystemContracts,
@@ -80,7 +78,6 @@ export type {
   ContractIssueSeverity,
   ContractIssueSource,
   ContractPromptBlock,
-  CapabilityContractOptions,
   DirectionContractInput,
   GhostGenerationContext,
   GhostGenerationSource,
@@ -90,16 +87,16 @@ export type {
 } from './contracts.js';
 export {
   defaultTriggersForKind,
-  formatCapabilityProtocolContract,
+  formatToolProtocolContract,
   hasCompleteResourceStateKeys,
-} from './capability-contract.js';
+} from './tool-contract.js';
 export type {
   ActionStateKeys,
-  CapabilityKind,
-  CapabilityStateKeys,
-  CapabilityTrigger,
+  ToolKind,
+  ToolStateKeys,
+  ToolTrigger,
   ResourceStateKeys,
-} from './capability-contract.js';
+} from './tool-contract.js';
 export {
   TOKEN_CONTRACT,
   REQUIRED_TOKENS,
@@ -131,41 +128,31 @@ export {
 } from './runtime-validator.js';
 export type {
   ValidationContext,
-  ValidationCapability,
+  ValidationTool,
   ValidationComponent,
 } from './runtime-validator.js';
 export {
-  DEFAULT_SURFACE_CEILING,
   DEFAULT_SURFACE_PLAN,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
-  SURFACE_RUNTIME_VALUES,
   SURFACE_NETWORK_VALUES,
   buildSurfacePlanBlock,
-  constrainSurfacePlan,
-  deriveSurfacePlanControls,
   inferSurfacePlan,
-  normalizeSurfaceCeiling,
   normalizeSurfacePlan,
   suggestSurfacePlan,
-  surfacePlanScriptPolicy,
-  surfacePlanWithinCeiling,
 } from './surface-plan.js';
 export type {
-  CapabilitySurface,
+  ToolSurface,
   ComponentSurface,
   SurfaceAuthority,
-  SurfaceCeiling,
   SurfaceData,
   SurfacePersistence,
   SurfacePlan,
-  SurfacePlanControls,
   SurfacePlanInferenceInput,
   SurfacePlanMode,
   SurfacePurpose,
-  SurfaceRuntime,
   SurfaceNetwork,
 } from './surface-plan.js';
 export {

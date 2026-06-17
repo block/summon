@@ -64,7 +64,7 @@ the canonical `.ghost/fingerprint/manifest.yml` package layout. The Surface
 Gallery adds a Ghost fingerprint preset for each root, and the Generate
 workbench adds a `Fingerprint · <id>` option. A fingerprint run is not a bundled
 visual direction: Summon consumes the Ghost relay brief as product design
-direction, then applies host-owned policy, capabilities, and token CSS.
+direction, then applies host-owned policy, tools, and token CSS.
 
 The full guided path lives in
 [docs/adoption/quickstart.md](docs/adoption/quickstart.md).

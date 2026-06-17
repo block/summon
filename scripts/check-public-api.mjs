@@ -5,21 +5,21 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 const rootDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 
 const expectedRootExports = [
-  'IntentArgsError',
+  'ToolArgsError',
   'PolicyEngine',
   'SURFACE_PERSISTENCE_VALUES',
   'SURFACE_PURPOSE_VALUES',
   'SURFACE_TIER_VALUES',
   'compileSurfaceContractView',
   'compileSurfacePolicy',
-  'createCapabilityRegistry',
+  'createToolRegistry',
   'createComponentRegistry',
   'defineAction',
   'defineApprovalAction',
-  'defineCapability',
+  'defineTool',
   'defineComponent',
   'defineDataResource',
-  'defineIntent',
+  'defineToolHandler',
   'defineWorkerAction',
   'defineWorkerResource',
   'isArrowSurfaceArtifact',
@@ -31,10 +31,9 @@ const expectedRootExports = [
 
 const expectedServerExports = [
   'defaultHostPolicyResolver',
-  'inferSurfaceIntent',
+  'inferSurfaceGoal',
   'planAgentSurface',
-  'policyFromIntent',
-  'resolveSurfaceGenerationPlan',
+  'policyFromGoal',
   'runAgentSurfaceGeneration',
   'runSurfaceGeneration',
   'summarizeContractIssues',
@@ -47,7 +46,7 @@ const expectedReactExports = [
 
 const forbiddenRootExports = [
   'bootstrapSource',
-  'buildCapabilitiesBlock',
+  'buildToolsBlock',
   'compileSystemContracts',
   'consumeSurfaceStream',
   'createEventStore',
@@ -98,7 +97,7 @@ assertHas('@anarchitecture/summon/browser', await importDist('summon', 'browser.
   'spawnSandbox',
 ]);
 assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js'), [
-  'buildCapabilitiesBlock',
+  'buildToolsBlock',
   'buildSurfaceContractBlock',
   'compileSurfaceContractView',
   'compileSystemContracts',
@@ -108,7 +107,7 @@ assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js
   'StreamGraph',
 ]);
 assertHas('@anarchitecture/summon/host', await importDist('summon', 'host.js'), [
-  'createCapabilityRegistry',
+  'createToolRegistry',
   'PolicyEngine',
   'spawnSandbox',
 ]);

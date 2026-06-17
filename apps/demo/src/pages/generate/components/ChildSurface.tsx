@@ -4,7 +4,7 @@ import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
 import { Button, panelClass } from '../../../components/ui.js';
 import { cn } from '../../../lib/cn.js';
 import { createScopedDemoRegistry } from '../../../showcase.js';
-import { childCapabilityNames } from '../constants.js';
+import { childToolNames } from '../constants.js';
 import type { ChildSurfaceModel } from '../types.js';
 
 export function ChildSurface({
@@ -21,7 +21,7 @@ export function ChildSurface({
       modelProvider: () => child.modelSelection.modelProvider ?? null,
       modelSelection: () => child.modelSelection,
       onError: (message) => setStatus(`error: ${message.slice(0, 40)}`),
-    }, childCapabilityNames),
+    }, childToolNames),
     [child.modelSelection],
   );
   const contract = useMemo(() => registry.toContract(), [registry]);
@@ -37,9 +37,10 @@ export function ChildSurface({
             prompt: child.prompt,
             ...(child.directionId ? { directionId: child.directionId } : { directionId: '' }),
             ...child.modelSelection,
-            mode: 'interactive',
-            capabilities: contract.pack,
-            ...(child.agentBroker ? { agent: { enabled: true } } : {}),
+            tools: contract.pack,
+            ...(child.agentBroker
+              ? { agent: { enabled: true } }
+              : { surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: childToolNames } }),
           }),
           signal: abort.signal,
         });
@@ -76,8 +77,8 @@ export function ChildSurface({
         title={`Summoned: ${child.title ?? child.prompt.slice(0, 40)}`}
         className="block h-[480px] w-full border-0 bg-surface-raised"
         tokensSource={child.tokensSource}
-        capabilityRegistry={registry}
-        grantedCapabilities={contract.validationCapabilities}
+        toolRegistry={registry}
+        validationTools={contract.validationTools}
       />
     </section>
   );

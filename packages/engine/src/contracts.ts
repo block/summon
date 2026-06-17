@@ -1,16 +1,15 @@
 import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
-  buildCapabilitiesBlock,
+  buildToolsBlock,
   buildComponentsBlock,
   buildDirectionBlock,
   buildLayoutBlock,
   buildOverrideBlock,
   buildSurfaceContractBlock,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
   type DirectionInput,
-  type ScriptPolicy,
   type SummonLayout,
   type TokenOverride,
 } from './prompt.js';
@@ -22,17 +21,16 @@ import {
 import {
   defaultTriggersForKind,
   hasCompleteResourceStateKeys,
-} from './capability-contract.js';
+} from './tool-contract.js';
 import { formatTokenContract } from './token-contract.js';
 import type { SurfaceContractView } from './surface-contract.js';
 import {
   buildSurfacePlanBlock,
-  surfacePlanScriptPolicy,
   type SurfacePlan,
 } from './surface-plan.js';
 import type {
   ValidationComponent,
-  ValidationCapability,
+  ValidationTool,
   ValidationContext,
 } from './runtime-validator.js';
 
@@ -41,7 +39,7 @@ export type ContractIssueSource =
   | 'html'
   | 'token'
   | 'direction'
-  | 'capability'
+  | 'tool'
   | 'layout'
   | 'system';
 
@@ -106,17 +104,13 @@ export interface CompiledDirectionContract {
   issues: ContractIssue[];
 }
 
-export interface CompiledCapabilityContract {
-  pack: CapabilityPack;
+export interface CompiledToolContract {
+  pack: ToolPack;
   promptBlock: ContractPromptBlock | null;
-  intentNames: string[];
-  validationCapabilities: ValidationCapability[];
+  toolNames: string[];
+  validationTools: ValidationTool[];
   initialState: Record<string, unknown>;
   issues: ContractIssue[];
-}
-
-export interface CapabilityContractOptions {
-  scriptPolicy?: ScriptPolicy;
 }
 
 export interface CompiledComponentContract {
@@ -133,9 +127,8 @@ export interface SystemContractInput {
   layout?: SummonLayout | null;
   editBlock?: string | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   components?: ComponentPack | null;
-  scriptPolicy?: ScriptPolicy;
   tokenOverrides?: TokenOverride[];
   surfacePlan?: SurfacePlan | null;
   surfaceContract?: SurfaceContractView | null;
@@ -169,19 +162,19 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'unsafe-tag':
       return ['Use plain HTML elements; remove iframe/object/embed/link/meta/base-like tags.'];
     case 'inline-handler':
-      return ['Use Arrow event handlers inside the template and call granted host intents with `invoke()` from `host-bridge:summon`.'];
+      return ['Use Arrow event handlers inside the template and call granted host tools with `callTool()` from `host-bridge:summon`.'];
     case 'static-script':
       return ['Remove script tags in static mode, or express the UI without interactivity.'];
     case 'script-not-granted':
     case 'surface-script-policy-removed':
       return ['Return an Arrow artifact that uses `reactive()`, Arrow event handlers, and `host-bridge:summon` instead of generated script tags.'];
-    case 'unknown-intent':
-    case 'intent-trigger-not-granted':
-      return ['Use only the granted capabilities and triggers listed in the Capabilities block.'];
+    case 'unknown-tool':
+    case 'tool-trigger-not-granted':
+      return ['Use only the granted tools and triggers listed in the Tools block.'];
     case 'invalid-args-json':
-      return ['Build intent args as plain objects in the Arrow event handler before calling `invoke()`.'];
+      return ['Build tool args as plain objects in the Arrow event handler before calling `callTool()`.'];
     case 'unknown-resource':
-    case 'non-resource-capability':
+    case 'non-resource-tool':
     case 'resource-state-keys-incomplete':
       return ['Use only data resources listed under Available data resources.'];
     case 'resource-loading-not-rendered':
@@ -269,50 +262,47 @@ export function compileDirectionContract(
   };
 }
 
-export function compileCapabilityContract(
-  pack: CapabilityPack | null | undefined,
-  options: CapabilityContractOptions = {},
-): CompiledCapabilityContract {
-  const normalized: CapabilityPack = pack ?? { intents: [] };
+export function compileToolContract(
+  pack: ToolPack | null | undefined,
+): CompiledToolContract {
+  const normalized: ToolPack = pack ?? { tools: [] };
   const initialState: Record<string, unknown> = {};
-  const validationCapabilities: ValidationCapability[] = normalized.intents.map((intent) => {
-    const capability: ValidationCapability = {
-      name: intent.name,
-      kind: intent.kind,
-      triggers: intent.triggers?.length
-        ? intent.triggers
-        : defaultTriggersForKind(intent.kind ?? 'action'),
+  const validationTools: ValidationTool[] = normalized.tools.map((spec) => {
+    const tool: ValidationTool = {
+      name: spec.name,
+      kind: spec.kind,
+      triggers: spec.triggers?.length
+        ? spec.triggers
+        : defaultTriggersForKind(spec.kind ?? 'action'),
     };
-    if (intent.stateKeys) capability.stateKeys = intent.stateKeys;
-    if (intent.actionStateKeys) capability.actionStateKeys = intent.actionStateKeys;
-    if (intent.surface) capability.surface = intent.surface;
-    if (intent.kind === 'resource' && hasCompleteResourceStateKeys(intent.stateKeys)) {
-      initialState[intent.stateKeys.loading] = false;
-      initialState[intent.stateKeys.data] = intent.defaultData ?? null;
-      initialState[intent.stateKeys.error] = null;
-      if (intent.stateKeys.empty) initialState[intent.stateKeys.empty] = false;
+    if (spec.stateKeys) tool.stateKeys = spec.stateKeys;
+    if (spec.actionStateKeys) tool.actionStateKeys = spec.actionStateKeys;
+    if (spec.surface) tool.surface = spec.surface;
+    if (spec.kind === 'resource' && hasCompleteResourceStateKeys(spec.stateKeys)) {
+      initialState[spec.stateKeys.loading] = false;
+      initialState[spec.stateKeys.data] = spec.defaultData ?? null;
+      initialState[spec.stateKeys.error] = null;
+      if (spec.stateKeys.empty) initialState[spec.stateKeys.empty] = false;
     }
-    if ((intent.kind ?? 'action') === 'action' && intent.actionStateKeys) {
-      initialState[intent.actionStateKeys.pending] = false;
-      initialState[intent.actionStateKeys.done] = false;
-      initialState[intent.actionStateKeys.error] = null;
+    if ((spec.kind ?? 'action') === 'action' && spec.actionStateKeys) {
+      initialState[spec.actionStateKeys.pending] = false;
+      initialState[spec.actionStateKeys.done] = false;
+      initialState[spec.actionStateKeys.error] = null;
     }
-    return capability;
+    return tool;
   });
 
   return {
     pack: normalized,
-    promptBlock: normalized.intents.length > 0
+    promptBlock: normalized.tools.length > 0
       ? {
-          id: 'capabilities',
-          text: buildCapabilitiesBlock(normalized, {
-            scriptPolicy: options.scriptPolicy,
-          }),
+          id: 'tools',
+          text: buildToolsBlock(normalized),
           cache: 'ephemeral',
         }
       : null,
-    intentNames: normalized.intents.map((intent) => intent.name),
-    validationCapabilities,
+    toolNames: normalized.tools.map((tool) => tool.name),
+    validationTools,
     initialState,
     issues: [],
   };
@@ -402,23 +392,9 @@ export function compileSystemContracts(
     });
   }
 
-  const requestedScriptPolicy = input.scriptPolicy ??
-    (activeSurfacePlan
-      ? surfacePlanScriptPolicy(activeSurfacePlan)
-      : 'forbid');
-  const hasLegacyScriptedPlan = (activeSurfacePlan as { runtime?: string } | null | undefined)?.runtime === 'scripted';
-  if (requestedScriptPolicy === 'allow' || hasLegacyScriptedPlan) {
-    issues.push(contractIssue({
-      source: 'system',
-      severity: 'block',
-      code: 'surface-script-policy-removed',
-      message: 'Generated script surfaces are no longer supported; use declarative local state and motion primitives',
-    }));
-  }
-  const scriptPolicy: ScriptPolicy = 'forbid';
-  const capability = compileCapabilityContract(input.capabilities, { scriptPolicy });
-  if (capability.promptBlock) promptBlocks.push(capability.promptBlock);
-  issues.push(...capability.issues);
+  const tool = compileToolContract(input.tools);
+  if (tool.promptBlock) promptBlocks.push(tool.promptBlock);
+  issues.push(...tool.issues);
 
   const component = compileComponentContract(input.components);
   if (component.promptBlock) promptBlocks.push(component.promptBlock);
@@ -439,10 +415,9 @@ export function compileSystemContracts(
     surfaceContract: input.surfaceContract ?? undefined,
     validationContext: {
       mode: input.mode,
-      allowedIntents: capability.intentNames,
-      capabilities: capability.validationCapabilities,
+      allowedTools: tool.toolNames,
+      tools: tool.validationTools,
       components: component.validationComponents,
-      scriptPolicy,
       surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
     },

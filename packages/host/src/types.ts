@@ -1,7 +1,7 @@
 import type {
   ArrowNetworkPolicy,
   ArrowSurfaceArtifact,
-  ValidationCapability,
+  ValidationTool,
   ValidationComponent,
 } from '@summon-internal/engine';
 
@@ -24,16 +24,16 @@ export interface RenderMessage {
 }
 
 /** Messages from the sandbox iframe back to the host. */
-export interface IntentMessage {
-  type: 'SUMMON_INTENT';
+export interface ToolCallMessage {
+  type: 'SUMMON_TOOL_CALL';
   sandbox_id: string;
-  intent: string;
+  tool: string;
   args: Record<string, unknown>;
   request_id?: string;
 }
 
-export interface IntentResultMessage {
-  type: 'SUMMON_INTENT_RESULT';
+export interface ToolResultMessage {
+  type: 'SUMMON_TOOL_RESULT';
   sandbox_id: string;
   request_id: string;
   ok: boolean;
@@ -88,7 +88,7 @@ export interface FatalMessage {
 }
 
 export type SandboxInboundMessage =
-  | IntentMessage
+  | ToolCallMessage
   | ReadyMessage
   | RenderedMessage
   | FatalMessage
@@ -109,10 +109,10 @@ export interface SandboxHandle {
 /** Artifact — generated HTML plus advisory declarations used for diagnostics and replay. */
 export interface Artifact {
   runtime?: 'arrow';
-  /** Intents the artifact declares it may emit. Execution is governed by host grants. */
-  intents: string[];
-  /** Advisory capabilities the artifact claims to use. Execution is still governed by grants. */
-  capabilities?: ValidationCapability[];
+  /** Tools the artifact declares it may emit. Execution is governed by host grants. */
+  tools: string[];
+  /** Advisory validation metadata for tools the artifact claims to use. */
+  validationTools?: ValidationTool[];
   /** Advisory components the artifact claims to use. Host registry remains the rendering grant. */
   components?: ValidationComponent[];
   /** Arrow source artifact to render inside the sandbox. */

@@ -14,20 +14,20 @@ export type ExtraDevtoolsEvent =
 export function formatDevtoolsEvent(ev: DevtoolsEvent | ExtraDevtoolsEvent): string {
   switch (ev.kind) {
     case 'sandbox-spawned':
-      return `${ev.sandboxId.slice(0, 8)}... allowed=[${ev.grantedIntents.join(',') || '-'}]`;
+      return `${ev.sandboxId.slice(0, 8)}... allowed=[${ev.grantedTools.join(',') || '-'}]`;
     case 'sandbox-ready':
     case 'sandbox-disposed':
       return `${ev.sandboxId.slice(0, 8)}...`;
     case 'sandbox-fatal':
       return `${ev.sandboxId.slice(0, 8)}... ${ev.reason}`;
-    case 'intent-emitted':
-      return `host tool ${ev.intent} ${JSON.stringify(ev.args).slice(0, 80)}`;
-    case 'intent-rejected':
+    case 'tool-called':
+      return `host tool ${ev.tool} ${JSON.stringify(ev.args).slice(0, 80)}`;
+    case 'tool-rejected':
       return `${ev.reason}`;
-    case 'intent-dispatched':
-      return `host dispatch ${ev.intent} #${ev.id.slice(-6)}`;
-    case 'intent-settled':
-      return `host settled ${ev.intent} #${ev.id.slice(-6)} ${ev.ok ? 'ok' : `fail: ${ev.error ?? ''}`} (${ev.durationMs}ms)`;
+    case 'tool-dispatched':
+      return `host dispatch ${ev.tool} #${ev.id.slice(-6)}`;
+    case 'tool-settled':
+      return `host settled ${ev.tool} #${ev.id.slice(-6)} ${ev.ok ? 'ok' : `fail: ${ev.error ?? ''}`} (${ev.durationMs}ms)`;
     case 'state-pushed':
       return Object.keys(ev.patch).join(', ') || 'empty';
     case 'component-sync':
@@ -55,13 +55,13 @@ export function formatDevtoolsEvent(ev: DevtoolsEvent | ExtraDevtoolsEvent): str
 
 export function displayEventKind(kind: string): string {
   switch (kind) {
-    case 'intent-emitted':
+    case 'tool-called':
       return 'host tool';
-    case 'intent-rejected':
+    case 'tool-rejected':
       return 'request rejected';
-    case 'intent-dispatched':
+    case 'tool-dispatched':
       return 'host dispatch';
-    case 'intent-settled':
+    case 'tool-settled':
       return 'host settled';
     case 'stream-graph':
       return 'stream diagnostics';

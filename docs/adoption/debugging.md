@@ -37,19 +37,18 @@ does not work:
 
 1. Confirm the run is interactive. Read-only surfaces intentionally have no
    allowed host tools.
-2. Confirm the host tool exists in `createCapabilityRegistry(...).toContract()`.
+2. Confirm the host tool exists in `createToolRegistry(...).toContract()`.
 3. Confirm the Arrow code invokes only an allowed tool name.
-4. Check Devtools for `intent-rejected`, `intent-dispatched`,
-   `intent-settled`, and `state-pushed`. The event names still use the runtime
-   term "intent"; read them as host tool requests.
+4. Check Devtools for `tool-rejected`, `tool-dispatched`,
+   `tool-settled`, and `state-pushed`.
 5. Check the host handler in `PolicyEngine` and the resource's `stateKeys`.
 
 Common fixes:
 
-- `unknown-intent` - use only host tools listed in the Capabilities block.
+- `unknown-tool` - use only host tools listed in the Tools block.
 - `invalid-args-json` - send a JSON-serializable argument object.
-- `surface-runtime-exceeded` - use only tools allowed by the compiled safety
-  plan runtime.
+- `surface-policy-tier-exceeded` - use only tools allowed by the selected
+  `SurfacePolicy` tier.
 - `surface-data-exceeded` - align resource/worker usage with the selected
   surface config.
 - `surface-authority-exceeded` - remove the action or select a config that
@@ -121,8 +120,8 @@ blank:
 
 | Path | Meaning |
 | --- | --- |
-| `/agent-intent` | Broker-advisory intent inferred from the prompt before host policy narrowing. |
-| `/agent-policy-resolution` | Brokered proposed/effective surface config, host policy source, intent source, and rejected tools/components. |
+| `/agent-goal` | Broker-advisory goal inferred from the prompt before host policy narrowing. |
+| `/agent-policy-resolution` | Brokered proposed/effective surface config, host policy source, goal source, and rejected tools/components. |
 | `/surface-policy` | Host-owned public surface config selected for this run. |
 | `/surface-plan` | Host-owned compiled safety plan selected for this run. |
 | `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, trusted components, optional layout, and compile issues. |
@@ -152,9 +151,9 @@ and look for:
 - `sandbox-ready` - the iframe booted and can receive state or renders.
 - `render` - an accepted Arrow artifact was sent to the sandbox.
 - `rendered` - the sandbox finished mounting that Arrow artifact revision.
-- `intent-emitted` - generated UI emitted an allowed host tool request.
-- `intent-rejected` - generated UI tried an unknown or malformed request.
-- `intent-dispatched` / `intent-settled` - `PolicyEngine` ran a host handler.
+- `tool-called` - generated UI emitted an allowed host tool request.
+- `tool-rejected` - generated UI tried an unknown or malformed request.
+- `tool-dispatched` / `tool-settled` - `PolicyEngine` ran a host handler.
 - `state-pushed` - host state changed and was pushed back to the sandbox.
 - `component-sync` - the sandbox reported the current component placeholders
   with measured bounds.
@@ -173,7 +172,7 @@ and look for:
 
 ```ts
 interface ContractIssue {
-  source: 'protocol' | 'arrow' | 'token' | 'direction' | 'capability' | 'layout' | 'system';
+  source: 'protocol' | 'arrow' | 'token' | 'direction' | 'tool' | 'layout' | 'system';
   severity: 'block' | 'warn';
   code: string;
   message: string;

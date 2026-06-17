@@ -12,13 +12,13 @@ import type { DirectionOpts } from './direction-validator.js';
 import {
   type ActionStateKeys,
   defaultTriggersForKind,
-  type CapabilityKind,
-  type CapabilityStateKeys,
-  type CapabilityTrigger,
+  type ToolKind,
+  type ToolStateKeys,
+  type ToolTrigger,
   type ResourceStateKeys,
-} from './capability-contract.js';
+} from './tool-contract.js';
 import type { SurfaceContractView } from './surface-contract.js';
-import type { ComponentSurface, CapabilitySurface } from './surface-plan.js';
+import type { ComponentSurface, ToolSurface } from './surface-plan.js';
 
 export interface Exemplar {
   name: string;
@@ -33,7 +33,7 @@ export interface Exemplar {
    *  the behavioral act the host wants the generation to perform
    *  (tap/brief/detailed/canvas), declared by the LLM on a `/posture`
    *  meta-line, enforced by the host. The LLM picks a posture within a shape
-   *  the same way it picks an intent within a capability pack. */
+   *  the same way it picks a tool within a tool pack. */
   kind?: 'atom' | 'shape';
   /** For shape exemplars — the response shape this exemplar represents. The
    *  classifier emits a shape per generation; only the matching exemplar(s)
@@ -86,11 +86,11 @@ export interface SummonLayout {
  */
 export const SUMMON_FIXED_INSTRUCTIONS = `You generate self-contained Arrow web UIs for the Summon rendering engine.
 
-## Your job — interpret intent, then design the response
+## Your job — interpret the request, then design the response
 
 The user types a request in natural language: "help me plan...", "I want to...", "can you compare...", "explain how...". Your job is to settle on a rich composition that actually helps, then render it as an Arrow artifact.
 
-Pick the composition that fits the intent. Cards are only one option, not the default. Examples:
+Pick the composition that fits the request. Cards are only one option, not the default. Examples:
 
 - **Plan / itinerary** — staged narrative, timeline, route, calendar, or numbered walkthrough.
 - **Comparison / decision** — table, matrix, split view, scorecard, annotated verdict, or pros/cons only when useful.
@@ -102,7 +102,7 @@ Pick the composition that fits the intent. Cards are only one option, not the de
 
 Before using a card grid, ask what job the boxes are doing. Use cards when the content is truly a set of separate comparable objects, selectable choices, or repeated records with distinct evidence. If most groups would become anonymous rounded boxes, redesign as an article, table, timeline, checklist, matrix, ledger, map, split view, or typographic composition instead.
 
-**Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific intent actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
+**Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific tool actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
 
 ## Output protocol — Arrow JSONL only
 
@@ -125,14 +125,14 @@ Rules:
 - For host actions and resources, import from \`host-bridge:summon\`:
 
 \`\`\`ts
-import { invoke, getState, onState } from "host-bridge:summon"
+import { callTool, getState, onState } from "host-bridge:summon"
 \`\`\`
 
-- Call \`await invoke(intentName, args)\` for granted host capabilities. The result is \`{ ok, state, error? }\`.
+- Call \`await callTool(toolName, args)\` for granted host tools. The result is \`{ ok, state, error? }\`.
 - Call \`await getState()\` to read the latest host-pushed state.
 - Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
-- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host capabilities.
+- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
 - Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, host-owned meta lines, HTML fragments, or multiple lines. The only prefixed attributes allowed in Arrow source are \`data-summon-component\`, \`data-summon-component-id\`, and \`data-summon-props\` from the Component islands block.
 - Keep the JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.
 
@@ -159,7 +159,7 @@ The direction block specifies which tokens carry particular meaning for that dir
 
 ## How to think about this generation
 
-Decide your section structure and your styling approach BEFORE you start emitting. Once you've started emitting, commit. Don't re-evaluate selectors, layout primitives, color tokens, or section names mid-generation. If a constraint blocks the obvious approach (e.g. a control needs interactivity but you have no Capabilities block), state the constraint in one short line of copy inside the UI ("Static preview — pick functionality requires interactive mode") and use the simplest static alternative. Do not invent CSS-only state machines, \`:has()\` selector tricks, sibling-checked toggles, or \`<details>\` chains to simulate interactivity that the rules forbid. A static answer that names its limitation is better than an elaborate workaround.
+Decide your section structure and your styling approach BEFORE you start emitting. Once you've started emitting, commit. Don't re-evaluate selectors, layout primitives, color tokens, or section names mid-generation. If a constraint blocks the obvious approach (e.g. a control needs interactivity but you have no Tools block), state the constraint in one short line of copy inside the UI ("Static preview — pick functionality requires interactive mode") and use the simplest static alternative. Do not invent CSS-only state machines, \`:has()\` selector tricks, sibling-checked toggles, or \`<details>\` chains to simulate interactivity that the rules forbid. A static answer that names its limitation is better than an elaborate workaround.
 
 Pick one structural approach and ship it. Reconsidering mid-stream is the wrong move — the user sees a half-rendered UI and a frozen status.
 
@@ -188,14 +188,14 @@ Rules:
 - For host actions and resources, import from \`host-bridge:summon\`:
 
 \`\`\`ts
-import { invoke, getState, onState } from "host-bridge:summon"
+import { callTool, getState, onState } from "host-bridge:summon"
 \`\`\`
 
-- Call \`await invoke(intentName, args)\` for granted host capabilities. The result is \`{ ok, state, error? }\`.
+- Call \`await callTool(toolName, args)\` for granted host tools. The result is \`{ ok, state, error? }\`.
 - Call \`await getState()\` to read the latest host-pushed state.
 - Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
-- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host capabilities.
+- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
 - Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, or host-owned meta lines. The only prefixed attributes allowed in Arrow source are \`data-summon-component\`, \`data-summon-component-id\`, and \`data-summon-props\` from the Component islands block.
 - Keep every JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.`;
 
@@ -236,7 +236,7 @@ export function buildDirectionBlock(input: DirectionInput): string {
       );
     } else if (input.shape && shapeExemplars.length === 1 && shapeExemplars[0]!.shape === input.shape) {
       parts.push(
-        `The user's intent reads as a **${input.shape}** response. Use this composition as a visual starting point — replace the content (titles, copy, numbers, bullet text) with the user's data, and preserve the relevant visual moves: borders, typography rhythm, spacing between groups, and emphasis patterns. Host-supplied contracts, layouts, allowed intents, and surface constraints override exemplar structure. The point is to land on this design language fast, not to reinvent it.`
+        `The user's request reads as a **${input.shape}** response. Use this composition as a visual starting point — replace the content (titles, copy, numbers, bullet text) with the user's data, and preserve the relevant visual moves: borders, typography rhythm, spacing between groups, and emphasis patterns. Host-supplied contracts, layouts, allowed tools, and surface constraints override exemplar structure. The point is to land on this design language fast, not to reinvent it.`
       );
     } else {
       parts.push(
@@ -379,7 +379,7 @@ Do not emit \`/surface-contract\`, \`/surface-policy\`, or \`/surface-plan\` met
 
 - Policy: tier=\`${surface.policy.tier}\`, purpose=\`${surface.policy.purpose}\`, persistence=\`${surface.policy.persistence}\`
 - Plan: purpose=\`${surface.plan.purpose}\`, runtime=\`${surface.plan.runtime}\`, data=\`${surface.plan.data}\`, authority=\`${surface.plan.authority}\`, persistence=\`${surface.plan.persistence}\`
-- Mode: \`${surface.mode}\`; scripts \`${surface.scriptPolicy}\`
+- Mode: \`${surface.mode}\`
 
 ### Tools
 
@@ -426,30 +426,30 @@ function buildDirectionAddendum(
 }
 
 /**
- * Capabilities — what intents the generated UI can emit. Injected as a third
+ * Tools — what tools the generated UI can emit. Injected as a third
  * cacheable system block when the host requests interactive mode. Static mode
  * omits this block entirely; the fixed instructions already forbid scripts.
  *
- * The engine is intent-agnostic. Consumers (demo apps, host applications)
- * define their own capability packs — intents they support and example
+ * The engine is tool-agnostic. Consumers (demo apps, host applications)
+ * define their own tool packs — tools they support and example
  * patterns showing how to wire each one. A pack is passed in per generation.
  */
-export interface IntentSpec {
+export interface ToolSpec {
   name: string;
   description: string;
   argsSchema: string;
   stateShape: string;
-  kind?: CapabilityKind;
-  triggers?: CapabilityTrigger[];
-  stateKeys?: CapabilityStateKeys;
+  kind?: ToolKind;
+  triggers?: ToolTrigger[];
+  stateKeys?: ToolStateKeys;
   actionStateKeys?: ActionStateKeys;
-  surface?: CapabilitySurface;
+  surface?: ToolSurface;
   resultSchema?: string;
   defaultDataShape?: string;
   defaultData?: unknown;
 }
 
-export interface DataResourceSpec extends IntentSpec {
+export interface DataResourceSpec extends ToolSpec {
   kind: 'resource';
   stateKeys: ResourceStateKeys;
   resultSchema?: string;
@@ -457,24 +457,22 @@ export interface DataResourceSpec extends IntentSpec {
   defaultData?: unknown;
 }
 
-export interface CapabilityPattern {
+export interface ToolPattern {
   /** Short title shown above the code snippet in the prompt. */
   name: string;
   /** HTML code block the LLM sees as an example. Script examples are filtered. */
   code: string;
-  /** Optional owner intent. SurfacePolicy narrowing uses this to keep examples
+  /** Optional owner tool. SurfacePolicy narrowing uses this to keep examples
    * aligned with the grants selected for a generation. */
-  intent?: string;
+  tool?: string;
 }
 
-export interface CapabilityPack {
-  intents: IntentSpec[];
+export interface ToolPack {
+  tools: ToolSpec[];
   /** Example patterns shown under "### Patterns". Optional — without them the
-   *  LLM gets only the intent list and the interactivity rules. */
-  patterns?: CapabilityPattern[];
+   *  LLM gets only the tool list and the interactivity rules. */
+  patterns?: ToolPattern[];
 }
-
-export type ScriptPolicy = 'allow' | 'forbid';
 
 export interface ComponentExample {
   /** Short label for the component example. */
@@ -505,47 +503,42 @@ export interface ComponentPack {
   components: ComponentSpec[];
 }
 
-export interface CapabilitiesBlockOptions {
-  scriptPolicy?: ScriptPolicy;
-}
-
-export function buildCapabilitiesBlock(
-  pack: CapabilityPack,
-  _options: CapabilitiesBlockOptions = {},
+export function buildToolsBlock(
+  pack: ToolPack,
 ): string {
-  if (pack.intents.length === 0) return '';
+  if (pack.tools.length === 0) return '';
 
-  const actions = pack.intents.filter((intent) => (intent.kind ?? 'action') === 'action');
-  const resources = pack.intents.filter((intent) => intent.kind === 'resource');
+  const actions = pack.tools.filter((tool) => (tool.kind ?? 'action') === 'action');
+  const resources = pack.tools.filter((tool) => tool.kind === 'resource');
 
-  const formatIntent = (i: IntentSpec) => {
-    const triggers = normalizeTriggers(i).join(', ');
-    const stateKeys = i.stateKeys
-      ? `\n  State keys: ${formatStateKeys(i.stateKeys)}`
+  const formatTool = (tool: ToolSpec) => {
+    const triggers = normalizeTriggers(tool).join(', ');
+    const stateKeys = tool.stateKeys
+      ? `\n  State keys: ${formatStateKeys(tool.stateKeys)}`
       : '';
-    const actionStateKeys = i.actionStateKeys
-      ? `\n  Action state: ${formatActionStateKeys(i.actionStateKeys)}`
+    const actionStateKeys = tool.actionStateKeys
+      ? `\n  Action state: ${formatActionStateKeys(tool.actionStateKeys)}`
       : '';
-    const surface = i.surface ? `\n  Surface: ${formatSurface(i.surface)}` : '';
-    return `- \`${i.name}(${i.argsSchema})\` — ${i.description}\n  Triggers: ${triggers}\n  State update: \`${i.stateShape}\`${stateKeys}${actionStateKeys}${surface}`;
+    const surface = tool.surface ? `\n  Surface: ${formatSurface(tool.surface)}` : '';
+    return `- \`${tool.name}(${tool.argsSchema})\` — ${tool.description}\n  Triggers: ${triggers}\n  State update: \`${tool.stateShape}\`${stateKeys}${actionStateKeys}${surface}`;
   };
 
   const actionsList = actions
-    .map(formatIntent)
+    .map(formatTool)
     .join('\n\n');
   const resourcesList = resources
     .map(
-      (i) => {
-        const resultSchema = i.resultSchema ? `\n  Result schema: \`${i.resultSchema}\`` : '';
-        const defaultData = i.defaultDataShape
-          ? `\n  Default data: \`${i.defaultDataShape}\``
+      (tool) => {
+        const resultSchema = tool.resultSchema ? `\n  Result schema: \`${tool.resultSchema}\`` : '';
+        const defaultData = tool.defaultDataShape
+          ? `\n  Default data: \`${tool.defaultDataShape}\``
           : '\n  Default data: `null`';
-        return `${formatIntent(i)}${resultSchema}${defaultData}\n  Data resource lifecycle: initial/loading/error/invalid states keep data at the default value (or null), and successful host fetches write validated data.`;
+        return `${formatTool(tool)}${resultSchema}${defaultData}\n  Data resource lifecycle: initial/loading/error/invalid states keep data at the default value (or null), and successful host fetches write validated data.`;
       }
     )
     .join('\n\n');
 
-  const capabilitySections = [
+  const toolSections = [
     resourcesList ? `### Available data resources\n\n${resourcesList}` : '',
     actionsList ? `### Available actions\n\n${actionsList}` : '',
   ].filter(Boolean).join('\n\n');
@@ -561,19 +554,19 @@ export function buildCapabilitiesBlock(
           .map((p) => `**${p.name}:**\n\`\`\`ts\n${p.code.trim()}\n\`\`\``)
           .join('\n\n')}`
       : '';
-  const scriptPolicyBlock = `### Script policy — Arrow host bridge only
+  const hostBridgeBlock = `### Host tool bridge
 
-This host has NOT granted custom artifact scripts. Do not emit \`<script>\` tags. All behavior lives in the Arrow entry module you return as \`main.ts\` or \`main.js\`.
+Generated custom scripts are not supported. Do not emit \`<script>\` tags. All behavior lives in the Arrow entry module you return as \`main.ts\` or \`main.js\`.
 
-Use Arrow \`reactive()\` state for local UI state, Arrow event handlers for clicks/submits/input, and the \`host-bridge:summon\` virtual module for host state and capabilities. Do not use \`window.sandbox\`, direct DOM listeners, timers, storage, or native bridges. If a requested behavior cannot be expressed with Arrow plus the granted capabilities, leave that control out or state the limitation in the UI.`;
+Use Arrow \`reactive()\` state for local UI state, Arrow event handlers for clicks/submits/input, and the \`host-bridge:summon\` virtual module for host state and tools. Do not use \`window.sandbox\`, direct DOM listeners, timers, storage, or native bridges. If a requested behavior cannot be expressed with Arrow plus the granted tools, leave that control out or state the limitation in the UI.`;
 
-  const actionWiring = 'by calling `await invoke("<intent>", args)` from an Arrow event handler';
-  const intentNames = new Set(pack.intents.map((intent) => intent.name));
+  const actionWiring = 'by calling `await callTool("<tool>", args)` from an Arrow event handler';
+  const toolNames = new Set(pack.tools.map((tool) => tool.name));
   const examples: string[] = [];
-  if (intentNames.has('counter')) {
+  if (toolNames.has('counter')) {
     examples.push(`// Counter: Arrow event handlers + host state sync
 import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ count: 0 });
 onState((hostState) => {
@@ -581,7 +574,7 @@ onState((hostState) => {
 });
 
 async function change(delta: number) {
-  const result = await invoke("counter", { delta });
+  const result = await callTool("counter", { delta });
   if (result.ok) state.count = Number(result.state.count ?? state.count);
 }
 
@@ -591,10 +584,10 @@ export default html\`
   <button @click="\${() => change(1)}" aria-label="Increase">+</button>
 \`;`);
   }
-  if (intentNames.has('submit')) {
-    examples.push(`// Form: collect an event snapshot, invoke the host, render host-owned state
+  if (toolNames.has('submit')) {
+    examples.push(`// Form: collect an event snapshot, callTool the host, render host-owned state
 import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ submitted: false, submitError: "" });
 onState((hostState) => {
@@ -606,7 +599,7 @@ async function save(event: SubmitEvent) {
   event.preventDefault();
   const form = event.currentTarget as HTMLFormElement;
   const fields = Object.fromEntries(new FormData(form).entries());
-  const result = await invoke("submit", fields);
+  const result = await callTool("submit", fields);
   state.submitted = Boolean(result.state.submitted);
   state.submitError = String(result.state.submitError ?? result.error ?? "");
 }
@@ -621,10 +614,10 @@ export default html\`
   <p>\${() => state.submitError}</p>
 \`;`);
   }
-  if (intentNames.has('log')) {
+  if (toolNames.has('log')) {
     examples.push(`// Result row: pass the selected item through an Arrow handler
 import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ results: [] as Array<{ title: string; snippet: string }> });
 onState((hostState) => {
@@ -632,7 +625,7 @@ onState((hostState) => {
 });
 
 async function pick(result: { title: string; snippet: string }) {
-  await invoke("log", { payload: { picked: result } });
+  await callTool("log", { payload: { picked: result } });
 }
 
 export default html\`
@@ -650,7 +643,7 @@ export default html\`
     ? `\n\n**Examples:**\n\n\`\`\`ts\n${examples.join('\n\n')}\n\`\`\``
     : '';
 
-  return `## Capabilities — this generation is INTERACTIVE
+  return `## Tools — this generation is INTERACTIVE
 
 **Arrow-native interactivity.** Generated surfaces run as Arrow artifacts. Use Arrow \`reactive()\` for state, Arrow event handlers for user input, and \`host-bridge:summon\` for host tools and host-pushed state.
 
@@ -661,33 +654,33 @@ Do NOT build CSS-only state machines using \`:has()\`, \`:checked\` sibling sele
 Import the bridge in your Arrow entry file:
 
 \`\`\`ts
-import { invoke, getState, onState } from "host-bridge:summon";
+import { callTool, getState, onState } from "host-bridge:summon";
 \`\`\`
 
-- \`await invoke(intentName, args)\` calls a granted host capability and resolves to \`{ ok, state, error? }\`.
+- \`await callTool(toolName, args)\` calls a granted host tool and resolves to \`{ ok, state, error? }\`.
 - \`await getState()\` reads the latest host-owned state snapshot.
 - \`onState((state) => { ... })\` subscribes to host \`pushState()\` updates and returns an unsubscribe function.
-- Copy host-owned keys into your Arrow \`reactive()\` object from \`getState()\`, \`onState()\`, and successful \`invoke()\` results.
+- Copy host-owned keys into your Arrow \`reactive()\` object from \`getState()\`, \`onState()\`, and successful \`callTool()\` results.
 
-### Available capabilities
+### Available tools
 
-${capabilitySections}
+${toolSections}
 
 ${examplesBlock}
 
-${scriptPolicyBlock}
+${hostBridgeBlock}
 
 ### The interactivity contract — READ THIS
 
-**Every clickable, tappable, or focusable element in your generated UI MUST be wired to one of the declared intents — ${actionWiring}. If you cannot wire an element, do not show it.**
+**Every clickable, tappable, or focusable element in your generated UI MUST be wired to one of the declared tools — ${actionWiring}. If you cannot wire an element, do not show it.**
 
-- No button unless you've decided which intent it fires.
+- No button unless you've decided which tool it fires.
 - No clickable result tiles, rows, or cards unless clicking them emits something.
-- No pagination, no sorting, no filtering controls unless you've decided which intent they fire.
+- No pagination, no sorting, no filtering controls unless you've decided which tool they fire.
 
 Dead buttons are worse than no buttons. When in doubt, leave it out.
 
-Only the intents listed above exist. Any concept that isn't in the intent list does not exist — don't add controls that imply capabilities you don't have. When in doubt, route the user-visible action through the closest matching intent or drop the control.
+Only the tools listed above exist. Any concept that isn't in the tool list does not exist — don't add controls that imply tools you don't have. When in doubt, route the user-visible action through the closest matching tool or drop the control.
 
 Data resources expose host-owned loading/data/error state keys and may expose an empty-state key. Use \`mount\` only for initial read-oriented loads granted by the resource; use \`submit\` for forms and \`click\` only when the resource grants a click trigger. Mirror the listed loading key for busy UI, error key for host errors, data key for validated result data, and empty key only for real no-results copy after a successful host result.
 
@@ -760,17 +753,17 @@ Rules:
 - Give the placeholder explicit visual space with CSS, usually \`height\`, \`min-height\`, or a grid track.
 - Do not nest component placeholders.
 - Do not use a component island for something your Arrow template and CSS can express well.
-- Component islands do not grant new host actions. If the component needs durable host behavior, it must route through an already-granted intent or host-owned component code.
+- Component islands do not grant new host actions. If the component needs durable host behavior, it must route through an already-granted tool or host-owned component code.
 
 If props depend on Arrow state, compute the JSON from Arrow with a quoted attribute expression such as \`data-summon-props="\${() => JSON.stringify({ value: state.revenue })}"\` and keep \`data-summon-component-id\` stable across renders.${examplesBlock}`;
 }
 
-function normalizeTriggers(intent: IntentSpec): CapabilityTrigger[] {
-  if (intent.triggers?.length) return intent.triggers;
-  return defaultTriggersForKind(intent.kind ?? 'action');
+function normalizeTriggers(tool: ToolSpec): ToolTrigger[] {
+  if (tool.triggers?.length) return tool.triggers;
+  return defaultTriggersForKind(tool.kind ?? 'action');
 }
 
-function formatStateKeys(keys: CapabilityStateKeys): string {
+function formatStateKeys(keys: ToolStateKeys): string {
   const parts: string[] = [];
   if (keys.loading) parts.push(`loading=${keys.loading}`);
   if (keys.data) parts.push(`data=${keys.data}`);
@@ -783,7 +776,7 @@ function formatActionStateKeys(keys: ActionStateKeys): string {
   return `pending=${keys.pending}, done=${keys.done}, error=${keys.error}`;
 }
 
-function formatSurface(surface: CapabilitySurface): string {
+function formatSurface(surface: ToolSurface): string {
   const parts: string[] = [];
   if (surface.data) parts.push(`data=${surface.data}`);
   if (surface.authority) parts.push(`authority=${surface.authority}`);

@@ -1,4 +1,4 @@
-import type { CapabilityPack, ScriptPolicy } from './prompt.js';
+import type { ToolPack } from './prompt.js';
 
 export type SurfacePurpose =
   | 'inform'
@@ -9,7 +9,7 @@ export type SurfacePurpose =
   | 'review'
   | 'export';
 
-export type SurfaceRuntime = 'arrow' | 'static' | 'declarative' | 'worker';
+type SurfaceRuntime = 'arrow';
 export type SurfaceData = 'embedded' | 'host-resource' | 'worker';
 export type SurfaceAuthority = 'none' | 'read' | 'host-action' | 'approval-gated';
 export type SurfacePersistence = 'ephemeral' | 'replayable';
@@ -26,11 +26,8 @@ export const SURFACE_PURPOSE_VALUES = [
   'export',
 ] as const satisfies readonly SurfacePurpose[];
 
-export const SURFACE_RUNTIME_VALUES = [
+const SURFACE_RUNTIME_VALUES = [
   'arrow',
-  'static',
-  'declarative',
-  'worker',
 ] as const satisfies readonly SurfaceRuntime[];
 
 export const SURFACE_NETWORK_VALUES = [
@@ -65,7 +62,7 @@ export interface SurfacePlan {
   network?: SurfaceNetwork;
 }
 
-export interface CapabilitySurface {
+export interface ToolSurface {
   data?: Extract<SurfaceData, 'host-resource' | 'worker'>;
   authority?: Extract<SurfaceAuthority, 'read' | 'host-action' | 'approval-gated'>;
 }
@@ -75,26 +72,11 @@ export interface ComponentSurface {
   authority?: SurfaceAuthority;
 }
 
-export interface SurfaceCeiling {
-  purposes?: SurfacePurpose[];
-  runtimes?: SurfaceRuntime[];
-  data?: SurfaceData[];
-  authorities?: SurfaceAuthority[];
-  persistences?: SurfacePersistence[];
-  networks?: SurfaceNetwork[];
-}
-
 export interface SurfacePlanInferenceInput {
   prompt: string;
   mode: 'static' | 'interactive';
-  scriptPolicy?: ScriptPolicy;
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   persistence?: SurfacePersistence;
-}
-
-export interface SurfacePlanControls {
-  mode: SurfacePlanMode;
-  scriptPolicy: ScriptPolicy;
 }
 
 export const DEFAULT_SURFACE_PLAN: SurfacePlan = {
@@ -104,15 +86,6 @@ export const DEFAULT_SURFACE_PLAN: SurfacePlan = {
   authority: 'none',
   persistence: 'replayable',
   network: 'none',
-};
-
-export const DEFAULT_SURFACE_CEILING: Required<SurfaceCeiling> = {
-  purposes: [...SURFACE_PURPOSE_VALUES],
-  runtimes: ['arrow'],
-  data: ['embedded', 'host-resource'],
-  authorities: ['none', 'read', 'host-action'],
-  persistences: ['ephemeral', 'replayable'],
-  networks: ['none'],
 };
 
 const PURPOSES = new Set<SurfacePurpose>(SURFACE_PURPOSE_VALUES);
@@ -135,45 +108,6 @@ export function normalizeSurfacePlan(raw: unknown): SurfacePlan | null {
   return { purpose, runtime, data, authority, persistence, network };
 }
 
-export function normalizeSurfaceCeiling(raw: unknown): SurfaceCeiling | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const input = raw as Record<string, unknown>;
-  return {
-    purposes: enumList(input.purposes, PURPOSES),
-    runtimes: enumList(input.runtimes, RUNTIMES),
-    data: enumList(input.data, DATA),
-    authorities: enumList(input.authorities, AUTHORITIES),
-    persistences: enumList(input.persistences, PERSISTENCES),
-    networks: enumList(input.networks, NETWORKS),
-  };
-}
-
-export function surfacePlanWithinCeiling(plan: SurfacePlan, ceiling: SurfaceCeiling): boolean {
-  return (
-    allowed(plan.purpose, ceiling.purposes, DEFAULT_SURFACE_CEILING.purposes) &&
-    allowed(plan.runtime, ceiling.runtimes, DEFAULT_SURFACE_CEILING.runtimes) &&
-    allowed(plan.data, ceiling.data, DEFAULT_SURFACE_CEILING.data) &&
-    allowed(plan.authority, ceiling.authorities, DEFAULT_SURFACE_CEILING.authorities) &&
-    allowed(plan.persistence, ceiling.persistences, DEFAULT_SURFACE_CEILING.persistences) &&
-    allowed(plan.network ?? 'none', ceiling.networks, DEFAULT_SURFACE_CEILING.networks)
-  );
-}
-
-export function constrainSurfacePlan(plan: SurfacePlan, ceiling: SurfaceCeiling): SurfacePlan {
-  return {
-    purpose: constrain(plan.purpose, ceiling.purposes, DEFAULT_SURFACE_CEILING.purposes),
-    runtime: constrainRuntime(plan.runtime, ceiling.runtimes),
-    data: constrainData(plan.data, ceiling.data),
-    authority: constrainAuthority(plan.authority, ceiling.authorities),
-    persistence: constrain(
-      plan.persistence,
-      ceiling.persistences,
-      DEFAULT_SURFACE_CEILING.persistences,
-    ),
-    network: constrain(plan.network ?? 'none', ceiling.networks, DEFAULT_SURFACE_CEILING.networks),
-  };
-}
-
 export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan {
   if (input.mode === 'static') {
     return {
@@ -186,15 +120,15 @@ export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePla
     };
   }
 
-  const intents = input.capabilities?.intents ?? [];
+  const tools = input.tools?.tools ?? [];
   const promptText = input.prompt.toLowerCase();
   const wantsWorker = /\b(analy[sz]e|calculate|compute|forecast|simulate|score|worker|batch)\b/.test(promptText);
   const wantsApproval = /\b(approve|approval|confirm|publish|commit|send|update|delete|change)\b/.test(promptText);
   const wantsResource = /\b(search|lookup|fetch|load|find|explore|browse|filter|data)\b/.test(promptText);
-  const hasWorker = wantsWorker && intents.some((intent) => intent.surface?.data === 'worker');
-  const hasApproval = wantsApproval && intents.some((intent) => intent.surface?.authority === 'approval-gated');
-  const hasResource = wantsResource && intents.some((intent) => intent.kind === 'resource');
-  const hasAction = intents.some((intent) => (intent.kind ?? 'action') === 'action');
+  const hasWorker = wantsWorker && tools.some((tool) => tool.surface?.data === 'worker');
+  const hasApproval = wantsApproval && tools.some((tool) => tool.surface?.authority === 'approval-gated');
+  const hasResource = wantsResource && tools.some((tool) => tool.kind === 'resource');
+  const hasAction = tools.some((tool) => (tool.kind ?? 'action') === 'action');
 
   return {
     purpose: inferPurpose(input.prompt),
@@ -215,17 +149,6 @@ export function inferSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan 
   return suggestSurfacePlan(input);
 }
 
-export function surfacePlanScriptPolicy(_plan: SurfacePlan): ScriptPolicy {
-  return 'forbid';
-}
-
-export function deriveSurfacePlanControls(plan: SurfacePlan): SurfacePlanControls {
-  return {
-    mode: plan.runtime === 'static' ? 'static' : 'interactive',
-    scriptPolicy: surfacePlanScriptPolicy(plan),
-  };
-}
-
 export function buildSurfacePlanBlock(plan: SurfacePlan): string {
   return `## Surface plan — host-owned runtime contract
 
@@ -238,21 +161,20 @@ The host has selected this minimum safe surface plan:
 - Persistence: \`${plan.persistence}\`
 - Network: \`${plan.network ?? 'none'}\`
 
-This plan is a host decision, not part of your generated artifact. Do not emit a \`/surface-plan\` meta line and do not imply capabilities outside this plan.
+This plan is a host decision, not part of your generated artifact. Do not emit a \`/surface-plan\` meta line and do not imply tools outside this plan.
 
 Runtime rules:
 
-- \`arrow\`: emit one \`op: "artifact"\` line at \`/artifact\` containing an Arrow sandbox source tree with one \`main.ts\` or \`main.js\`.
-- \`static\`: legacy read-only HTML runtime; avoid for new generated surfaces.
-- \`declarative\`: compatibility policy tier name for Arrow surfaces with host-resource/read authority; do not emit legacy attribute bindings.
-- \`worker\`: use only capabilities the host describes as worker-backed; the worker remains host-owned.
+- Runtime is always \`arrow\`: emit one \`op: "artifact"\` line at \`/artifact\` containing an Arrow sandbox source tree with one \`main.ts\` or \`main.js\`.
+- Static, declarative, worker, and approval behavior comes from \`SurfacePolicy.tier\` and this plan's data/authority fields, not alternate runtimes.
+- Use only tools the host describes in the Tools block; worker execution and approval remain host-owned.
 
 Authority rules:
 
-- \`none\`: no emitted intents.
+- \`none\`: no emitted tools.
 - \`read\`: read-oriented data resources only.
 - \`host-action\`: host-owned actions and resources may run after schema validation.
-- \`approval-gated\`: use only capabilities explicitly marked approval-gated; approval happens outside the artifact.`;
+- \`approval-gated\`: use only tools explicitly marked approval-gated; approval happens outside the artifact.`;
 }
 
 function inferPurpose(prompt: string): SurfacePurpose {
@@ -268,48 +190,4 @@ function inferPurpose(prompt: string): SurfacePurpose {
 
 function enumValue<T extends string>(raw: unknown, values: ReadonlySet<T>): T | null {
   return typeof raw === 'string' && values.has(raw as T) ? raw as T : null;
-}
-
-function enumList<T extends string>(raw: unknown, values: ReadonlySet<T>): T[] | undefined {
-  if (!Array.isArray(raw)) return undefined;
-  const out = raw.filter((value): value is T => typeof value === 'string' && values.has(value as T));
-  return out.length > 0 ? Array.from(new Set(out)) : undefined;
-}
-
-function allowed<T extends string>(value: T, rawAllowed: T[] | undefined, fallback: readonly T[]): boolean {
-  return (rawAllowed ?? fallback).includes(value);
-}
-
-function constrain<T extends string>(value: T, rawAllowed: T[] | undefined, fallback: readonly T[]): T {
-  const allowedValues = rawAllowed && rawAllowed.length > 0 ? rawAllowed : fallback;
-  return allowedValues.includes(value) ? value : allowedValues[0]!;
-}
-
-function constrainRuntime(value: SurfaceRuntime, rawAllowed: SurfaceRuntime[] | undefined): SurfaceRuntime {
-  const allowedValues = rawAllowed && rawAllowed.length > 0 ? rawAllowed : DEFAULT_SURFACE_CEILING.runtimes;
-  if (allowedValues.includes(value)) return value;
-  if (value === 'worker' && allowedValues.includes('declarative')) {
-    return 'declarative';
-  }
-  return allowedValues[0]!;
-}
-
-function constrainData(value: SurfaceData, rawAllowed: SurfaceData[] | undefined): SurfaceData {
-  const allowedValues = rawAllowed && rawAllowed.length > 0 ? rawAllowed : DEFAULT_SURFACE_CEILING.data;
-  if (allowedValues.includes(value)) return value;
-  if (value === 'worker' && allowedValues.includes('host-resource')) return 'host-resource';
-  return allowedValues[0]!;
-}
-
-function constrainAuthority(
-  value: SurfaceAuthority,
-  rawAllowed: SurfaceAuthority[] | undefined,
-): SurfaceAuthority {
-  const allowedValues = rawAllowed && rawAllowed.length > 0 ? rawAllowed : DEFAULT_SURFACE_CEILING.authorities;
-  if (allowedValues.includes(value)) return value;
-  if (value === 'approval-gated' && allowedValues.includes('host-action')) return 'host-action';
-  if ((value === 'approval-gated' || value === 'host-action') && allowedValues.includes('read')) {
-    return 'read';
-  }
-  return allowedValues[0]!;
 }

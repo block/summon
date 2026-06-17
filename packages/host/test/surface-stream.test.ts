@@ -91,7 +91,6 @@ test('consumeSurfaceStream rejects legacy section protocol at parse boundary', a
     mode: 'interactive',
     validationContext: {
       mode: 'interactive',
-      scriptPolicy: 'forbid',
       surfacePlan: {
         purpose: 'inform',
         runtime: 'arrow',

@@ -8,11 +8,11 @@ import { GALLERY_PRESETS } from '../../surface-gallery/src/presets.js';
 import { baseDemoComponentPack } from './components.js';
 import {
   createScopedDemoRegistry,
-  narrowCapabilityPack,
+  narrowToolPack,
   SHOWCASE_SCENARIOS,
 } from './showcase.js';
 
-const allDemoCapabilityNames = [
+const allDemoToolNames = [
   'log',
   'counter',
   'choose',
@@ -32,21 +32,21 @@ test('createScopedDemoRegistry aligns prompt pack, validation grants, and handle
   const registry = createScopedDemoRegistry({ onSummon: () => {} }, ['search', 'summon']);
   const contract = registry.toContract();
 
-  assert.deepEqual(contract.pack.intents.map((intent) => intent.name), ['search', 'summon']);
-  assert.deepEqual(contract.validationCapabilities.map((capability) => capability.name), ['search', 'summon']);
+  assert.deepEqual(contract.pack.tools.map((tool) => tool.name), ['search', 'summon']);
+  assert.deepEqual(contract.validationTools.map((tool) => tool.name), ['search', 'summon']);
   assert.deepEqual(Object.keys(registry.toPolicyHandlers()), ['search', 'summon']);
-  assert.deepEqual(registry.intents(), ['search', 'summon']);
+  assert.deepEqual(registry.tools(), ['search', 'summon']);
 });
 
-test('narrowCapabilityPack keeps only allowed intents and non-leaking patterns', () => {
+test('narrowToolPack keeps only allowed tools and non-leaking patterns', () => {
   const full = createScopedDemoRegistry(
     { onSummon: () => {} },
-    allDemoCapabilityNames,
+    allDemoToolNames,
   ).toContract().pack;
 
-  const narrowed = narrowCapabilityPack(full, ['counter']);
+  const narrowed = narrowToolPack(full, ['counter']);
 
-  assert.deepEqual(narrowed.intents.map((intent) => intent.name), ['counter']);
+  assert.deepEqual(narrowed.tools.map((tool) => tool.name), ['counter']);
   assert.ok(narrowed.patterns?.some((pattern) => pattern.code.includes('"counter"')));
   assert.equal(
     narrowed.patterns?.some((pattern) => pattern.code.includes('"summon"') || pattern.code.includes('"search"')),
@@ -55,9 +55,9 @@ test('narrowCapabilityPack keeps only allowed intents and non-leaking patterns',
 });
 
 test('showcase scenarios declare contract-complete surfaces', () => {
-  const capabilities = createScopedDemoRegistry(
+  const tools = createScopedDemoRegistry(
     { onSummon: () => {} },
-    allDemoCapabilityNames,
+    allDemoToolNames,
   ).toContract().pack;
   const components = baseDemoComponentPack();
 
@@ -74,15 +74,15 @@ test('showcase scenarios declare contract-complete surfaces', () => {
     });
 
     const compiled = compileSurfacePolicy(scenario.surfacePolicy, {
-      capabilities,
+      tools,
       components,
     });
     assert.deepEqual(compiled.issues, [], `${scenario.id} has invalid SurfacePolicy`);
     assert.deepEqual(compiled.surfacePlan, scenario.surfacePlan, `${scenario.id} policy does not compile to its SurfacePlan`);
     assert.deepEqual(
-      compiled.capabilities?.intents.map((intent) => intent.name) ?? [],
-      scenario.capabilityNames,
-      `${scenario.id} grants do not match capability names`,
+      compiled.tools?.tools.map((tool) => tool.name) ?? [],
+      scenario.toolNames,
+      `${scenario.id} grants do not match tool names`,
     );
     assert.deepEqual(
       compiled.components?.components.map((component) => component.name) ?? [],
@@ -96,7 +96,6 @@ test('showcase scenarios declare contract-complete surfaces', () => {
     assert.ok(scenario.surfacePlan.authority);
     assert.ok(scenario.surfacePlan.persistence);
     assert.equal(scenario.mode, compiled.mode);
-    assert.equal(scenario.scriptPolicy ?? compiled.scriptPolicy, compiled.scriptPolicy);
   }
 });
 
@@ -116,25 +115,25 @@ test('generate showcase mirrors surface gallery presets for shared sandbox paths
     assert.ok(gallery, `missing gallery preset ${id}`);
     assert.ok(scenario, `missing generate scenario ${id}`);
     assert.deepEqual(scenario.surfacePolicy, gallery.surfacePolicy, `${id} SurfacePolicy drift`);
-    assert.deepEqual(scenario.capabilityNames, gallery.surfacePolicy.grants ?? [], `${id} grant drift`);
+    assert.deepEqual(scenario.toolNames, gallery.surfacePolicy.grants ?? [], `${id} grant drift`);
     assert.deepEqual(scenario.componentNames ?? [], gallery.surfacePolicy.components ?? [], `${id} component drift`);
   }
 });
 
-test('showcase scenarios reference known demo capabilities', () => {
-  const known = new Set(allDemoCapabilityNames);
+test('showcase scenarios reference known demo tools', () => {
+  const known = new Set(allDemoToolNames);
   for (const scenario of SHOWCASE_SCENARIOS) {
-    for (const name of scenario.capabilityNames) {
-      assert.ok(known.has(name), `${scenario.id} references unknown capability "${name}"`);
+    for (const name of scenario.toolNames) {
+      assert.ok(known.has(name), `${scenario.id} references unknown tool "${name}"`);
     }
   }
 });
 
-test('showcase scenarios cover every non-utility demo capability', () => {
-  const utilityCapabilities = new Set(['log']);
-  const covered = new Set(SHOWCASE_SCENARIOS.flatMap((scenario) => scenario.capabilityNames));
-  const missing = allDemoCapabilityNames.filter(
-    (name) => !utilityCapabilities.has(name) && !covered.has(name),
+test('showcase scenarios cover every non-utility demo tool', () => {
+  const utilityTools = new Set(['log']);
+  const covered = new Set(SHOWCASE_SCENARIOS.flatMap((scenario) => scenario.toolNames));
+  const missing = allDemoToolNames.filter(
+    (name) => !utilityTools.has(name) && !covered.has(name),
   );
 
   assert.deepEqual(missing, []);

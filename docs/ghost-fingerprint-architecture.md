@@ -15,8 +15,8 @@ The fingerprint owns product direction:
 
 Summon owns surface authority:
 
-- SurfacePolicy, SurfacePlan, and script policy.
-- Host capabilities and resource grants.
+- SurfacePolicy, derived SurfacePlan diagnostics, and sandbox enforcement.
+- Host tools and resource grants.
 - Runtime validation and StreamGraph diagnostics.
 - Active token CSS used by the sandbox.
 
@@ -32,7 +32,7 @@ It should not be bundled into Summon as a default visual direction.
    `# Ghost Relay Brief` is the only Ghost generation prompt source.
 3. Summon resolves tokens from `.ghost/config.yml`, an optional token fallback
    direction, or Summon defaults.
-4. After the server resolves SurfacePlan, mode, capabilities, and components,
+4. After the server resolves SurfacePlan, mode, tools, and components,
    it appends a small Summon Surface Brief to the Ghost handoff. That brief
    explains the concrete generation run without recompiling or reranking the
    fingerprint.

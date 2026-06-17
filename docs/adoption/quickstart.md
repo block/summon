@@ -51,7 +51,7 @@ explicit manual override path.
 The Surface Gallery and Generate workbench both add Ghost-backed sandbox presets
 when trusted roots are configured. A configured Ghost root is treated as a
 fingerprint package, not as a bundled visual direction. Ghost resolves the
-product design context; Summon still owns host policy, capabilities, runtime
+product design context; Summon still owns host policy, tools, runtime
 contracts, and token fallback.
 
 Add one or more trusted Ghost roots to `apps/server/.env`:
@@ -139,7 +139,7 @@ The Stream and Devtools drawers are for understanding a run after you have
 rendered and interacted with a surface:
 
 - Open the **Stream** drawer to inspect accepted protocol lines, the selected
-  broker intent, selected surface config, validation summaries, skipped raw
+  broker goal, selected surface config, validation summaries, skipped raw
   lines, and Arrow artifact revisions.
 - Open the **Devtools** drawer to inspect sandbox startup, render events, host
   tool requests, host dispatch, pushed state, trusted component sync, and

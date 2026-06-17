@@ -1,11 +1,11 @@
 /**
- * Demo capability registry — the demo app owns its intent vocabulary, prompt
+ * Demo tool registry — the demo app owns its tool vocabulary, prompt
  * patterns, and handler implementations in one place. The registry produces
- * both the model-facing CapabilityPack and the PolicyEngine handler map.
+ * both the model-facing ToolPack and the PolicyEngine handler map.
  */
 
 import {
-  createCapabilityRegistry,
+  createToolRegistry,
   defineAction,
   defineApprovalAction,
   defineDataResource,
@@ -13,10 +13,10 @@ import {
   defineWorkerResource,
   type ApprovalDecision,
   type ApprovalRequest,
-  type CapabilityDefinition,
-  type CapabilityRegistry,
+  type ToolDefinition,
+  type ToolRegistry,
 } from '@anarchitecture/summon';
-import type { IntentHandler } from '@anarchitecture/summon/policy';
+import type { ToolHandler } from '@anarchitecture/summon/policy';
 import { z } from 'zod';
 
 const logArgsSchema = z.object({ payload: z.any().optional() }).passthrough();
@@ -94,7 +94,7 @@ export interface DemoHandlerOptions {
    * Optional because only the single-prompt generate page owns the DOM and
    * streaming machinery needed to spawn sibling sandboxes.
    */
-  onSummon?: IntentHandler<SummonArgs>;
+  onSummon?: ToolHandler<SummonArgs>;
   /**
    * Optional because batch/demo surfaces may run without a visible host
    * approval panel. Browser hosts should render their own approve/deny UI here.
@@ -104,9 +104,9 @@ export interface DemoHandlerOptions {
   ) => Promise<ApprovalDecision> | ApprovalDecision;
 }
 
-export function createDemoCapabilityRegistry(
+export function createDemoToolRegistry(
   opts: DemoHandlerOptions = {},
-): CapabilityRegistry {
+): ToolRegistry {
   const log = opts.onLog ?? (() => {});
   const errlog = opts.onError ?? opts.onLog ?? (() => {});
 
@@ -116,7 +116,7 @@ export function createDemoCapabilityRegistry(
   let logCount = 0;
   const chosenOptions: string[] = [];
 
-  const capabilities: CapabilityDefinition<any>[] = [
+  const tools: ToolDefinition<any>[] = [
     defineAction({
       name: 'log',
       description:
@@ -143,7 +143,7 @@ export function createDemoCapabilityRegistry(
         {
           name: 'Counter (shared integer state)',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ count: 0 });
 onState((hostState) => {
@@ -151,7 +151,7 @@ onState((hostState) => {
 });
 
 async function adjust(delta: number) {
-  const result = await invoke("counter", { delta });
+  const result = await callTool("counter", { delta });
   if (result.ok) state.count = Number(result.state.count ?? state.count);
 }
 
@@ -194,7 +194,7 @@ export default html\`
         {
           name: 'Form submit (validation)',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ submitted: false, submitError: "" });
 onState((hostState) => {
@@ -206,7 +206,7 @@ async function save(event: SubmitEvent) {
   event.preventDefault();
   const form = event.currentTarget as HTMLFormElement;
   const fields = Object.fromEntries(new FormData(form).entries());
-  const result = await invoke("submit", fields);
+  const result = await callTool("submit", fields);
   state.submitted = Boolean(result.state.submitted);
   state.submitError = String(result.state.submitError ?? result.error ?? "");
 }
@@ -265,7 +265,7 @@ export default html\`
         {
           name: 'Search + result list (form submit + foreach + scoped click)',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ searching: false, results: [] as Array<{ title: string; snippet: string }>, searchError: "" });
 onState((hostState) => {
@@ -277,11 +277,11 @@ onState((hostState) => {
 async function search(event: SubmitEvent) {
   event.preventDefault();
   const query = String(new FormData(event.currentTarget as HTMLFormElement).get("query") ?? "");
-  await invoke("search", { query });
+  await callTool("search", { query });
 }
 
 async function pick(result: { title: string; snippet: string }) {
-  await invoke("log", { payload: { picked: result } });
+  await callTool("log", { payload: { picked: result } });
 }
 
 export default html\`
@@ -338,7 +338,7 @@ export default html\`
         {
           name: 'AI brainstorm (form submit + show loading + bind output)',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ aiLoading: false, aiResponse: "", aiError: "" });
 onState((hostState) => {
@@ -350,7 +350,7 @@ onState((hostState) => {
 async function brainstorm(event: SubmitEvent) {
   event.preventDefault();
   const prompt = String(new FormData(event.currentTarget as HTMLFormElement).get("prompt") ?? "");
-  await invoke("ai", { prompt });
+  await callTool("ai", { prompt });
 }
 
 export default html\`
@@ -402,7 +402,7 @@ export default html\`
         {
           name: 'GitHub lookup (form submit + show wrapper + bind nested fields)',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ githubLoading: false, githubUser: null as null | Record<string, unknown>, githubError: "" });
 onState((hostState) => {
@@ -414,7 +414,7 @@ onState((hostState) => {
 async function lookup(event: SubmitEvent) {
   event.preventDefault();
   const username = String(new FormData(event.currentTarget as HTMLFormElement).get("username") ?? "");
-  await invoke("github_lookup", { username });
+  await callTool("github_lookup", { username });
 }
 
 export default html\`
@@ -503,7 +503,7 @@ export default html\`
         {
           name: 'Worker analysis (background compute + result binding)',
           code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ analysisLoading: false, analysisResult: null as null | { topic: string; score: number; summary: string; next: string[] }, analysisError: "" });
 onState((hostState) => {
@@ -515,7 +515,7 @@ onState((hostState) => {
 async function analyze(event: SubmitEvent) {
   event.preventDefault();
   const topic = String(new FormData(event.currentTarget as HTMLFormElement).get("topic") ?? "");
-  await invoke("analysis", { topic });
+  await callTool("analysis", { topic });
 }
 
 export default html\`
@@ -607,18 +607,18 @@ export default html\`
   ];
 
   if (opts.onSummon) {
-    capabilities.push(
+    tools.push(
       defineAction({
         name: 'summon',
         description:
-          'Ask the host to generate a NEW sibling UI in its own iframe with its own state. Use sparingly — only when the user benefits from a deeper, separately-stateful surface (e.g., "summon a prep guide for this recipe", "open this option as its own planner"). The `prompt` is the user-intent description for the new UI; the optional `title` labels the child card. Do NOT use summon for things you can render inline with the existing intents.',
+          'Ask the host to generate a NEW sibling UI in its own iframe with its own state. Use sparingly — only when the user benefits from a deeper, separately-stateful surface (e.g., "summon a prep guide for this recipe", "open this option as its own planner"). The `prompt` is the user-tool description for the new UI; the optional `title` labels the child card. Do NOT use summon for things you can render inline with the existing tools.',
         argsSchema: summonArgsSchema,
         stateShape: '{summonedCount: number, lastSummoned: string | null, summonError: string | null}',
         patterns: [
           {
             name: 'Summon a sibling UI (new iframe, own state)',
             code: `import { html, reactive } from "@arrow-js/core";
-import { invoke, onState } from "host-bridge:summon";
+import { callTool, onState } from "host-bridge:summon";
 
 const state = reactive({ summonError: "" });
 onState((hostState) => {
@@ -626,7 +626,7 @@ onState((hostState) => {
 });
 
 async function openPrepGuide() {
-  await invoke("summon", {
+  await callTool("summon", {
     prompt: "a focused 20-minute prep guide for chicken piccata, with timer-style steps",
     title: "Prep guide",
   });
@@ -643,5 +643,5 @@ export default html\`
     );
   }
 
-  return createCapabilityRegistry(capabilities);
+  return createToolRegistry(tools);
 }

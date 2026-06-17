@@ -205,7 +205,7 @@ test('mocked generation renders and generated host tool requests update host sta
         },
         { op: 'meta', path: '/status', value: 'writing' },
         arrowArtifact(`import { html, reactive } from "@arrow-js/core";
-import { invoke } from "host-bridge:summon";
+import { callTool } from "host-bridge:summon";
 
 const state = reactive({ saving: false, saved: false, error: "", lastChoice: "" });
 
@@ -213,7 +213,7 @@ async function saveChoice() {
   state.saving = true;
   state.saved = false;
   state.error = "";
-  const result = await invoke("choose", { option: "Balanced path" });
+  const result = await callTool("choose", { option: "Balanced path" });
   state.saving = false;
   if (result.ok) {
     const next = result.state || {};
@@ -264,7 +264,7 @@ export default html\`
     purpose: 'compare',
     grants: ['choose'],
   });
-  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual([
+  expect(captured.tools.tools.map((tool: any) => tool.name)).toEqual([
     'search',
     'choose',
     'publish_summary',
@@ -324,7 +324,7 @@ test('host search resource renders host-owned empty state', async ({ page }) => 
           },
         },
         arrowArtifact(`import { html, reactive } from "@arrow-js/core";
-import { invoke } from "host-bridge:summon";
+import { callTool } from "host-bridge:summon";
 
 const state = reactive({ loading: false, empty: false, error: "" });
 
@@ -332,7 +332,7 @@ async function submitSearch() {
   state.loading = true;
   state.empty = false;
   state.error = "";
-  const result = await invoke("search", { query: "zzzzzz" });
+  const result = await callTool("search", { query: "zzzzzz" });
   state.loading = false;
   if (result.ok) {
     const next = result.state || {};
@@ -425,7 +425,7 @@ test('approval refund uses host-owned approval card for approve and deny decisio
           },
         },
         arrowArtifact(`import { html, reactive } from "@arrow-js/core";
-import { invoke } from "host-bridge:summon";
+import { callTool } from "host-bridge:summon";
 
 const state = reactive({
   waiting: false,
@@ -443,7 +443,7 @@ async function requestRefund() {
   state.failed = "";
   state.refunded = false;
   state.amount = "";
-  const result = await invoke("issue_refund", { title: "Approval smoke", amount: "$842.15" });
+  const result = await callTool("issue_refund", { title: "Approval smoke", amount: "$842.15" });
   const next = result.state || {};
   state.waiting = false;
   state.approved = Boolean(next.refundApprovalApproved);

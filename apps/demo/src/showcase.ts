@@ -1,11 +1,10 @@
 import type {
-  CapabilityPack,
-  ScriptPolicy,
+  ToolPack,
   SurfacePlan,
   SurfacePlanMode,
 } from '@anarchitecture/summon/engine';
-import type { CapabilityRegistry, SurfacePolicy } from '@anarchitecture/summon';
-import { createDemoCapabilityRegistry, type DemoHandlerOptions } from './capabilities.js';
+import type { ToolRegistry, SurfacePolicy } from '@anarchitecture/summon';
+import { createDemoToolRegistry, type DemoHandlerOptions } from './tools.js';
 
 export type Mode = SurfacePlanMode;
 
@@ -14,11 +13,10 @@ export interface ShowcaseScenario {
   label: string;
   prompt: string;
   mode: Mode;
-  capabilityNames: string[];
+  toolNames: string[];
   componentNames?: string[];
   surfacePolicy: SurfacePolicy;
   surfacePlan: SurfacePlan;
-  scriptPolicy?: ScriptPolicy;
   layoutId?: string;
   tokenOverrides?: Record<string, string>;
   directionId?: string | null;
@@ -28,12 +26,11 @@ export interface ActiveContract {
   scenarioId: string;
   prompt: string;
   mode: Mode;
-  capabilityNames: string[];
+  toolNames: string[];
   componentNames?: string[];
   agentBroker?: boolean;
   surfacePolicy?: SurfacePolicy;
   surfacePlan: SurfacePlan;
-  scriptPolicy: ScriptPolicy;
   layoutId?: string;
   tokenOverrides?: Record<string, string>;
   directionId?: string | null;
@@ -55,7 +52,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'help me build a weeknight dinner finder where i can search for recipes and see loading, error, and real host data states clearly',
     mode: 'interactive',
-    capabilityNames: ['search'],
+    toolNames: ['search'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search'] },
       surfacePlan: {
         purpose: 'explore',
@@ -72,7 +69,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'build a brainstorm helper where i can ask host AI for birthday gift ideas and see loading, error, and response states clearly',
     mode: 'interactive',
-    capabilityNames: ['ai'],
+    toolNames: ['ai'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['ai'] },
       surfacePlan: {
         purpose: 'explore',
@@ -89,7 +86,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'build a GitHub profile lookup where i can enter a username and see loading, error, avatar, follower, and repo states from host data',
     mode: 'interactive',
-    capabilityNames: ['github_lookup'],
+    toolNames: ['github_lookup'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['github_lookup'] },
       surfacePlan: {
         purpose: 'explore',
@@ -106,7 +103,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'build a compact launch-readiness dashboard that uses host-rendered MetricCard, TrendSparkline, and ApprovalStatus component islands, plus a choose control for the final launch recommendation',
     mode: 'interactive',
-    capabilityNames: ['choose'],
+    toolNames: ['choose'],
     componentNames: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
     surfacePolicy: {
       tier: 'declarative',
@@ -128,7 +125,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     label: 'Static summary',
     prompt: 'compare Roth vs traditional IRA for someone new to retirement saving',
     mode: 'static',
-    capabilityNames: [],
+    toolNames: [],
     surfacePolicy: { tier: 'static', purpose: 'compare' },
       surfacePlan: {
         purpose: 'compare',
@@ -145,7 +142,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'help me choose between three launch announcement approaches for a small developer tool. Compare tradeoffs and let me save the best option.',
     mode: 'interactive',
-    capabilityNames: ['choose'],
+    toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'compare', grants: ['choose'] },
       surfacePlan: {
         purpose: 'compare',
@@ -162,7 +159,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'help me collect a team lunch order with required fields, submit validation, a success state, and field errors',
     mode: 'interactive',
-    capabilityNames: ['submit'],
+    toolNames: ['submit'],
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
       surfacePlan: {
         purpose: 'collect',
@@ -179,7 +176,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'run host analysis for a product launch readiness topic, compute a score with a host-owned background worker, and show loading, error, and result states',
     mode: 'interactive',
-    capabilityNames: ['analysis', 'compute_score'],
+    toolNames: ['analysis', 'compute_score'],
     surfacePolicy: { tier: 'worker', purpose: 'review', grants: ['analysis', 'compute_score'] },
       surfacePlan: {
         purpose: 'review',
@@ -196,7 +193,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'build a publish approval panel where i can review a titled summary, request host approval, and show pending, approved, denied, and error states',
     mode: 'interactive',
-    capabilityNames: ['publish_summary'],
+    toolNames: ['publish_summary'],
     surfacePolicy: { tier: 'approval', purpose: 'operate', grants: ['publish_summary'] },
       surfacePlan: {
         purpose: 'operate',
@@ -213,7 +210,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'build a scoring picker with tabs, disclosure, local highlighted selection, state-driven styling, and subtle motion using only declarative local state plus host-backed choose and counter controls',
     mode: 'interactive',
-    capabilityNames: ['choose', 'counter'],
+    toolNames: ['choose', 'counter'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },
       surfacePlan: {
         purpose: 'explore',
@@ -230,7 +227,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'build a compact option picker where I can choose an option with a prominent accent action and status badge, using only direction tokens for color',
     mode: 'interactive',
-    capabilityNames: ['choose'],
+    toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose'] },
     tokenOverrides: {
       'color-accent': '#0f8cff',
@@ -252,7 +249,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'create a compact project intake card where I can submit validated details, with a crisp header, useful content, and one or two action controls',
     mode: 'interactive',
-    capabilityNames: ['submit'],
+    toolNames: ['submit'],
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
     layoutId: 'card-structured',
       surfacePlan: {
@@ -270,7 +267,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt:
       'build a recipe explorer that can search for dinner ideas and includes a clear action to summon a separate prep guide for one result',
     mode: 'interactive',
-    capabilityNames: ['search', 'summon'],
+    toolNames: ['search', 'summon'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search', 'summon'] },
       surfacePlan: {
         purpose: 'explore',
@@ -290,7 +287,7 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
     prompt:
       'generate a review surface that follows this Ghost fingerprint package and lets me choose an approved direction with host-allowed controls',
     mode: 'interactive',
-    capabilityNames: ['choose'],
+    toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'review', grants: ['choose'] },
       surfacePlan: {
         purpose: 'review',
@@ -304,36 +301,36 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
   };
 }
 
-export function narrowCapabilityPack(
-  pack: CapabilityPack,
-  capabilityNames: readonly string[],
-): CapabilityPack {
-  const allowed = new Set(capabilityNames);
-  const intents = pack.intents.filter((intent) => allowed.has(intent.name));
-  const denied = pack.intents
-    .map((intent) => intent.name)
+export function narrowToolPack(
+  pack: ToolPack,
+  toolNames: readonly string[],
+): ToolPack {
+  const allowed = new Set(toolNames);
+  const tools = pack.tools.filter((tool) => allowed.has(tool.name));
+  const denied = pack.tools
+    .map((tool) => tool.name)
     .filter((name) => !allowed.has(name));
   const patterns = (pack.patterns ?? []).filter((pattern) => {
-    if (denied.some((name) => mentionsCapability(pattern.code, name))) return false;
-    return capabilityNames.some((name) => mentionsCapability(pattern.code, name));
+    if (denied.some((name) => mentionsTool(pattern.code, name))) return false;
+    return toolNames.some((name) => mentionsTool(pattern.code, name));
   });
   return {
-    intents,
+    tools,
     ...(patterns.length > 0 ? { patterns } : {}),
   };
 }
 
 export function createScopedDemoRegistry(
   opts: DemoHandlerOptions,
-  capabilityNames: readonly string[],
-): CapabilityRegistry {
-  const registry = createDemoCapabilityRegistry(opts);
-  const allowed = new Set(capabilityNames);
-  const excluded = registry.intents().filter((name) => !allowed.has(name));
+  toolNames: readonly string[],
+): ToolRegistry {
+  const registry = createDemoToolRegistry(opts);
+  const allowed = new Set(toolNames);
+  const excluded = registry.tools().filter((name) => !allowed.has(name));
   return registry.without(excluded);
 }
 
-function mentionsCapability(code: string, name: string): boolean {
+function mentionsTool(code: string, name: string): boolean {
   return (
     code.includes(`"${name}"`) ||
     code.includes(`'${name}'`) ||

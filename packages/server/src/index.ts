@@ -1,19 +1,18 @@
 export {
   defaultHostPolicyResolver,
-  inferSurfaceIntent,
+  inferSurfaceGoal,
   planAgentSurface,
-  policyFromIntent,
+  policyFromGoal,
   runAgentSurfaceGeneration,
 } from './agent-broker.js';
-export { resolveSurfaceGenerationPlan } from './plan.js';
 export { runSurfaceGeneration } from './runner.js';
 export { summarizeContractIssues } from './summary.js';
 
 export type {
-  AgentIntentProvider,
-  AgentIntentRequest,
-  AgentIntentTextClient,
-  AgentIntentTextRequest,
+  AgentGoalProvider,
+  AgentGoalRequest,
+  AgentGoalTextClient,
+  AgentGoalTextRequest,
   AgentPolicyResolution,
   AgentSurfaceGenerationInput,
   AgentSurfaceGenerationSummary,
@@ -22,19 +21,17 @@ export type {
   AgentSurfacePlanningOptions,
   HostPolicyResolutionRequest,
   HostPolicyResolver,
-  SurfaceIntent,
-  SurfaceIntentDataNeed,
-  SurfaceIntentInteraction,
-  SurfaceIntentSideEffect,
-  SurfaceIntentSource,
+  SurfaceGoal,
+  SurfaceGoalDataNeed,
+  SurfaceGoalInteraction,
+  SurfaceGoalSideEffect,
+  SurfaceGoalSource,
 } from './agent-broker.js';
 
 export type {
   GenerateSurfaceInput,
   GenerationSummary,
   GhostGenerationContext,
-  ResolvedSurfaceGenerationPlan,
-  ResolveSurfaceGenerationPlanInput,
   SummonModelChunk,
   SummonModelProvider,
   SummonModelRequest,

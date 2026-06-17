@@ -20,6 +20,14 @@ const hostSearchPlan = {
   persistence: 'replayable',
 };
 
+const staticSummaryPlan = {
+  purpose: 'compare',
+  runtime: 'arrow',
+  data: 'embedded',
+  authority: 'none',
+  persistence: 'replayable',
+};
+
 const componentIslandsPlan = {
   purpose: 'review',
   runtime: 'arrow',
@@ -64,8 +72,8 @@ test('adversarial sandbox boundary holds', async ({ page }) => {
   await expect(page.locator('#results .fail')).toHaveCount(0);
 
   const results = page.locator('#results');
-  await expect(results).toContainText('intent="exfiltrate"');
-  await expect(results).toContainText('intent="escalate"');
+  await expect(results).toContainText('tool="exfiltrate"');
+  await expect(results).toContainText('tool="escalate"');
 });
 
 test('bootstrap self-test fails closed on unsafe sandbox config', async ({ page }) => {
@@ -89,6 +97,7 @@ test('strict input keeps sensitive entry in host overlay', async ({ page }) => {
 
   const sandbox = page.frameLocator('#sandbox');
   const payButton = sandbox.locator('#pay');
+  await expect(page.locator('#log')).toContainText('filled=true');
   await expect(payButton).toBeEnabled();
   await payButton.click();
 
@@ -211,7 +220,7 @@ test('sandbox Arrow onState bridge syncs host pushes without legacy attributes',
                   render();
                 });
                 root.querySelector("#increment").addEventListener("click", async () => {
-                  const result = await bridge.invoke("counter", { delta: 1 });
+                  const result = await bridge.callTool("counter", { delta: 1 });
                   if (result.ok) {
                     state.count = Number(result.state.count ?? state.count);
                     state.label = String(result.state.label ?? state.label);
@@ -245,10 +254,10 @@ test('sandbox Arrow onState bridge syncs host pushes without legacy attributes',
         source: {
           'main.ts': [
             'import { html, reactive } from "@arrow-js/core";',
-            'import { invoke, onState } from "host-bridge:summon";',
+            'import { callTool, onState } from "host-bridge:summon";',
             'const state = reactive({ count: 0, label: "" });',
             'onState((hostState) => { state.count = Number(hostState.count ?? state.count); state.label = String(hostState.label ?? state.label); });',
-            'async function increment() { await invoke("counter", { delta: 1 }); }',
+            'async function increment() { await callTool("counter", { delta: 1 }); }',
             'export default html`<main><p id="label">${() => state.label}</p><output id="count">${() => state.count}</output><button id="increment" @click="${increment}">Increment</button></main>`;',
           ].join('\\n'),
         },
@@ -275,7 +284,7 @@ test('sandbox Arrow onState bridge syncs host pushes without legacy attributes',
   await sandbox.locator('#increment').click();
   await expect.poll(async () => page.evaluate(() => {
     const messages = (window as any).__summonMessages as any[];
-    return messages.find((message) => message?.type === 'SUMMON_INTENT' && message.intent === 'counter')?.args;
+    return messages.find((message) => message?.type === 'SUMMON_TOOL_CALL' && message.tool === 'counter')?.args;
   })).toEqual({ delta: 1 });
 });
 
@@ -286,13 +295,13 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
     const body = jsonl([
       {
         op: 'meta',
-        path: '/agent-intent',
+        path: '/agent-goal',
         value: {
           purpose: 'explore',
           interaction: 'search',
           dataNeed: 'host-resource',
           sideEffect: 'none',
-          requestedCapabilities: ['search'],
+          requestedTools: ['search'],
           requestedComponents: [],
           confidence: 0.72,
           rationale: 'deterministic keyword and catalog match',
@@ -303,7 +312,7 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
-          intentSource: 'deterministic',
+          goalSource: 'deterministic',
           proposedSurfacePolicy: {
             tier: 'declarative',
             purpose: 'explore',
@@ -317,7 +326,7 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
             grants: ['search'],
             persistence: 'replayable',
           },
-          rejectedCapabilities: [],
+          rejectedTools: [],
           rejectedComponents: [],
           fallback: false,
         },
@@ -359,8 +368,8 @@ test('generate showcase uses the agent broker by default', async ({ page }) => {
   expect(captured.agent).toEqual({ enabled: true });
   expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
-  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['search']);
-  expect(captured.scriptPolicy).toBe('forbid');
+  expect(captured.tools.tools.map((tool: any) => tool.name)).toEqual(['search']);
+  expect(captured.scriptPolicy).toBeUndefined();
   await expect(page.locator('#contract-summary [data-contract-row="broker"]')).toContainText('default');
   await expect(page.locator('#log')).toContainText('agent policy');
 });
@@ -404,14 +413,103 @@ test('generate showcase renders Arrow artifacts in the sandbox', async ({ page }
   await expect(sandbox.locator('#arrow-probe')).toContainText('Arrow rendered');
 });
 
+test('generate static summary scenario renders read-only Arrow artifacts', async ({ page }) => {
+  let captured: any = null;
+  await page.route('**/api/generate', async (route) => {
+    captured = route.request().postDataJSON();
+    const body = jsonl([
+      { op: 'meta', path: '/surface-plan', value: staticSummaryPlan },
+      arrowHtmlArtifact('<section id="static-probe"><h1>Static rendered</h1><p>Read-only summary.</p></section>'),
+      {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: true,
+            blockedCount: 0,
+            skippedCount: 0,
+          },
+          artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
+        },
+      },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#scenario').selectOption('static-summary');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#iframe-status')).toContainText('done');
+  const sandbox = page.frameLocator('#sandbox');
+  await expect(sandbox.locator('#static-probe')).toBeVisible({ timeout: 15_000 });
+  await expect(sandbox.locator('#static-probe')).toContainText('Static rendered');
+  expect(captured.mode).toBeUndefined();
+  expect(captured.surfacePlan).toBeUndefined();
+  expect(captured.surfacePolicy).toBeUndefined();
+  expect(captured.agent).toEqual({ enabled: true });
+  expect(captured.tools.tools).toEqual([]);
+});
+
+test('generate static summary shows streamed server errors instead of a blank stage', async ({ page }) => {
+  await page.route('**/api/generate', async (route) => {
+    const body = jsonl([
+      { op: 'meta', path: '/surface-plan', value: staticSummaryPlan },
+      { op: 'meta', path: '/error', value: 'model provider could not produce a surface' },
+      {
+        op: 'meta',
+        path: '/stream-graph-summary',
+        value: {
+          health: {
+            complete: false,
+            blockedCount: 0,
+            skippedCount: 0,
+          },
+          artifacts: [],
+        },
+      },
+    ]);
+    await route.fulfill({ status: 200, contentType: 'text/plain', body });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#scenario').selectOption('static-summary');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#stage-notice')).toBeVisible();
+  await expect(page.locator('#stage-notice')).toContainText('Generation failed');
+  await expect(page.locator('#stage-notice')).toContainText('model provider could not produce a surface');
+  await page.locator('#open-diagnostics').click();
+  await expect(page.locator('#diagnostics-stream')).toBeVisible();
+  await expect(page.locator('#log')).toContainText('model provider could not produce a surface');
+});
+
+test('generate static summary shows HTTP setup errors instead of a blank stage', async ({ page }) => {
+  await page.route('**/api/generate', async (route) => {
+    await route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'missing ANTHROPIC_API_KEY' }),
+    });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#scenario').selectOption('static-summary');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#stage-notice')).toBeVisible();
+  await expect(page.locator('#stage-notice')).toContainText('Generation failed');
+  await expect(page.locator('#stage-notice')).toContainText('HTTP 400: missing ANTHROPIC_API_KEY');
+});
+
 test('batch page brokers each generation request', async ({ page }) => {
   const captured: any[] = [];
   await page.route('**/api/generate', async (route) => {
     const request = route.request().postDataJSON();
     captured.push(request);
     const body = jsonl([
-      { op: 'meta', path: '/agent-intent', value: { purpose: 'inform', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedCapabilities: [], requestedComponents: [], confidence: 0.58 } },
-      { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', intentSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'inform', persistence: 'replayable' }, rejectedCapabilities: [], rejectedComponents: [], fallback: false } },
+      { op: 'meta', path: '/agent-goal', value: { purpose: 'inform', interaction: 'none', dataNeed: 'embedded', sideEffect: 'none', requestedTools: [], requestedComponents: [], confidence: 0.58 } },
+      { op: 'meta', path: '/agent-policy-resolution', value: { source: 'default', goalSource: 'deterministic', surfacePolicy: { tier: 'static', purpose: 'inform', persistence: 'replayable' }, rejectedTools: [], rejectedComponents: [], fallback: false } },
       arrowHtmlArtifact('<section><h1>Batch brokered</h1></section>'),
     ]);
     await route.fulfill({ status: 200, contentType: 'text/plain', body });
@@ -435,11 +533,18 @@ test('unknown demo routes redirect to Arrow generate workbench', async ({ page }
   await expect(page.locator('#scenario')).toContainText('Host Data Search');
 });
 
-test('generate showcase sends raw SurfacePlan from the advanced override', async ({ page }) => {
+test('generate showcase sends SurfacePolicy from the advanced override', async ({ page }) => {
   let captured: any = null;
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
-    const surfacePlan = captured.surfacePlan;
+    const surfacePlan = {
+      purpose: captured.surfacePolicy?.purpose ?? 'collect',
+      runtime: 'arrow',
+      data: 'embedded',
+      authority: 'host-action',
+      persistence: captured.surfacePolicy?.persistence ?? 'replayable',
+      network: 'none',
+    };
     const body = jsonl([
       { op: 'meta', path: '/surface-plan', value: surfacePlan },
       { op: 'meta', path: '/shape', value: 'card' },
@@ -491,19 +596,17 @@ test('generate showcase sends raw SurfacePlan from the advanced override', async
   );
 
   expect(captured).toBeTruthy();
-  expect(captured.mode).toBe('interactive');
-  expect(captured.scriptPolicy).toBe('forbid');
-  expect(captured.surfacePolicy).toBeUndefined();
-  expect(captured.surfacePlan).toEqual({
+  expect(captured.mode).toBeUndefined();
+  expect(captured.scriptPolicy).toBeUndefined();
+  expect(captured.surfacePlan).toBeUndefined();
+  expect(captured.surfacePolicy).toEqual({
+    tier: 'declarative',
     purpose: 'collect',
-    runtime: 'arrow',
-    data: 'embedded',
-    authority: 'host-action',
     persistence: 'replayable',
-    network: 'none',
+    grants: ['submit'],
   });
-  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['submit']);
-  expect(captured.capabilities.intents[0].surface).toEqual({ authority: 'host-action' });
+  expect(captured.tools.tools.map((tool: any) => tool.name)).toEqual(['submit']);
+  expect(captured.tools.tools[0].surface).toEqual({ authority: 'host-action' });
   expect(captured.tokenOverrides).toEqual({
     'color-accent': '#0f8cff',
     'color-accent-fg': '#ffffff',
@@ -553,13 +656,13 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
       },
       {
         op: 'meta',
-        path: '/agent-intent',
+        path: '/agent-goal',
         value: {
           purpose: 'review',
           interaction: 'select',
           dataNeed: 'embedded',
           sideEffect: 'local-state',
-          requestedCapabilities: ['choose'],
+          requestedTools: ['choose'],
           requestedComponents: [],
           confidence: 0.72,
         },
@@ -569,14 +672,14 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
-          intentSource: 'deterministic',
+          goalSource: 'deterministic',
           surfacePolicy: {
             tier: 'declarative',
             purpose: 'review',
             grants: ['choose'],
             persistence: 'replayable',
           },
-          rejectedCapabilities: [],
+          rejectedTools: [],
           rejectedComponents: [],
           fallback: false,
         },
@@ -640,7 +743,7 @@ test('generate loads Ghost root scenario and logs Ghost metadata', async ({ page
   expect(captured.agent).toEqual({ enabled: true });
   expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
-  expect(captured.capabilities.intents.map((intent: any) => intent.name)).toEqual(['choose']);
+  expect(captured.tools.tools.map((tool: any) => tool.name)).toEqual(['choose']);
 });
 
 test('component islands render in host overlay without widening the sandbox', async ({ page }) => {
@@ -660,13 +763,13 @@ test('component islands render in host overlay without widening the sandbox', as
     const body = jsonl([
       {
         op: 'meta',
-        path: '/agent-intent',
+        path: '/agent-goal',
         value: {
           purpose: 'review',
           interaction: 'select',
           dataNeed: 'embedded',
           sideEffect: 'local-state',
-          requestedCapabilities: ['choose'],
+          requestedTools: ['choose'],
           requestedComponents: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
           confidence: 0.72,
         },
@@ -676,9 +779,9 @@ test('component islands render in host overlay without widening the sandbox', as
         path: '/agent-policy-resolution',
         value: {
           source: 'default',
-          intentSource: 'deterministic',
+          goalSource: 'deterministic',
           surfacePolicy: componentIslandsPolicy,
-          rejectedCapabilities: [],
+          rejectedTools: [],
           rejectedComponents: [],
           fallback: false,
         },
@@ -722,7 +825,7 @@ test('component islands render in host overlay without widening the sandbox', as
   expect(captured.agent).toEqual({ enabled: true });
   expect(captured.surfacePolicy).toBeUndefined();
   expect(captured.surfacePlan).toBeUndefined();
-  expect(captured.scriptPolicy).toBe('forbid');
+  expect(captured.scriptPolicy).toBeUndefined();
 
   await expect(sandbox.locator('[data-summon-component-id="launch-score"]')).not.toContainText('84');
 

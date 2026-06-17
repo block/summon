@@ -1,23 +1,23 @@
 export { spawnSandbox } from './sandbox-spawner.js';
 export type { SpawnOptions } from './sandbox-spawner.js';
-export { PolicyEngine, defineIntent, IntentArgsError } from './policy-engine.js';
+export { PolicyEngine, defineToolHandler, ToolArgsError } from './policy-engine.js';
 export type {
-  IntentContext,
-  IntentEntry,
-  IntentHandler,
+  ToolContext,
+  ToolHandlerEntry,
+  ToolHandler,
   PolicyEngineOptions,
   PolicyDispatchResult,
-  TypedIntentEntry,
+  TypedToolHandlerEntry,
 } from './policy-engine.js';
 export {
-  createCapabilityRegistry,
+  createToolRegistry,
   defineAction,
   defineApprovalAction,
-  defineCapability,
+  defineTool,
   defineDataResource,
   defineWorkerAction,
   defineWorkerResource,
-} from './capability-registry.js';
+} from './tool-registry.js';
 export type {
   ActionDefinition,
   ActionStateKeys,
@@ -26,12 +26,12 @@ export type {
   ApprovalPrepared,
   ApprovalRequest,
   ApprovalStateKeys,
-  CapabilityDefinition,
-  CapabilityRegistry,
+  ToolDefinition,
+  ToolRegistry,
   DataResourceDefinition,
   ResourceStateKeys,
   StateShapeDescriptor,
-} from './capability-registry.js';
+} from './tool-registry.js';
 export {
   createComponentRegistry,
   defineComponent,
@@ -94,8 +94,8 @@ export type {
   ComponentsMessage,
   SandboxHandle,
   StateMessage,
-  IntentMessage,
-  IntentResultMessage,
+  ToolCallMessage,
+  ToolResultMessage,
   ReadyMessage,
   FatalMessage,
   SandboxInboundMessage,

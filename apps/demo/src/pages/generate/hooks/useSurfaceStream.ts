@@ -11,14 +11,13 @@ import {
 import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import type { SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import type { Mode } from '../../../showcase.js';
-import { demoSurfaceCeiling } from '../constants.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
 import {
   agentBrokerRequestFor,
-  agentIntentText,
+  agentGoalText,
   agentPolicyText,
   applyTokenOverrideCss,
-  capabilityPackFor,
+  toolPackFor,
   componentPackFor,
   ghostRootFromSelection,
   parseAppliedTokenOverrides,
@@ -57,7 +56,7 @@ export function useSurfaceStream({
   logLine,
   setBytes,
   setMode,
-  setCurrentAgentIntentSummary,
+  setCurrentAgentGoalSummary,
   setCurrentAgentPolicySummary,
   setCurrentEffectiveSurfacePlan,
   setCurrentSurfaceContractView,
@@ -78,7 +77,7 @@ export function useSurfaceStream({
   logLine: (cls: string, text: string) => void;
   setBytes: (value: number) => void;
   setMode: (value: Mode) => void;
-  setCurrentAgentIntentSummary: (value: string | null) => void;
+  setCurrentAgentGoalSummary: (value: string | null) => void;
   setCurrentAgentPolicySummary: (value: string | null) => void;
   setCurrentEffectiveSurfacePlan: (value: SurfacePlan | null) => void;
   setCurrentSurfaceContractView: (value: SurfaceContractView | null) => void;
@@ -101,10 +100,10 @@ export function useSurfaceStream({
       modeRef.current = 'interactive';
       return;
     }
-    if (line.op === 'meta' && line.path === '/agent-intent') {
-      const summary = agentIntentText(line.value);
-      setCurrentAgentIntentSummary(summary);
-      logLine('op-meta', `agent intent -> ${summary}`);
+    if (line.op === 'meta' && line.path === '/agent-goal') {
+      const summary = agentGoalText(line.value);
+      setCurrentAgentGoalSummary(summary);
+      logLine('op-meta', `agent goal -> ${summary}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/agent-policy-resolution') {
@@ -229,7 +228,7 @@ export function useSurfaceStream({
     setActiveTokensSourceOverride,
     setArtifactRevision,
     setBytes,
-    setCurrentAgentIntentSummary,
+    setCurrentAgentGoalSummary,
     setCurrentAgentPolicySummary,
     setCurrentEffectiveSurfacePlan,
     setCurrentShape,
@@ -245,15 +244,14 @@ export function useSurfaceStream({
   return useCallback(async (opts: StreamOptions): Promise<StreamResult> => {
     const active = opts.active;
     const ghostRootId = ghostRootFromSelection(opts.directionId);
-    const capabilityPack = capabilityPackFor(active);
+    const toolPack = toolPackFor(active);
     const components = componentPackFor(active);
     const surfaceRequest = surfaceRequestFor(active);
     const agent = agentBrokerRequestFor(active);
     const validationContext: ValidationContext = {
       mode: active.mode,
-      scriptPolicy: active.scriptPolicy,
-      allowedIntents: capabilityPack.intents.map((intent) => intent.name),
-      capabilities: capabilityPack.intents,
+      allowedTools: toolPack.tools.map((tool) => tool.name),
+      tools: toolPack.tools,
       components: components?.components ?? [],
       surfacePlan: active.surfacePlan,
     };
@@ -277,12 +275,9 @@ export function useSurfaceStream({
               },
             }
           : { directionId: opts.directionId }),
-        mode: modeRef.current,
-        capabilities: capabilityPack,
+        tools: toolPack,
         ...(components ? { components } : {}),
-        surfaceCeiling: demoSurfaceCeiling,
         ...(agent ? { agent } : {}),
-        scriptPolicy: active.scriptPolicy,
         ...surfaceRequest,
         ...(active.tokenOverrides ? { tokenOverrides: active.tokenOverrides } : {}),
         ...(opts.layout ? { layout: opts.layout } : {}),
@@ -291,7 +286,7 @@ export function useSurfaceStream({
     });
 
     if (!response.ok) {
-      const text = await response.text().catch(() => '');
+      const text = await readErrorResponse(response);
       throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
     }
     if (!response.body) throw new Error('no response body');
@@ -341,7 +336,10 @@ export function useSurfaceStream({
       active.surfacePlan.runtime === 'arrow' &&
       !result.protocolLines.some((line) => line.op === 'artifact' && line.path === '/artifact')
     ) {
-      const message = 'Arrow runtime expected one /artifact line, but the model produced no accepted Arrow artifact';
+      const serverError = result.protocolLines.find((line) => line.op === 'meta' && line.path === '/error');
+      const message = serverError
+        ? `Generation server error: ${String(serverError.value)}`
+        : 'Arrow runtime expected one /artifact line, but the model produced no accepted Arrow artifact';
       throw new Error(message);
     }
 
@@ -359,4 +357,16 @@ export function useSurfaceStream({
     setBytes,
     surfaceRef,
   ]);
+}
+
+async function readErrorResponse(response: Response): Promise<string> {
+  const text = await response.text().catch(() => '');
+  if (!text) return '';
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown };
+    if (typeof parsed.error === 'string') return parsed.error;
+  } catch {
+    // Fall through to the raw response body.
+  }
+  return text;
 }

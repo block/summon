@@ -9,9 +9,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import type {
-  CapabilityPack,
+  ToolPack,
   ProtocolLine,
-  SurfaceCeiling,
   SurfacePlan,
 } from '@anarchitecture/summon/engine';
 
@@ -19,8 +18,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(here, '..');
 const workspaceRoot = resolve(packageRoot, '..', '..');
 
-const searchCapability: CapabilityPack = {
-  intents: [{
+const searchTools: ToolPack = {
+  tools: [{
     name: 'search',
     description: 'Search host-owned dinner data.',
     argsSchema: '{"query":"string"}',
@@ -39,13 +38,6 @@ const surfacePlan: SurfacePlan = {
   authority: 'read',
   persistence: 'replayable',
   network: 'none',
-};
-
-const surfaceCeiling: SurfaceCeiling = {
-  runtimes: ['arrow'],
-  data: ['embedded', 'host-resource'],
-  authorities: ['none', 'read'],
-  persistences: ['replayable'],
 };
 
 function arrowText(html: string): string {
@@ -145,7 +137,7 @@ test('api generate sends narrowed contract and stream meta shape through package
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_AGENT_INTENT_MODEL: '0',
+      SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -161,11 +153,12 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder',
-      mode: 'interactive',
-      capabilities: searchCapability,
-      surfacePlan,
-      surfaceCeiling,
-      scriptPolicy: 'forbid',
+      tools: searchTools,
+      surfacePolicy: {
+        tier: 'declarative',
+        purpose: 'explore',
+        grants: ['search'],
+      },
     }),
   });
   const body = await response.text();
@@ -198,15 +191,17 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 3).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+    'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'meta /status',
     'artifact /artifact',
   ]);
   assert.equal(lines[0]?.op, 'meta');
-  assert.deepEqual((lines[0] as Extract<ProtocolLine, { op: 'meta' }>).value, surfacePlan);
+  assert.deepEqual((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, surfacePlan);
   assert.equal(lines[1]?.op, 'meta');
-  assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
+  assert.equal((lines[3] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
   assert.equal(lines.at(-1)?.path, '/stream-graph-summary');
   assert.equal(lines.some((line) => line.path === '/error'), false);
 
@@ -215,14 +210,12 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder where i can search',
-      mode: 'static',
-      scriptPolicy: 'allow',
       surfacePolicy: {
         tier: 'declarative',
         purpose: 'explore',
         grants: ['search'],
       },
-      capabilities: searchCapability,
+      tools: searchTools,
     }),
   });
   const policyBody = await policyResponse.text();
@@ -271,8 +264,8 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder where i can search recipes',
-      capabilities: searchCapability,
-      agent: { enabled: true, intentModel: 'off' },
+      tools: searchTools,
+      agent: { enabled: true, goalModel: 'off' },
     }),
   });
   const agentBody = await agentResponse.text();
@@ -292,18 +285,19 @@ test('api generate sends narrowed contract and stream meta shape through package
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
   assert.deepEqual(agentLines.slice(0, 6).map((line) => `${line.op} ${line.path}`), [
-    'meta /mode-upgraded',
-    'meta /agent-intent',
+    'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
+    'meta /status',
   ]);
-  const agentIntent = agentLines[1] as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((agentIntent.value as { interaction?: unknown }).interaction, 'search');
-  const agentResolution = agentLines[2] as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((agentResolution.value as { intentSource?: unknown }).intentSource, 'deterministic');
-  const agentPolicy = agentLines[3] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal(agentLines.some((line) => line.path === '/mode-upgraded'), false);
+  const agentGoal = agentLines[0] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((agentGoal.value as { interaction?: unknown }).interaction, 'search');
+  const agentResolution = agentLines[1] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.equal((agentResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
+  const agentPolicy = agentLines[2] as Extract<ProtocolLine, { op: 'meta' }>;
   assert.deepEqual(agentPolicy.value, {
     tier: 'declarative',
     purpose: 'explore',
@@ -317,11 +311,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder in blocks',
-      mode: 'interactive',
-      capabilities: searchCapability,
-      surfacePlan,
-      surfaceCeiling,
-      scriptPolicy: 'forbid',
+      tools: searchTools,
       fragmentMode: 'block-v0',
     }),
   });
@@ -335,11 +325,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder in html nodes',
-      mode: 'interactive',
-      capabilities: searchCapability,
-      surfacePlan,
-      surfaceCeiling,
-      scriptPolicy: 'forbid',
+      tools: searchTools,
       fragmentMode: 'html-node-v0',
     }),
   });
@@ -353,7 +339,6 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build checkout status',
-      mode: 'static',
       ghost: {
         source: 'resolved-context',
         id: 'checkout',
@@ -460,7 +445,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
       SUMMON_GHOST_ROOTS: `checkout=${root}`,
-      SUMMON_AGENT_INTENT_MODEL: '0',
+      SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -476,7 +461,6 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build checkout queue status',
-      mode: 'static',
       ghost: {
         rootId: 'checkout',
         targetPath: '.',
@@ -505,7 +489,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   assert.deepEqual(lines.slice(0, 8).map((line) => `${line.op} ${line.path}`), [
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /agent-intent',
+    'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
     'meta /surface-plan',
@@ -513,7 +497,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     'meta /status',
   ]);
   const ghostAgentResolution = lines[3] as Extract<ProtocolLine, { op: 'meta' }>;
-  assert.equal((ghostAgentResolution.value as { intentSource?: unknown }).intentSource, 'deterministic');
+  assert.equal((ghostAgentResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
 
   const ghostContext = lines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
   const contextMeta = ghostContext.value as {
@@ -547,7 +531,6 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build checkout queue status',
-      mode: 'static',
       ghost: {
         rootId: 'checkout',
         targetPath: '.',
@@ -644,7 +627,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_AGENT_INTENT_MODEL: '0',
+      SUMMON_AGENT_GOAL_MODEL: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -667,19 +650,9 @@ test('api generate forwards Anthropic model overrides and speed options', async 
         anthropicThinking: 'adaptive',
         effort: 'low',
       },
-      mode: 'static',
-      surfacePlan: {
+      surfacePolicy: {
+        tier: 'static',
         purpose: 'inform',
-        runtime: 'arrow',
-        data: 'embedded',
-        authority: 'none',
-        persistence: 'replayable',
-      },
-      surfaceCeiling: {
-        runtimes: ['arrow'],
-        data: ['embedded'],
-        authorities: ['none'],
-        persistences: ['replayable'],
       },
     }),
   });
@@ -763,7 +736,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
       OPENAI_BASE_URL: `http://127.0.0.1:${openAIPort}/v1`,
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_AGENT_INTENT_MODEL: '0',
+      SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -798,19 +771,9 @@ test('api generate can stream with OpenAI provider', async (t) => {
       generationModel: 'gpt-5.4-mini',
       utilityModel: 'gpt-5.4-nano',
       modelOptions: { maxOutputTokens: 12000 },
-      mode: 'static',
-      surfacePlan: {
+      surfacePolicy: {
+        tier: 'static',
         purpose: 'inform',
-        runtime: 'arrow',
-        data: 'embedded',
-        authority: 'none',
-        persistence: 'replayable',
-      },
-      surfaceCeiling: {
-        runtimes: ['arrow'],
-        data: ['embedded'],
-        authorities: ['none'],
-        persistences: ['replayable'],
       },
     }),
   });
@@ -829,12 +792,14 @@ test('api generate can stream with OpenAI provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 3).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+    'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'meta /status',
     'artifact /artifact',
   ]);
-  assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
+  assert.equal((lines[3] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
   assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 
@@ -890,7 +855,7 @@ test('api generate can stream with Gemini provider', async (t) => {
       GEMINI_API_KEY: 'test-gemini-key',
       GOOGLE_API_KEY: '',
       GEMINI_BASE_URL: `http://127.0.0.1:${geminiPort}`,
-      SUMMON_AGENT_INTENT_MODEL: '0',
+      SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -910,19 +875,9 @@ test('api generate can stream with Gemini provider', async (t) => {
       generationModel: 'gemini-3.5-flash',
       utilityModel: 'gemini-3.1-flash-lite',
       modelOptions: { maxOutputTokens: 12000 },
-      mode: 'static',
-      surfacePlan: {
+      surfacePolicy: {
+        tier: 'static',
         purpose: 'inform',
-        runtime: 'arrow',
-        data: 'embedded',
-        authority: 'none',
-        persistence: 'replayable',
-      },
-      surfaceCeiling: {
-        runtimes: ['arrow'],
-        data: ['embedded'],
-        authorities: ['none'],
-        persistences: ['replayable'],
       },
     }),
   });
@@ -942,12 +897,14 @@ test('api generate can stream with Gemini provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 3).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+    'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'meta /status',
     'artifact /artifact',
   ]);
-  assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
+  assert.equal((lines[3] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
   assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 

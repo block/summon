@@ -4,7 +4,7 @@ import type {
   ProtocolLine,
   StreamGraphSnapshot,
   SurfacePlan,
-  ValidationCapability,
+  ValidationTool,
   ValidationComponent,
 } from '@summon-internal/engine';
 import {
@@ -14,10 +14,10 @@ import {
   validateProtocolLine,
 } from '@summon-internal/engine';
 
-export const SUMMON_SURFACE_ENVELOPE_VERSION = 3;
+export const SUMMON_SURFACE_ENVELOPE_VERSION = 4;
 
 export interface SurfaceEnvelope {
-  version: 3;
+  version: 4;
   id: string;
   createdAt: string;
   prompt: string;
@@ -27,8 +27,8 @@ export interface SurfaceEnvelope {
   validationIssues: ContractIssue[];
   streamGraph: StreamGraphSnapshot | null;
   grants: {
-    intents: string[];
-    capabilities?: ValidationCapability[];
+    tools: string[];
+    validationTools?: ValidationTool[];
     components?: ValidationComponent[];
   };
   metadata: {
@@ -51,8 +51,8 @@ export interface CreateSurfaceEnvelopeInput {
   validationIssues?: ContractIssue[];
   streamGraph?: StreamGraphSnapshot | null;
   grants: {
-    intents: string[];
-    capabilities?: ValidationCapability[];
+    tools: string[];
+    validationTools?: ValidationTool[];
     components?: ValidationComponent[];
   };
   metadata?: SurfaceEnvelope['metadata'];
@@ -83,13 +83,13 @@ export function createSurfaceEnvelope(input: CreateSurfaceEnvelopeInput): Surfac
     validationIssues: [...(input.validationIssues ?? []), ...protocolIssues],
     streamGraph: input.streamGraph ?? null,
     grants: {
-      intents: [...input.grants.intents],
-      capabilities: input.grants.capabilities?.map((capability) => ({ ...capability })),
+      tools: [...input.grants.tools],
+      validationTools: input.grants.validationTools?.map((tool) => ({ ...tool })),
       components: input.grants.components?.map((component) => ({ ...component })),
     },
     metadata: input.metadata ?? {},
     tokenCss: input.tokenCss ?? null,
-    runtimeVersion: input.runtimeVersion ?? 'summon-surface-envelope-v3',
+    runtimeVersion: input.runtimeVersion ?? 'summon-surface-envelope-v4',
   };
 }
 
@@ -149,11 +149,10 @@ function validationContextForEnvelope(input: {
   metadata?: SurfaceEnvelope['metadata'];
 }) {
   return {
-    mode: input.metadata?.mode ?? (input.grants.intents.length === 0 ? 'static' as const : 'interactive' as const),
-    scriptPolicy: 'forbid' as const,
-    capabilities: input.grants.capabilities,
+    mode: input.metadata?.mode ?? (input.grants.tools.length === 0 ? 'static' as const : 'interactive' as const),
+    tools: input.grants.validationTools,
     components: input.grants.components,
-    allowedIntents: input.grants.intents,
+    allowedTools: input.grants.tools,
     surfacePlan: input.surfacePlan,
   };
 }
@@ -186,13 +185,13 @@ function isGrants(value: unknown): value is SurfaceEnvelope['grants'] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const grants = value as Record<string, unknown>;
   return (
-    Array.isArray(grants.intents) &&
-    grants.intents.every((intent) => typeof intent === 'string') &&
+    Array.isArray(grants.tools) &&
+    grants.tools.every((tool) => typeof tool === 'string') &&
     (
-      grants.capabilities === undefined ||
+      grants.validationTools === undefined ||
       (
-        Array.isArray(grants.capabilities) &&
-        grants.capabilities.every(isValidationCapability)
+        Array.isArray(grants.validationTools) &&
+        grants.validationTools.every(isValidationTool)
       )
     ) &&
     (
@@ -205,10 +204,10 @@ function isGrants(value: unknown): value is SurfaceEnvelope['grants'] {
   );
 }
 
-function isValidationCapability(value: unknown): value is ValidationCapability {
+function isValidationTool(value: unknown): value is ValidationTool {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const capability = value as Record<string, unknown>;
-  return typeof capability.name === 'string' && capability.name.length > 0;
+  const tool = value as Record<string, unknown>;
+  return typeof tool.name === 'string' && tool.name.length > 0;
 }
 
 function isValidationComponent(value: unknown): value is ValidationComponent {

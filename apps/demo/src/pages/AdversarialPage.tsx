@@ -1,25 +1,25 @@
 import { useCallback, useMemo, useState } from 'react';
+import { SummonSurface } from '@anarchitecture/summon-react';
 import { AppNav, LogView, PageHeader, Pane } from '../components/chrome.js';
-import { TrustedFixtureSurface } from '../components/TrustedFixtureSurface.js';
 import { cn } from '../lib/cn.js';
 import { logToneClass, pageWidthClass } from '../components/ui.js';
-import { ADVERSARIAL_BODY_HTML } from '../adversarial-artifact.js';
+import { ADVERSARIAL_ARTIFACT } from '../adversarial-artifact.js';
 
 type Report = { test: string; status: 'blocked' | 'allowed' | 'info'; detail: string };
 type Rejection = { reason: string; raw: unknown };
 
 const expectedHostRejection = new Set([
-  'emit-unknown-intent',
+  'emit-unknown-tool',
   'emit-declared-but-not-granted',
 ]);
-const grantedIntents = ['report'];
+const grantedTools = ['report'];
 
 function rejectionMatches(test: string, rejections: Rejection[]): boolean {
   return rejections.some((rejection) => {
-    const raw = rejection.raw as { args?: { test?: string; status?: string }; intent?: string };
-    if (test === 'emit-unknown-intent') return raw?.intent === 'exfiltrate';
+    const raw = rejection.raw as { args?: { test?: string; status?: string }; tool?: string };
+    if (test === 'emit-unknown-tool') return raw?.tool === 'exfiltrate';
     if (test === 'emit-declared-but-not-granted') {
-      return raw?.intent === 'escalate' && rejection.reason.includes('not granted');
+      return raw?.tool === 'escalate' && rejection.reason.includes('not granted');
     }
     return false;
   });
@@ -50,8 +50,8 @@ export function AdversarialPage() {
     return { pass, fail };
   }, [rejections, visibleReports]);
 
-  const onIntent = useCallback((intent: string, args: Record<string, unknown>) => {
-    if (intent !== 'report') return;
+  const onToolCall = useCallback((tool: string, args: Record<string, unknown>) => {
+    if (tool !== 'report') return;
     setReports((items) => [
       ...items,
       {
@@ -61,7 +61,7 @@ export function AdversarialPage() {
       },
     ]);
   }, []);
-  const onIntentRejected = useCallback((reason: string, raw: unknown) => {
+  const onToolRejected = useCallback((reason: string, raw: unknown) => {
     setRejections((items) => [...items, { reason, raw }]);
   }, []);
 
@@ -74,14 +74,14 @@ export function AdversarialPage() {
       />
       <div className={cn(pageWidthClass, 'grid grid-cols-2 gap-5 max-[820px]:grid-cols-1')}>
         <Pane title="Sandbox iframe">
-          <TrustedFixtureSurface
+          <SummonSurface
             id="sandbox"
             className="h-[320px]"
             title="Summon sandbox"
-            html={ADVERSARIAL_BODY_HTML}
-            grantedIntents={grantedIntents}
-            onIntent={onIntent}
-            onIntentRejected={onIntentRejected}
+            artifact={ADVERSARIAL_ARTIFACT}
+            grantedTools={grantedTools}
+            onToolCall={onToolCall}
+            onToolRejected={onToolRejected}
           />
         </Pane>
         <Pane title="Test results">
@@ -101,10 +101,10 @@ export function AdversarialPage() {
               <>
                 <div className={logToneClass('info')}>Host-side rejections:</div>
                 {rejections.map((rejection, index) => {
-                  const raw = rejection.raw as { intent?: string };
+                  const raw = rejection.raw as { tool?: string };
                   return (
                     <div key={index} className={logToneClass('info')}>
-                      · {rejection.reason}{raw?.intent ? ` intent="${raw.intent}"` : ''}
+                      · {rejection.reason}{raw?.tool ? ` tool="${raw.tool}"` : ''}
                     </div>
                   );
                 })}

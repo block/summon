@@ -1,11 +1,11 @@
 import {
   compileSurfacePolicy,
   SURFACE_PURPOSE_VALUES,
-  type CapabilityPack,
+  type ToolPack,
   type ComponentPack,
   type ComponentSpec,
   type CompiledSurfacePolicy,
-  type IntentSpec,
+  type ToolSpec,
   type ProtocolLine,
   type SurfacePersistence,
   type SurfacePolicy,
@@ -17,7 +17,7 @@ import type {
   SurfaceGenerationSummary,
 } from './types.js';
 
-export type SurfaceIntentInteraction =
+export type SurfaceGoalInteraction =
   | 'none'
   | 'select'
   | 'form'
@@ -25,38 +25,38 @@ export type SurfaceIntentInteraction =
   | 'background'
   | 'approval';
 
-export type SurfaceIntentDataNeed = 'embedded' | 'host-resource' | 'worker';
-export type SurfaceIntentSideEffect =
+export type SurfaceGoalDataNeed = 'embedded' | 'host-resource' | 'worker';
+export type SurfaceGoalSideEffect =
   | 'none'
   | 'local-state'
   | 'external-action'
   | 'approval-required';
-export type SurfaceIntentSource = 'provided' | 'model' | 'deterministic';
+export type SurfaceGoalSource = 'provided' | 'model' | 'deterministic';
 
-export interface SurfaceIntent {
+export interface SurfaceGoal {
   purpose: SurfacePurpose;
-  interaction: SurfaceIntentInteraction;
-  dataNeed: SurfaceIntentDataNeed;
-  sideEffect: SurfaceIntentSideEffect;
-  requestedCapabilities: string[];
+  interaction: SurfaceGoalInteraction;
+  dataNeed: SurfaceGoalDataNeed;
+  sideEffect: SurfaceGoalSideEffect;
+  requestedTools: string[];
   requestedComponents: string[];
   confidence: number;
   rationale?: string;
 }
 
-export interface AgentIntentRequest {
+export interface AgentGoalRequest {
   prompt: string;
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   components?: ComponentPack | null;
-  deterministicIntent: SurfaceIntent;
+  deterministicGoal: SurfaceGoal;
   signal?: AbortSignal;
 }
 
-export type AgentIntentProvider = (
-  request: AgentIntentRequest,
-) => SurfaceIntent | null | Promise<SurfaceIntent | null>;
+export type AgentGoalProvider = (
+  request: AgentGoalRequest,
+) => SurfaceGoal | null | Promise<SurfaceGoal | null>;
 
-export interface AgentIntentTextRequest {
+export interface AgentGoalTextRequest {
   system: string;
   prompt: string;
   maxTokens: number;
@@ -64,15 +64,15 @@ export interface AgentIntentTextRequest {
   signal?: AbortSignal;
 }
 
-export interface AgentIntentTextClient {
-  completeText(request: AgentIntentTextRequest): string | Promise<string>;
+export interface AgentGoalTextClient {
+  completeText(request: AgentGoalTextRequest): string | Promise<string>;
 }
 
 export interface HostPolicyResolutionRequest {
   prompt: string;
-  intent: SurfaceIntent;
+  goal: SurfaceGoal;
   proposedSurfacePolicy: SurfacePolicy;
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   components?: ComponentPack | null;
 }
 
@@ -84,16 +84,16 @@ export interface AgentPolicyResolution {
   source: 'default' | 'host';
   proposedSurfacePolicy: SurfacePolicy;
   surfacePolicy: SurfacePolicy;
-  rejectedCapabilities: string[];
+  rejectedTools: string[];
   rejectedComponents: string[];
   fallback: boolean;
 }
 
 export interface AgentSurfacePlanningOptions {
-  intent?: SurfaceIntent | null;
-  intentProvider?: AgentIntentProvider | null;
-  intentModel?: AgentIntentTextClient | null;
-  intentTimeoutMs?: number;
+  goal?: SurfaceGoal | null;
+  goalProvider?: AgentGoalProvider | null;
+  goalModel?: AgentGoalTextClient | null;
+  goalTimeoutMs?: number;
   hostPolicyResolver?: HostPolicyResolver | null;
   persistence?: SurfacePersistence;
   signal?: AbortSignal;
@@ -101,13 +101,13 @@ export interface AgentSurfacePlanningOptions {
 
 export interface AgentSurfacePlanningInput extends AgentSurfacePlanningOptions {
   prompt: string;
-  capabilities?: CapabilityPack | null;
+  tools?: ToolPack | null;
   components?: ComponentPack | null;
 }
 
 export interface AgentSurfacePlanResult {
-  intent: SurfaceIntent;
-  intentSource: SurfaceIntentSource;
+  goal: SurfaceGoal;
+  goalSource: SurfaceGoalSource;
   proposedSurfacePolicy: SurfacePolicy;
   surfacePolicy: SurfacePolicy;
   compiledPolicy: CompiledSurfacePolicy;
@@ -116,7 +116,7 @@ export interface AgentSurfacePlanResult {
 
 export type AgentSurfaceGenerationInput = Omit<
   SurfaceGenerationInput,
-  'surfacePolicy' | 'mode' | 'scriptPolicy' | 'surfacePlan'
+  'surfacePolicy'
 > & AgentSurfacePlanningOptions & {
   emitAgentDiagnostics?: boolean;
 };
@@ -138,49 +138,49 @@ const FORM_RE =
   /\b(form|collect|intake|survey|questionnaire|submit|capture|enter|input)\b/i;
 const SELECT_RE =
   /\b(pick|choose|select|save|remember|vote|rate|rank|favorite)\b/i;
-const DIRECT_CAPABILITY_NAME_RE = /[_\W]+/;
-const FORM_CAPABILITY_RE =
+const DIRECT_TOOL_NAME_RE = /[_\W]+/;
+const FORM_TOOL_RE =
   /\b(submit|form|collect|intake|survey|questionnaire|capture|input)\b/i;
-const SELECT_CAPABILITY_RE =
+const SELECT_TOOL_RE =
   /\b(choose|choice|select|save|pick|vote|rate|rank|favorite|remember)\b/i;
 
 export async function planAgentSurface(
   input: AgentSurfacePlanningInput,
 ): Promise<AgentSurfacePlanResult> {
-  const deterministicIntent = inferSurfaceIntent(input.prompt, {
-    capabilities: input.capabilities ?? null,
+  const deterministicGoal = inferSurfaceGoal(input.prompt, {
+    tools: input.tools ?? null,
     components: input.components ?? null,
   });
-  const inferred = input.intent
+  const inferred = input.goal
     ? {
-        intent: normalizeSurfaceIntent(input.intent, deterministicIntent),
+        goal: normalizeSurfaceGoal(input.goal, deterministicGoal),
         source: 'provided' as const,
       }
-    : await inferProvidedIntent(input, deterministicIntent);
-  const intentSource = inferred?.source ?? 'deterministic';
-  const intent = sanitizeSurfaceIntent(inferred?.intent ?? deterministicIntent, {
-    capabilities: input.capabilities ?? null,
+    : await inferProvidedGoal(input, deterministicGoal);
+  const goalSource = inferred?.source ?? 'deterministic';
+  const goal = sanitizeSurfaceGoal(inferred?.goal ?? deterministicGoal, {
+    tools: input.tools ?? null,
     components: input.components ?? null,
-    fallback: deterministicIntent,
+    fallback: deterministicGoal,
   });
-  const proposedSurfacePolicy = policyFromIntent(intent, {
+  const proposedSurfacePolicy = policyFromGoal(goal, {
     persistence: input.persistence,
   });
   const policyResolution = await resolveHostPolicy({
     prompt: input.prompt,
-    intent,
+    goal,
     proposedSurfacePolicy,
-    capabilities: input.capabilities ?? null,
+    tools: input.tools ?? null,
     components: input.components ?? null,
     resolver: input.hostPolicyResolver ?? null,
   });
   const compiledPolicy = compileSurfacePolicy(policyResolution.surfacePolicy, {
-    capabilities: input.capabilities ?? null,
+    tools: input.tools ?? null,
     components: input.components ?? null,
   });
   return {
-    intent,
-    intentSource,
+    goal,
+    goalSource,
     proposedSurfacePolicy,
     surfacePolicy: policyResolution.surfacePolicy,
     compiledPolicy,
@@ -199,7 +199,7 @@ export async function runAgentSurfaceGeneration(
   ];
   const summary = await runSurfaceGeneration({
     ...input,
-    capabilities: input.capabilities ?? null,
+    tools: input.tools ?? null,
     components: input.components ?? null,
     surfacePolicy: agent.surfacePolicy,
     preludeLines,
@@ -210,35 +210,35 @@ export async function runAgentSurfaceGeneration(
   };
 }
 
-export function inferSurfaceIntent(
+export function inferSurfaceGoal(
   prompt: string,
   options: {
-    capabilities?: CapabilityPack | null;
+    tools?: ToolPack | null;
     components?: ComponentPack | null;
   } = {},
-): SurfaceIntent {
-  const requestedCapabilities = inferCapabilityNames(prompt, options.capabilities ?? null);
+): SurfaceGoal {
+  const requestedTools = inferToolNames(prompt, options.tools ?? null);
   const requestedComponents = inferComponentNames(prompt, options.components ?? null);
-  const selectedIntents = intentsByName(options.capabilities, requestedCapabilities);
+  const selectedTools = toolsByName(options.tools, requestedTools);
 
-  const hasApproval = selectedIntents.some((intent) => intentAuthority(intent) === 'approval-gated');
-  const hasWorker = selectedIntents.some((intent) => intentData(intent) === 'worker');
-  const hasResource = selectedIntents.some((intent) => intentData(intent) === 'host-resource');
-  const hasAction = selectedIntents.some((intent) => intentAuthority(intent) === 'host-action');
+  const hasApproval = selectedTools.some((tool) => toolAuthority(tool) === 'approval-gated');
+  const hasWorker = selectedTools.some((tool) => toolData(tool) === 'worker');
+  const hasResource = selectedTools.some((tool) => toolData(tool) === 'host-resource');
+  const hasAction = selectedTools.some((tool) => toolAuthority(tool) === 'host-action');
 
-  let interaction: SurfaceIntentInteraction = 'none';
+  let interaction: SurfaceGoalInteraction = 'none';
   if (hasApproval || APPROVAL_RE.test(prompt)) interaction = 'approval';
   else if (hasWorker || BACKGROUND_RE.test(prompt)) interaction = 'background';
   else if (hasResource || SEARCH_RE.test(prompt)) interaction = 'search';
   else if (FORM_RE.test(prompt)) interaction = 'form';
   else if (hasAction || SELECT_RE.test(prompt)) interaction = 'select';
 
-  const sideEffect: SurfaceIntentSideEffect = interaction === 'approval'
+  const sideEffect: SurfaceGoalSideEffect = interaction === 'approval'
     ? 'approval-required'
     : hasAction || interaction === 'select' || interaction === 'form'
       ? 'local-state'
       : 'none';
-  const dataNeed: SurfaceIntentDataNeed = interaction === 'background' || hasWorker
+  const dataNeed: SurfaceGoalDataNeed = interaction === 'background' || hasWorker
     ? 'worker'
     : interaction === 'search' || hasResource
       ? 'host-resource'
@@ -249,58 +249,58 @@ export function inferSurfaceIntent(
     interaction,
     dataNeed,
     sideEffect,
-    requestedCapabilities,
+    requestedTools,
     requestedComponents,
-    confidence: requestedCapabilities.length > 0 || interaction !== 'none' ? 0.72 : 0.58,
+    confidence: requestedTools.length > 0 || interaction !== 'none' ? 0.72 : 0.58,
     rationale: 'deterministic keyword and catalog match',
   };
 }
 
-export function policyFromIntent(
-  intent: SurfaceIntent,
+export function policyFromGoal(
+  goal: SurfaceGoal,
   options: { persistence?: SurfacePersistence } = {},
 ): SurfacePolicy {
   const persistence = options.persistence ?? 'replayable';
-  const hasSurfaceAccess = intent.requestedCapabilities.length > 0 || intent.requestedComponents.length > 0;
-  if (intent.sideEffect === 'approval-required' || intent.interaction === 'approval') {
+  const hasSurfaceAccess = goal.requestedTools.length > 0 || goal.requestedComponents.length > 0;
+  if (goal.sideEffect === 'approval-required' || goal.interaction === 'approval') {
     return {
       tier: 'approval',
       purpose: 'operate',
-      grants: intent.requestedCapabilities,
-      components: intent.requestedComponents,
+      grants: goal.requestedTools,
+      components: goal.requestedComponents,
       persistence,
     };
   }
-  if (intent.dataNeed === 'worker' || intent.interaction === 'background') {
+  if (goal.dataNeed === 'worker' || goal.interaction === 'background') {
     return {
       tier: 'worker',
-      purpose: intent.purpose,
-      grants: intent.requestedCapabilities,
-      components: intent.requestedComponents,
+      purpose: goal.purpose,
+      grants: goal.requestedTools,
+      components: goal.requestedComponents,
       persistence,
     };
   }
   if (
     hasSurfaceAccess &&
     (
-      intent.interaction !== 'none' ||
-      intent.dataNeed === 'host-resource' ||
-      intent.sideEffect === 'local-state' ||
-      intent.sideEffect === 'external-action'
+      goal.interaction !== 'none' ||
+      goal.dataNeed === 'host-resource' ||
+      goal.sideEffect === 'local-state' ||
+      goal.sideEffect === 'external-action'
     )
   ) {
     return {
       tier: 'declarative',
-      purpose: intent.purpose,
-      grants: intent.requestedCapabilities,
-      components: intent.requestedComponents,
+      purpose: goal.purpose,
+      grants: goal.requestedTools,
+      components: goal.requestedComponents,
       persistence,
     };
   }
   return {
     tier: 'static',
-    purpose: intent.purpose,
-    components: intent.requestedComponents,
+    purpose: goal.purpose,
+    components: goal.requestedComponents,
     persistence,
   };
 }
@@ -309,23 +309,23 @@ export function defaultHostPolicyResolver(
   request: HostPolicyResolutionRequest,
 ): SurfacePolicy {
   return narrowSurfacePolicy(request.proposedSurfacePolicy, {
-    capabilities: request.capabilities ?? null,
+    tools: request.tools ?? null,
     components: request.components ?? null,
   }).surfacePolicy;
 }
 
 function agentPreludeLines(agent: AgentSurfacePlanResult): ProtocolLine[] {
   return [
-    { op: 'meta', path: '/agent-intent', value: agent.intent },
+    { op: 'meta', path: '/agent-goal', value: agent.goal },
     {
       op: 'meta',
       path: '/agent-policy-resolution',
       value: {
         source: agent.policyResolution.source,
-        intentSource: agent.intentSource,
+        goalSource: agent.goalSource,
         proposedSurfacePolicy: agent.policyResolution.proposedSurfacePolicy,
         surfacePolicy: agent.policyResolution.surfacePolicy,
-        rejectedCapabilities: agent.policyResolution.rejectedCapabilities,
+        rejectedTools: agent.policyResolution.rejectedTools,
         rejectedComponents: agent.policyResolution.rejectedComponents,
         fallback: agent.policyResolution.fallback,
       },
@@ -333,44 +333,44 @@ function agentPreludeLines(agent: AgentSurfacePlanResult): ProtocolLine[] {
   ];
 }
 
-async function inferProvidedIntent(
+async function inferProvidedGoal(
   input: AgentSurfacePlanningInput,
-  deterministicIntent: SurfaceIntent,
-): Promise<{ intent: SurfaceIntent; source: SurfaceIntentSource } | null> {
-  if (input.intentProvider) {
-    const intent = await input.intentProvider({
+  deterministicGoal: SurfaceGoal,
+): Promise<{ goal: SurfaceGoal; source: SurfaceGoalSource } | null> {
+  if (input.goalProvider) {
+    const goal = await input.goalProvider({
       prompt: input.prompt,
-      capabilities: input.capabilities ?? null,
+      tools: input.tools ?? null,
       components: input.components ?? null,
-      deterministicIntent,
+      deterministicGoal,
       signal: input.signal,
     });
-    return intent ? { intent, source: 'provided' } : null;
+    return goal ? { goal, source: 'provided' } : null;
   }
-  if (!input.intentModel) return null;
-  const intent = await inferIntentWithModel(input.intentModel, {
+  if (!input.goalModel) return null;
+  const goal = await inferGoalWithModel(input.goalModel, {
     prompt: input.prompt,
-    capabilities: input.capabilities ?? null,
+    tools: input.tools ?? null,
     components: input.components ?? null,
-    deterministicIntent,
-    timeoutMs: input.intentTimeoutMs,
+    deterministicGoal,
+    timeoutMs: input.goalTimeoutMs,
     signal: input.signal,
   });
-  return intent ? { intent, source: 'model' } : null;
+  return goal ? { goal, source: 'model' } : null;
 }
 
-async function inferIntentWithModel(
-  client: AgentIntentTextClient,
+async function inferGoalWithModel(
+  client: AgentGoalTextClient,
   input: {
     prompt: string;
-    capabilities?: CapabilityPack | null;
+    tools?: ToolPack | null;
     components?: ComponentPack | null;
-    deterministicIntent: SurfaceIntent;
+    deterministicGoal: SurfaceGoal;
     timeoutMs?: number;
     signal?: AbortSignal;
   },
-): Promise<SurfaceIntent | null> {
-  const system = buildIntentClassifierPrompt(input.capabilities ?? null, input.components ?? null);
+): Promise<SurfaceGoal | null> {
+  const system = buildGoalClassifierPrompt(input.tools ?? null, input.components ?? null);
   try {
     const request = client.completeText({
       system,
@@ -386,23 +386,23 @@ async function inferIntentWithModel(
     if (!raw) return null;
     const json = extractJsonObject(raw);
     if (!json) return null;
-    const parsed = JSON.parse(json) as Partial<SurfaceIntent>;
-    const normalized = normalizeSurfaceIntent(parsed, input.deterministicIntent);
+    const parsed = JSON.parse(json) as Partial<SurfaceGoal>;
+    const normalized = normalizeSurfaceGoal(parsed, input.deterministicGoal);
     return normalized.confidence >= MIN_MODEL_CONFIDENCE ? normalized : null;
   } catch {
     return null;
   }
 }
 
-function buildIntentClassifierPrompt(
-  capabilities: CapabilityPack | null,
+function buildGoalClassifierPrompt(
+  tools: ToolPack | null,
   components: ComponentPack | null,
 ): string {
-  const capabilityLines = (capabilities?.intents ?? [])
-    .map((intent) => {
-      const data = intentData(intent);
-      const authority = intentAuthority(intent);
-      return `- ${intent.name}: ${intent.kind ?? 'action'}, data=${data}, authority=${authority}, ${intent.description}`;
+  const toolLines = (tools?.tools ?? [])
+    .map((tool) => {
+      const data = toolData(tool);
+      const authority = toolAuthority(tool);
+      return `- ${tool.name}: ${tool.kind ?? 'action'}, data=${data}, authority=${authority}, ${tool.description}`;
     })
     .join('\n') || '- none';
   const componentLines = (components?.components ?? [])
@@ -412,20 +412,20 @@ function buildIntentClassifierPrompt(
     })
     .join('\n') || '- none';
 
-  return `Classify a Summon generative-UI request into a bounded intent object.
+  return `Classify a Summon generative-UI request into a bounded tool object.
 
 Available host tools:
-${capabilityLines}
+${toolLines}
 
 Available trusted components:
 ${componentLines}
 
 Respond with ONLY one JSON object. No markdown and no prose.
 Shape:
-{"purpose":"inform|compare|explore|collect|review|operate","interaction":"none|select|form|search|background|approval","dataNeed":"embedded|host-resource|worker","sideEffect":"none|local-state|external-action|approval-required","requestedCapabilities":["name"],"requestedComponents":["name"],"confidence":0.0,"rationale":"short reason"}
+{"purpose":"inform|compare|explore|collect|review|operate","interaction":"none|select|form|search|background|approval","dataNeed":"embedded|host-resource|worker","sideEffect":"none|local-state|external-action|approval-required","requestedTools":["name"],"requestedComponents":["name"],"confidence":0.0,"rationale":"short reason"}
 
 Rules:
-- Pick only capability and component names from the lists above.
+- Pick only tool and component names from the lists above.
 - Use "none" interaction for read-only summaries, comparisons, explainers, and dashboards.
 - Use "search" for host data lookup, browse, filter, or query surfaces.
 - Use "form" for submit/intake/collect surfaces.
@@ -439,7 +439,7 @@ async function resolveHostPolicy(
   input: HostPolicyResolutionRequest & { resolver: HostPolicyResolver | null },
 ): Promise<AgentPolicyResolution> {
   const narrowed = narrowSurfacePolicy(input.proposedSurfacePolicy, {
-    capabilities: input.capabilities ?? null,
+    tools: input.tools ?? null,
     components: input.components ?? null,
   });
   if (!input.resolver) {
@@ -447,7 +447,7 @@ async function resolveHostPolicy(
       source: 'default',
       proposedSurfacePolicy: input.proposedSurfacePolicy,
       surfacePolicy: narrowed.surfacePolicy,
-      rejectedCapabilities: narrowed.rejectedCapabilities,
+      rejectedTools: narrowed.rejectedTools,
       rejectedComponents: narrowed.rejectedComponents,
       fallback: narrowed.fallback,
     };
@@ -455,21 +455,21 @@ async function resolveHostPolicy(
 
   const hostPolicy = await input.resolver({
     prompt: input.prompt,
-    intent: input.intent,
+    goal: input.goal,
     proposedSurfacePolicy: narrowed.surfacePolicy,
-    capabilities: input.capabilities ?? null,
+    tools: input.tools ?? null,
     components: input.components ?? null,
   });
   const hostNarrowed = narrowSurfacePolicy(hostPolicy ?? { tier: 'static', purpose: 'inform' }, {
-    capabilities: input.capabilities ?? null,
+    tools: input.tools ?? null,
     components: input.components ?? null,
   });
   return {
     source: 'host',
     proposedSurfacePolicy: input.proposedSurfacePolicy,
     surfacePolicy: hostNarrowed.surfacePolicy,
-    rejectedCapabilities: [
-      ...new Set([...narrowed.rejectedCapabilities, ...hostNarrowed.rejectedCapabilities]),
+    rejectedTools: [
+      ...new Set([...narrowed.rejectedTools, ...hostNarrowed.rejectedTools]),
     ],
     rejectedComponents: [
       ...new Set([...narrowed.rejectedComponents, ...hostNarrowed.rejectedComponents]),
@@ -481,46 +481,46 @@ async function resolveHostPolicy(
 function narrowSurfacePolicy(
   policy: SurfacePolicy,
   options: {
-    capabilities: CapabilityPack | null;
+    tools: ToolPack | null;
     components: ComponentPack | null;
   },
 ): {
   surfacePolicy: SurfacePolicy;
-  rejectedCapabilities: string[];
+  rejectedTools: string[];
   rejectedComponents: string[];
   fallback: boolean;
 } {
-  const capabilityNames = new Set((options.capabilities?.intents ?? []).map((intent) => intent.name));
+  const toolNames = new Set((options.tools?.tools ?? []).map((tool) => tool.name));
   const componentNames = new Set((options.components?.components ?? []).map((component) => component.name));
   const rawGrants = Array.isArray(policy.grants) ? policy.grants.filter(isString) : [];
   const rawComponents = Array.isArray(policy.components) ? policy.components.filter(isString) : [];
-  const knownGrantNames = rawGrants.filter((name) => capabilityNames.has(name));
+  const knownGrantNames = rawGrants.filter((name) => toolNames.has(name));
   const knownComponentNames = rawComponents.filter((name) => componentNames.has(name));
-  const knownIntents = intentsByName(options.capabilities, knownGrantNames);
+  const knownTools = toolsByName(options.tools, knownGrantNames);
   const knownComponents = componentsByName(options.components, knownComponentNames);
 
-  const rejectedCapabilities = rawGrants.filter((name) => !capabilityNames.has(name));
+  const rejectedTools = rawGrants.filter((name) => !toolNames.has(name));
   const rejectedComponents = rawComponents.filter((name) => !componentNames.has(name));
-  const tier = strongestTier(policy.tier, knownIntents, knownComponents);
-  const grants = knownIntents
-    .filter((intent) => intentAllowedForTier(tier, intent))
-    .map((intent) => intent.name);
+  const tier = strongestTier(policy.tier, knownTools, knownComponents);
+  const grants = knownTools
+    .filter((tool) => toolAllowedForTier(tier, tool))
+    .map((tool) => tool.name);
   const components = knownComponents
     .filter((component) => componentAllowedForTier(tier, component))
     .map((component) => component.name);
 
   for (const name of knownGrantNames) {
-    if (!grants.includes(name)) rejectedCapabilities.push(name);
+    if (!grants.includes(name)) rejectedTools.push(name);
   }
   for (const name of knownComponentNames) {
     if (!components.includes(name)) rejectedComponents.push(name);
   }
 
   if ((tier === 'worker' && grants.length === 0 && !knownComponents.some((component) => componentSurfaceData(component) === 'worker')) ||
-    (tier === 'approval' && !knownIntents.some((intent) => intentAuthority(intent) === 'approval-gated'))) {
+    (tier === 'approval' && !knownTools.some((tool) => toolAuthority(tool) === 'approval-gated'))) {
     return {
       surfacePolicy: staticFallbackPolicy(policy),
-      rejectedCapabilities: [...new Set([...rejectedCapabilities, ...knownGrantNames])],
+      rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
       rejectedComponents: [...new Set([...rejectedComponents, ...knownComponentNames])],
       fallback: true,
     };
@@ -538,20 +538,20 @@ function narrowSurfacePolicy(
     persistence: policy.persistence === 'ephemeral' ? 'ephemeral' : 'replayable',
   };
   const compiled = compileSurfacePolicy(surfacePolicy, {
-    capabilities: options.capabilities,
+    tools: options.tools,
     components: options.components,
   });
   if (compiled.issues.some((issue) => issue.severity === 'block')) {
     return {
       surfacePolicy: staticFallbackPolicy(policy),
-      rejectedCapabilities: [...new Set([...rejectedCapabilities, ...knownGrantNames])],
+      rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
       rejectedComponents: [...new Set([...rejectedComponents, ...knownComponentNames])],
       fallback: true,
     };
   }
   return {
     surfacePolicy,
-    rejectedCapabilities: [...new Set(rejectedCapabilities)],
+    rejectedTools: [...new Set(rejectedTools)],
     rejectedComponents: [...new Set(rejectedComponents)],
     fallback: false,
   };
@@ -559,12 +559,12 @@ function narrowSurfacePolicy(
 
 function strongestTier(
   proposedTier: SurfacePolicy['tier'],
-  intents: IntentSpec[],
+  tools: ToolSpec[],
   components: ComponentSpec[],
 ): SurfacePolicy['tier'] {
   if (proposedTier === 'static') return 'static';
-  if (intents.some((intent) => intentAuthority(intent) === 'approval-gated')) return 'approval';
-  if (intents.some((intent) => intentData(intent) === 'worker') ||
+  if (tools.some((tool) => toolAuthority(tool) === 'approval-gated')) return 'approval';
+  if (tools.some((tool) => toolData(tool) === 'worker') ||
     components.some((component) => componentSurfaceData(component) === 'worker')) {
     return 'worker';
   }
@@ -579,10 +579,10 @@ function staticFallbackPolicy(policy: SurfacePolicy): SurfacePolicy {
   };
 }
 
-function intentAllowedForTier(tier: SurfacePolicy['tier'], intent: IntentSpec): boolean {
+function toolAllowedForTier(tier: SurfacePolicy['tier'], tool: ToolSpec): boolean {
   if (tier === 'static') return false;
-  const data = intentData(intent);
-  const authority = intentAuthority(intent);
+  const data = toolData(tool);
+  const authority = toolAuthority(tool);
   if (tier === 'worker') return data === 'worker';
   if (tier === 'approval') return authority === 'approval-gated';
   return data !== 'worker' && authority !== 'approval-gated';
@@ -597,64 +597,64 @@ function componentAllowedForTier(tier: SurfacePolicy['tier'], component: Compone
   return data !== 'worker' && authority !== 'approval-gated';
 }
 
-function inferCapabilityNames(prompt: string, pack: CapabilityPack | null): string[] {
-  const intents = pack?.intents ?? [];
-  if (intents.length === 0) return [];
+function inferToolNames(prompt: string, pack: ToolPack | null): string[] {
+  const tools = pack?.tools ?? [];
+  if (tools.length === 0) return [];
   const text = prompt.toLowerCase();
-  const directMatches = intents.filter((intent) => matchesCapabilityName(text, intent.name));
-  if (directMatches.length > 0) return directMatches.map((intent) => intent.name);
+  const directMatches = tools.filter((tool) => matchesToolName(text, tool.name));
+  if (directMatches.length > 0) return directMatches.map((tool) => tool.name);
 
   const approval = APPROVAL_RE.test(prompt)
-    ? intents.filter((intent) => intentAuthority(intent) === 'approval-gated')
+    ? tools.filter((tool) => toolAuthority(tool) === 'approval-gated')
     : [];
   if (approval.length > 0) return singleCandidateNames(approval);
 
   const worker = BACKGROUND_RE.test(prompt)
-    ? intents.filter((intent) => intentData(intent) === 'worker')
+    ? tools.filter((tool) => toolData(tool) === 'worker')
     : [];
   if (worker.length > 0) return singleCandidateNames(worker);
 
   const resource = SEARCH_RE.test(prompt)
-    ? intents.filter((intent) => intentData(intent) === 'host-resource')
+    ? tools.filter((tool) => toolData(tool) === 'host-resource')
     : [];
   if (resource.length > 0) return singleCandidateNames(resource);
 
-  const actions = intents.filter((intent) => capabilityMatchesActionClass(prompt, intent));
+  const actions = tools.filter((tool) => toolMatchesActionClass(prompt, tool));
   if (actions.length > 0) {
     return singleCandidateNames(actions);
   }
   return [];
 }
 
-function capabilityMatchesActionClass(prompt: string, intent: IntentSpec): boolean {
-  const data = intentData(intent);
-  const authority = intentAuthority(intent);
+function toolMatchesActionClass(prompt: string, tool: ToolSpec): boolean {
+  const data = toolData(tool);
+  const authority = toolAuthority(tool);
   if (authority !== 'host-action' || data === 'worker') return false;
   if (FORM_RE.test(prompt)) {
-    return capabilityClassMatches(intent, FORM_CAPABILITY_RE);
+    return toolClassMatches(tool, FORM_TOOL_RE);
   }
   if (SELECT_RE.test(prompt)) {
-    return capabilityClassMatches(intent, SELECT_CAPABILITY_RE);
+    return toolClassMatches(tool, SELECT_TOOL_RE);
   }
   return false;
 }
 
-function matchesCapabilityName(text: string, name: string): boolean {
+function matchesToolName(text: string, name: string): boolean {
   const normalizedName = name.toLowerCase();
   if (text.includes(normalizedName)) return true;
   const terms = normalizedName
-    .split(DIRECT_CAPABILITY_NAME_RE)
+    .split(DIRECT_TOOL_NAME_RE)
     .filter((term) => term.length > 2);
   if (terms.length === 0) return false;
   return terms.every((term) => text.includes(term));
 }
 
-function singleCandidateNames(intents: IntentSpec[]): string[] {
-  return intents.length === 1 ? [intents[0]!.name] : [];
+function singleCandidateNames(tools: ToolSpec[]): string[] {
+  return tools.length === 1 ? [tools[0]!.name] : [];
 }
 
-function capabilityClassMatches(intent: IntentSpec, pattern: RegExp): boolean {
-  return pattern.test(`${intent.name} ${intent.description}`);
+function toolClassMatches(tool: ToolSpec, pattern: RegExp): boolean {
+  return pattern.test(`${tool.name} ${tool.description}`);
 }
 
 function inferComponentNames(prompt: string, pack: ComponentPack | null): string[] {
@@ -672,7 +672,7 @@ function inferComponentNames(prompt: string, pack: ComponentPack | null): string
     .map((component) => component.name);
 }
 
-function normalizeSurfaceIntent(raw: Partial<SurfaceIntent>, fallback: SurfaceIntent): SurfaceIntent {
+function normalizeSurfaceGoal(raw: Partial<SurfaceGoal>, fallback: SurfaceGoal): SurfaceGoal {
   return {
     purpose: PURPOSES.has(raw.purpose as SurfacePurpose) ? raw.purpose as SurfacePurpose : fallback.purpose,
     interaction: enumValue(raw.interaction, ['none', 'select', 'form', 'search', 'background', 'approval']) ??
@@ -680,7 +680,7 @@ function normalizeSurfaceIntent(raw: Partial<SurfaceIntent>, fallback: SurfaceIn
     dataNeed: enumValue(raw.dataNeed, ['embedded', 'host-resource', 'worker']) ?? fallback.dataNeed,
     sideEffect: enumValue(raw.sideEffect, ['none', 'local-state', 'external-action', 'approval-required']) ??
       fallback.sideEffect,
-    requestedCapabilities: stringList(raw.requestedCapabilities),
+    requestedTools: stringList(raw.requestedTools),
     requestedComponents: stringList(raw.requestedComponents),
     confidence: typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
       ? Math.max(0, Math.min(1, raw.confidence))
@@ -689,29 +689,29 @@ function normalizeSurfaceIntent(raw: Partial<SurfaceIntent>, fallback: SurfaceIn
   };
 }
 
-function sanitizeSurfaceIntent(
-  intent: SurfaceIntent,
+function sanitizeSurfaceGoal(
+  goal: SurfaceGoal,
   options: {
-    capabilities: CapabilityPack | null;
+    tools: ToolPack | null;
     components: ComponentPack | null;
-    fallback: SurfaceIntent;
+    fallback: SurfaceGoal;
   },
-): SurfaceIntent {
-  const capabilityNames = new Set((options.capabilities?.intents ?? []).map((item) => item.name));
+): SurfaceGoal {
+  const toolNames = new Set((options.tools?.tools ?? []).map((item) => item.name));
   const componentNames = new Set((options.components?.components ?? []).map((item) => item.name));
-  const requestedCapabilities = intent.requestedCapabilities.filter((name) => capabilityNames.has(name));
-  const requestedComponents = intent.requestedComponents.filter((name) => componentNames.has(name));
+  const requestedTools = goal.requestedTools.filter((name) => toolNames.has(name));
+  const requestedComponents = goal.requestedComponents.filter((name) => componentNames.has(name));
   if (
-    intent.interaction !== 'none' &&
-    requestedCapabilities.length === 0 &&
+    goal.interaction !== 'none' &&
+    requestedTools.length === 0 &&
     requestedComponents.length === 0 &&
-    options.fallback.requestedCapabilities.length > 0
+    options.fallback.requestedTools.length > 0
   ) {
-    requestedCapabilities.push(...options.fallback.requestedCapabilities);
+    requestedTools.push(...options.fallback.requestedTools);
   }
   return {
-    ...intent,
-    requestedCapabilities: [...new Set(requestedCapabilities)],
+    ...goal,
+    requestedTools: [...new Set(requestedTools)],
     requestedComponents: [...new Set(requestedComponents)],
   };
 }
@@ -726,9 +726,9 @@ function inferPurpose(prompt: string): SurfacePurpose {
   return 'inform';
 }
 
-function intentsByName(pack: CapabilityPack | null | undefined, names: string[]): IntentSpec[] {
-  const byName = new Map((pack?.intents ?? []).map((intent) => [intent.name, intent]));
-  return names.map((name) => byName.get(name)).filter((intent): intent is IntentSpec => Boolean(intent));
+function toolsByName(pack: ToolPack | null | undefined, names: string[]): ToolSpec[] {
+  const byName = new Map((pack?.tools ?? []).map((tool) => [tool.name, tool]));
+  return names.map((name) => byName.get(name)).filter((tool): tool is ToolSpec => Boolean(tool));
 }
 
 function componentsByName(pack: ComponentPack | null | undefined, names: string[]): ComponentSpec[] {
@@ -736,15 +736,15 @@ function componentsByName(pack: ComponentPack | null | undefined, names: string[
   return names.map((name) => byName.get(name)).filter((component): component is ComponentSpec => Boolean(component));
 }
 
-function intentData(intent: IntentSpec): SurfaceIntentDataNeed {
-  return intent.surface?.data ?? (intent.kind === 'resource' ? 'host-resource' : 'embedded');
+function toolData(tool: ToolSpec): SurfaceGoalDataNeed {
+  return tool.surface?.data ?? (tool.kind === 'resource' ? 'host-resource' : 'embedded');
 }
 
-function intentAuthority(intent: IntentSpec): 'none' | 'read' | 'host-action' | 'approval-gated' {
-  return intent.surface?.authority ?? (intent.kind === 'resource' ? 'read' : 'host-action');
+function toolAuthority(tool: ToolSpec): 'none' | 'read' | 'host-action' | 'approval-gated' {
+  return tool.surface?.authority ?? (tool.kind === 'resource' ? 'read' : 'host-action');
 }
 
-function componentSurfaceData(component: ComponentSpec): SurfaceIntentDataNeed {
+function componentSurfaceData(component: ComponentSpec): SurfaceGoalDataNeed {
   return component.surface?.data ?? 'embedded';
 }
 

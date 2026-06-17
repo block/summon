@@ -1,6 +1,6 @@
 ---
 name: summon
-description: "Build, debug, or integrate Summon sandboxed generative UI: SurfacePlan contracts, contract-first prompts, JSONL protocol streaming, host-owned capabilities/resources, PolicyEngine grants, StreamGraph diagnostics, safety smoke tests, and adoption docs. Use when working in the Summon repo, adding capabilities/resources/workers/approval actions, debugging validation or sandbox behavior, or creating agent-authored Summon UIs."
+description: "Build, debug, or integrate Summon sandboxed generative UI: SurfacePolicy contracts, Arrow JSONL artifact streaming, host-owned tools/resources, PolicyEngine grants, StreamGraph diagnostics, safety smoke tests, and adoption docs. Use when working in the Summon repo, adding tools/resources/workers/approval actions, debugging validation or sandbox behavior, or creating agent-authored Summon UIs."
 ---
 
 # Summon
@@ -27,18 +27,18 @@ host app.
 Follow this path unless the user explicitly asks for a runtime redesign:
 
 ```txt
-host capability registry
+host tool registry
   -> SurfacePolicy: tier/grants/components/purpose/persistence
   -> compiled SurfacePlan: purpose/runtime/data/authority/persistence
-  -> createCapabilityRegistry(...).toContract()
+  -> createToolRegistry(...).toContract()
   -> compileSystemContracts()
   -> Arrow protocol hardener
   -> StreamGraph artifact diagnostics
   -> PolicyEngine and spawnSandbox()
 ```
 
-Capabilities are host-owned. The model sees the contract; the host owns
-handlers, network, credentials, state, grants, and the selected `SurfacePolicy`.
+Tools are host-owned. The model sees the contract; the host owns handlers,
+network, credentials, state, grants, and the selected `SurfacePolicy`.
 Generated artifacts must not emit or widen `/surface-policy` or `/surface-plan`.
 
 Generation servers should use `runSurfaceGeneration(input, emit)` from
@@ -53,12 +53,11 @@ host approval adapter.
 ## Safe Output Rules
 
 - Keep the iframe null-origin. Do not add `allow-same-origin`.
-- Grant intents and capabilities from the host with `grantedIntents` and
-  `grantedCapabilities`; never trust artifact-declared intents or capabilities
-  as permission.
-- Prefer declarative interactive surfaces with `scriptPolicy: "forbid"` and
-  `data-summon-*` bindings. Treat `scriptPolicy: "allow"` as an escalation for
-  hosts that intentionally permit custom artifact scripts.
+- Grant tools from the host with `grantedTools`; never trust artifact-declared
+  tools as permission.
+- Prefer Arrow-native generated artifacts with `host-bridge:summon` and
+  `callTool()`. Generated custom scripts, legacy runtime controls, and raw
+  section/fragment protocols are rejected before generation or at the parser.
 - Use `defineDataResource` for host-backed async data, with loading, error, and
   data state keys.
 - Resource UIs must render loading, error, and data states.
@@ -70,13 +69,13 @@ host approval adapter.
 
 For generation failures, inspect `/error`, `/validation-summary`,
 `/validation-blocked`, `/stream-graph-summary`, `/protocol-skip`,
-`/surface-policy`, `/surface-plan`, `/surface-contract`, `/shape`,
-`/token-overrides`, and `/mode-upgraded`.
+`/surface-policy`, `/surface-plan`, `/surface-contract`, `/agent-goal`,
+`/agent-policy-resolution`, `/shape`, `/token-overrides`, and `/mode-upgraded`.
 
 For client behavior, inspect Devtools events: `surface-plan`,
 `surface-contract`, `protocol-line`, `protocol-parse-error`, `sandbox-ready`,
-`render`, `rendered`, `intent-emitted`, `intent-rejected`,
-`intent-dispatched`, `intent-settled`, `state-pushed`, `component-sync`,
+`render`, `rendered`, `tool-called`, `tool-rejected`,
+`tool-dispatched`, `tool-settled`, `state-pushed`, `component-sync`,
 `stream-graph`, and `sandbox-fatal`.
 
 Use `ContractIssue` plus `hintsForContractIssue(issue)` when feeding validation
@@ -90,7 +89,10 @@ the requested grant/component exceeds the selected `SurfacePolicy` or compiled
 pnpm typecheck
 pnpm test
 pnpm test:safety
+pnpm test:gallery
 pnpm build
+pnpm check:public-api
+pnpm smoke:public-packages
 pnpm pack:dry-run
 pnpm dev:gallery
 pnpm dev:workbench
@@ -106,7 +108,7 @@ boot. It starts only the Vite demo app and does not require
 
 Manual smoke path: run `pnpm dev:workbench`, open `http://localhost:5173/generate`, choose the
 **Host-resource search** showcase scenario, keep **Free layout**, confirm the
-contract cockpit shows `explore/declarative/host-resource/read/replayable` and
+contract cockpit shows `explore/arrow/host-resource/read/replayable` and
 `Grants 1: search`, run the scenario, submit a generated search such as
 `chicken pasta`, inspect the Stream and Devtools drawers, replay from Saved
 surfaces, then open `http://localhost:5173/adversarial`. Use `/batch`,

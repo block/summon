@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { createSurfaceEnvelope } from '@anarchitecture/summon/envelope';
 import {
-  deriveSurfacePlanControls,
   isArrowSurfaceArtifact,
   type ProtocolLine,
   type SummonLayout,
@@ -39,6 +38,7 @@ import {
   ghostRootFromSelection,
   groupScenarios,
   scenarioUsesFixedPolicy,
+  surfacePolicyForPlan,
   tokenOverridesFor,
 } from './surfaceHelpers.js';
 import type {
@@ -81,7 +81,7 @@ export function GeneratePage() {
   const [activeTokensSourceOverride, setActiveTokensSourceOverride] = useState<string | null>(null);
   const activeTokensSourceOverrideRef = useRef<string | null>(null);
   const [surfaceTokensSource, setSurfaceTokensSource] = useState(defaultTokensSource);
-  const [runtimeCapabilityNames, setRuntimeCapabilityNames] = useState<string[] | null>(null);
+  const [runtimeToolNames, setRuntimeToolNames] = useState<string[] | null>(null);
   const [runtimeComponentNames, setRuntimeComponentNames] = useState<string[] | null>(null);
   const [status, setStatus] = useState('idle');
   const [bytes, setBytes] = useState(0);
@@ -93,7 +93,7 @@ export function GeneratePage() {
   const [currentValidationSummary, setCurrentValidationSummary] = useState<string | null>(null);
   const [currentStreamHealth, setCurrentStreamHealth] = useState<string | null>(null);
   const [currentSurfaceContractView, setCurrentSurfaceContractView] = useState<SurfaceContractView | null>(null);
-  const [currentAgentIntentSummary, setCurrentAgentIntentSummary] = useState<string | null>(null);
+  const [currentAgentGoalSummary, setCurrentAgentGoalSummary] = useState<string | null>(null);
   const [currentAgentPolicySummary, setCurrentAgentPolicySummary] = useState<string | null>(null);
   const [artifactRevision, setArtifactRevision] = useState(0);
   const artifactRevisionRef = useRef(0);
@@ -179,12 +179,12 @@ export function GeneratePage() {
     setDevEvents((items) => [...items.slice(-799), event]);
   }, []);
 
-  const handleSurfaceIntentRejected = useCallback((reason: string) => {
+  const handleSurfaceGoalRejected = useCallback((reason: string) => {
     logLine('op-error', `rejected: ${reason}`);
   }, [logLine]);
 
-  const handleSurfaceHandlerError = useCallback((intent: string, error: Error) => {
-    logLine('op-error', `host handler error (${intent}): ${error.message}`);
+  const handleSurfaceHandlerError = useCallback((tool: string, error: Error) => {
+    logLine('op-error', `host handler error (${tool}): ${error.message}`);
   }, [logLine]);
 
   const handleSurfaceComponentError = useCallback((error: { componentName?: string; componentId?: string; reason: string }) => {
@@ -201,7 +201,7 @@ export function GeneratePage() {
     setCurrentValidationSummary(null);
     setCurrentStreamHealth(null);
     setCurrentSurfaceContractView(null);
-    setCurrentAgentIntentSummary(null);
+    setCurrentAgentGoalSummary(null);
     setCurrentAgentPolicySummary(null);
   }, []);
 
@@ -272,16 +272,18 @@ export function GeneratePage() {
     const modelSelection = readModelSelection();
     const agentBroker = agentBrokerEnabled && !customContractEnabled && !scenarioUsesFixedPolicy(selectedScenario);
     const overrides = tokenOverridesFor(tokenPreset);
+    const surfacePolicy = customContractEnabled
+      ? surfacePolicyForPlan(surfacePlan, selectedScenario.toolNames, selectedScenario.componentNames)
+      : selectedScenario.surfacePolicy;
     return {
       scenarioId: selectedScenario.id,
       prompt: prompt.trim() || selectedScenario.prompt,
       mode,
-      capabilityNames: runtimeCapabilityNames ?? selectedScenario.capabilityNames,
+      toolNames: runtimeToolNames ?? selectedScenario.toolNames,
       componentNames: runtimeComponentNames ?? selectedScenario.componentNames,
       agentBroker,
-      ...(!agentBroker && !customContractEnabled ? { surfacePolicy: selectedScenario.surfacePolicy } : {}),
+      ...(!agentBroker ? { surfacePolicy } : {}),
       surfacePlan,
-      scriptPolicy: deriveSurfacePlanControls(surfacePlan).scriptPolicy,
       ...(layoutId ? { layoutId } : {}),
       ...(overrides ? { tokenOverrides: overrides } : {}),
       directionId,
@@ -299,14 +301,14 @@ export function GeneratePage() {
     mode,
     prompt,
     readModelSelection,
-    runtimeCapabilityNames,
+    runtimeToolNames,
     runtimeComponentNames,
     selectedScenario,
     surfacePlan,
     tokenPreset,
   ]);
 
-  const capabilityRegistry = useMemo(() => {
+  const toolRegistry = useMemo(() => {
     if (activeContract.mode !== 'interactive') return null;
     let localSummonCount = summonedCountRef.current;
     return createScopedDemoRegistry({
@@ -331,10 +333,10 @@ export function GeneratePage() {
         push({ summonedCount: localSummonCount, lastSummoned: args.prompt, summonError: null });
         logLine('op-meta', `summon sibling: ${args.prompt.slice(0, 80)}`);
       },
-    }, activeContract.capabilityNames);
+    }, activeContract.toolNames);
   }, [
     activeContract.agentBroker,
-    activeContract.capabilityNames,
+    activeContract.toolNames,
     activeContract.mode,
     directionId,
     logLine,
@@ -342,7 +344,7 @@ export function GeneratePage() {
     tokensFor,
   ]);
 
-  const capabilityContract = useMemo(() => capabilityRegistry?.toContract() ?? null, [capabilityRegistry]);
+  const toolContract = useMemo(() => toolRegistry?.toContract() ?? null, [toolRegistry]);
   const componentRegistry = useMemo(() => createDemoComponentRegistry(), []);
   const grantedComponents = useMemo(
     () => activeContract.componentNames?.length
@@ -359,7 +361,7 @@ export function GeneratePage() {
     setStatus('idle');
     setBytes(0);
     setShowWelcome(true);
-    setRuntimeCapabilityNames(null);
+    setRuntimeToolNames(null);
     setRuntimeComponentNames(null);
     setChildren([]);
     summonedCountRef.current = 0;
@@ -397,7 +399,7 @@ export function GeneratePage() {
     logLine,
     setBytes,
     setMode,
-    setCurrentAgentIntentSummary,
+    setCurrentAgentGoalSummary,
     setCurrentAgentPolicySummary,
     setCurrentEffectiveSurfacePlan,
     setCurrentSurfaceContractView,
@@ -426,8 +428,8 @@ export function GeneratePage() {
       validationIssues: result.validationIssues,
       streamGraph: result.streamGraph,
       grants: {
-        intents: capabilityRegistry?.intents() ?? [],
-        capabilities: capabilityContract?.validationCapabilities,
+        tools: toolRegistry?.tools() ?? [],
+        validationTools: toolContract?.validationTools,
         components: grantedComponents,
       },
       metadata: {
@@ -444,8 +446,8 @@ export function GeneratePage() {
     ]);
   }, [
     activeTokensSourceOverride,
-    capabilityContract,
-    capabilityRegistry,
+    toolContract,
+    toolRegistry,
     directionId,
     grantedComponents,
     mode,
@@ -475,7 +477,7 @@ export function GeneratePage() {
     logLine,
     currentValidationSummary,
     setChildren,
-    setRuntimeCapabilityNames,
+    setRuntimeToolNames,
     setRuntimeComponentNames,
     setLogs,
     setDevEvents,
@@ -508,11 +510,42 @@ export function GeneratePage() {
       ? fallbackCatalog(selectedProvider.utilityModel, selectedProvider.utilityModel)
       : [];
   const statusText = bytes ? `${status} · ${bytes.toLocaleString()} B` : status;
+  const latestStageError = useMemo(() => {
+    for (let i = logs.length - 1; i >= 0; i -= 1) {
+      const entry = logs[i];
+      if (entry?.cls.split(/\s+/).includes('op-error')) return cleanStageError(entry.text);
+    }
+    return null;
+  }, [logs]);
+  const stageNotice = useMemo(() => {
+    const hasRenderedArtifact = artifactRevision > 0;
+    if (!showWelcome && running && !hasRenderedArtifact) {
+      return {
+        tone: 'pending' as const,
+        title: 'Generating surface',
+        detail: 'Waiting for the first accepted artifact.',
+      };
+    }
+    if (!showWelcome && !hasRenderedArtifact && (status === 'error' || status.startsWith('error'))) {
+      return {
+        tone: 'error' as const,
+        title: 'Generation failed',
+        detail: latestStageError ?? 'No accepted artifact was produced.',
+      };
+    }
+    if (!showWelcome && !hasRenderedArtifact && status === 'aborted') {
+      return {
+        tone: 'error' as const,
+        title: 'Generation aborted',
+      };
+    }
+    return null;
+  }, [artifactRevision, latestStageError, running, showWelcome, status]);
   const contractRows = buildContractRows({
     active: activeContract,
     selectedScenario,
     modelProviders,
-    currentAgentIntentSummary,
+    currentAgentGoalSummary,
     currentAgentPolicySummary,
     currentEffectiveSurfacePlan,
     currentShape,
@@ -583,14 +616,16 @@ export function GeneratePage() {
           running={running}
           onGenerate={generate}
           statusText={statusText}
+          stageNotice={stageNotice}
+          onOpenDiagnostics={() => setDiagnosticsOpen(true)}
           surfaceRef={surfaceRef}
           surfaceTokensSource={surfaceTokensSource}
-          capabilityRegistry={capabilityRegistry}
+          toolRegistry={toolRegistry}
           componentRegistry={componentRegistry}
-          grantedCapabilities={capabilityContract?.validationCapabilities}
+          validationTools={toolContract?.validationTools}
           grantedComponents={grantedComponents}
           appendDevEvent={appendDevEvent}
-          onSurfaceIntentRejected={handleSurfaceIntentRejected}
+          onSurfaceGoalRejected={handleSurfaceGoalRejected}
           onSurfaceHandlerError={handleSurfaceHandlerError}
           onSurfaceComponentError={handleSurfaceComponentError}
           showWelcome={showWelcome}
@@ -719,6 +754,13 @@ export function GeneratePage() {
       />
     </>
   );
+}
+
+function cleanStageError(text: string): string {
+  return text
+    .replace(/^stream error:\s*/i, '')
+    .replace(/^error:\s*/i, '')
+    .trim();
 }
 
 function findArrowArtifact(lines: readonly ProtocolLine[]) {

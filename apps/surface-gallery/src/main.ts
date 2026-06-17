@@ -17,7 +17,7 @@ import {
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import { type ProtocolLine, type SurfaceContractView, type ValidationContext } from '@anarchitecture/summon/engine';
 import { arrowRuntimeSource, bootstrapSource, tokensSource } from '@anarchitecture/summon/assets';
-import { createGalleryCapabilityRegistry } from './capabilities.js';
+import { createGalleryToolRegistry } from './tools.js';
 import {
   allGalleryComponentNames,
   createGalleryComponentRegistry,
@@ -258,12 +258,12 @@ function respawnSandbox(): void {
   policy = null;
 
   const compiledPolicy = compiledPolicyFor(selectedPreset);
-  const capabilityRegistry = createGalleryCapabilityRegistry(compiledPolicy.policy.grants, {
+  const toolRegistry = createGalleryToolRegistry(compiledPolicy.policy.grants, {
     onLog: pushHostMessage,
     modelSelection: readModelSelection,
     onApprovalRequest: requestHostApproval,
   });
-  const capabilityContract = capabilityRegistry.toContract();
+  const toolContract = toolRegistry.toContract();
   const componentRegistry = compiledPolicy.policy.components.length
     ? createGalleryComponentRegistry(compiledPolicy.policy.components)
     : null;
@@ -280,12 +280,12 @@ function respawnSandbox(): void {
   }
 
   const initialState = compiledPolicy.mode === 'interactive'
-    ? capabilityContract.initialState
+    ? toolContract.initialState
     : {};
   const validationContext = validationContextForPolicy(
     compiledPolicy,
-    capabilityRegistry.intents(),
-    capabilityContract.validationCapabilities,
+    toolRegistry.tools(),
+    toolContract.validationTools,
     componentContract?.validationComponents,
   );
   renderState(initialState);
@@ -293,14 +293,14 @@ function respawnSandbox(): void {
   if (compiledPolicy.mode === 'interactive') {
     policy = new PolicyEngine({
       initialState,
-      handlers: capabilityRegistry.toPolicyHandlers(),
+      handlers: toolRegistry.toPolicyHandlers(),
       events,
       onStateChange: (state) => {
         renderState(state);
         handle?.pushState(state);
       },
-      onHandlerError: (intent, error) => {
-        pushHostMessage(`host handler ${intent}: ${error.message}`, { attention: true });
+      onHandlerError: (tool, error) => {
+        pushHostMessage(`host handler ${tool}: ${error.message}`, { attention: true });
       },
     });
   }
@@ -309,28 +309,28 @@ function respawnSandbox(): void {
     iframe,
     artifact: {
       runtime: 'arrow',
-      intents: [],
-      capabilities: capabilityContract.validationCapabilities,
+      tools: [],
+      validationTools: toolContract.validationTools,
       components: componentContract?.validationComponents,
       initialState,
     },
-    grantedIntents: compiledPolicy.mode === 'interactive' ? capabilityRegistry.intents() : [],
-    grantedCapabilities: compiledPolicy.mode === 'interactive'
-      ? capabilityContract.validationCapabilities
+    grantedTools: compiledPolicy.mode === 'interactive' ? toolRegistry.tools() : [],
+    validationTools: compiledPolicy.mode === 'interactive'
+      ? toolContract.validationTools
       : [],
     bootstrapSource,
     arrowRuntimeSource,
     tokensSource: activeTokensSourceOverride ?? tokensSource,
     events,
-    onIntent: (intent, args) => {
+    onToolCall: (tool, args) => {
       if (!policy) return {};
-      return policy.dispatch(intent, args).then((result) => result.state);
+      return policy.dispatch(tool, args).then((result) => result.state);
     },
     onComponents: (components, sandboxId) => {
       islands?.sync(components, {
         sandboxId,
-        emitIntent: (intent, args = {}) => {
-          void policy?.dispatch(intent, args);
+        callTool: (tool, args = {}) => {
+          void policy?.dispatch(tool, args);
         },
       });
     },
@@ -357,8 +357,8 @@ async function generateSelectedSurface(): Promise<void> {
   events.push({ kind: 'stream-lifecycle', at: Date.now(), phase: 'start' });
 
   const compiledPolicy = compiledPolicyFor(selectedPreset);
-  const capabilityPack = createGalleryCapabilityRegistry().toContract().pack;
-  const validationContract = createGalleryCapabilityRegistry(compiledPolicy.policy.grants).toContract();
+  const toolPack = createGalleryToolRegistry().toContract().pack;
+  const validationContract = createGalleryToolRegistry(compiledPolicy.policy.grants).toContract();
   const componentPack = componentCeilingFor(selectedPreset);
 
   try {
@@ -370,7 +370,7 @@ async function generateSelectedSurface(): Promise<void> {
         prompt: promptEl.value.trim(),
         ...readModelSelection(),
         surfacePolicy: selectedPreset.surfacePolicy,
-        capabilities: capabilityPack,
+        tools: toolPack,
         ...(componentPack ? { components: componentPack } : {}),
         ...(selectedPreset.ghost
           ? {
@@ -396,7 +396,7 @@ async function generateSelectedSurface(): Promise<void> {
       validationContext: validationContextForPolicy(
         compiledPolicy,
         compiledPolicy.policy.grants,
-        validationContract.validationCapabilities,
+        validationContract.validationTools,
         componentPack?.components.map((component) => ({ name: component.name, surface: component.surface })),
       ),
       onLine: (line, context) => handleLine(line, context),
@@ -436,22 +436,21 @@ function componentCeilingFor(preset: GalleryPreset): ComponentPack | null {
 
 function compiledPolicyFor(preset: GalleryPreset): CompiledSurfacePolicy {
   return compileSurfacePolicy(preset.surfacePolicy, {
-    capabilities: createGalleryCapabilityRegistry().toContract().pack,
+    tools: createGalleryToolRegistry().toContract().pack,
     components: createGalleryComponentRegistry().toContract().pack,
   });
 }
 
 function validationContextForPolicy(
   compiledPolicy: CompiledSurfacePolicy,
-  grantedIntents: string[],
-  capabilities: ValidationContext['capabilities'],
+  grantedTools: string[],
+  tools: ValidationContext['tools'],
   components: ValidationContext['components'],
 ): ValidationContext {
   return {
     mode: compiledPolicy.mode,
-    scriptPolicy: compiledPolicy.scriptPolicy,
-    allowedIntents: grantedIntents,
-    capabilities,
+    allowedTools: grantedTools,
+    tools,
     components,
     surfacePlan: compiledPolicy.surfacePlan,
   };
@@ -514,7 +513,6 @@ function renderAuthorityMeter(compiled: CompiledSurfacePolicy): void {
     ['Runtime', plan.runtime],
     ['Data', plan.data],
     ['Authority', plan.authority],
-    ['Scripts', compiled.scriptPolicy],
     ['Network', 'blocked'],
     ['Storage', 'blocked'],
     ['Parent DOM', 'blocked'],
@@ -590,7 +588,7 @@ function renderContract(): void {
     ['policy', 'Surface config', policy],
     ['tier', 'Surface type', contract?.surface.policy.tier ?? selectedPreset.surfacePolicy.tier],
     ...(contract
-      ? [['runtime', 'Runtime', `${contract.surface.mode} - scripts ${contract.surface.scriptPolicy}`] as [string, string, string]]
+      ? [['runtime', 'Runtime', `${contract.surface.mode} - ${contract.surface.plan.runtime}`] as [string, string, string]]
       : []),
     ['grants', 'Allowed host tools', allowedHostTools],
     ['components', 'Trusted components', components],
@@ -871,12 +869,12 @@ function describeEvent(event: DevtoolsEvent): string {
   switch (event.kind) {
     case 'protocol-line':
       return `protocol ${event.line.op} ${event.line.path}`;
-    case 'intent-emitted':
-      return `host tool ${event.intent}`;
-    case 'intent-dispatched':
-      return `host dispatch ${event.intent}`;
-    case 'intent-settled':
-      return `host settled ${event.intent} ${event.ok ? 'ok' : 'error'}`;
+    case 'tool-called':
+      return `host tool ${event.tool}`;
+    case 'tool-dispatched':
+      return `host dispatch ${event.tool}`;
+    case 'tool-settled':
+      return `host settled ${event.tool} ${event.ok ? 'ok' : 'error'}`;
     case 'state-pushed':
       return `state ${Object.keys(event.patch).join(', ') || 'updated'}`;
     case 'component-error':
@@ -909,7 +907,7 @@ function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision
 
     const eyebrow = document.createElement('span');
     eyebrow.className = approvalEyebrowClass;
-    eyebrow.textContent = request.capability;
+    eyebrow.textContent = request.tool;
 
     const title = document.createElement('strong');
     title.className = approvalTitleClass;

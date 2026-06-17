@@ -1,5 +1,5 @@
 import {
-  type CapabilityRegistry,
+  type ToolRegistry,
   type ComponentDefinition,
   type ComponentRegistry,
 } from '@anarchitecture/summon';
@@ -41,22 +41,25 @@ import { createRoot, type Root } from 'react-dom/client';
 export interface SummonSurfaceProps {
   envelope?: SurfaceEnvelope | null;
   artifact?: ArrowSurfaceArtifact | null;
-  artifactIntents?: string[];
-  grantedIntents?: string[];
-  grantedCapabilities?: Artifact['capabilities'];
+  artifactTools?: string[];
+  grantedTools?: string[];
+  validationTools?: Artifact['validationTools'];
   artifactComponents?: Artifact['components'];
-  capabilityRegistry?: CapabilityRegistry | null;
+  toolRegistry?: ToolRegistry | null;
   componentRegistry?: ComponentRegistry | null;
   bootstrapSource?: string;
   arrowRuntimeSource?: string;
   arrowNetworkPolicy?: ArrowNetworkPolicy;
   tokensSource?: string;
   initialState?: Record<string, unknown>;
-  onIntent?: (intent: string, args: Record<string, unknown>) => void;
-  onIntentRejected?: (reason: string, raw: unknown) => void;
+  onToolCall?: (tool: string, args: Record<string, unknown>) =>
+    | void
+    | Record<string, unknown>
+    | Promise<void | Record<string, unknown>>;
+  onToolRejected?: (reason: string, raw: unknown) => void;
   onEvent?: (event: DevtoolsEvent) => void;
   onFatal?: (reason: string) => void;
-  onHandlerError?: (intent: string, error: Error) => void;
+  onHandlerError?: (tool: string, error: Error) => void;
   onComponentError?: (error: ComponentIslandError) => void;
   id?: string;
   title?: string;
@@ -113,19 +116,19 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const contract = props.capabilityRegistry?.toContract();
+    const contract = props.toolRegistry?.toContract();
     const componentContract = props.componentRegistry?.toContract();
-    const handlers = props.capabilityRegistry?.toPolicyHandlers() ?? {};
-    const grantedIntents = props.grantedIntents ?? props.capabilityRegistry?.intents() ?? [];
-    const grantedCapabilities = props.grantedCapabilities ?? contract?.validationCapabilities ?? [];
+    const handlers = props.toolRegistry?.toPolicyHandlers() ?? {};
+    const grantedTools = props.grantedTools ?? props.toolRegistry?.tools() ?? [];
+    const validationTools = props.validationTools ?? contract?.validationTools ?? [];
     const initialState = {
       ...(contract?.initialState ?? {}),
       ...(props.initialState ?? {}),
     };
     const validationContext = validationContextFromProps(
       props,
-      grantedIntents,
-      grantedCapabilities,
+      grantedTools,
+      validationTools,
       componentContract?.validationComponents ?? props.artifactComponents ?? props.envelope?.grants.components,
     );
     validationContextRef.current = validationContext;
@@ -154,8 +157,8 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     const artifact: Artifact = {
       runtime: 'arrow',
       // Advisory only. spawnSandbox receives host grants below.
-      intents: props.artifactIntents ?? props.envelope?.grants.intents ?? grantedIntents,
-      capabilities: props.envelope?.grants.capabilities ?? props.grantedCapabilities,
+      tools: props.artifactTools ?? props.envelope?.grants.tools ?? grantedTools,
+      validationTools: props.envelope?.grants.validationTools ?? props.validationTools,
       components: props.artifactComponents ?? props.envelope?.grants.components ?? componentContract?.validationComponents,
       ...(arrowArtifact ? { arrow: arrowArtifact } : {}),
       initialState,
@@ -165,22 +168,25 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     handle = spawnSandbox({
       iframe,
       artifact,
-      grantedIntents,
-      grantedCapabilities,
+      grantedTools,
+      validationTools,
       bootstrapSource: props.bootstrapSource ?? defaultBootstrapSource,
       arrowRuntimeSource: props.arrowRuntimeSource ?? defaultArrowRuntimeSource,
       arrowNetworkPolicy,
       tokensSource: props.tokensSource ?? props.envelope?.tokenCss ?? defaultTokensSource,
       events,
       onSandboxFatal: props.onFatal,
-      onIntent: (intent, args) => {
-        props.onIntent?.(intent, args);
-        if (Object.prototype.hasOwnProperty.call(handlers, intent)) {
-          return policy.dispatch(intent, args).then((result) => result.state);
+      onToolCall: async (tool, args) => {
+        const customState = await props.onToolCall?.(tool, args);
+        if (customState && typeof customState === 'object' && !Array.isArray(customState)) {
+          return customState;
+        }
+        if (Object.prototype.hasOwnProperty.call(handlers, tool)) {
+          return policy.dispatch(tool, args).then((result) => result.state);
         }
         return policy.getState();
       },
-      onIntentRejected: props.onIntentRejected,
+      onToolRejected: props.onToolRejected,
       onComponents: (components, sandboxId) => {
         const grantedComponents = components.filter((component) => grantedComponentNames.has(component.name));
         for (const component of components) {
@@ -220,8 +226,8 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
         }
         islands?.sync(grantedComponents, {
           sandboxId,
-          emitIntent: (intent, args = {}) => {
-            void policy.dispatch(intent, args);
+          callTool: (tool, args = {}) => {
+            void policy.dispatch(tool, args);
           },
         });
       },
@@ -244,17 +250,17 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     props.bootstrapSource,
     props.arrowRuntimeSource,
     props.arrowNetworkPolicy,
-    props.capabilityRegistry,
+    props.toolRegistry,
     props.componentRegistry,
     props.envelope,
     props.artifact,
-    props.artifactIntents,
-    props.grantedIntents,
-    props.grantedCapabilities,
+    props.artifactTools,
+    props.grantedTools,
+    props.validationTools,
     props.artifactComponents,
     props.initialState,
-    props.onIntent,
-    props.onIntentRejected,
+    props.onToolCall,
+    props.onToolRejected,
     props.onFatal,
     props.onComponentError,
     props.onHandlerError,
@@ -278,7 +284,7 @@ export interface ReactComponentDefinition<T = unknown>
 export interface ReactComponentRuntimeContext {
   componentId: string;
   sandboxId: string;
-  emitIntent: (intent: string, args?: Record<string, unknown>) => void;
+  callTool: (tool: string, args?: Record<string, unknown>) => void;
 }
 
 export interface ReactComponentWithRuntimeDefinition<T = unknown, P = T>
@@ -294,13 +300,13 @@ export function defineReactComponent<T, P = T>(
   const { component, mapProps, ...rest } = definition;
   return {
     ...rest,
-    render: ({ container, props, componentId, sandboxId, emitIntent }) => {
+    render: ({ container, props, componentId, sandboxId, callTool }) => {
       let root = roots.get(container);
       if (!root) {
         root = createRoot(container);
         roots.set(container, root);
       }
-      const runtimeContext = { componentId, sandboxId, emitIntent };
+      const runtimeContext = { componentId, sandboxId, callTool };
       const componentProps = mapProps
         ? mapProps(props as T, runtimeContext)
         : props as unknown as P;
@@ -334,17 +340,16 @@ function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact |
 
 function validationContextFromProps(
   props: SummonSurfaceProps,
-  grantedIntents: string[],
-  grantedCapabilities: Artifact['capabilities'],
+  grantedTools: string[],
+  validationTools: Artifact['validationTools'],
   components: Artifact['components'],
 ): ValidationContext {
   const surfacePlan = props.envelope?.surfacePlan;
   return {
     mode: props.envelope?.metadata.mode ??
-      (surfacePlan?.runtime === 'static' || grantedIntents.length === 0 ? 'static' : 'interactive'),
-    scriptPolicy: 'forbid',
-    allowedIntents: props.envelope?.grants.intents ?? grantedIntents,
-    capabilities: props.envelope?.grants.capabilities ?? grantedCapabilities,
+      (grantedTools.length === 0 ? 'static' : 'interactive'),
+    allowedTools: props.envelope?.grants.tools ?? grantedTools,
+    tools: props.envelope?.grants.validationTools ?? validationTools,
     components,
     ...(surfacePlan ? { surfacePlan } : {}),
   };
@@ -353,9 +358,8 @@ function validationContextFromProps(
 function defaultValidationContext(): ValidationContext {
   return {
     mode: 'static',
-    scriptPolicy: 'forbid',
-    allowedIntents: [],
-    capabilities: [],
+    allowedTools: [],
+    tools: [],
     components: [],
   };
 }

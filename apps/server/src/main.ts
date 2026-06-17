@@ -3,16 +3,14 @@ import cors from 'cors';
 import {
   compileSurfacePolicy,
   parseTokenValues,
-  type CapabilityPack,
+  type ToolPack,
   type ProtocolLine,
-  type ScriptPolicy,
   type SummonLayout,
   type SurfacePlan,
   type TokenOverride,
 } from '@anarchitecture/summon/engine';
 import {
   planAgentSurface,
-  resolveSurfaceGenerationPlan,
   runSurfaceGeneration,
   summarizeContractIssues,
   type AgentSurfacePlanResult,
@@ -39,7 +37,7 @@ import {
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
 import { inferShape, type ResponseShape } from './infer-shape.js';
-import { parseCapabilityPack } from './capability-pack.js';
+import { parseToolPack } from './tool-pack.js';
 import { parseComponentPack } from './component-pack.js';
 import {
   createModelProviderRegistry,
@@ -358,16 +356,18 @@ app.post('/api/generate', async (req, res) => {
     return;
   }
   const layout = parsedLayout.layout;
-  if (req.body?.edit !== undefined && req.body.edit !== null) {
-    res.status(400).json({ error: 'section edit is not supported in Arrow-only mode' });
-    return;
-  }
-  if (req.body?.fragmentMode !== undefined && req.body.fragmentMode !== null) {
-    res.status(400).json({ error: 'fragmentMode is not supported in Arrow-only mode' });
-    return;
-  }
-  if (req.body?.repair !== undefined && req.body.repair !== null) {
-    res.status(400).json({ error: 'section repair is not supported in Arrow-only mode' });
+  const legacyGenerationFields = [
+    'edit',
+    'fragmentMode',
+    'repair',
+    'mode',
+    'scriptPolicy',
+    'surfacePlan',
+    'surfaceCeiling',
+  ];
+  const legacyField = legacyGenerationFields.find((field) => req.body?.[field] !== undefined && req.body?.[field] !== null);
+  if (legacyField) {
+    res.status(400).json({ error: `${legacyField} is not supported in Arrow-only policy mode` });
     return;
   }
   const rawAgentOptions = req.body?.agent;
@@ -377,18 +377,11 @@ app.post('/api/generate', async (req, res) => {
 
   const hasSurfacePolicy =
     req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
-  const hasSurfacePlan =
-    req.body?.surfacePlan !== undefined && req.body.surfacePlan !== null;
-  const requestedMode: 'static' | 'interactive' =
-    req.body?.mode === 'interactive' ? 'interactive' : 'static';
-  let scriptPolicy: ScriptPolicy | undefined =
-    req.body?.scriptPolicy === 'allow' ? 'allow' : req.body?.scriptPolicy === 'forbid' ? 'forbid' : undefined;
-  const capabilityCeiling = parseCapabilityPack(req.body?.capabilities);
+  const toolCeiling = parseToolPack(req.body?.tools);
   const componentPack = parseComponentPack(req.body?.components);
 
-  let mode: 'static' | 'interactive' = requestedMode;
-  let pack: CapabilityPack | null = null;
-  let modeUpgraded = false;
+  let mode: 'static' | 'interactive' = 'static';
+  let pack: ToolPack | null = null;
   let surfacePlan: SurfacePlan;
   let agentPlan: AgentSurfacePlanResult | null = null;
 
@@ -407,47 +400,27 @@ app.post('/api/generate', async (req, res) => {
 
   if (hasSurfacePolicy) {
     const compiledPolicy = compileSurfacePolicy(req.body.surfacePolicy, {
-      capabilities: capabilityCeiling,
+      tools: toolCeiling,
       components: componentPack,
     });
     mode = compiledPolicy.mode;
-    scriptPolicy = compiledPolicy.scriptPolicy;
-    pack = compiledPolicy.capabilities;
+    pack = compiledPolicy.tools;
     surfacePlan = compiledPolicy.surfacePlan;
-  } else if (hasSurfacePlan) {
-    pack = requestedMode === 'interactive' ? capabilityCeiling : null;
-    const resolvedSurface = resolveSurfaceGenerationPlan({
-      prompt,
-      mode,
-      scriptPolicy,
-      capabilities: pack,
-      rawSurfacePlan: req.body?.surfacePlan,
-      rawSurfaceCeiling: req.body?.surfaceCeiling,
-    });
-    if (mode !== resolvedSurface.mode) {
-      modeUpgraded = mode === 'static' && resolvedSurface.mode === 'interactive' ? true : modeUpgraded;
-      mode = resolvedSurface.mode;
-      pack = mode === 'interactive' ? pack ?? capabilityCeiling : null;
-    }
-    scriptPolicy = resolvedSurface.scriptPolicy;
-    surfacePlan = resolvedSurface.surfacePlan;
   } else {
     agentPlan = await planAgentSurface({
       prompt,
-      capabilities: capabilityCeiling,
+      tools: toolCeiling,
       components: componentPack,
-      intentModel: process.env.SUMMON_AGENT_INTENT_MODEL === '0' || agentOptions?.intentModel === 'off'
+      goalModel: process.env.SUMMON_AGENT_GOAL_MODEL === '0' || agentOptions?.goalModel === 'off'
         ? null
         : {
             completeText: (request) => modelProvider.completeText(request, modelSelection),
           },
-      intentTimeoutMs: clampInt(agentOptions?.intentTimeoutMs, 250, 5000, 1800),
+      goalTimeoutMs: clampInt(agentOptions?.goalTimeoutMs, 250, 5000, 1800),
     });
     mode = agentPlan.compiledPolicy.mode;
-    scriptPolicy = agentPlan.compiledPolicy.scriptPolicy;
-    pack = agentPlan.compiledPolicy.capabilities;
+    pack = agentPlan.compiledPolicy.tools;
     surfacePlan = agentPlan.compiledPolicy.surfacePlan;
-    modeUpgraded = requestedMode === 'static' && mode === 'interactive';
   }
 
   if (ghostContext) {
@@ -456,10 +429,10 @@ app.post('/api/generate', async (req, res) => {
       mode,
       surfacePlan,
       shape,
-      capabilities: hasSurfacePolicy
-        ? capabilityCeiling
+      tools: hasSurfacePolicy
+        ? toolCeiling
         : agentPlan
-          ? agentPlan.compiledPolicy.capabilities
+          ? agentPlan.compiledPolicy.tools
           : pack,
       components: componentPack,
     });
@@ -482,27 +455,21 @@ app.post('/api/generate', async (req, res) => {
       value: ghostTokenSourceMeta(ghostContext.tokenSource),
     });
   }
-  // Emit the mode-upgrade signal before agent diagnostics. The client respawns
-  // its sandbox into interactive mode in response, so this should land before
-  // any broker or artifact bytes that assume the upgraded mode.
-  if (modeUpgraded) {
-    preludeLines.push({ op: 'meta', path: '/mode-upgraded', value: 'static→interactive' });
-  }
   if (agentPlan) {
     preludeLines.push({
       op: 'meta',
-      path: '/agent-intent',
-      value: agentPlan.intent,
+      path: '/agent-goal',
+      value: agentPlan.goal,
     });
     preludeLines.push({
       op: 'meta',
       path: '/agent-policy-resolution',
       value: {
         source: agentPlan.policyResolution.source,
-        intentSource: agentPlan.intentSource,
+        goalSource: agentPlan.goalSource,
         proposedSurfacePolicy: agentPlan.policyResolution.proposedSurfacePolicy,
         surfacePolicy: agentPlan.policyResolution.surfacePolicy,
-        rejectedCapabilities: agentPlan.policyResolution.rejectedCapabilities,
+        rejectedTools: agentPlan.policyResolution.rejectedTools,
         rejectedComponents: agentPlan.policyResolution.rejectedComponents,
         fallback: agentPlan.policyResolution.fallback,
       },
@@ -533,7 +500,6 @@ app.post('/api/generate', async (req, res) => {
       let usage: ProviderUsageSnapshot | null = null;
       const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
         prompt,
-        mode,
         direction: direction
           ? {
               id: direction.id,
@@ -548,15 +514,13 @@ app.post('/api/generate', async (req, res) => {
         ghost: ghostContext ?? null,
         activeTokensCss: ghostContext?.tokenSource.css ?? null,
         layout,
-        capabilities: hasSurfacePolicy || agentPlan ? capabilityCeiling : pack,
+        tools: hasSurfacePolicy || agentPlan ? toolCeiling : pack,
         components: componentPack,
         surfacePolicy: hasSurfacePolicy
           ? req.body.surfacePolicy
           : agentPlan
             ? agentPlan.surfacePolicy
             : null,
-        scriptPolicy: hasSurfacePolicy || agentPlan ? undefined : scriptPolicy,
-        surfacePlan: hasSurfacePolicy || agentPlan ? null : surfacePlan,
         tokenOverrides: overrides.applied,
         preludeLines,
         modelProvider: (request) => modelProvider.streamSurfaceGeneration(request, (nextUsage) => {
@@ -587,15 +551,13 @@ app.post('/api/generate', async (req, res) => {
         cache_read_input_tokens: 0,
         cache_creation_input_tokens: 0,
       };
-      const upgradeTag = modeUpgraded ? ` (upgraded via ${agentPlan ? 'broker' : 'surface plan'})` : '';
       console.log(
-        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}${upgradeTag}` +
+        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
           ` shape=${shape ?? 'all'}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +
-          ` intents=${pack?.intents.length ?? 0}/${capabilityCeiling?.intents.length ?? 0}` +
+          ` tools=${pack?.tools.length ?? 0}/${toolCeiling?.tools.length ?? 0}` +
           ` components=${componentPack?.components.length ?? 0}` +
-          ` scripts=${scriptPolicy}` +
           ` overrides=${overrides.applied.length}` +
           ` options=max:${modelSelection.options.maxOutputTokens}` +
           (modelSelection.options.anthropicThinking ? ` thinking=${modelSelection.options.anthropicThinking}` : '') +

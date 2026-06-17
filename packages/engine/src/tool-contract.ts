@@ -1,14 +1,14 @@
-export type CapabilityKind = 'action' | 'resource';
-export type CapabilityTrigger = 'click' | 'submit' | 'mount';
+export type ToolKind = 'action' | 'resource';
+export type ToolTrigger = 'click' | 'submit' | 'mount';
 
-export interface CapabilityStateKeys {
+export interface ToolStateKeys {
   loading?: string;
   data?: string;
   error?: string;
   empty?: string;
 }
 
-export interface ResourceStateKeys extends Required<Pick<CapabilityStateKeys, 'loading' | 'data' | 'error'>> {
+export interface ResourceStateKeys extends Required<Pick<ToolStateKeys, 'loading' | 'data' | 'error'>> {
   empty?: string;
 }
 
@@ -18,7 +18,7 @@ export interface ActionStateKeys {
   error: string;
 }
 
-const ARROW_TRIGGER_DOCS: Array<{ trigger: CapabilityTrigger; description: string }> = [
+const ARROW_TRIGGER_DOCS: Array<{ trigger: ToolTrigger; description: string }> = [
   {
     trigger: 'click',
     description: 'Fires an action or resource when the element is clicked.',
@@ -35,19 +35,19 @@ const ARROW_TRIGGER_DOCS: Array<{ trigger: CapabilityTrigger; description: strin
   },
 ];
 
-export function defaultTriggersForKind(kind: CapabilityKind = 'action'): CapabilityTrigger[] {
+export function defaultTriggersForKind(kind: ToolKind = 'action'): ToolTrigger[] {
   return kind === 'resource' ? ['submit', 'mount'] : ['click', 'submit'];
 }
 
 export function hasCompleteResourceStateKeys(
-  keys: CapabilityStateKeys | undefined,
+  keys: ToolStateKeys | undefined,
 ): keys is ResourceStateKeys {
   return Boolean(keys?.loading && keys.data && keys.error);
 }
 
-export function formatCapabilityProtocolContract(): string {
+export function formatToolProtocolContract(): string {
   const triggerRows = ARROW_TRIGGER_DOCS.map(
-    (spec) => `- \`${spec.trigger}\` — ${spec.description} Author this as an Arrow event handler or lifecycle call that invokes the granted intent.`,
+    (spec) => `- \`${spec.trigger}\` — ${spec.description} Author this as an Arrow event handler or lifecycle call that invokes the granted tool.`,
   ).join('\n');
 
   return `### Arrow host bridge
@@ -55,7 +55,7 @@ export function formatCapabilityProtocolContract(): string {
 Use Arrow-native interactivity. Import the bridge from \`host-bridge:summon\` inside the generated Arrow entry file:
 
 \`\`\`ts
-import { invoke, getState, onState } from "host-bridge:summon";
+import { callTool, getState, onState } from "host-bridge:summon";
 \`\`\`
 
 #### Triggers
@@ -64,7 +64,7 @@ ${triggerRows}
 
 #### Host state
 
-- \`await invoke(intentName, args)\` calls a granted host capability and resolves to \`{ ok, state, error? }\`.
+- \`await callTool(toolName, args)\` calls a granted host tool and resolves to \`{ ok, state, error? }\`.
 - \`await getState()\` reads the latest host-owned state snapshot.
 - \`onState((state) => { ... })\` subscribes to host \`pushState()\` updates and returns an unsubscribe function.
 - Copy host-owned keys into Arrow \`reactive()\` state before rendering loading, data, error, empty, pending, or done UI.

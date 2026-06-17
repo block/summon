@@ -293,7 +293,7 @@ function scanPhantomTokens(
 /**
  * Scans for raw `#rrggbb` hex literals in emitted Arrow source. Hex inside a
  * `var(--name, #fallback)` expression is intentional and ignored — the
- * LLM's primary intent there is the var, not the fallback.
+ * LLM's primary tool there is the var, not the fallback.
  *
  * Each hex is classified into a tier based on whether it resolves to a
  * declared token value, the upstream brand bucket, or neither. Tiers map

@@ -1,21 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  resolveSurfaceGenerationPlan,
+  policyFromGoal,
   runSurfaceGeneration,
   summarizeContractIssues,
   type ProtocolLine,
   type SummonModelProvider,
 } from '../src/index.ts';
-
-const surfacePlan = {
-  purpose: 'inform',
-  runtime: 'arrow',
-  data: 'embedded',
-  authority: 'none',
-  persistence: 'replayable',
-  network: 'none',
-} as const;
 
 function arrowProtocolLine(html: string): string {
   const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
@@ -59,7 +50,7 @@ test('summarizeContractIssues includes bounded examples per issue code', () => {
   assert.deepEqual(summary.examples.map((issue) => issue.code), ['arrow-only-protocol', 'unknown-token']);
 });
 
-test('runSurfaceGeneration emits prelude and surface plan before Arrow artifact output', async () => {
+test('runSurfaceGeneration emits prelude and derived surface metadata before Arrow artifact output', async () => {
   const lines: ProtocolLine[] = [];
   const provider: SummonModelProvider = async function* () {
     yield arrowProtocolLine('<p>Hello</p>');
@@ -68,17 +59,18 @@ test('runSurfaceGeneration emits prelude and surface plan before Arrow artifact 
   const summary = await runSurfaceGeneration({
     prompt: 'hello',
     modelProvider: provider,
-    mode: 'static',
-    surfacePlan,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
     layout: { id: 'one-up', slots: [{ id: 'hero', purpose: 'main content' }] },
     preludeLines: [{ op: 'meta', path: '/status', value: 'queued' }],
   }, (line) => {
     lines.push(line);
   });
 
-  assert.deepEqual(lines.slice(0, 3).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
     'meta /status',
+    'meta /surface-policy',
     'meta /surface-plan',
+    'meta /surface-contract',
     'artifact /artifact',
   ]);
   assert.equal(summary.acceptedLines[0]?.path, '/artifact');
@@ -93,8 +85,7 @@ test('runSurfaceGeneration skips unsupported legacy section protocol', async () 
     modelProvider: async function* () {
       yield '{"op":"add","path":"/section/hero","html":"<p>Legacy</p>"}\n';
     },
-    mode: 'static',
-    surfacePlan,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
   }, (line) => {
     lines.push(line);
   });
@@ -115,8 +106,7 @@ test('runSurfaceGeneration forwards first-class Ghost context to the model contr
   const summary = await runSurfaceGeneration({
     prompt: 'hello',
     modelProvider: provider,
-    mode: 'static',
-    surfacePlan,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
     ghost: {
       source: 'root',
       prompt: 'Portable Ghost context.',
@@ -139,8 +129,8 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
       grants: ['choose'],
       components: ['MetricCard'],
     },
-    capabilities: {
-      intents: [
+    tools: {
+      tools: [
         {
           name: 'search',
           description: 'Search host data',
@@ -159,8 +149,8 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
         },
       ],
       patterns: [
-        { name: 'Search', code: 'import { invoke } from "host-bridge:summon";\nconst search = (query: string) => invoke("search", { query });', intent: 'search' },
-        { name: 'Choose', code: 'invoke("choose", {})', intent: 'choose' },
+        { name: 'Search', code: 'import { callTool } from "host-bridge:summon";\nconst search = (query: string) => callTool("search", { query });', tool: 'search' },
+        { name: 'Choose', code: 'callTool("choose", {})', tool: 'choose' },
       ],
     },
     components: {
@@ -225,8 +215,8 @@ test('runSurfaceGeneration blocks invalid surface policy before provider invocat
       tier: 'declarative',
       grants: ['analysis'],
     },
-    capabilities: {
-      intents: [{
+    tools: {
+      tools: [{
         name: 'analysis',
         description: 'Worker analysis',
         argsSchema: '{}',
@@ -254,38 +244,12 @@ test('runSurfaceGeneration blocks invalid surface policy before provider invocat
   ]);
 });
 
-test('runSurfaceGeneration rejects generated script policy before provider invocation', async () => {
-  let called = false;
-  const lines: ProtocolLine[] = [];
-
-  const summary = await runSurfaceGeneration({
-    prompt: 'script policy mismatch',
-    mode: 'interactive',
-    scriptPolicy: 'allow',
-    modelProvider: async function* () {
-      called = true;
-      yield arrowProtocolLine('<button>Pick</button>');
-    },
-  }, (line) => {
-    lines.push(line);
-  });
-
-  assert.equal(called, false);
-  assert.equal(summary.blocked, true);
-  assert.ok(summary.validationIssues.some((issue) =>
-    issue.code === 'surface-script-policy-removed'
-  ));
-  assert.ok(lines.some((line) => line.path === '/validation-blocked'));
-  assert.ok(lines.some((line) => line.path === '/error'));
-});
-
 test('runSurfaceGeneration passes provider meta chunks through in order', async () => {
   const lines: ProtocolLine[] = [];
 
   await runSurfaceGeneration({
     prompt: 'meta',
-    mode: 'static',
-    surfacePlan,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
     modelProvider: async function* () {
       yield { type: 'meta', path: '/status', value: 'thinking' };
       yield { type: 'text', text: arrowProtocolLine('<p>Hello</p>') };
@@ -294,9 +258,11 @@ test('runSurfaceGeneration passes provider meta chunks through in order', async 
     lines.push(line);
   });
 
-  assert.equal(lines[0]?.path, '/surface-plan');
-  assert.equal(lines[1]?.path, '/status');
-  assert.equal(lines[2]?.path, '/artifact');
+  assert.equal(lines[0]?.path, '/surface-policy');
+  assert.equal(lines[1]?.path, '/surface-plan');
+  assert.equal(lines[2]?.path, '/surface-contract');
+  assert.equal(lines[3]?.path, '/status');
+  assert.equal(lines[4]?.path, '/artifact');
 });
 
 test('runSurfaceGeneration processes final buffered artifact without trailing newline', async () => {
@@ -304,8 +270,7 @@ test('runSurfaceGeneration processes final buffered artifact without trailing ne
 
   const summary = await runSurfaceGeneration({
     prompt: 'tail',
-    mode: 'static',
-    surfacePlan,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
     modelProvider: async function* () {
       yield arrowProtocolLine('<p>Tail</p>').trimEnd();
     },
@@ -323,8 +288,7 @@ test('runSurfaceGeneration summary separates accepted artifact lines from emitte
 
   const summary = await runSurfaceGeneration({
     prompt: 'summary',
-    mode: 'static',
-    surfacePlan,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
     preludeLines: [{ op: 'meta', path: '/status', value: 'queued' }],
     modelProvider: async function* () {
       yield { type: 'meta', path: '/status', value: 'writing' };
@@ -339,7 +303,9 @@ test('runSurfaceGeneration summary separates accepted artifact lines from emitte
   ]);
   assert.deepEqual(summary.emittedLines.map((line) => line.path), [
     '/status',
+    '/surface-policy',
     '/surface-plan',
+    '/surface-contract',
     '/status',
     '/artifact',
     '/stream-graph-summary',
@@ -347,29 +313,22 @@ test('runSurfaceGeneration summary separates accepted artifact lines from emitte
   assert.deepEqual(lines, summary.emittedLines);
 });
 
-test('resolveSurfaceGenerationPlan preserves server surface resolution behavior', () => {
-  const resolved = resolveSurfaceGenerationPlan({
-    prompt: 'search for recipes',
-    mode: 'static',
-    capabilities: {
-      intents: [{
-        name: 'search',
-        description: 'Search host data.',
-        argsSchema: '{query: string}',
-        stateShape: '{}',
-        kind: 'resource',
-        surface: { data: 'host-resource', authority: 'read' },
-      }],
-    },
+test('policyFromGoal converts agent goal to a host SurfacePolicy', () => {
+  const policy = policyFromGoal({
+    purpose: 'explore',
+    interaction: 'search',
+    dataNeed: 'host-resource',
+    sideEffect: 'none',
+    requestedTools: ['search'],
+    requestedComponents: [],
+    confidence: 0.72,
   });
 
-  assert.equal(resolved.source, 'default');
-  assert.deepEqual(resolved.surfacePlan, {
-    purpose: 'inform',
-    runtime: 'arrow',
-    data: 'embedded',
-    authority: 'none',
+  assert.deepEqual(policy, {
+    tier: 'declarative',
+    purpose: 'explore',
+    grants: ['search'],
+    components: [],
     persistence: 'replayable',
-    network: 'none',
   });
 });

@@ -2,7 +2,6 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import type { SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
 import {
-  deriveSurfacePlanControls,
   isArrowSurfaceArtifact,
   type SummonLayout,
   type SurfaceContractView,
@@ -36,7 +35,7 @@ export function useGenerationRuns({
   logLine,
   currentValidationSummary,
   setChildren,
-  setRuntimeCapabilityNames,
+  setRuntimeToolNames,
   setRuntimeComponentNames,
   setLogs,
   setDevEvents,
@@ -75,7 +74,7 @@ export function useGenerationRuns({
   logLine: (cls: string, text: string) => void;
   currentValidationSummary: string | null;
   setChildren: Dispatch<SetStateAction<ChildSurfaceModel[]>>;
-  setRuntimeCapabilityNames: Dispatch<SetStateAction<string[] | null>>;
+  setRuntimeToolNames: Dispatch<SetStateAction<string[] | null>>;
   setRuntimeComponentNames: Dispatch<SetStateAction<string[] | null>>;
   setLogs: Dispatch<SetStateAction<LogEntry[]>>;
   setDevEvents: Dispatch<SetStateAction<Array<DevtoolsEvent | ExtraDevtoolsEvent>>>;
@@ -106,7 +105,7 @@ export function useGenerationRuns({
     clearApprovals('Approval request was replaced');
     setChildren([]);
     summonedCountRef.current = 0;
-    setRuntimeCapabilityNames(null);
+    setRuntimeToolNames(null);
     setRuntimeComponentNames(null);
     setLogs([]);
     setDevEvents([]);
@@ -167,7 +166,7 @@ export function useGenerationRuns({
     setDevEvents,
     setLogs,
     setRunning,
-    setRuntimeCapabilityNames,
+    setRuntimeToolNames,
     setRuntimeComponentNames,
     setShowWelcome,
     setStatus,
@@ -192,7 +191,7 @@ export function useGenerationRuns({
     setArtifactRevision(artifactRevisionRef.current);
     setActiveTokensSourceOverride(envelope.tokenCss ?? null);
     setSurfaceTokensSource(envelope.tokenCss ?? defaultTokensSource);
-    const replayMode = envelope.metadata.mode ?? deriveSurfacePlanControls(envelope.surfacePlan).mode;
+    const replayMode = envelope.metadata.mode ?? (envelope.grants.tools.length === 0 ? 'static' : 'interactive');
     setMode(replayMode);
     modeRef.current = replayMode;
     setSurfacePlan(envelope.surfacePlan);
@@ -203,7 +202,7 @@ export function useGenerationRuns({
       ? `${envelope.streamGraph.health.complete ? 'complete' : 'blocked'} · artifacts=${envelope.streamGraph.artifacts.length} blocked=${envelope.streamGraph.health.blockedCount}`
       : null);
     setCurrentSurfaceContractView(null);
-    setRuntimeCapabilityNames(envelope.grants.intents);
+    setRuntimeToolNames(envelope.grants.tools);
     setRuntimeComponentNames(envelope.grants.components?.map((component) => component.name) ?? null);
     setShowWelcome(false);
     setStatus('replayed');
@@ -231,7 +230,7 @@ export function useGenerationRuns({
     setDevEvents,
     setLogs,
     setMode,
-    setRuntimeCapabilityNames,
+    setRuntimeToolNames,
     setRuntimeComponentNames,
     setShowWelcome,
     setStatus,

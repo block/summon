@@ -3,7 +3,7 @@
  *
  * Architecture: a generative outer sandbox describes WHERE a sensitive field
  * should appear (via a placeholder div + bounds), but it never renders the
- * input itself. The host sees a `mount_strict_input` intent, computes screen
+ * input itself. The host sees a `mount_strict_input` tool, computes screen
  * coordinates from the outer iframe's bounding rect plus the sandbox-reported
  * bounds, and absolute-positions a host-trusted element on top.
  *

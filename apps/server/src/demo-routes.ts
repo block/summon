@@ -2,17 +2,17 @@ import type { Express, Response } from 'express';
 import type { ModelProviderRegistry, TextCompletionClient } from './model-providers.js';
 
 /**
- * Backing services for the demo capability pack.
+ * Backing services for the demo tool pack.
  *
  * These routes are intentionally outside main.ts so the generation server's
- * core route stays separate from the dev/demo intent implementations. A real
- * Summon host would define its own backing services next to its own capability
+ * core route stays separate from the dev/demo tool implementations. A real
+ * Summon host would define its own backing services next to its own tool
  * pack rather than reuse these.
  */
 export function registerDemoRoutes(app: Express, modelProviders: ModelProviderRegistry): void {
   /**
    * Mock search — generates plausible-but-fictional results via the utility model.
-   * Not a real search index; this demonstrates "sandbox emits intent -> host
+   * Not a real search index; this demonstrates "sandbox emits tool -> host
    * calls a backing service" without letting the sandbox reach the network.
    */
   app.post('/api/mock-search', async (req, res) => {

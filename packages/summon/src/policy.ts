@@ -1,15 +1,15 @@
 export {
-  IntentArgsError,
+  ToolArgsError,
   PolicyEngine,
-  defineIntent,
+  defineToolHandler,
 } from '@summon-internal/host/policy';
 export type {
   ApprovalPrepared,
   ApprovalRequest,
-  IntentContext,
-  IntentEntry,
-  IntentHandler,
+  ToolContext,
+  ToolHandlerEntry,
+  ToolHandler,
   PolicyDispatchResult,
   PolicyEngineOptions,
-  TypedIntentEntry,
+  TypedToolHandlerEntry,
 } from '@summon-internal/host/policy';
