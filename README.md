@@ -98,7 +98,7 @@ pnpm dev:demos
   surface, and a small event strip.
 - `/generate` - diagnostic maintainer workbench for broker-selected
   surface configs, allowed host tools, trusted host components, token
-  overrides, validation retries, edit/replay, Ghost steering, Devtools, and
+  overrides, validation summaries, replay, Ghost steering, Devtools, and
   stream diagnostics.
 - `/batch` - parallel broker harness for prompt coverage, host tool
   wiring, direction-token visual coverage, throughput, and consistency checks.
@@ -114,7 +114,8 @@ pnpm dev:demos
   helpers, and explicit subpaths for advanced browser, engine, host, policy,
   envelope, assets, and Devtools APIs.
 - `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
-  validation retries, summaries, and model-provider interfaces.
+  Arrow protocol hardening, validation summaries, and model-provider
+  interfaces.
 - `@anarchitecture/summon-react` - `SummonSurface` and React trusted-component
   adapter. `react` and `react-dom` are peer dependencies.
 
@@ -125,7 +126,7 @@ pnpm dev:demos
   `packages/sandbox-runtime`, `packages/server`, `packages/react` - private
   implementation workspaces published only through the public facades.
 - `apps/server` - multi-provider demo server for Anthropic, OpenAI, and Gemini,
-  direction loading, validation retry feedback, and demo backing routes.
+  direction loading, Arrow protocol diagnostics, and demo backing routes.
 - `apps/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/demo` - Vite maintainer workbench for generation, batch runs,
   adversarial checks, strict input, Ghost steering, diagnostics, and fatal

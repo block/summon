@@ -4,8 +4,9 @@ Summon's security invariant is simple: generated UI runs in a locked iframe and
 can only request host tools the host allowed for that run. The host owns network,
 credentials, durable state, native APIs, handlers, and persistence.
 
-The model may propose HTML, CSS, and requests to use host tools. It does not get
-ambient access to the parent app, and it cannot give itself new authority.
+The model may propose Arrow source, CSS, and requests to use host tools. It
+does not get ambient access to the parent app, and it cannot give itself new
+authority.
 
 ## Security Boundary
 
@@ -25,10 +26,11 @@ The hard boundary is the browser sandbox:
   registered component names and props.
 
 The validator is not the security perimeter. It is a contract gate and
-diagnostic guide that rejects or warns on unsafe tags, external URLs, inline
-handlers, bad args, unknown host tool requests, missing resource states, token
-drift, and layout violations before HTML reaches the iframe. If a validator
-misses a weird HTML shape, the iframe/CSP/bridge should still contain it.
+diagnostic guide that rejects or warns on malformed Arrow artifacts,
+unsupported Arrow template bindings, unsafe URLs, bad args, unknown host tool
+requests, missing resource states, token drift, and layout violations before an
+artifact renders in the iframe. If validation misses a weird artifact shape,
+the iframe/CSP/bridge should still contain it.
 
 ## Surface Types
 

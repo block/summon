@@ -83,6 +83,22 @@ remains visible or nothing appears:
    still pass.
 5. Inspect `spawnSandbox` before changing iframe sandbox attributes or CSP.
 
+## Surface Stayed Blank
+
+If the Stream drawer shows an accepted Arrow `/artifact` but the iframe stays
+blank:
+
+1. Check Devtools for `render`. That means the host sent the accepted artifact
+   to the iframe.
+2. Check Devtools for `rendered`. That means the iframe waited for Arrow's
+   runtime mount, applied bindings/component measurement, and acknowledged the
+   mounted revision.
+3. If `render` appears without `rendered`, inspect `sandbox-fatal` and browser
+   console errors. The failure is in iframe bootstrap, Arrow runtime mount, or
+   CSP.
+4. If `rendered` appears but the UI is not visible, inspect component errors,
+   layout constraints, and artifact CSS.
+
 ## Advanced Diagnostic Layers
 
 1. **Protocol parsing** - `parseProtocolLine` accepts only JSONL `meta` and
@@ -135,6 +151,7 @@ and look for:
 - `protocol-parse-error` - raw model output that was not valid JSONL.
 - `sandbox-ready` - the iframe booted and can receive state or renders.
 - `render` - an accepted Arrow artifact was sent to the sandbox.
+- `rendered` - the sandbox finished mounting that Arrow artifact revision.
 - `intent-emitted` - generated UI emitted an allowed host tool request.
 - `intent-rejected` - generated UI tried an unknown or malformed request.
 - `intent-dispatched` / `intent-settled` - `PolicyEngine` ran a host handler.

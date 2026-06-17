@@ -35,9 +35,10 @@ contracts, stream diagnostics, and hardening. Use `/host` only when writing
 adapters that need the full host runtime surface.
 
 `@anarchitecture/summon-server` is the provider-neutral generation package. It
-owns `runSurfaceGeneration`, prompt/contract assembly, validation retry
-feedback, summary helpers, and model-provider interfaces. It may depend on the
-core package but should not pull in browser or React peers.
+owns `runSurfaceGeneration`, prompt/contract assembly, Arrow protocol
+hardening, validation summaries, summary helpers, and model-provider
+interfaces. It may depend on the core package but should not pull in browser or
+React peers.
 
 `@anarchitecture/summon-react` is the React adapter. It owns `SummonSurface`,
 `defineReactComponent`, and trusted component overlay lifecycle. It depends on

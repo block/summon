@@ -243,7 +243,7 @@ schema and it is not an authority source. Enforcement still lives in
 
 The generation server should use `@anarchitecture/summon-server` for the
 repeatable lifecycle: assemble prompts, apply the surface config, validate
-streamed JSONL, optionally retry invalid sections, and emit diagnostics.
+streamed JSONL, accept only Arrow artifacts, and emit diagnostics.
 
 ```ts
 import {
@@ -361,6 +361,7 @@ await consumeSurfaceStream(response.body!, {
   onMeta: (line) => {
     if (line.path === '/status') renderStatus(String(line.value));
     if (line.path === '/surface-contract') renderContractSummary(line.value);
+    if (line.path === '/protocol-skip') renderSkippedLine(line.value);
   },
   onGraph: (snapshot) => {
     events.push({
@@ -378,6 +379,13 @@ await consumeSurfaceStream(response.body!, {
 
 This preserves the main invariant: the sandbox may request only host-allowed
 tool names, and handlers run only after schema validation in the host.
+
+`renderArtifact()` queues a `SUMMON_RENDER` message to the iframe. The sandbox
+then waits for Arrow's runtime mount, applies Summon bindings/component
+measurement, and posts `SUMMON_RENDERED`. Devtools records `render` when the
+host sends an accepted artifact and `rendered` when the iframe has actually
+mounted it. If the Stream drawer shows an accepted `/artifact` but the surface
+is blank, check those Devtools events before changing sandbox code.
 
 Generated data-resource UI should invoke host tools through the Arrow host
 bridge and render state returned by the host:

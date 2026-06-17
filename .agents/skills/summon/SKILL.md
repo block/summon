@@ -19,8 +19,8 @@ host app.
    native-wrapper behavior.
 6. Read `docs/adoption/security.md` before changing sandbox, CSP, grants,
    script policy, worker, approval, or production-tier behavior.
-7. Read `docs/adoption/debugging.md` before changing validation, repair,
-   stream graph, protocol, Devtools, or sandbox diagnostics.
+7. Read `docs/adoption/debugging.md` before changing validation, stream graph,
+   protocol, Devtools, or sandbox diagnostics.
 
 ## Core Architecture
 
@@ -32,8 +32,8 @@ host capability registry
   -> compiled SurfacePlan: purpose/runtime/data/authority/persistence
   -> createCapabilityRegistry(...).toContract()
   -> compileSystemContracts()
-  -> protocol hardener and repair feedback
-  -> SectionAccumulator and StreamGraph
+  -> Arrow protocol hardener
+  -> StreamGraph artifact diagnostics
   -> PolicyEngine and spawnSandbox()
 ```
 
@@ -41,9 +41,8 @@ Capabilities are host-owned. The model sees the contract; the host owns
 handlers, network, credentials, state, grants, and the selected `SurfacePolicy`.
 Generated artifacts must not emit or widen `/surface-policy` or `/surface-plan`.
 
-New generation servers should prefer `runSurfaceGeneration(input, emit)` from
-`@anarchitecture/summon-server`; `generateSurfaceStream()` remains available for
-existing async-generator integrations. Applications should consume built public
+Generation servers should use `runSurfaceGeneration(input, emit)` from
+`@anarchitecture/summon-server`. Applications should consume built public
 package exports, not `src/*.ts` paths or `@summon-internal/*` packages.
 
 Use `defineAction` and `defineDataResource` for common host-backed
@@ -70,14 +69,14 @@ host approval adapter.
 ## Debug Loop
 
 For generation failures, inspect `/error`, `/validation-summary`,
-`/validation-blocked`, `/repair-feedback`, `/repair-summary`,
-`/stream-graph-summary`, `/protocol-skip`, `/surface-policy`,
-`/surface-plan`, `/shape`, `/token-overrides`, `/screen-synthesized`, and
-`/mode-upgraded`.
+`/validation-blocked`, `/stream-graph-summary`, `/protocol-skip`,
+`/surface-policy`, `/surface-plan`, `/surface-contract`, `/shape`,
+`/token-overrides`, and `/mode-upgraded`.
 
-For client behavior, inspect Devtools events: `surface-plan`, `protocol-line`,
-`protocol-parse-error`, `sandbox-ready`, `render`, `intent-emitted`,
-`intent-rejected`, `intent-dispatched`, `intent-settled`, `state-pushed`,
+For client behavior, inspect Devtools events: `surface-plan`,
+`surface-contract`, `protocol-line`, `protocol-parse-error`, `sandbox-ready`,
+`render`, `rendered`, `intent-emitted`, `intent-rejected`,
+`intent-dispatched`, `intent-settled`, `state-pushed`, `component-sync`,
 `stream-graph`, and `sandbox-fatal`.
 
 Use `ContractIssue` plus `hintsForContractIssue(issue)` when feeding validation
