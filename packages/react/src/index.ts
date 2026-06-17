@@ -1,29 +1,22 @@
 import {
   type ToolRegistry,
-  type ComponentDefinition,
-  type ComponentRegistry,
 } from '@anarchitecture/summon';
 import {
   isArrowSurfaceArtifact,
   type ArtifactLine,
-  type ArrowNetworkPolicy,
   type ArrowSurfaceArtifact,
-  type ValidationContext,
+  type SurfaceEvent,
+  type ValidationTool,
 } from '@anarchitecture/summon/engine';
 import {
-  createComponentIslandRegistry,
-  spawnSandbox,
-  type Artifact,
-  type ComponentIslandError,
-  type ComponentIslandRegistry,
-  type SandboxHandle,
+  mountInlineSurface,
+  type InlineSurfaceHandle,
+  type SurfacePreviewSnapshot,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
 import { PolicyEngine } from '@anarchitecture/summon/policy';
 import {
-  arrowRuntimeSource as defaultArrowRuntimeSource,
-  bootstrapSource as defaultBootstrapSource,
   tokensSource as defaultTokensSource,
 } from '@anarchitecture/summon/assets';
 import {
@@ -33,23 +26,15 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
-  type ComponentType,
   type CSSProperties,
 } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
 
 export interface SummonSurfaceProps {
   envelope?: SurfaceEnvelope | null;
   artifact?: ArrowSurfaceArtifact | null;
-  artifactTools?: string[];
   grantedTools?: string[];
-  validationTools?: Artifact['validationTools'];
-  artifactComponents?: Artifact['components'];
+  validationTools?: ValidationTool[];
   toolRegistry?: ToolRegistry | null;
-  componentRegistry?: ComponentRegistry | null;
-  bootstrapSource?: string;
-  arrowRuntimeSource?: string;
-  arrowNetworkPolicy?: ArrowNetworkPolicy;
   tokensSource?: string;
   initialState?: Record<string, unknown>;
   onToolCall?: (tool: string, args: Record<string, unknown>) =>
@@ -58,9 +43,8 @@ export interface SummonSurfaceProps {
     | Promise<void | Record<string, unknown>>;
   onToolRejected?: (reason: string, raw: unknown) => void;
   onEvent?: (event: DevtoolsEvent) => void;
-  onFatal?: (reason: string) => void;
+  onRuntimeError?: (reason: string) => void;
   onHandlerError?: (tool: string, error: Error) => void;
-  onComponentError?: (error: ComponentIslandError) => void;
   id?: string;
   title?: string;
   className?: string;
@@ -68,28 +52,28 @@ export interface SummonSurfaceProps {
 }
 
 export interface SummonSurfaceHandle {
-  iframe: HTMLIFrameElement | null;
-  sandboxId: string | null;
+  root: HTMLDivElement | null;
+  surfaceId: string | null;
   renderArtifact(artifact: ArrowSurfaceArtifact): void;
   pushState(state: Record<string, unknown>): void;
+  applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot | null;
 }
 
 export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>(function SummonSurface(
   props,
   ref,
 ) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const handleRef = useRef<SandboxHandle | null>(null);
-  const validationContextRef = useRef<ValidationContext | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const handleRef = useRef<InlineSurfaceHandle | null>(null);
   const lastRenderedArtifactRef = useRef<ArrowSurfaceArtifact | null>(null);
   const events = useMemo(() => createEventStore(), []);
 
   useImperativeHandle(ref, () => ({
-    get iframe() {
-      return iframeRef.current;
+    get root() {
+      return rootRef.current;
     },
-    get sandboxId() {
-      return handleRef.current?.sandboxId ?? null;
+    get surfaceId() {
+      return handleRef.current?.surfaceId ?? null;
     },
     renderArtifact(artifact: ArrowSurfaceArtifact) {
       lastRenderedArtifactRef.current = artifact;
@@ -97,6 +81,9 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     },
     pushState(state: Record<string, unknown>) {
       handleRef.current?.pushState(state);
+    },
+    applyPreviewEvent(event: SurfaceEvent) {
+      return handleRef.current?.applyPreviewEvent(event) ?? null;
     },
   }), []);
 
@@ -113,37 +100,26 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
   }, [events, props.onEvent]);
 
   useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
+    const root = rootRef.current;
+    if (!root) return;
 
     const contract = props.toolRegistry?.toContract();
-    const componentContract = props.componentRegistry?.toContract();
     const handlers = props.toolRegistry?.toPolicyHandlers() ?? {};
-    const grantedTools = props.grantedTools ?? props.toolRegistry?.tools() ?? [];
-    const validationTools = props.validationTools ?? contract?.validationTools ?? [];
+    const grantedTools = props.grantedTools ??
+      props.envelope?.grants.tools ??
+      props.toolRegistry?.tools() ??
+      [];
+    const validationTools = props.validationTools ??
+      props.envelope?.grants.validationTools ??
+      contract?.validationTools ??
+      [];
     const initialState = {
       ...(contract?.initialState ?? {}),
       ...(props.initialState ?? {}),
     };
-    const validationContext = validationContextFromProps(
-      props,
-      grantedTools,
-      validationTools,
-      componentContract?.validationComponents ?? props.artifactComponents ?? props.envelope?.grants.components,
-    );
-    validationContextRef.current = validationContext;
     const arrowArtifact = resolveArrowArtifact(props);
-    const arrowNetworkPolicy = props.arrowNetworkPolicy ?? props.envelope?.surfacePlan.network ?? 'none';
 
-    let handle: SandboxHandle | null = null;
-    let islands: ComponentIslandRegistry | null = props.componentRegistry
-      ? createComponentIslandRegistry({
-          outerIframe: iframe,
-          registry: props.componentRegistry,
-          events,
-          onError: props.onComponentError,
-        })
-      : null;
+    let handle: InlineSurfaceHandle | null = null;
     const policy = new PolicyEngine({
       handlers,
       initialState,
@@ -154,28 +130,16 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       },
     });
 
-    const artifact: Artifact = {
-      runtime: 'arrow',
-      // Advisory only. spawnSandbox receives host grants below.
-      tools: props.artifactTools ?? props.envelope?.grants.tools ?? grantedTools,
-      validationTools: props.envelope?.grants.validationTools ?? props.validationTools,
-      components: props.artifactComponents ?? props.envelope?.grants.components ?? componentContract?.validationComponents,
-      ...(arrowArtifact ? { arrow: arrowArtifact } : {}),
-      initialState,
-    };
-    const grantedComponentNames = new Set((artifact.components ?? []).map((component) => component.name));
-
-    handle = spawnSandbox({
-      iframe,
-      artifact,
+    handle = mountInlineSurface({
+      root,
+      artifact: arrowArtifact,
       grantedTools,
       validationTools,
-      bootstrapSource: props.bootstrapSource ?? defaultBootstrapSource,
-      arrowRuntimeSource: props.arrowRuntimeSource ?? defaultArrowRuntimeSource,
-      arrowNetworkPolicy,
+      initialState,
       tokensSource: props.tokensSource ?? props.envelope?.tokenCss ?? defaultTokensSource,
       events,
-      onSandboxFatal: props.onFatal,
+      onRuntimeError: props.onRuntimeError,
+      onToolRejected: props.onToolRejected,
       onToolCall: async (tool, args) => {
         const customState = await props.onToolCall?.(tool, args);
         if (customState && typeof customState === 'object' && !Array.isArray(customState)) {
@@ -186,51 +150,6 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
         }
         return policy.getState();
       },
-      onToolRejected: props.onToolRejected,
-      onComponents: (components, sandboxId) => {
-        const grantedComponents = components.filter((component) => grantedComponentNames.has(component.name));
-        for (const component of components) {
-          if (grantedComponentNames.has(component.name)) continue;
-          const error = {
-            code: 'unknown-component' as const,
-            sandboxId,
-            componentId: component.id,
-            componentName: component.name,
-            reason: `component "${component.name}" was not granted by the host`,
-          };
-          events.push({
-            kind: 'component-error',
-            at: Date.now(),
-            ...error,
-          });
-          props.onComponentError?.(error);
-        }
-        if (!islands && grantedComponentNames.size > 0) {
-          for (const component of grantedComponents) {
-            if (!grantedComponentNames.has(component.name)) continue;
-            const error = {
-              code: 'registry-missing' as const,
-              sandboxId,
-              componentId: component.id,
-              componentName: component.name,
-              reason: `component "${component.name}" was granted but no componentRegistry was provided`,
-            };
-            events.push({
-              kind: 'component-error',
-              at: Date.now(),
-              ...error,
-            });
-            props.onComponentError?.(error);
-          }
-          return;
-        }
-        islands?.sync(grantedComponents, {
-          sandboxId,
-          callTool: (tool, args = {}) => {
-            void policy.dispatch(tool, args);
-          },
-        });
-      },
     });
     handleRef.current = handle;
     if (lastRenderedArtifactRef.current !== null) {
@@ -238,90 +157,33 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     }
 
     return () => {
-      islands?.destroy();
-      islands = null;
       handle?.dispose();
       handle = null;
       handleRef.current = null;
-      validationContextRef.current = null;
     };
   }, [
     events,
-    props.bootstrapSource,
-    props.arrowRuntimeSource,
-    props.arrowNetworkPolicy,
-    props.toolRegistry,
-    props.componentRegistry,
     props.envelope,
     props.artifact,
-    props.artifactTools,
     props.grantedTools,
     props.validationTools,
-    props.artifactComponents,
     props.initialState,
     props.onToolCall,
     props.onToolRejected,
-    props.onFatal,
-    props.onComponentError,
+    props.onRuntimeError,
     props.onHandlerError,
     props.tokensSource,
+    props.toolRegistry,
   ]);
 
-  return createElement('iframe', {
-    ref: iframeRef,
+  return createElement('div', {
+    ref: rootRef,
     id: props.id,
-    title: props.title ?? 'Summon surface',
+    title: props.title,
     className: props.className,
     style: props.style,
   });
 });
-
-export interface ReactComponentDefinition<T = unknown>
-  extends Omit<ComponentDefinition<T>, 'render' | 'destroy'> {
-  component: ComponentType<T>;
-}
-
-export interface ReactComponentRuntimeContext {
-  componentId: string;
-  sandboxId: string;
-  callTool: (tool: string, args?: Record<string, unknown>) => void;
-}
-
-export interface ReactComponentWithRuntimeDefinition<T = unknown, P = T>
-  extends Omit<ComponentDefinition<T>, 'render' | 'destroy'> {
-  component: ComponentType<P>;
-  mapProps?: (props: T, context: ReactComponentRuntimeContext) => P;
-}
-
-export function defineReactComponent<T, P = T>(
-  definition: ReactComponentWithRuntimeDefinition<T, P>,
-): ComponentDefinition<T> {
-  const roots = new WeakMap<HTMLElement, Root>();
-  const { component, mapProps, ...rest } = definition;
-  return {
-    ...rest,
-    render: ({ container, props, componentId, sandboxId, callTool }) => {
-      let root = roots.get(container);
-      if (!root) {
-        root = createRoot(container);
-        roots.set(container, root);
-      }
-      const runtimeContext = { componentId, sandboxId, callTool };
-      const componentProps = mapProps
-        ? mapProps(props as T, runtimeContext)
-        : props as unknown as P;
-      root.render(createElement(
-        component as ComponentType<Record<string, unknown>>,
-        componentProps as Record<string, unknown>,
-      ));
-    },
-    destroy: ({ container }) => {
-      const root = roots.get(container);
-      root?.unmount();
-      roots.delete(container);
-    },
-  };
-}
 
 function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact | null {
   if (props.artifact) return props.artifact;
@@ -336,30 +198,4 @@ function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact |
     }
   }
   return null;
-}
-
-function validationContextFromProps(
-  props: SummonSurfaceProps,
-  grantedTools: string[],
-  validationTools: Artifact['validationTools'],
-  components: Artifact['components'],
-): ValidationContext {
-  const surfacePlan = props.envelope?.surfacePlan;
-  return {
-    mode: props.envelope?.metadata.mode ??
-      (grantedTools.length === 0 ? 'static' : 'interactive'),
-    allowedTools: props.envelope?.grants.tools ?? grantedTools,
-    tools: props.envelope?.grants.validationTools ?? validationTools,
-    components,
-    ...(surfacePlan ? { surfacePlan } : {}),
-  };
-}
-
-function defaultValidationContext(): ValidationContext {
-  return {
-    mode: 'static',
-    allowedTools: [],
-    tools: [],
-    components: [],
-  };
 }

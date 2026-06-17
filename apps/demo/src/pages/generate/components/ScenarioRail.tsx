@@ -39,7 +39,6 @@ export function ScenarioRail({
             {group.scenarios.map((scenario) => {
               const presentation = describeScenario(scenario);
               const active = scenario.id === selectedScenario.id;
-              const componentCount = scenario.componentNames?.length ?? 0;
               return (
                 <button
                   key={scenario.id}
@@ -55,7 +54,7 @@ export function ScenarioRail({
                   <span className="text-[15px] font-semibold text-ink">{scenario.label}</span>
                   <span className="text-[13px] leading-[1.35] text-ink-soft">{presentation.description}</span>
                   <span className="font-mono text-[10px] leading-[1.4] text-ink-muted">
-                    {compactPlanText(scenario.surfacePlan)} · {scenario.toolNames.length} host tools{componentCount ? ` · ${componentCount} components` : ''}
+                    {compactPlanText(scenario.surfacePlan)} · {scenario.toolNames.length} host tools
                   </span>
                 </button>
               );

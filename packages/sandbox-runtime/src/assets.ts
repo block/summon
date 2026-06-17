@@ -4,6 +4,4 @@
  * facade, while this internal workspace keeps the canonical runtime files as
  * source of truth.
  */
-export const bootstrapSource = '';
 export const tokensSource = '';
-export const arrowRuntimeSource = '';

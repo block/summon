@@ -21,11 +21,6 @@ const MODULE_RE = /^[A-Za-z0-9_./-]+\.(?:ts|js|mjs|css)$/;
 const UNSUPPORTED_IDL_PROPERTY_BINDING_RE = /(^|[\s`<])\.[A-Za-z_$][A-Za-z0-9_$-]*\s*=/m;
 const UNSUPPORTED_OPEN_TAG_EXPRESSION_RE = /<[^>`]*\s\$\{/m;
 const DATA_SUMMON_ATTR_RE = /\b(data-summon-[a-z0-9-]+)\b/gi;
-const TRUSTED_COMPONENT_PLACEHOLDER_ATTRS = new Set([
-  'data-summon-component',
-  'data-summon-component-id',
-  'data-summon-props',
-]);
 
 export function isArrowSurfaceArtifact(value: unknown): value is ArrowSurfaceArtifact {
   return normalizeArrowSurfaceArtifact(value).artifact !== null;
@@ -164,7 +159,7 @@ function unsupportedDataSummonAttrs(contents: string): string[] {
   const attrs = new Set<string>();
   for (const match of contents.matchAll(DATA_SUMMON_ATTR_RE)) {
     const attr = match[1]?.toLowerCase();
-    if (!attr || TRUSTED_COMPONENT_PLACEHOLDER_ATTRS.has(attr)) continue;
+    if (!attr) continue;
     attrs.add(attr);
   }
   return Array.from(attrs).sort();

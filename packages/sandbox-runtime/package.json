@@ -9,8 +9,6 @@
       "types": "./dist/assets.d.ts",
       "import": "./dist/assets.js"
     },
-    "./bootstrap.js": "./dist/bootstrap.js",
-    "./arrow-runtime.js": "./dist/arrow-runtime.js",
     "./tokens.css": "./dist/tokens.css",
     "./package.json": "./package.json"
   },
@@ -22,10 +20,6 @@
     "typecheck": "node scripts/build.mjs --check"
   },
   "private": true,
-  "dependencies": {
-    "@arrow-js/sandbox": "1.0.6"
-  },
-  "devDependencies": {
-    "esbuild": "0.27.7"
-  }
+  "dependencies": {},
+  "devDependencies": {}
 }

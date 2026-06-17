@@ -14,7 +14,6 @@ export interface ShowcaseScenario {
   prompt: string;
   mode: Mode;
   toolNames: string[];
-  componentNames?: string[];
   surfacePolicy: SurfacePolicy;
   surfacePlan: SurfacePlan;
   layoutId?: string;
@@ -27,7 +26,6 @@ export interface ActiveContract {
   prompt: string;
   mode: Mode;
   toolNames: string[];
-  componentNames?: string[];
   agentBroker?: boolean;
   surfacePolicy?: SurfacePolicy;
   surfacePlan: SurfacePlan;
@@ -98,18 +96,16 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       },
     },
   {
-    id: 'component-islands',
-    label: 'Trusted Components',
+    id: 'arrow-fidelity',
+    label: 'Arrow launch dashboard',
     prompt:
-      'build a compact launch-readiness dashboard that uses host-rendered MetricCard, TrendSparkline, and ApprovalStatus component islands, plus a choose control for the final launch recommendation',
+      'build a compact launch-readiness dashboard with metric cards, a trend sparkline, an approval status treatment, and a choose control for the final launch recommendation, all rendered directly in Arrow',
     mode: 'interactive',
     toolNames: ['choose'],
-    componentNames: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
     surfacePolicy: {
       tier: 'declarative',
       purpose: 'review',
       grants: ['choose'],
-      components: ['MetricCard', 'TrendSparkline', 'ApprovalStatus'],
     },
       surfacePlan: {
         purpose: 'review',

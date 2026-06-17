@@ -2,13 +2,11 @@ import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
   buildToolsBlock,
-  buildComponentsBlock,
   buildDirectionBlock,
   buildLayoutBlock,
   buildOverrideBlock,
   buildSurfaceContractBlock,
   type ToolPack,
-  type ComponentPack,
   type DirectionInput,
   type SummonLayout,
   type TokenOverride,
@@ -29,7 +27,6 @@ import {
   type SurfacePlan,
 } from './surface-plan.js';
 import type {
-  ValidationComponent,
   ValidationTool,
   ValidationContext,
 } from './runtime-validator.js';
@@ -113,13 +110,6 @@ export interface CompiledToolContract {
   issues: ContractIssue[];
 }
 
-export interface CompiledComponentContract {
-  pack: ComponentPack;
-  promptBlock: ContractPromptBlock | null;
-  validationComponents: ValidationComponent[];
-  issues: ContractIssue[];
-}
-
 export interface SystemContractInput {
   mode: ValidationContext['mode'];
   direction?: DirectionContractInput | null;
@@ -128,7 +118,6 @@ export interface SystemContractInput {
   editBlock?: string | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
   tools?: ToolPack | null;
-  components?: ComponentPack | null;
   tokenOverrides?: TokenOverride[];
   surfacePlan?: SurfacePlan | null;
   surfaceContract?: SurfaceContractView | null;
@@ -196,10 +185,9 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
       return ['Remove host-owned meta lines; the host emits /surface-policy, /surface-plan, and /surface-contract before model output.'];
     case 'surface-policy-invalid':
     case 'surface-policy-unknown-grant':
-    case 'surface-policy-unknown-component':
     case 'surface-policy-tier-exceeded':
     case 'surface-policy-tier-requirement':
-      return ['Fix the host-selected SurfacePolicy before generation; models cannot widen grants, components, or tiers.'];
+      return ['Fix the host-selected SurfacePolicy before generation; models cannot widen grants or tiers.'];
     default:
       return ['Emit one valid replacement line for the same target path.'];
   }
@@ -308,30 +296,6 @@ export function compileToolContract(
   };
 }
 
-export function compileComponentContract(
-  pack: ComponentPack | null | undefined,
-): CompiledComponentContract {
-  const normalized: ComponentPack = pack ?? { components: [] };
-  const validationComponents: ValidationComponent[] = normalized.components.map((component) => {
-    const out: ValidationComponent = { name: component.name };
-    if (component.surface) out.surface = component.surface;
-    return out;
-  });
-
-  return {
-    pack: normalized,
-    promptBlock: normalized.components.length > 0
-      ? {
-          id: 'components',
-          text: buildComponentsBlock(normalized),
-          cache: 'ephemeral',
-        }
-      : null,
-    validationComponents,
-    issues: [],
-  };
-}
-
 export function compileSystemContracts(
   input: SystemContractInput,
 ): CompiledSystemContracts {
@@ -396,10 +360,6 @@ export function compileSystemContracts(
   if (tool.promptBlock) promptBlocks.push(tool.promptBlock);
   issues.push(...tool.issues);
 
-  const component = compileComponentContract(input.components);
-  if (component.promptBlock) promptBlocks.push(component.promptBlock);
-  issues.push(...component.issues);
-
   if (input.tokenOverrides?.length) {
     promptBlocks.push({
       id: 'token-overrides',
@@ -417,7 +377,6 @@ export function compileSystemContracts(
       mode: input.mode,
       allowedTools: tool.toolNames,
       tools: tool.validationTools,
-      components: component.validationComponents,
       surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
     },

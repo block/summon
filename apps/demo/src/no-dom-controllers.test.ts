@@ -6,7 +6,6 @@ import test from 'node:test';
 const srcRoot = new URL('.', import.meta.url).pathname;
 const artifactFiles = new Set([
   'adversarial-artifact.ts',
-  'strict-demo-artifact.ts',
 ]);
 
 const forbiddenPatterns = [

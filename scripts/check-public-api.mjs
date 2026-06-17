@@ -13,11 +13,9 @@ const expectedRootExports = [
   'compileSurfaceContractView',
   'compileSurfacePolicy',
   'createToolRegistry',
-  'createComponentRegistry',
   'defineAction',
   'defineApprovalAction',
   'defineTool',
-  'defineComponent',
   'defineDataResource',
   'defineToolHandler',
   'defineWorkerAction',
@@ -41,7 +39,6 @@ const expectedServerExports = [
 
 const expectedReactExports = [
   'SummonSurface',
-  'defineReactComponent',
 ].sort();
 
 const forbiddenRootExports = [
@@ -92,9 +89,7 @@ for (const forbidden of forbiddenRootExports) {
 
 assertHas('@anarchitecture/summon/browser', await importDist('summon', 'browser.js'), [
   'consumeSurfaceStream',
-  'createComponentIslandRegistry',
-  'createStrictInputRegistry',
-  'spawnSandbox',
+  'mountInlineSurface',
 ]);
 assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js'), [
   'buildToolsBlock',
@@ -109,7 +104,7 @@ assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js
 assertHas('@anarchitecture/summon/host', await importDist('summon', 'host.js'), [
   'createToolRegistry',
   'PolicyEngine',
-  'spawnSandbox',
+  'mountInlineSurface',
 ]);
 assertHas('@anarchitecture/summon/policy', await importDist('summon', 'policy.js'), [
   'PolicyEngine',
@@ -118,12 +113,8 @@ assertHas('@anarchitecture/summon/envelope', await importDist('summon', 'envelop
   'createSurfaceEnvelope',
 ]);
 const assets = await importDist('summon', 'assets.js');
-if (
-  typeof assets.arrowRuntimeSource !== 'string' ||
-  typeof assets.bootstrapSource !== 'string' ||
-  typeof assets.tokensSource !== 'string'
-) {
-  throw new Error('@anarchitecture/summon/assets must export arrowRuntimeSource, bootstrapSource, and tokensSource strings');
+if (typeof assets.tokensSource !== 'string') {
+  throw new Error('@anarchitecture/summon/assets must export tokensSource string');
 }
 assertHas('@anarchitecture/summon/devtools', await importDist('summon', 'devtools.js'), [
   'createEventStore',

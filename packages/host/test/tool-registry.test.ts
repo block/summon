@@ -4,13 +4,11 @@ import {
   ToolArgsError,
   PolicyEngine,
   createToolRegistry,
-  createComponentRegistry,
   createSurfaceEnvelope,
   defineAction,
   defineApprovalAction,
   defineTool,
   defineDataResource,
-  defineComponent,
   defineWorkerAction,
   defineWorkerResource,
   parseSurfaceEnvelope,
@@ -83,103 +81,6 @@ test('registry converts actions and resources into prompt and validation metadat
     lookupResult: { title: 'Default result' },
     lookupError: null,
   });
-});
-
-test('component registry formats contracts and validates props', () => {
-  const registry = createComponentRegistry([
-    defineComponent({
-      name: 'MetricCard',
-      description: 'Displays a KPI.',
-      propsSchema: z.object({
-        label: z.string(),
-        value: z.string(),
-        tone: z.enum(['neutral', 'good']).optional(),
-      }),
-      sizing: { height: '112px' },
-      examples: [
-        {
-          name: 'Metric',
-          code: '<div data-summon-component="MetricCard"></div>',
-        },
-      ],
-    }),
-  ]);
-
-  const contract = registry.toContract();
-  assert.deepEqual(contract.pack.components, [
-    {
-      name: 'MetricCard',
-      description: 'Displays a KPI.',
-      propsSchema: '{label: string, value: string, tone?: "neutral" | "good"}',
-      surface: { data: 'embedded', authority: 'none' },
-      examples: [
-        {
-          name: 'Metric',
-          code: '<div data-summon-component="MetricCard"></div>',
-        },
-      ],
-      sizing: { height: '112px' },
-    },
-  ]);
-  assert.deepEqual(contract.validationComponents, [
-    { name: 'MetricCard', surface: { data: 'embedded', authority: 'none' } },
-  ]);
-  assert.deepEqual(registry.validateProps('MetricCard', {
-    label: 'Revenue',
-    value: '$284k',
-    tone: 'good',
-  }), {
-    ok: true,
-    data: { label: 'Revenue', value: '$284k', tone: 'good' },
-  });
-  assert.equal(registry.validateProps('MetricCard', { label: 'Revenue' }).ok, false);
-  assert.equal(registry.validateProps('Missing', {}).ok, false);
-});
-
-test('component registry rejects duplicate names and dispatches render lifecycle', () => {
-  assert.throws(() => createComponentRegistry([
-    defineComponent({
-      name: 'MetricCard',
-      description: 'Displays a KPI.',
-      propsSchema: z.object({ label: z.string() }),
-    }),
-    defineComponent({
-      name: 'MetricCard',
-      description: 'Duplicate.',
-      propsSchema: z.object({ label: z.string() }),
-    }),
-  ]), /Duplicate component/);
-
-  const calls: string[] = [];
-  const registry = createComponentRegistry([
-    defineComponent({
-      name: 'MetricCard',
-      description: 'Displays a KPI.',
-      propsSchema: z.object({ label: z.string() }),
-      render: ({ props, componentId }) => {
-        calls.push(`render:${componentId}:${props.label}`);
-      },
-      destroy: ({ componentId }) => {
-        calls.push(`destroy:${componentId}`);
-      },
-    }),
-  ]);
-
-  const container = {} as HTMLElement;
-  registry.render('MetricCard', {
-    container,
-    props: { label: 'Revenue' },
-    componentId: 'metric',
-    sandboxId: 'sandbox',
-    callTool: () => {},
-  });
-  registry.destroy('MetricCard', {
-    container,
-    componentId: 'metric',
-    sandboxId: 'sandbox',
-    callTool: () => {},
-  });
-  assert.deepEqual(calls, ['render:metric:Revenue', 'destroy:metric']);
 });
 
 test('registry formats richer Zod schemas for prompts', () => {

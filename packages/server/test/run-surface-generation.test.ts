@@ -77,6 +77,33 @@ test('runSurfaceGeneration emits prelude and derived surface metadata before Arr
   assert.equal(summary.blocked, false);
 });
 
+test('runSurfaceGeneration forwards semantic preview events before final artifact output', async () => {
+  const lines: ProtocolLine[] = [];
+  const summary = await runSurfaceGeneration({
+    prompt: 'preview then artifact',
+    modelProvider: async function* () {
+      yield `${JSON.stringify({
+        op: 'event',
+        path: '/surface',
+        value: { type: 'surface.status', status: 'drafting', text: 'Drafting surface' },
+      })}\n`;
+      yield arrowProtocolLine('<p>Done</p>');
+    },
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+  }, (line) => {
+    lines.push(line);
+  });
+
+  assert.deepEqual(lines.map((line) => `${line.op} ${line.path}`).slice(-3), [
+    'event /surface',
+    'artifact /artifact',
+    'meta /stream-graph-summary',
+  ]);
+  assert.deepEqual(summary.acceptedLines.map((line) => line.op), ['event', 'artifact']);
+  assert.equal(summary.streamGraph.preview.events.count, 1);
+  assert.equal(summary.streamGraph.preview.lastStatus, 'drafting');
+});
+
 test('runSurfaceGeneration skips unsupported legacy section protocol', async () => {
   const lines: ProtocolLine[] = [];
 
@@ -127,7 +154,6 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
       tier: 'declarative',
       purpose: 'compare',
       grants: ['choose'],
-      components: ['MetricCard'],
     },
     tools: {
       tools: [
@@ -153,22 +179,6 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
         { name: 'Choose', code: 'callTool("choose", {})', tool: 'choose' },
       ],
     },
-    components: {
-      components: [
-        {
-          name: 'MetricCard',
-          description: 'Trusted metric',
-          propsSchema: '{}',
-          surface: { data: 'embedded', authority: 'none' },
-        },
-        {
-          name: 'SecretWidget',
-          description: 'Unselected widget',
-          propsSchema: '{}',
-          surface: { data: 'embedded', authority: 'none' },
-        },
-      ],
-    },
     modelProvider: async function* ({ promptBlocks }) {
       systemText = promptBlocks.map((block) => block.text).join('\n');
       yield arrowProtocolLine('<button>Choose</button>');
@@ -188,17 +198,13 @@ test('runSurfaceGeneration compiles surface policy, emits metadata, and narrows 
     tier: 'declarative',
     purpose: 'compare',
     grants: ['choose'],
-    components: ['MetricCard'],
     persistence: 'replayable',
   });
   const surfaceContract = (lines[2] as Extract<ProtocolLine, { op: 'meta' }>).value as {
     tools?: Array<{ name: string }>;
-    components?: Array<{ name: string }>;
   };
   assert.deepEqual(surfaceContract.tools?.map((tool) => tool.name), ['choose']);
-  assert.deepEqual(surfaceContract.components?.map((component) => component.name), ['MetricCard']);
   assert.match(systemText, /Save a choice/);
-  assert.match(systemText, /MetricCard/);
   assert.match(systemText, /Surface contract/);
   assert.doesNotMatch(systemText, /Search host data/);
   assert.doesNotMatch(systemText, /SecretWidget/);
@@ -320,7 +326,6 @@ test('policyFromGoal converts agent goal to a host SurfacePolicy', () => {
     dataNeed: 'host-resource',
     sideEffect: 'none',
     requestedTools: ['search'],
-    requestedComponents: [],
     confidence: 0.72,
   });
 
@@ -328,7 +333,6 @@ test('policyFromGoal converts agent goal to a host SurfacePolicy', () => {
     tier: 'declarative',
     purpose: 'explore',
     grants: ['search'],
-    components: [],
     persistence: 'replayable',
   });
 });

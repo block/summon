@@ -1,5 +1,8 @@
 import type { ContractIssue } from '../contracts.js';
-import type { ProtocolLine } from '../protocol.js';
+import {
+  isSurfaceEvent,
+  type ProtocolLine,
+} from '../protocol.js';
 import { validateArrowSurfaceArtifact } from '../arrow-artifact.js';
 import { normalizeValidationLimits } from '../validation-limits.js';
 import { protocolBlock } from './issues.js';
@@ -25,6 +28,13 @@ export function validateProtocolLine(
         `Generated artifacts cannot emit host-owned meta path "${line.path}"`,
         line.path,
       ));
+    }
+    return issues;
+  }
+
+  if (line.op === 'event') {
+    if (!isSurfaceEvent(line.value)) {
+      issues.push(protocolBlock('invalid-surface-event', 'Surface event value is not a valid V2 preview event', line.path));
     }
     return issues;
   }

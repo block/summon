@@ -1,6 +1,6 @@
 /**
  * Devtools event vocabulary. Every interesting boundary in summon emits one of
- * these so a panel can reconstruct what happened: which sandbox spawned, what
+ * these so a panel can reconstruct what happened: which surface mounted, what
  * tools the artifact tried, which were rejected at the bridge, which made it
  * to the policy engine, what state was pushed back, what the LLM streamed.
  *
@@ -12,53 +12,52 @@ export interface BaseEvent {
   /** ms since epoch. */
   at: number;
   /**
-   * Identifies which sandbox this event belongs to when applicable. Omitted for
-   * events that aren't scoped to a sandbox (e.g. streaming protocol parsing
-   * happens before any sandbox exists).
+   * Identifies which surface this event belongs to when applicable. Omitted for
+   * events that are not scoped to a mounted surface.
    */
-  sandboxId?: string;
+  surfaceId?: string;
 }
 
-/** A sandbox iframe was spawned with the given grant. */
-export interface SandboxSpawnedEvent extends BaseEvent {
-  kind: 'sandbox-spawned';
-  sandboxId: string;
+/** An inline Arrow surface was mounted with the given grant. */
+export interface SurfaceMountedEvent extends BaseEvent {
+  kind: 'surface-mounted';
+  surfaceId: string;
   grantedTools: string[];
-  artifactTools?: unknown[];
   validationTools?: unknown[];
 }
 
-/** Bootstrap inside the iframe finished its self-test and signaled READY. */
-export interface SandboxReadyEvent extends BaseEvent {
-  kind: 'sandbox-ready';
-  sandboxId: string;
-}
-
-/** Bootstrap rejected its own sandbox; the iframe has been torn down. */
-export interface SandboxFatalEvent extends BaseEvent {
-  kind: 'sandbox-fatal';
-  sandboxId: string;
+/** Arrow runtime reported a mount/runtime error. */
+export interface SurfaceRuntimeErrorEvent extends BaseEvent {
+  kind: 'surface-runtime-error';
+  surfaceId: string;
   reason: string;
 }
 
-/** Host called dispose() on the sandbox handle. */
-export interface SandboxDisposedEvent extends BaseEvent {
-  kind: 'sandbox-disposed';
-  sandboxId: string;
+/** Host called dispose() on the inline surface handle. */
+export interface SurfaceDisposedEvent extends BaseEvent {
+  kind: 'surface-disposed';
+  surfaceId: string;
 }
 
-/** An tool passed the bridge allowlist. Args are the (still-unvalidated) bag from the sandbox. */
+/** Host-owned preview accepted and rendered a semantic event. */
+export interface SurfacePreviewEvent extends BaseEvent {
+  kind: 'surface-preview-event';
+  surfaceId: string;
+  event: unknown;
+}
+
+/** A tool passed the bridge allowlist. Args are the (still-unvalidated) bag from Arrow. */
 export interface ToolCalledEvent extends BaseEvent {
   kind: 'tool-called';
-  sandboxId: string;
+  surfaceId?: string;
   tool: string;
   args: Record<string, unknown>;
 }
 
-/** The bridge rejected a postMessage that claimed this sandbox's identity. */
+/** The bridge rejected an invalid or ungranted tool request. */
 export interface ToolRejectedEvent extends BaseEvent {
   kind: 'tool-rejected';
-  sandboxId: string;
+  surfaceId?: string;
   reason: string;
   raw: unknown;
 }
@@ -91,7 +90,7 @@ export interface StatePushedEvent extends BaseEvent {
 /** A streaming protocol line was successfully parsed. */
 export interface ProtocolLineEvent extends BaseEvent {
   kind: 'protocol-line';
-  line: { op: 'meta' | 'artifact'; path: string; value?: unknown };
+  line: { op: 'meta' | 'event' | 'artifact'; path: string; value?: unknown };
 }
 
 /** A line in the LLM stream did not parse as a protocol line. */
@@ -121,6 +120,16 @@ export interface StreamGraphEvent extends BaseEvent {
     firstSeenLine?: number;
     lastUpdatedLine?: number;
   }>;
+  preview?: {
+    events: {
+      count: number;
+      firstSeenLine?: number;
+      lastUpdatedLine?: number;
+      lastType?: string;
+    };
+    lastStatus?: string;
+    lastStatusText?: string;
+  };
 }
 
 export interface SurfacePlanEvent extends BaseEvent {
@@ -139,52 +148,31 @@ export interface SurfaceContractEvent extends BaseEvent {
   contract: {
     surface?: unknown;
     tools?: unknown[];
-    components?: unknown[];
     layout?: unknown;
     issues?: unknown[];
   };
 }
 
-/** Host pushed an Arrow artifact into the sandbox via SUMMON_RENDER. */
+/** Host pushed an Arrow artifact into the inline Arrow sandbox. */
 export interface RenderEvent extends BaseEvent {
   kind: 'render';
-  sandboxId: string;
+  surfaceId: string;
   /** Approximate byte length of the artifact payload. */
   bytes: number;
 }
 
-/** The sandbox finished mounting the latest Arrow artifact. */
+/** The inline Arrow sandbox finished mounting the latest Arrow artifact. */
 export interface RenderedEvent extends BaseEvent {
   kind: 'rendered';
-  sandboxId: string;
+  surfaceId: string;
   revision: number;
 }
 
-export interface ComponentSyncEvent extends BaseEvent {
-  kind: 'component-sync';
-  sandboxId: string;
-  components: Array<{
-    id: string;
-    name: string;
-    width: number;
-    height: number;
-  }>;
-}
-
-export interface ComponentErrorEvent extends BaseEvent {
-  kind: 'component-error';
-  code?: 'bounds-invalid' | 'unknown-component' | 'props-invalid' | 'registry-missing';
-  sandboxId?: string;
-  componentId?: string;
-  componentName?: string;
-  reason: string;
-}
-
 export type DevtoolsEvent =
-  | SandboxSpawnedEvent
-  | SandboxReadyEvent
-  | SandboxFatalEvent
-  | SandboxDisposedEvent
+  | SurfaceMountedEvent
+  | SurfaceRuntimeErrorEvent
+  | SurfaceDisposedEvent
+  | SurfacePreviewEvent
   | ToolCalledEvent
   | ToolRejectedEvent
   | ToolDispatchedEvent
@@ -197,8 +185,6 @@ export type DevtoolsEvent =
   | SurfacePlanEvent
   | SurfaceContractEvent
   | RenderEvent
-  | RenderedEvent
-  | ComponentSyncEvent
-  | ComponentErrorEvent;
+  | RenderedEvent;
 
 export type DevtoolsEventKind = DevtoolsEvent['kind'];

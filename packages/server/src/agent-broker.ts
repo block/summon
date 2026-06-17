@@ -2,8 +2,6 @@ import {
   compileSurfacePolicy,
   SURFACE_PURPOSE_VALUES,
   type ToolPack,
-  type ComponentPack,
-  type ComponentSpec,
   type CompiledSurfacePolicy,
   type ToolSpec,
   type ProtocolLine,
@@ -39,7 +37,6 @@ export interface SurfaceGoal {
   dataNeed: SurfaceGoalDataNeed;
   sideEffect: SurfaceGoalSideEffect;
   requestedTools: string[];
-  requestedComponents: string[];
   confidence: number;
   rationale?: string;
 }
@@ -47,7 +44,6 @@ export interface SurfaceGoal {
 export interface AgentGoalRequest {
   prompt: string;
   tools?: ToolPack | null;
-  components?: ComponentPack | null;
   deterministicGoal: SurfaceGoal;
   signal?: AbortSignal;
 }
@@ -73,7 +69,6 @@ export interface HostPolicyResolutionRequest {
   goal: SurfaceGoal;
   proposedSurfacePolicy: SurfacePolicy;
   tools?: ToolPack | null;
-  components?: ComponentPack | null;
 }
 
 export type HostPolicyResolver = (
@@ -85,7 +80,6 @@ export interface AgentPolicyResolution {
   proposedSurfacePolicy: SurfacePolicy;
   surfacePolicy: SurfacePolicy;
   rejectedTools: string[];
-  rejectedComponents: string[];
   fallback: boolean;
 }
 
@@ -102,7 +96,6 @@ export interface AgentSurfacePlanningOptions {
 export interface AgentSurfacePlanningInput extends AgentSurfacePlanningOptions {
   prompt: string;
   tools?: ToolPack | null;
-  components?: ComponentPack | null;
 }
 
 export interface AgentSurfacePlanResult {
@@ -149,7 +142,6 @@ export async function planAgentSurface(
 ): Promise<AgentSurfacePlanResult> {
   const deterministicGoal = inferSurfaceGoal(input.prompt, {
     tools: input.tools ?? null,
-    components: input.components ?? null,
   });
   const inferred = input.goal
     ? {
@@ -160,7 +152,6 @@ export async function planAgentSurface(
   const goalSource = inferred?.source ?? 'deterministic';
   const goal = sanitizeSurfaceGoal(inferred?.goal ?? deterministicGoal, {
     tools: input.tools ?? null,
-    components: input.components ?? null,
     fallback: deterministicGoal,
   });
   const proposedSurfacePolicy = policyFromGoal(goal, {
@@ -171,12 +162,10 @@ export async function planAgentSurface(
     goal,
     proposedSurfacePolicy,
     tools: input.tools ?? null,
-    components: input.components ?? null,
     resolver: input.hostPolicyResolver ?? null,
   });
   const compiledPolicy = compileSurfacePolicy(policyResolution.surfacePolicy, {
     tools: input.tools ?? null,
-    components: input.components ?? null,
   });
   return {
     goal,
@@ -200,7 +189,6 @@ export async function runAgentSurfaceGeneration(
   const summary = await runSurfaceGeneration({
     ...input,
     tools: input.tools ?? null,
-    components: input.components ?? null,
     surfacePolicy: agent.surfacePolicy,
     preludeLines,
   }, emit);
@@ -214,11 +202,9 @@ export function inferSurfaceGoal(
   prompt: string,
   options: {
     tools?: ToolPack | null;
-    components?: ComponentPack | null;
   } = {},
 ): SurfaceGoal {
   const requestedTools = inferToolNames(prompt, options.tools ?? null);
-  const requestedComponents = inferComponentNames(prompt, options.components ?? null);
   const selectedTools = toolsByName(options.tools, requestedTools);
 
   const hasApproval = selectedTools.some((tool) => toolAuthority(tool) === 'approval-gated');
@@ -250,7 +236,6 @@ export function inferSurfaceGoal(
     dataNeed,
     sideEffect,
     requestedTools,
-    requestedComponents,
     confidence: requestedTools.length > 0 || interaction !== 'none' ? 0.72 : 0.58,
     rationale: 'deterministic keyword and catalog match',
   };
@@ -261,13 +246,12 @@ export function policyFromGoal(
   options: { persistence?: SurfacePersistence } = {},
 ): SurfacePolicy {
   const persistence = options.persistence ?? 'replayable';
-  const hasSurfaceAccess = goal.requestedTools.length > 0 || goal.requestedComponents.length > 0;
+  const hasSurfaceAccess = goal.requestedTools.length > 0;
   if (goal.sideEffect === 'approval-required' || goal.interaction === 'approval') {
     return {
       tier: 'approval',
       purpose: 'operate',
       grants: goal.requestedTools,
-      components: goal.requestedComponents,
       persistence,
     };
   }
@@ -276,7 +260,6 @@ export function policyFromGoal(
       tier: 'worker',
       purpose: goal.purpose,
       grants: goal.requestedTools,
-      components: goal.requestedComponents,
       persistence,
     };
   }
@@ -293,14 +276,12 @@ export function policyFromGoal(
       tier: 'declarative',
       purpose: goal.purpose,
       grants: goal.requestedTools,
-      components: goal.requestedComponents,
       persistence,
     };
   }
   return {
     tier: 'static',
     purpose: goal.purpose,
-    components: goal.requestedComponents,
     persistence,
   };
 }
@@ -310,7 +291,6 @@ export function defaultHostPolicyResolver(
 ): SurfacePolicy {
   return narrowSurfacePolicy(request.proposedSurfacePolicy, {
     tools: request.tools ?? null,
-    components: request.components ?? null,
   }).surfacePolicy;
 }
 
@@ -326,7 +306,6 @@ function agentPreludeLines(agent: AgentSurfacePlanResult): ProtocolLine[] {
         proposedSurfacePolicy: agent.policyResolution.proposedSurfacePolicy,
         surfacePolicy: agent.policyResolution.surfacePolicy,
         rejectedTools: agent.policyResolution.rejectedTools,
-        rejectedComponents: agent.policyResolution.rejectedComponents,
         fallback: agent.policyResolution.fallback,
       },
     },
@@ -341,7 +320,6 @@ async function inferProvidedGoal(
     const goal = await input.goalProvider({
       prompt: input.prompt,
       tools: input.tools ?? null,
-      components: input.components ?? null,
       deterministicGoal,
       signal: input.signal,
     });
@@ -351,7 +329,6 @@ async function inferProvidedGoal(
   const goal = await inferGoalWithModel(input.goalModel, {
     prompt: input.prompt,
     tools: input.tools ?? null,
-    components: input.components ?? null,
     deterministicGoal,
     timeoutMs: input.goalTimeoutMs,
     signal: input.signal,
@@ -364,13 +341,12 @@ async function inferGoalWithModel(
   input: {
     prompt: string;
     tools?: ToolPack | null;
-    components?: ComponentPack | null;
     deterministicGoal: SurfaceGoal;
     timeoutMs?: number;
     signal?: AbortSignal;
   },
 ): Promise<SurfaceGoal | null> {
-  const system = buildGoalClassifierPrompt(input.tools ?? null, input.components ?? null);
+  const system = buildGoalClassifierPrompt(input.tools ?? null);
   try {
     const request = client.completeText({
       system,
@@ -394,10 +370,7 @@ async function inferGoalWithModel(
   }
 }
 
-function buildGoalClassifierPrompt(
-  tools: ToolPack | null,
-  components: ComponentPack | null,
-): string {
+function buildGoalClassifierPrompt(tools: ToolPack | null): string {
   const toolLines = (tools?.tools ?? [])
     .map((tool) => {
       const data = toolData(tool);
@@ -405,27 +378,17 @@ function buildGoalClassifierPrompt(
       return `- ${tool.name}: ${tool.kind ?? 'action'}, data=${data}, authority=${authority}, ${tool.description}`;
     })
     .join('\n') || '- none';
-  const componentLines = (components?.components ?? [])
-    .map((component) => {
-      const surface = component.surface ?? {};
-      return `- ${component.name}: data=${surface.data ?? 'embedded'}, authority=${surface.authority ?? 'none'}, ${component.description}`;
-    })
-    .join('\n') || '- none';
-
   return `Classify a Summon generative-UI request into a bounded tool object.
 
 Available host tools:
 ${toolLines}
 
-Available trusted components:
-${componentLines}
-
 Respond with ONLY one JSON object. No markdown and no prose.
 Shape:
-{"purpose":"inform|compare|explore|collect|review|operate","interaction":"none|select|form|search|background|approval","dataNeed":"embedded|host-resource|worker","sideEffect":"none|local-state|external-action|approval-required","requestedTools":["name"],"requestedComponents":["name"],"confidence":0.0,"rationale":"short reason"}
+{"purpose":"inform|compare|explore|collect|review|operate","interaction":"none|select|form|search|background|approval","dataNeed":"embedded|host-resource|worker","sideEffect":"none|local-state|external-action|approval-required","requestedTools":["name"],"confidence":0.0,"rationale":"short reason"}
 
 Rules:
-- Pick only tool and component names from the lists above.
+- Pick only tool names from the list above.
 - Use "none" interaction for read-only summaries, comparisons, explainers, and dashboards.
 - Use "search" for host data lookup, browse, filter, or query surfaces.
 - Use "form" for submit/intake/collect surfaces.
@@ -440,7 +403,6 @@ async function resolveHostPolicy(
 ): Promise<AgentPolicyResolution> {
   const narrowed = narrowSurfacePolicy(input.proposedSurfacePolicy, {
     tools: input.tools ?? null,
-    components: input.components ?? null,
   });
   if (!input.resolver) {
     return {
@@ -448,7 +410,6 @@ async function resolveHostPolicy(
       proposedSurfacePolicy: input.proposedSurfacePolicy,
       surfacePolicy: narrowed.surfacePolicy,
       rejectedTools: narrowed.rejectedTools,
-      rejectedComponents: narrowed.rejectedComponents,
       fallback: narrowed.fallback,
     };
   }
@@ -458,11 +419,9 @@ async function resolveHostPolicy(
     goal: input.goal,
     proposedSurfacePolicy: narrowed.surfacePolicy,
     tools: input.tools ?? null,
-    components: input.components ?? null,
   });
   const hostNarrowed = narrowSurfacePolicy(hostPolicy ?? { tier: 'static', purpose: 'inform' }, {
     tools: input.tools ?? null,
-    components: input.components ?? null,
   });
   return {
     source: 'host',
@@ -470,9 +429,6 @@ async function resolveHostPolicy(
     surfacePolicy: hostNarrowed.surfacePolicy,
     rejectedTools: [
       ...new Set([...narrowed.rejectedTools, ...hostNarrowed.rejectedTools]),
-    ],
-    rejectedComponents: [
-      ...new Set([...narrowed.rejectedComponents, ...hostNarrowed.rejectedComponents]),
     ],
     fallback: narrowed.fallback || hostNarrowed.fallback || hostPolicy === null,
   };
@@ -482,46 +438,32 @@ function narrowSurfacePolicy(
   policy: SurfacePolicy,
   options: {
     tools: ToolPack | null;
-    components: ComponentPack | null;
   },
 ): {
   surfacePolicy: SurfacePolicy;
   rejectedTools: string[];
-  rejectedComponents: string[];
   fallback: boolean;
 } {
   const toolNames = new Set((options.tools?.tools ?? []).map((tool) => tool.name));
-  const componentNames = new Set((options.components?.components ?? []).map((component) => component.name));
   const rawGrants = Array.isArray(policy.grants) ? policy.grants.filter(isString) : [];
-  const rawComponents = Array.isArray(policy.components) ? policy.components.filter(isString) : [];
   const knownGrantNames = rawGrants.filter((name) => toolNames.has(name));
-  const knownComponentNames = rawComponents.filter((name) => componentNames.has(name));
   const knownTools = toolsByName(options.tools, knownGrantNames);
-  const knownComponents = componentsByName(options.components, knownComponentNames);
 
   const rejectedTools = rawGrants.filter((name) => !toolNames.has(name));
-  const rejectedComponents = rawComponents.filter((name) => !componentNames.has(name));
-  const tier = strongestTier(policy.tier, knownTools, knownComponents);
+  const tier = strongestTier(policy.tier, knownTools);
   const grants = knownTools
     .filter((tool) => toolAllowedForTier(tier, tool))
     .map((tool) => tool.name);
-  const components = knownComponents
-    .filter((component) => componentAllowedForTier(tier, component))
-    .map((component) => component.name);
 
   for (const name of knownGrantNames) {
     if (!grants.includes(name)) rejectedTools.push(name);
   }
-  for (const name of knownComponentNames) {
-    if (!components.includes(name)) rejectedComponents.push(name);
-  }
 
-  if ((tier === 'worker' && grants.length === 0 && !knownComponents.some((component) => componentSurfaceData(component) === 'worker')) ||
+  if ((tier === 'worker' && grants.length === 0) ||
     (tier === 'approval' && !knownTools.some((tool) => toolAuthority(tool) === 'approval-gated'))) {
     return {
       surfacePolicy: staticFallbackPolicy(policy),
       rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
-      rejectedComponents: [...new Set([...rejectedComponents, ...knownComponentNames])],
       fallback: true,
     };
   }
@@ -534,25 +476,21 @@ function narrowSurfacePolicy(
         ? 'operate'
         : 'inform',
     ...(grants.length > 0 ? { grants } : {}),
-    ...(components.length > 0 ? { components } : {}),
     persistence: policy.persistence === 'ephemeral' ? 'ephemeral' : 'replayable',
   };
   const compiled = compileSurfacePolicy(surfacePolicy, {
     tools: options.tools,
-    components: options.components,
   });
   if (compiled.issues.some((issue) => issue.severity === 'block')) {
     return {
       surfacePolicy: staticFallbackPolicy(policy),
       rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
-      rejectedComponents: [...new Set([...rejectedComponents, ...knownComponentNames])],
       fallback: true,
     };
   }
   return {
     surfacePolicy,
     rejectedTools: [...new Set(rejectedTools)],
-    rejectedComponents: [...new Set(rejectedComponents)],
     fallback: false,
   };
 }
@@ -560,14 +498,10 @@ function narrowSurfacePolicy(
 function strongestTier(
   proposedTier: SurfacePolicy['tier'],
   tools: ToolSpec[],
-  components: ComponentSpec[],
 ): SurfacePolicy['tier'] {
   if (proposedTier === 'static') return 'static';
   if (tools.some((tool) => toolAuthority(tool) === 'approval-gated')) return 'approval';
-  if (tools.some((tool) => toolData(tool) === 'worker') ||
-    components.some((component) => componentSurfaceData(component) === 'worker')) {
-    return 'worker';
-  }
+  if (tools.some((tool) => toolData(tool) === 'worker')) return 'worker';
   return proposedTier;
 }
 
@@ -585,15 +519,6 @@ function toolAllowedForTier(tier: SurfacePolicy['tier'], tool: ToolSpec): boolea
   const authority = toolAuthority(tool);
   if (tier === 'worker') return data === 'worker';
   if (tier === 'approval') return authority === 'approval-gated';
-  return data !== 'worker' && authority !== 'approval-gated';
-}
-
-function componentAllowedForTier(tier: SurfacePolicy['tier'], component: ComponentSpec): boolean {
-  const data = componentSurfaceData(component);
-  const authority = componentSurfaceAuthority(component);
-  if (tier === 'static') return data === 'embedded' && authority === 'none';
-  if (tier === 'worker') return data === 'worker';
-  if (tier === 'approval') return authority === 'none' || authority === 'approval-gated';
   return data !== 'worker' && authority !== 'approval-gated';
 }
 
@@ -657,21 +582,6 @@ function toolClassMatches(tool: ToolSpec, pattern: RegExp): boolean {
   return pattern.test(`${tool.name} ${tool.description}`);
 }
 
-function inferComponentNames(prompt: string, pack: ComponentPack | null): string[] {
-  const components = pack?.components ?? [];
-  if (components.length === 0) return [];
-  const text = prompt.toLowerCase();
-  return components
-    .filter((component) => {
-      const name = component.name.toLowerCase();
-      const spacedName = name.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
-      return text.includes(name) ||
-        text.includes(spacedName) ||
-        text.includes(component.description.toLowerCase());
-    })
-    .map((component) => component.name);
-}
-
 function normalizeSurfaceGoal(raw: Partial<SurfaceGoal>, fallback: SurfaceGoal): SurfaceGoal {
   return {
     purpose: PURPOSES.has(raw.purpose as SurfacePurpose) ? raw.purpose as SurfacePurpose : fallback.purpose,
@@ -681,7 +591,6 @@ function normalizeSurfaceGoal(raw: Partial<SurfaceGoal>, fallback: SurfaceGoal):
     sideEffect: enumValue(raw.sideEffect, ['none', 'local-state', 'external-action', 'approval-required']) ??
       fallback.sideEffect,
     requestedTools: stringList(raw.requestedTools),
-    requestedComponents: stringList(raw.requestedComponents),
     confidence: typeof raw.confidence === 'number' && Number.isFinite(raw.confidence)
       ? Math.max(0, Math.min(1, raw.confidence))
       : fallback.confidence,
@@ -693,18 +602,14 @@ function sanitizeSurfaceGoal(
   goal: SurfaceGoal,
   options: {
     tools: ToolPack | null;
-    components: ComponentPack | null;
     fallback: SurfaceGoal;
   },
 ): SurfaceGoal {
   const toolNames = new Set((options.tools?.tools ?? []).map((item) => item.name));
-  const componentNames = new Set((options.components?.components ?? []).map((item) => item.name));
   const requestedTools = goal.requestedTools.filter((name) => toolNames.has(name));
-  const requestedComponents = goal.requestedComponents.filter((name) => componentNames.has(name));
   if (
     goal.interaction !== 'none' &&
     requestedTools.length === 0 &&
-    requestedComponents.length === 0 &&
     options.fallback.requestedTools.length > 0
   ) {
     requestedTools.push(...options.fallback.requestedTools);
@@ -712,7 +617,6 @@ function sanitizeSurfaceGoal(
   return {
     ...goal,
     requestedTools: [...new Set(requestedTools)],
-    requestedComponents: [...new Set(requestedComponents)],
   };
 }
 
@@ -731,25 +635,12 @@ function toolsByName(pack: ToolPack | null | undefined, names: string[]): ToolSp
   return names.map((name) => byName.get(name)).filter((tool): tool is ToolSpec => Boolean(tool));
 }
 
-function componentsByName(pack: ComponentPack | null | undefined, names: string[]): ComponentSpec[] {
-  const byName = new Map((pack?.components ?? []).map((component) => [component.name, component]));
-  return names.map((name) => byName.get(name)).filter((component): component is ComponentSpec => Boolean(component));
-}
-
 function toolData(tool: ToolSpec): SurfaceGoalDataNeed {
   return tool.surface?.data ?? (tool.kind === 'resource' ? 'host-resource' : 'embedded');
 }
 
 function toolAuthority(tool: ToolSpec): 'none' | 'read' | 'host-action' | 'approval-gated' {
   return tool.surface?.authority ?? (tool.kind === 'resource' ? 'read' : 'host-action');
-}
-
-function componentSurfaceData(component: ComponentSpec): SurfaceGoalDataNeed {
-  return component.surface?.data ?? 'embedded';
-}
-
-function componentSurfaceAuthority(component: ComponentSpec): 'none' | 'read' | 'host-action' | 'approval-gated' {
-  return component.surface?.authority ?? 'none';
 }
 
 function enumValue<T extends string>(raw: unknown, values: readonly T[]): T | null {

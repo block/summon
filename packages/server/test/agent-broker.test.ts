@@ -239,7 +239,6 @@ test('model-assisted tool can narrow to known names but cannot add unknown grant
       dataNeed: 'embedded',
       sideEffect: 'approval-required',
       requestedTools: ['missing', 'publish_summary'],
-      requestedComponents: ['MysteryCard'],
       confidence: 0.91,
     }),
   };
@@ -253,7 +252,6 @@ test('model-assisted tool can narrow to known names but cannot add unknown grant
   assert.equal(plan.surfacePolicy.tier, 'approval');
   assert.equal(plan.goalSource, 'model');
   assert.deepEqual(plan.surfacePolicy.grants, ['publish_summary']);
-  assert.equal(plan.surfacePolicy.components, undefined);
   assert.deepEqual(plan.policyResolution.rejectedTools, []);
 });
 
@@ -267,7 +265,6 @@ test('provided tool is reported separately from model and deterministic sources'
       dataNeed: 'host-resource',
       sideEffect: 'none',
       requestedTools: ['search'],
-      requestedComponents: [],
       confidence: 1,
     },
   });

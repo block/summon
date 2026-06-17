@@ -8,8 +8,6 @@ import {
 import type { ContractIssue } from './contracts.js';
 import type {
   ToolPack,
-  ComponentPack,
-  ComponentSizing,
   SummonLayout,
 } from './prompt.js';
 import {
@@ -49,17 +47,6 @@ export interface SurfaceContractTool {
   };
 }
 
-export interface SurfaceContractComponent {
-  name: string;
-  description: string;
-  propsSchema: string;
-  sizing?: ComponentSizing;
-  surface: {
-    data: SurfaceData;
-    authority: SurfaceAuthority;
-  };
-}
-
 export interface SurfaceContractLayout {
   id: string;
   slots: Array<{
@@ -71,7 +58,6 @@ export interface SurfaceContractLayout {
 export interface SurfaceContractView {
   surface: SurfaceContractSurface;
   tools: SurfaceContractTool[];
-  components: SurfaceContractComponent[];
   layout: SurfaceContractLayout | null;
   issues: ContractIssue[];
 }
@@ -86,7 +72,6 @@ export function compileSurfaceContractView(
 ): SurfaceContractView {
   const compiled = compileSurfacePolicy(policy, {
     tools: options.tools,
-    components: options.components,
   });
   return surfaceContractViewFromCompiledPolicy(compiled, options.layout ?? null);
 }
@@ -102,7 +87,6 @@ export function surfaceContractViewFromCompiledPolicy(
       mode: compiledPolicy.mode,
     },
     tools: formatTools(compiledPolicy.tools),
-    components: formatComponents(compiledPolicy.components),
     layout: formatLayout(layout ?? null),
     issues: compiledPolicy.issues,
   };
@@ -130,22 +114,6 @@ function formatTools(pack: ToolPack | null): SurfaceContractTool[] {
     if (spec.resultSchema) tool.resultSchema = spec.resultSchema;
     if (spec.defaultDataShape) tool.defaultDataShape = spec.defaultDataShape;
     return tool;
-  });
-}
-
-function formatComponents(pack: ComponentPack | null): SurfaceContractComponent[] {
-  return (pack?.components ?? []).map((component) => {
-    const formatted: SurfaceContractComponent = {
-      name: component.name,
-      description: component.description,
-      propsSchema: component.propsSchema,
-      surface: {
-        data: component.surface?.data ?? 'embedded',
-        authority: component.surface?.authority ?? 'none',
-      },
-    };
-    if (component.sizing) formatted.sizing = { ...component.sizing };
-    return formatted;
   });
 }
 

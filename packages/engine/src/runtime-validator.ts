@@ -4,5 +4,4 @@ export {
 export type {
   ValidationContext,
   ValidationTool,
-  ValidationComponent,
 } from './runtime-validator/types.js';

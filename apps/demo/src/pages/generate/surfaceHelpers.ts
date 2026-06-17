@@ -1,18 +1,16 @@
 import {
   parseTokenValues,
   type ToolPack,
-  type ComponentPack,
   type SurfaceContractView,
   type SurfacePlan,
   type SurfacePolicy,
 } from '@anarchitecture/summon/engine';
-import { narrowComponentPack } from '../../components.js';
 import {
   narrowToolPack,
   type ActiveContract,
   type ShowcaseScenario,
 } from '../../showcase.js';
-import { baseToolPack, baseComponentPack, scenarioCategoryOrder } from './constants.js';
+import { baseToolPack, scenarioCategoryOrder } from './constants.js';
 import type { ModelProviderInfo, StreamOptionsPayload } from './types.js';
 
 export function describeScenario(scenario: ShowcaseScenario): { category: string; description: string } {
@@ -29,8 +27,8 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
       return { category: 'Host data', description: 'Host-owned AI resource with loading, error, and response states.' };
     case 'github-profile-lookup':
       return { category: 'Host data', description: 'Host-owned external lookup with proxied image data and read authority.' };
-    case 'component-islands':
-      return { category: 'Host action', description: 'Host-rendered component islands with sandbox placeholders.' };
+    case 'arrow-fidelity':
+      return { category: 'Host action', description: 'Arrow-rendered dashboard with host-owned action authority.' };
     case 'static-summary':
       return { category: 'Read-only', description: 'Static generated UI with embedded data and no host actions.' };
     case 'declarative-form':
@@ -93,12 +91,6 @@ export function toolPackFor(active: ActiveContract): ToolPack {
   return narrowToolPack(baseToolPack, active.toolNames);
 }
 
-export function componentPackFor(active: ActiveContract): ComponentPack | null {
-  return active.componentNames?.length
-    ? narrowComponentPack(baseComponentPack, active.componentNames)
-    : null;
-}
-
 export function agentBrokerRequestFor(active: ActiveContract): { enabled: true } | undefined {
   return active.agentBroker ? { enabled: true } : undefined;
 }
@@ -117,7 +109,6 @@ export function surfaceRequestFor(active: ActiveContract): StreamOptionsPayload 
 export function surfacePolicyForPlan(
   plan: SurfacePlan,
   toolNames: string[],
-  componentNames: string[] | undefined,
 ): SurfacePolicy {
   const tier = plan.authority === 'approval-gated'
     ? 'approval'
@@ -131,7 +122,6 @@ export function surfacePolicyForPlan(
     purpose: plan.purpose,
     persistence: plan.persistence,
     ...(tier !== 'static' && toolNames.length > 0 ? { grants: toolNames } : {}),
-    ...(componentNames?.length ? { components: componentNames } : {}),
   };
 }
 
@@ -172,7 +162,7 @@ export function parseSurfaceContractView(value: unknown): SurfaceContractView | 
   if (!value || typeof value !== 'object') return null;
   const contract = value as Partial<SurfaceContractView>;
   if (!contract.surface || typeof contract.surface !== 'object') return null;
-  if (!Array.isArray(contract.tools) || !Array.isArray(contract.components)) return null;
+  if (!Array.isArray(contract.tools)) return null;
   if (!Array.isArray(contract.issues)) return null;
   return contract as SurfaceContractView;
 }
@@ -189,12 +179,8 @@ export function agentGoalText(value: unknown): string {
   const grants = Array.isArray(item.requestedTools)
     ? item.requestedTools.filter((name): name is string => typeof name === 'string')
     : [];
-  const components = Array.isArray(item.requestedComponents)
-    ? item.requestedComponents.filter((name): name is string => typeof name === 'string')
-    : [];
   const access = [
     grants.length ? `tools=${grants.join(',')}` : '',
-    components.length ? `components=${components.join(',')}` : '',
   ].filter(Boolean).join(' ');
   return `${parts.join(' · ') || 'tool'}${access ? ` · ${access}` : ''}`;
 }
@@ -211,8 +197,7 @@ export function agentPolicyText(value: unknown): string {
   const purpose = typeof policy?.purpose === 'string' ? policy.purpose : 'inform';
   const fallback = item.fallback === true ? ' · fallback' : '';
   const rejectedTools = Array.isArray(item.rejectedTools) ? item.rejectedTools.length : 0;
-  const rejectedComponents = Array.isArray(item.rejectedComponents) ? item.rejectedComponents.length : 0;
-  const rejected = rejectedTools + rejectedComponents;
+  const rejected = rejectedTools;
   const sourceText = goalSource ? `${source}/${goalSource}` : source;
   return `${sourceText} · ${tier}/${purpose}${fallback}${rejected ? ` · rejected=${rejected}` : ''}`;
 }
@@ -276,11 +261,7 @@ export function buildContractRows({
   const hostTools = contract
     ? contract.tools.map((tool) => tool.name).join(', ') || 'none'
     : active.toolNames.length ? active.toolNames.join(', ') : 'none';
-  const components = contract
-    ? contract.components.map((component) => component.name).join(', ') || 'none'
-    : active.componentNames?.length ? active.componentNames.join(', ') : 'none';
   const toolCount = contract?.tools.length ?? active.toolNames.length;
-  const componentCount = contract?.components.length ?? active.componentNames?.length ?? 0;
   const validation = currentValidationSummary ?? 'pending';
   const stream = currentStreamHealth ?? 'pending';
   const effectivePlan = contract?.surface.plan ?? currentEffectiveSurfacePlan;
@@ -304,7 +285,7 @@ export function buildContractRows({
     ['requested', 'Requested surface config', active.agentBroker ? 'brokered from prompt' : planText(requested), 'neutral'],
     ['effective', 'Effective safety plan', effective, effectivePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${toolCount}: ${hostTools}`, toolCount ? 'neutral' : 'pending'],
-    ['components', 'Trusted components', `${componentCount}: ${components}`, componentCount ? 'good' : 'pending'],
+    ['visuals', 'Generated visuals', 'Arrow artifact only', effectivePlan ? 'good' : 'pending'],
     ['runtime', 'Sandbox runtime', runtime, effectivePlan ? 'good' : 'pending'],
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
     ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],

@@ -4,13 +4,11 @@ import {
 } from './contracts.js';
 import type {
   ToolPack,
-  ComponentPack,
   ToolSpec,
 } from './prompt.js';
 import {
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
-  type ComponentSurface,
   type SurfaceAuthority,
   type SurfaceData,
   type SurfacePersistence,
@@ -32,7 +30,6 @@ export interface SurfacePolicy {
   tier: SurfaceTier;
   purpose?: SurfacePurpose;
   grants?: string[];
-  components?: string[];
   persistence?: SurfacePersistence;
 }
 
@@ -40,19 +37,16 @@ export interface NormalizedSurfacePolicy {
   tier: SurfaceTier;
   purpose: SurfacePurpose;
   grants: string[];
-  components: string[];
   persistence: SurfacePersistence;
 }
 
 export interface CompileSurfacePolicyOptions {
   tools?: ToolPack | null;
-  components?: ComponentPack | null;
 }
 
 export interface CompiledSurfacePolicy {
   policy: NormalizedSurfacePolicy;
   tools: ToolPack | null;
-  components: ComponentPack | null;
   mode: SurfacePlanMode;
   surfacePlan: SurfacePlan;
   issues: ContractIssue[];
@@ -66,7 +60,6 @@ const DEFAULT_POLICY: NormalizedSurfacePolicy = {
   tier: 'static',
   purpose: 'inform',
   grants: [],
-  components: [],
   persistence: 'replayable',
 };
 
@@ -86,7 +79,6 @@ export function normalizeSurfacePolicy(raw: unknown): NormalizedSurfacePolicy | 
     tier,
     purpose,
     grants: dedupeStrings(input.grants),
-    components: dedupeStrings(input.components),
     persistence,
   };
 }
@@ -106,9 +98,7 @@ export function compileSurfacePolicy(
   }
 
   const toolPack = options.tools ?? null;
-  const componentPack = options.components ?? null;
   const toolsByName = new Map((toolPack?.tools ?? []).map((tool) => [tool.name, tool]));
-  const componentsByName = new Map((componentPack?.components ?? []).map((component) => [component.name, component]));
 
   const selectedTools: ToolSpec[] = [];
   for (const grant of effective.grants) {
@@ -124,27 +114,12 @@ export function compileSurfacePolicy(
     validateToolForTier(effective.tier, tool, issues);
   }
 
-  const selectedComponents: ComponentPack['components'] = [];
-  for (const componentName of effective.components) {
-    const component = componentsByName.get(componentName);
-    if (!component) {
-      issues.push(surfacePolicyIssue(
-        'surface-policy-unknown-component',
-        `SurfacePolicy references unknown component "${componentName}"`,
-      ));
-      continue;
-    }
-    selectedComponents.push(component);
-    validateComponentForTier(effective.tier, component.surface, component.name, issues);
-  }
+  validateTierRequirements(effective, selectedTools, issues);
 
-  validateTierRequirements(effective, selectedTools, selectedComponents, issues);
-
-  const surfacePlan = planForPolicy(effective, selectedTools, selectedComponents);
+  const surfacePlan = planForPolicy(effective, selectedTools);
   return {
     policy: effective,
     tools: narrowToolPack(toolPack, selectedTools, effective.grants),
-    components: selectedComponents.length > 0 ? { components: selectedComponents } : null,
     mode: effective.tier === 'static' ? 'static' : 'interactive',
     surfacePlan,
     issues,
@@ -191,60 +166,18 @@ function validateToolForTier(
   }
 }
 
-function validateComponentForTier(
-  tier: SurfaceTier,
-  surface: ComponentSurface | undefined,
-  name: string,
-  issues: ContractIssue[],
-): void {
-  const data = surface?.data ?? 'embedded';
-  const authority = surface?.authority ?? 'none';
-  if (tier === 'static' && (data !== 'embedded' || authority !== 'none')) {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `Static SurfacePolicy can only use embedded display components; "${name}" requires ${data}/${authority}`,
-    ));
-  }
-  if (tier === 'declarative' && data === 'worker') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `${tier} SurfacePolicy cannot use worker-backed component "${name}"`,
-    ));
-  }
-  if (tier === 'declarative' && authority === 'approval-gated') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `${tier} SurfacePolicy cannot use approval-gated component "${name}"`,
-    ));
-  }
-  if (tier === 'worker' && data !== 'worker') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `Worker SurfacePolicy can only use worker-backed components; "${name}" is not worker-backed`,
-    ));
-  }
-  if (tier === 'approval' && authority !== 'none' && authority !== 'approval-gated') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `Approval SurfacePolicy cannot use component "${name}" with ${authority} authority`,
-    ));
-  }
-}
-
 function validateTierRequirements(
   policy: NormalizedSurfacePolicy,
   tools: ToolSpec[],
-  components: ComponentPack['components'],
   issues: ContractIssue[],
 ): void {
   if (
     policy.tier === 'worker' &&
-    !tools.some((tool) => toolData(tool) === 'worker') &&
-    !components.some((component) => (component.surface?.data ?? 'embedded') === 'worker')
+    !tools.some((tool) => toolData(tool) === 'worker')
   ) {
     issues.push(surfacePolicyIssue(
       'surface-policy-tier-requirement',
-      'Worker SurfacePolicy requires at least one worker-backed grant or component',
+      'Worker SurfacePolicy requires at least one worker-backed grant',
     ));
   }
   if (
@@ -261,7 +194,6 @@ function validateTierRequirements(
 function planForPolicy(
   policy: NormalizedSurfacePolicy,
   tools: ToolSpec[],
-  components: ComponentPack['components'],
 ): SurfacePlan {
   if (policy.tier === 'static') {
     return {
@@ -278,13 +210,11 @@ function planForPolicy(
     ? 'worker'
     : strongestData([
         ...tools.map(toolData),
-        ...components.map((component) => component.surface?.data ?? 'embedded'),
       ]);
   const authority = policy.tier === 'approval'
     ? 'approval-gated'
     : strongestAuthority([
         ...tools.map(toolAuthority),
-        ...components.map((component) => component.surface?.authority ?? 'none'),
       ]);
 
   return {

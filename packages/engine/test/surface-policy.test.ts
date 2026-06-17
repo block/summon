@@ -4,7 +4,6 @@ import {
   compileSurfacePolicy,
   normalizeSurfacePolicy,
   type ToolPack,
-  type ComponentPack,
 } from '../src/index.ts';
 
 const tools: ToolPack = {
@@ -56,33 +55,14 @@ const tools: ToolPack = {
   ],
 };
 
-const components: ComponentPack = {
-  components: [
-    {
-      name: 'MetricCard',
-      description: 'Embedded metric',
-      propsSchema: '{}',
-      surface: { data: 'embedded', authority: 'none' },
-    },
-    {
-      name: 'WorkerChart',
-      description: 'Worker chart',
-      propsSchema: '{}',
-      surface: { data: 'worker', authority: 'read' },
-    },
-  ],
-};
-
 test('normalizes defaults and dedupes policy names', () => {
   assert.deepEqual(normalizeSurfacePolicy({
     tier: 'declarative',
     grants: ['search', 'search', 'choose'],
-    components: ['MetricCard', 'MetricCard'],
   }), {
     tier: 'declarative',
     purpose: 'inform',
     grants: ['search', 'choose'],
-    components: ['MetricCard'],
     persistence: 'replayable',
   });
 });
@@ -90,12 +70,10 @@ test('normalizes defaults and dedupes policy names', () => {
 test('compiles static policy to static embedded plan with no packs', () => {
   const compiled = compileSurfacePolicy({ tier: 'static', purpose: 'compare' }, {
     tools,
-    components,
   });
   assert.deepEqual(compiled.issues, []);
   assert.equal(compiled.mode, 'static');
   assert.equal(compiled.tools, null);
-  assert.equal(compiled.components, null);
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'compare',
     runtime: 'arrow',
@@ -106,18 +84,16 @@ test('compiles static policy to static embedded plan with no packs', () => {
   });
 });
 
-test('compiles declarative policy and narrows grants, components, and patterns', () => {
+test('compiles declarative policy and narrows grants and patterns', () => {
   const compiled = compileSurfacePolicy({
     tier: 'declarative',
     purpose: 'explore',
     grants: ['search', 'choose'],
-    components: ['MetricCard'],
-  }, { tools, components });
+  }, { tools });
   assert.deepEqual(compiled.issues, []);
   assert.equal(compiled.mode, 'interactive');
   assert.deepEqual(compiled.tools?.tools.map((tool) => tool.name), ['search', 'choose']);
   assert.deepEqual(compiled.tools?.patterns?.map((pattern) => pattern.tool), ['search', 'choose']);
-  assert.deepEqual(compiled.components?.components.map((component) => component.name), ['MetricCard']);
   assert.deepEqual(compiled.surfacePlan, {
     purpose: 'explore',
     runtime: 'arrow',
@@ -181,17 +157,14 @@ test('compiles approval policy and requires approval-gated grant', () => {
   ]);
 });
 
-test('blocks unknown names and tier-exceeded grants/components', () => {
+test('blocks unknown names and tier-exceeded grants', () => {
   const compiled = compileSurfacePolicy({
     tier: 'declarative',
     grants: ['missing', 'analysis', 'publish'],
-    components: ['MissingComponent', 'WorkerChart'],
-  }, { tools, components });
+  }, { tools });
   assert.deepEqual(compiled.issues.map((issue) => issue.code), [
     'surface-policy-unknown-grant',
     'surface-policy-tier-exceeded',
-    'surface-policy-tier-exceeded',
-    'surface-policy-unknown-component',
     'surface-policy-tier-exceeded',
   ]);
   assert.equal(compiled.issues.every((issue) => issue.source === 'system' && issue.severity === 'block'), true);

@@ -13,13 +13,14 @@ export type ExtraDevtoolsEvent =
 
 export function formatDevtoolsEvent(ev: DevtoolsEvent | ExtraDevtoolsEvent): string {
   switch (ev.kind) {
-    case 'sandbox-spawned':
-      return `${ev.sandboxId.slice(0, 8)}... allowed=[${ev.grantedTools.join(',') || '-'}]`;
-    case 'sandbox-ready':
-    case 'sandbox-disposed':
-      return `${ev.sandboxId.slice(0, 8)}...`;
-    case 'sandbox-fatal':
-      return `${ev.sandboxId.slice(0, 8)}... ${ev.reason}`;
+    case 'surface-mounted':
+      return `${ev.surfaceId.slice(0, 8)}... allowed=[${ev.grantedTools.join(',') || '-'}]`;
+    case 'surface-disposed':
+      return `${ev.surfaceId.slice(0, 8)}...`;
+    case 'surface-runtime-error':
+      return `${ev.surfaceId.slice(0, 8)}... ${ev.reason}`;
+    case 'surface-preview-event':
+      return `${ev.surfaceId.slice(0, 8)}... ${JSON.stringify(ev.event).slice(0, 80)}`;
     case 'tool-called':
       return `host tool ${ev.tool} ${JSON.stringify(ev.args).slice(0, 80)}`;
     case 'tool-rejected':
@@ -30,10 +31,6 @@ export function formatDevtoolsEvent(ev: DevtoolsEvent | ExtraDevtoolsEvent): str
       return `host settled ${ev.tool} #${ev.id.slice(-6)} ${ev.ok ? 'ok' : `fail: ${ev.error ?? ''}`} (${ev.durationMs}ms)`;
     case 'state-pushed':
       return Object.keys(ev.patch).join(', ') || 'empty';
-    case 'component-sync':
-      return `${ev.components.length} trusted component${ev.components.length === 1 ? '' : 's'}`;
-    case 'component-error':
-      return `${ev.componentName ?? ev.componentId ?? 'component'} ${ev.code ?? 'error'}: ${ev.reason}`;
     case 'render':
       return `${ev.bytes.toLocaleString()} B`;
     case 'rendered':
@@ -49,7 +46,7 @@ export function formatDevtoolsEvent(ev: DevtoolsEvent | ExtraDevtoolsEvent): str
     case 'surface-plan':
       return planText(ev.plan as SurfacePlan);
     case 'surface-contract':
-      return `${ev.contract.tools?.length ?? 0} tools · ${ev.contract.components?.length ?? 0} components`;
+      return `${ev.contract.tools?.length ?? 0} tools`;
   }
 }
 
@@ -65,7 +62,15 @@ export function displayEventKind(kind: string): string {
       return 'host settled';
     case 'stream-graph':
       return 'stream diagnostics';
+    case 'surface-mounted':
+      return 'surface mounted';
+    case 'surface-preview-event':
+      return 'surface preview';
+    case 'surface-runtime-error':
+      return 'runtime error';
+    case 'surface-disposed':
+      return 'surface disposed';
     default:
-      return kind.replace(/^(sandbox|protocol|stream)-/, '').replace(/-/g, ' ');
+      return kind.replace(/^(surface|protocol|stream)-/, '').replace(/-/g, ' ');
   }
 }

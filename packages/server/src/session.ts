@@ -36,7 +36,6 @@ export class SurfaceGenerationSession {
     this.surfacePolicy = input.surfacePolicy
       ? compileSurfacePolicy(input.surfacePolicy, {
           tools: input.tools ?? null,
-          components: input.components ?? null,
         })
       : null;
     this.surfaceContract = this.surfacePolicy
@@ -49,7 +48,6 @@ export class SurfaceGenerationSession {
       layout: input.layout ?? null,
       experimentalPromptBlock: input.experimentalPromptBlock ?? null,
       tools: this.surfacePolicy?.tools ?? input.tools ?? null,
-      components: this.surfacePolicy?.components ?? input.components ?? null,
       surfacePlan: this.surfacePolicy?.surfacePlan ?? null,
       surfaceContract: this.surfaceContract,
       tokenOverrides: input.tokenOverrides,

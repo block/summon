@@ -36,7 +36,6 @@ export function useGenerationRuns({
   currentValidationSummary,
   setChildren,
   setRuntimeToolNames,
-  setRuntimeComponentNames,
   setLogs,
   setDevEvents,
   setSurfaceTokensSource,
@@ -75,7 +74,6 @@ export function useGenerationRuns({
   currentValidationSummary: string | null;
   setChildren: Dispatch<SetStateAction<ChildSurfaceModel[]>>;
   setRuntimeToolNames: Dispatch<SetStateAction<string[] | null>>;
-  setRuntimeComponentNames: Dispatch<SetStateAction<string[] | null>>;
   setLogs: Dispatch<SetStateAction<LogEntry[]>>;
   setDevEvents: Dispatch<SetStateAction<Array<DevtoolsEvent | ExtraDevtoolsEvent>>>;
   setSurfaceTokensSource: Dispatch<SetStateAction<string>>;
@@ -106,7 +104,6 @@ export function useGenerationRuns({
     setChildren([]);
     summonedCountRef.current = 0;
     setRuntimeToolNames(null);
-    setRuntimeComponentNames(null);
     setLogs([]);
     setDevEvents([]);
     clearRuntimeState();
@@ -167,7 +164,6 @@ export function useGenerationRuns({
     setLogs,
     setRunning,
     setRuntimeToolNames,
-    setRuntimeComponentNames,
     setShowWelcome,
     setStatus,
     setSurfaceTokensSource,
@@ -203,7 +199,6 @@ export function useGenerationRuns({
       : null);
     setCurrentSurfaceContractView(null);
     setRuntimeToolNames(envelope.grants.tools);
-    setRuntimeComponentNames(envelope.grants.components?.map((component) => component.name) ?? null);
     setShowWelcome(false);
     setStatus('replayed');
     setBytes(new TextEncoder().encode(JSON.stringify(arrowArtifact.source)).byteLength);
@@ -231,7 +226,6 @@ export function useGenerationRuns({
     setLogs,
     setMode,
     setRuntimeToolNames,
-    setRuntimeComponentNames,
     setShowWelcome,
     setStatus,
     setSurfacePlan,

@@ -73,7 +73,7 @@ export function AdversarialPage() {
         lede="Loads a sandbox with a deliberately malicious artifact. Each attempt that fails is a win."
       />
       <div className={cn(pageWidthClass, 'grid grid-cols-2 gap-5 max-[820px]:grid-cols-1')}>
-        <Pane title="Sandbox iframe">
+        <Pane title="Inline Arrow sandbox">
           <SummonSurface
             id="sandbox"
             className="h-[320px]"

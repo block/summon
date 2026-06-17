@@ -5,7 +5,6 @@ import {
   compileSurfacePolicy,
   surfaceContractViewFromCompiledPolicy,
   type ToolPack,
-  type ComponentPack,
 } from '../src/index.ts';
 
 const tools: ToolPack = {
@@ -51,33 +50,12 @@ const tools: ToolPack = {
   ],
 };
 
-const components: ComponentPack = {
-  components: [
-    {
-      name: 'MetricCard',
-      description: 'Trusted metric card.',
-      propsSchema: '{label: string, value: string}',
-      surface: { data: 'embedded', authority: 'none' },
-      sizing: { width: '320px', height: '112px' },
-      examples: [{ name: 'Example', code: '<div>large example omitted from view</div>' }],
-    },
-    {
-      name: 'WorkerChart',
-      description: 'Worker-backed chart.',
-      propsSchema: '{}',
-      surface: { data: 'worker', authority: 'read' },
-    },
-  ],
-};
-
-test('static policy contract view has no tools/components and Arrow runtime', () => {
+test('static policy contract view has no tools and Arrow runtime', () => {
   const view = compileSurfaceContractView({ tier: 'static', purpose: 'inform' }, {
     tools,
-    components,
   });
 
   assert.deepEqual(view.tools, []);
-  assert.deepEqual(view.components, []);
   assert.equal(view.surface.policy.tier, 'static');
   assert.equal(view.surface.plan.runtime, 'arrow');
   assert.equal(view.surface.mode, 'static');
@@ -114,30 +92,11 @@ test('declarative search policy includes only selected resource state keys', () 
   assert.equal(view.surface.plan.authority, 'read');
 });
 
-test('component policy includes only selected trusted components without examples', () => {
-  const view = compileSurfaceContractView({
-    tier: 'declarative',
-    components: ['MetricCard'],
-  }, { components });
-
-  assert.deepEqual(view.components, [
-    {
-      name: 'MetricCard',
-      description: 'Trusted metric card.',
-      propsSchema: '{label: string, value: string}',
-      sizing: { width: '320px', height: '112px' },
-      surface: { data: 'embedded', authority: 'none' },
-    },
-  ]);
-  assert.equal('examples' in view.components[0]!, false);
-});
-
-test('invalid grants/components preserve compile issues in derived view', () => {
+test('invalid grants preserve compile issues in derived view', () => {
   const compiled = compileSurfacePolicy({
     tier: 'declarative',
     grants: ['missing', 'analysis'],
-    components: ['MissingComponent', 'WorkerChart'],
-  }, { tools, components });
+  }, { tools });
   const view = surfaceContractViewFromCompiledPolicy(compiled, {
     id: 'host-layout',
     slots: [{ id: 'hero', purpose: 'Main result' }],
@@ -145,8 +104,6 @@ test('invalid grants/components preserve compile issues in derived view', () => 
 
   assert.deepEqual(view.issues.map((issue) => issue.code), [
     'surface-policy-unknown-grant',
-    'surface-policy-tier-exceeded',
-    'surface-policy-unknown-component',
     'surface-policy-tier-exceeded',
   ]);
   assert.deepEqual(view.layout, {

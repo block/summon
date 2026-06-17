@@ -87,6 +87,31 @@ test('validation summary merges aggregate graph health', () => {
   assert.equal(snap.health.blockedCount, 2);
 });
 
+test('preview event lines update stream graph preview status', () => {
+  const graph = new StreamGraph();
+  graph.applyLine({
+    op: 'event',
+    path: '/surface',
+    value: { type: 'surface.status', status: 'drafting', text: 'Drafting layout' },
+  });
+  graph.applyLine({
+    op: 'event',
+    path: '/surface',
+    value: { type: 'surface.start', id: 'main', kind: 'comparison', title: 'Choice' },
+  });
+
+  assert.deepEqual(graph.snapshot().preview, {
+    events: {
+      count: 2,
+      firstSeenLine: 1,
+      lastUpdatedLine: 2,
+      lastType: 'surface.start',
+    },
+    lastStatus: 'drafting',
+    lastStatusText: 'Drafting layout',
+  });
+});
+
 test('snapshots, hydrates, and resets deterministically', () => {
   const graph = new StreamGraph();
   graph.applyLine({ op: 'artifact', path: '/artifact', value: artifact });
@@ -107,6 +132,11 @@ test('snapshots, hydrates, and resets deterministically', () => {
   restored.reset();
   assert.deepEqual(restored.snapshot(), {
     artifacts: [],
+    preview: {
+      events: {
+        count: 0,
+      },
+    },
     health: {
       complete: true,
       skippedCount: 0,

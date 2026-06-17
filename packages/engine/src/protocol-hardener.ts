@@ -103,6 +103,14 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
         };
       }
 
+      if (line.op === 'event') {
+        return {
+          outboundLines: [line],
+          acceptedLines: [line],
+          issues: [],
+        };
+      }
+
       return emptyResult();
     },
   };

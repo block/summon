@@ -1,6 +1,7 @@
 export {
   SUMMON_PROTOCOL_VERSION,
   ProtocolParseError,
+  isSurfaceEvent,
   isProtocolLine,
   parseProtocolLine,
   parseProtocolLineStrict,
@@ -8,6 +9,8 @@ export {
 export type {
   ProtocolLine,
   MetaLine,
+  SurfaceEvent,
+  SurfaceEventLine,
   ArtifactLine,
   ProtocolParseErrorCode,
   ProtocolParseOptions,
@@ -30,7 +33,9 @@ export type { ValidationLimits } from './validation-limits.js';
 export { StreamGraph } from './stream-graph.js';
 export type {
   StreamGraphArtifact,
+  StreamGraphEventSummary,
   StreamGraphHealth,
+  StreamGraphPreview,
   StreamGraphSnapshot,
 } from './stream-graph.js';
 export {
@@ -39,7 +44,6 @@ export {
   buildDirectionBlock,
   buildLayoutBlock,
   buildToolsBlock,
-  buildComponentsBlock,
   buildOverrideBlock,
   buildSurfaceContractBlock,
 } from './prompt.js';
@@ -52,17 +56,12 @@ export type {
   DataResourceSpec,
   ToolPattern,
   ToolPack,
-  ComponentExample,
-  ComponentPack,
-  ComponentSizing,
-  ComponentSpec,
   TokenOverride,
 } from './prompt.js';
 export {
   compileTokenContract,
   compileDirectionContract,
   compileToolContract,
-  compileComponentContract,
   compileSystemContracts,
   contractIssue,
   hintsForContractIssue,
@@ -70,7 +69,6 @@ export {
 } from './contracts.js';
 export type {
   CompiledToolContract,
-  CompiledComponentContract,
   CompiledDirectionContract,
   CompiledSystemContracts,
   CompiledTokenContract,
@@ -129,7 +127,6 @@ export {
 export type {
   ValidationContext,
   ValidationTool,
-  ValidationComponent,
 } from './runtime-validator.js';
 export {
   DEFAULT_SURFACE_PLAN,
@@ -145,7 +142,6 @@ export {
 } from './surface-plan.js';
 export type {
   ToolSurface,
-  ComponentSurface,
   SurfaceAuthority,
   SurfaceData,
   SurfacePersistence,
@@ -173,7 +169,6 @@ export {
 } from './surface-contract.js';
 export type {
   CompileSurfaceContractViewOptions,
-  SurfaceContractComponent,
   SurfaceContractLayout,
   SurfaceContractSurface,
   SurfaceContractTool,
