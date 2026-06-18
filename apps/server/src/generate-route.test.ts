@@ -287,9 +287,9 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /surface-contract',
     'meta /model-output-mode',
     'event /surface',
-    'meta /status',
+    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(lines[1]?.op, 'meta');
   assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'planning');
   assert.deepEqual(firstMetaLine(lines, '/surface-plan').value, surfacePlan);
@@ -338,9 +338,9 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /surface-contract',
     'meta /model-output-mode',
     'event /surface',
-    'meta /status',
+    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(policyLines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.deepEqual(phaseStatuses(policyLines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(policyLines.some((line) => line.path === '/mode-upgraded'), false);
   assert.deepEqual(firstMetaLine(policyLines, '/surface-policy').value, {
     tier: 'declarative',
@@ -392,7 +392,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /model-output-mode',
     'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(agentLines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.deepEqual(phaseStatuses(agentLines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(agentLines.some((line) => line.path === '/mode-upgraded'), false);
   const agentGoal = firstMetaLine(agentLines, '/agent-goal');
   assert.equal((agentGoal.value as { interaction?: unknown }).interaction, 'search');
@@ -609,7 +609,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     'meta /model-output-mode',
     'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   const ghostAgentResolution = firstMetaLine(lines, '/agent-policy-resolution');
   assert.equal((ghostAgentResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
 
@@ -941,9 +941,9 @@ test('api generate can stream with OpenAI provider', async (t) => {
     'meta /surface-contract',
     'meta /model-output-mode',
     'event /surface',
-    'meta /status',
+    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 
@@ -1057,9 +1057,9 @@ test('api generate can stream with Gemini provider', async (t) => {
     'meta /surface-contract',
     'meta /model-output-mode',
     'event /surface',
-    'meta /status',
+    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 
@@ -1221,7 +1221,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
     'meta /agent-goal',
     'meta /agent-policy-resolution',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'planning', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   const timings = timingValues(lines);
   for (const phase of ['shape', 'policy']) {
     const timing = timings.find((entry) => entry.phase === phase);
