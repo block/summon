@@ -101,9 +101,15 @@ export class SurfaceGenerationSession {
   }
 
   async blockPreflightIssueIfNeeded(): Promise<boolean> {
-    const blocker = this.validationIssues.find((issue) => issue.severity === 'block');
-    if (!blocker) return false;
-    await this.blockGeneration(blocker);
+    const blockers = this.validationIssues.filter((issue) => issue.severity === 'block');
+    if (blockers.length === 0) return false;
+    if (this.isObserveValidation()) {
+      for (const issue of blockers) {
+        await this.writeObservedValidationIssue(issue);
+      }
+      return false;
+    }
+    await this.blockGeneration(blockers[0]!);
     return true;
   }
 
@@ -232,12 +238,13 @@ export class SurfaceGenerationSession {
 
     this.validationIssues.push(...issues);
     const blocker = issues.find((issue) => issue.severity === 'block');
+    const observeValidation = this.isObserveValidation();
     await this.writeTiming(
       'validating',
-      blocker ? 'Blocked Arrow bundle' : 'Validated Arrow bundle',
+      blocker && !observeValidation ? 'Blocked Arrow bundle' : 'Validated Arrow bundle',
       nowMs() - validationStartedAt,
     );
-    if (blocker || !artifact) {
+    if (!artifact) {
       return {
         accepted: false,
         issues: issues.length > 0 ? issues : [contractIssue({
@@ -255,6 +262,18 @@ export class SurfaceGenerationSession {
           path: '/bundle',
         }),
       };
+    }
+    if (blocker && !observeValidation) {
+      return {
+        accepted: false,
+        issues,
+        blocker,
+      };
+    }
+    if (blocker && observeValidation) {
+      for (const issue of issues.filter((item) => item.severity === 'block')) {
+        await this.writeObservedValidationIssue(issue);
+      }
     }
 
     const acceptedBundle = normalized.bundle;
@@ -379,6 +398,14 @@ export class SurfaceGenerationSession {
       path: '/error',
       value: `generation blocked: ${issue.message}`,
     });
+  }
+
+  private isObserveValidation(): boolean {
+    return this.input.validationMode === 'observe';
+  }
+
+  private async writeObservedValidationIssue(issue: ContractIssue): Promise<void> {
+    await this.writeProtocolLine({ op: 'meta', path: '/validation-observed', value: issue });
   }
 
   private summary(): SurfaceGenerationSummary {

@@ -22,6 +22,7 @@ export function useGenerationRuns({
   summonedCountRef,
   activeTokensSourceOverride,
   activeContract,
+  playgroundMode,
   directionId,
   ghostTarget,
   ghostBaseDirectionId,
@@ -61,6 +62,7 @@ export function useGenerationRuns({
   summonedCountRef: MutableRefObject<number>;
   activeTokensSourceOverride: string | null;
   activeContract: ActiveContract;
+  playgroundMode: boolean;
   directionId: string | null;
   ghostTarget: string;
   ghostBaseDirectionId: string | null;
@@ -125,6 +127,7 @@ export function useGenerationRuns({
         ghostTargetPath: ghostTarget.trim() || '.',
         ghostBaseDirectionId,
         layout: readLayout(),
+        playgroundMode,
         signal: abort.signal,
       });
       if (!currentValidationSummary) setCurrentValidationSummary('0/0');
@@ -149,6 +152,7 @@ export function useGenerationRuns({
     abortRef,
     activeContract,
     activeTokensSourceOverride,
+    playgroundMode,
     appendDevEvent,
     clearApprovals,
     clearRuntimeState,

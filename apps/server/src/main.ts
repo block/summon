@@ -8,6 +8,7 @@ import {
   type SurfaceStatus,
   type SummonLayout,
   type SurfacePlan,
+  type SurfacePolicy,
   type TokenOverride,
 } from '@anarchitecture/summon/engine';
 import {
@@ -422,10 +423,15 @@ app.post('/api/generate', async (req, res) => {
     ? rawAgentOptions as Record<string, unknown>
     : null;
 
+  const playgroundMode = req.body?.playground === true;
   const hasSurfacePolicy =
-    req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
+    !playgroundMode && req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
   const toolCeiling = parseToolPack(req.body?.tools);
-  const validationMode: 'observe' | 'enforce' = req.body?.validationMode === 'observe' ? 'observe' : 'enforce';
+  const validationMode: 'observe' | 'enforce' = playgroundMode
+    ? 'observe'
+    : req.body?.validationMode === 'observe'
+      ? 'observe'
+      : 'enforce';
 
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -439,6 +445,7 @@ app.post('/api/generate', async (req, res) => {
     let pack: ToolPack | null = null;
     let surfacePlan: SurfacePlan;
     let agentPlan: AgentSurfacePlanResult | null = null;
+    let generationSurfacePolicy: SurfacePolicy | null = null;
 
     // Shape classification — picks ONE response shape so the per-direction
     // block ships only the matching shape exemplar (atoms always ship). Falls
@@ -447,7 +454,7 @@ app.post('/api/generate', async (req, res) => {
     // are no exemplars to filter. Also skipped when the host supplies a layout:
     // the layout is the composition anchor, and exemplars become visual-only.
     let shape: ResponseShape | null = null;
-    if (!layout && (direction || ghostContext) && process.env.SUMMON_INFER_SHAPE !== '0') {
+    if (!playgroundMode && !layout && (direction || ghostContext) && process.env.SUMMON_INFER_SHAPE !== '0') {
       writeGeneratePhase(res, seedLines, 'planning', 'Inferring response shape');
       const startedAt = performance.now();
       shape = await inferShape({
@@ -463,9 +470,32 @@ app.post('/api/generate', async (req, res) => {
       );
     }
 
-    if (hasSurfacePolicy) {
+    if (playgroundMode) {
+      writeGeneratePhase(res, seedLines, 'contract', 'Preparing playground run');
+      const startedAt = performance.now();
+      const grantedTools = (toolCeiling?.tools ?? []).map((tool) => tool.name);
+      const playgroundPolicy: SurfacePolicy = grantedTools.length > 0
+        ? { tier: 'declarative', purpose: 'explore', persistence: 'ephemeral', grants: grantedTools }
+        : { tier: 'static', purpose: 'explore', persistence: 'ephemeral' };
+      generationSurfacePolicy = playgroundPolicy;
+      const compiledPolicy = compileSurfacePolicy(playgroundPolicy, {
+        tools: toolCeiling,
+      });
+      mode = compiledPolicy.mode;
+      pack = compiledPolicy.tools;
+      surfacePlan = compiledPolicy.surfacePlan;
+      writeGenerateTiming(
+        res,
+        seedLines,
+        timingStartedAt,
+        'policy',
+        'Prepared playground run',
+        performance.now() - startedAt,
+      );
+    } else if (hasSurfacePolicy) {
       writeGeneratePhase(res, seedLines, 'contract', 'Compiling host contract');
       const startedAt = performance.now();
+      generationSurfacePolicy = req.body.surfacePolicy as SurfacePolicy;
       const compiledPolicy = compileSurfacePolicy(req.body.surfacePolicy, {
         tools: toolCeiling,
       });
@@ -493,6 +523,7 @@ app.post('/api/generate', async (req, res) => {
             },
         goalTimeoutMs: clampInt(agentOptions?.goalTimeoutMs, 250, 5000, 1800),
       });
+      generationSurfacePolicy = agentPlan.surfacePolicy;
       mode = agentPlan.compiledPolicy.mode;
       pack = agentPlan.compiledPolicy.tools;
       surfacePlan = agentPlan.compiledPolicy.surfacePlan;
@@ -531,6 +562,20 @@ app.post('/api/generate', async (req, res) => {
     }
 
     const preludeLines: ProtocolLine[] = [];
+
+    if (playgroundMode) {
+      preludeLines.push({
+        op: 'meta',
+        path: '/playground-mode',
+        value: {
+          enabled: true,
+          validation: 'observe',
+          broker: 'off',
+          shapeInference: 'off',
+          repairs: 0,
+        },
+      });
+    }
 
     if (ghostContext) {
       preludeLines.push({
@@ -601,12 +646,12 @@ app.post('/api/generate', async (req, res) => {
         ghost: ghostContext ?? null,
         activeTokensCss: ghostContext?.tokenSource.css ?? null,
         layout,
-        tools: hasSurfacePolicy || agentPlan ? toolCeiling : pack,
-        surfacePolicy: hasSurfacePolicy
-          ? req.body.surfacePolicy
-          : agentPlan
-            ? agentPlan.surfacePolicy
-            : null,
+        tools: playgroundMode
+          ? pack
+          : hasSurfacePolicy || agentPlan
+            ? toolCeiling
+            : pack,
+        surfacePolicy: generationSurfacePolicy,
         tokenOverrides: overrides.applied,
         preludeLines,
         seedLines,
@@ -614,7 +659,7 @@ app.post('/api/generate', async (req, res) => {
       };
       const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
         ...commonGenerationInput,
-        maxRepairAttempts: clampInt(req.body?.maxRepairAttempts, 0, 3, 1),
+        maxRepairAttempts: playgroundMode ? 0 : clampInt(req.body?.maxRepairAttempts, 0, 3, 1),
         modelProvider: {
           generateArrowBundle: (request) => modelProvider.generateArrowBundle(request, modelSelection),
           repairArrowBundle: (request) => modelProvider.repairArrowBundle(request, modelSelection),
@@ -655,6 +700,7 @@ app.post('/api/generate', async (req, res) => {
           (modelSelection.options.anthropicThinking ? ` thinking=${modelSelection.options.anthropicThinking}` : '') +
           (modelSelection.options.effort ? ` effort=${modelSelection.options.effort}` : '') +
           (modelSelection.customModel ? ' customModel=yes' : '') +
+          ` playground=${playgroundMode ? 'yes' : 'no'}` +
           ` validation=${summary.validationIssues.length}${summary.blocked ? '(blocked)' : ''}` +
           (overrides.rejected.length > 0 ? `(rejected ${overrides.rejected.length})` : '') +
           ` usage in=${finalUsage.input_tokens} out=${finalUsage.output_tokens}` +

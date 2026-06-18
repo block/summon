@@ -87,6 +87,7 @@ export interface StreamOptions {
   ghostTargetPath: string;
   ghostBaseDirectionId: string | null;
   layout?: SummonLayout | null;
+  playgroundMode: boolean;
   signal: AbortSignal;
 }
 

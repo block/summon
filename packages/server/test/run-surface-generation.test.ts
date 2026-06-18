@@ -160,3 +160,52 @@ test('runSurfaceGeneration emits fallback preview for artifact-only bundles', as
   assert.equal(summary.blocked, false);
   assert.ok(lines.some((line) => line.op === 'event' && line.path === '/surface' && (line.value as { text?: unknown }).text === 'Rendering accepted Arrow artifact'));
 });
+
+test('runSurfaceGeneration observe mode accepts renderable artifacts with validation blockers', async () => {
+  const lines: ProtocolLine[] = [];
+  let repaired = false;
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`;',
+        },
+      };
+    },
+    async repairArrowBundle() {
+      repaired = true;
+      return validProvider.generateArrowBundle({ prompt: '', promptBlocks: [], schema: {} });
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'observe blocker',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    validationMode: 'observe',
+    maxRepairAttempts: 0,
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, false);
+  assert.equal(repaired, false);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'unsupported-arrow-open-tag-expression'));
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-observed'));
+  assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
+});
+
+test('runSurfaceGeneration observe mode does not preflight-block policy issues', async () => {
+  const lines: ProtocolLine[] = [];
+  const summary = await runSurfaceGeneration({
+    prompt: 'unknown grant',
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['missing'] },
+    validationMode: 'observe',
+    maxRepairAttempts: 0,
+    modelProvider: validProvider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, false);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'surface-policy-unknown-grant'));
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-observed'));
+  assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
+});

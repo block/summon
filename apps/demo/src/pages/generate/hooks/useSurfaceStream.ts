@@ -151,6 +151,16 @@ export function useSurfaceStream({
       logLine('op-meta', `token overrides -> applied=${applied.length}; rejected=${rejected}`);
       return;
     }
+    if (line.op === 'meta' && line.path === '/playground-mode') {
+      const value = line.value as { validation?: unknown; broker?: unknown; shapeInference?: unknown; repairs?: unknown } | undefined;
+      logLine('op-meta', `playground -> validation=${String(value?.validation ?? 'observe')}; broker=${String(value?.broker ?? 'off')}; shape=${String(value?.shapeInference ?? 'off')}; repairs=${String(value?.repairs ?? 0)}`);
+      return;
+    }
+    if (line.op === 'meta' && line.path === '/validation-observed') {
+      const value = line.value as { code?: unknown; message?: unknown } | undefined;
+      logLine('op-meta', `observed validation -> ${String(value?.code ?? 'issue')}: ${String(value?.message ?? JSON.stringify(line.value))}`);
+      return;
+    }
     if (line.op === 'meta' && line.path === '/ghost-context') {
       const value = line.value as {
         product?: unknown;
@@ -276,8 +286,8 @@ export function useSurfaceStream({
     const active = opts.active;
     const ghostRootId = ghostRootFromSelection(opts.directionId);
     const toolPack = toolPackFor(active);
-    const surfaceRequest = surfaceRequestFor(active);
-    const agent = agentBrokerRequestFor(active);
+    const surfaceRequest = opts.playgroundMode ? {} : surfaceRequestFor(active);
+    const agent = opts.playgroundMode ? undefined : agentBrokerRequestFor(active);
     const streamStartedAt = performance.now();
     const markClientTiming = (
       phase: string,
@@ -299,33 +309,50 @@ export function useSurfaceStream({
       surfacePlan: active.surfacePlan,
     };
 
+    const modelSelectionPayload = {
+      ...(active.modelProvider ? { modelProvider: active.modelProvider } : {}),
+      ...(active.generationModel ? { generationModel: active.generationModel } : {}),
+      ...(active.utilityModel ? { utilityModel: active.utilityModel } : {}),
+      ...(active.customModel ? { customModel: true } : {}),
+      ...(active.modelOptions ? { modelOptions: active.modelOptions } : {}),
+    };
+    const steeringPayload = ghostRootId
+      ? {
+          ghost: {
+            rootId: ghostRootId,
+            targetPath: opts.ghostTargetPath,
+            ...(opts.ghostBaseDirectionId ? { baseDirectionId: opts.ghostBaseDirectionId } : {}),
+          },
+        }
+      : { directionId: opts.directionId };
+    const requestBody = opts.playgroundMode
+      ? {
+          prompt: opts.prompt,
+          playground: true,
+          validationMode: 'observe',
+          maxRepairAttempts: 0,
+          ...modelSelectionPayload,
+          ...steeringPayload,
+          tools: toolPack,
+          ...(active.tokenOverrides ? { tokenOverrides: active.tokenOverrides } : {}),
+        }
+      : {
+          prompt: opts.prompt,
+          validationMode: 'enforce',
+          ...modelSelectionPayload,
+          ...steeringPayload,
+          tools: toolPack,
+          ...(agent ? { agent } : {}),
+          ...surfaceRequest,
+          ...(active.tokenOverrides ? { tokenOverrides: active.tokenOverrides } : {}),
+          ...(opts.layout ? { layout: opts.layout } : {}),
+        };
+
     markClientTiming('request-start', 'Generation request started');
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: opts.prompt,
-        validationMode: 'observe',
-        ...(active.modelProvider ? { modelProvider: active.modelProvider } : {}),
-        ...(active.generationModel ? { generationModel: active.generationModel } : {}),
-        ...(active.utilityModel ? { utilityModel: active.utilityModel } : {}),
-        ...(active.customModel ? { customModel: true } : {}),
-        ...(active.modelOptions ? { modelOptions: active.modelOptions } : {}),
-        ...(ghostRootId
-          ? {
-              ghost: {
-                rootId: ghostRootId,
-                targetPath: opts.ghostTargetPath,
-                ...(opts.ghostBaseDirectionId ? { baseDirectionId: opts.ghostBaseDirectionId } : {}),
-              },
-            }
-          : { directionId: opts.directionId }),
-        tools: toolPack,
-        ...(agent ? { agent } : {}),
-        ...surfaceRequest,
-        ...(active.tokenOverrides ? { tokenOverrides: active.tokenOverrides } : {}),
-        ...(opts.layout ? { layout: opts.layout } : {}),
-      }),
+      body: JSON.stringify(requestBody),
       signal: opts.signal,
     });
     markClientTiming('response-headers', 'Response headers received');

@@ -68,6 +68,7 @@ export function GeneratePage() {
   const [surfacePlan, setSurfacePlan] = useState<SurfacePlan>(SHOWCASE_SCENARIOS[0]!.surfacePlan);
   const [layoutId, setLayoutId] = useState('');
   const [tokenPreset, setTokenPreset] = useState('');
+  const [playgroundMode, setPlaygroundMode] = useState(true);
   const [agentBrokerEnabled, setAgentBrokerEnabled] = useState(true);
   const [customContractEnabled, setCustomContractEnabled] = useState(false);
   const [directionId, setDirectionId] = useState<string | null>(null);
@@ -342,7 +343,7 @@ export function GeneratePage() {
 
   const activeContract = useMemo<ActiveContract>(() => {
     const modelSelection = readModelSelection();
-    const agentBroker = agentBrokerEnabled && !customContractEnabled && !scenarioUsesFixedPolicy(selectedScenario);
+    const agentBroker = !playgroundMode && agentBrokerEnabled && !customContractEnabled && !scenarioUsesFixedPolicy(selectedScenario);
     const overrides = tokenOverridesFor(tokenPreset);
     const surfacePolicy = customContractEnabled
       ? surfacePolicyForPlan(surfacePlan, selectedScenario.toolNames)
@@ -353,7 +354,7 @@ export function GeneratePage() {
       mode,
       toolNames: runtimeToolNames ?? selectedScenario.toolNames,
       agentBroker,
-      ...(!agentBroker ? { surfacePolicy } : {}),
+      ...(!playgroundMode && !agentBroker ? { surfacePolicy } : {}),
       surfacePlan,
       ...(layoutId ? { layoutId } : {}),
       ...(overrides ? { tokenOverrides: overrides } : {}),
@@ -367,6 +368,7 @@ export function GeneratePage() {
   }, [
     agentBrokerEnabled,
     customContractEnabled,
+    playgroundMode,
     directionId,
     layoutId,
     mode,
@@ -527,6 +529,7 @@ export function GeneratePage() {
     summonedCountRef,
     activeTokensSourceOverride,
     activeContract,
+    playgroundMode,
     directionId,
     ghostTarget,
     ghostBaseDirectionId,
@@ -721,6 +724,8 @@ export function GeneratePage() {
         </div>
         <div className="p-4 max-[820px]:p-3">
           <ContractInspector
+            playgroundMode={playgroundMode}
+            setPlaygroundMode={setPlaygroundMode}
             contractRows={contractRows}
             currentSurfaceContractView={currentSurfaceContractView}
             currentEffectiveSurfacePlan={currentEffectiveSurfacePlan}

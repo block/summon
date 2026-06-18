@@ -27,6 +27,8 @@ import { cn } from '../../../lib/cn.js';
 import { compactInputClass, compactSelectClass, fieldLabelClass } from '../../../components/ui.js';
 
 export function ContractInspector({
+  playgroundMode,
+  setPlaygroundMode,
   contractRows,
   currentSurfaceContractView,
   currentEffectiveSurfacePlan,
@@ -74,6 +76,8 @@ export function ContractInspector({
   surfacePlan,
   setSurfacePlan,
 }: {
+  playgroundMode: boolean;
+  setPlaygroundMode: (value: boolean) => void;
   contractRows: Array<{ key: string; label: string; value: string; tone: string }>;
   currentSurfaceContractView: SurfaceContractView | null;
   currentEffectiveSurfacePlan: SurfacePlan | null;
@@ -129,7 +133,7 @@ export function ContractInspector({
     <aside className="sticky top-12 min-w-0 max-[1180px]:static max-[1180px]:col-span-full max-[820px]:order-1" aria-label="Contract inspector">
       <div className="mb-[18px] flex items-center justify-between gap-2.5 border-b border-line pb-3 font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
         <span>Surface Inspector</span>
-        <span id="inspector-status" className="text-[11px] normal-case text-ink-muted">{currentSurfaceContractView ? 'contract' : currentEffectiveSurfacePlan ? 'effective' : 'pending'}</span>
+        <span id="inspector-status" className="text-[11px] normal-case text-ink-muted">{playgroundMode ? 'playground' : currentSurfaceContractView ? 'contract' : currentEffectiveSurfacePlan ? 'effective' : 'pending'}</span>
       </div>
       <div className="mb-3.5 grid gap-0" id="contract-summary">
         {contractRows.map((row) => (
@@ -151,7 +155,15 @@ export function ContractInspector({
       </div>
 
       <section className="grid gap-3 border-t border-line pt-5" aria-label="Run settings">
+        <div className="rounded-card border border-good/30 bg-good/10 p-3 text-xs text-ink-soft" hidden={!playgroundMode}>
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-good">Playground mode</div>
+          <p className="mt-1 leading-snug">Best-effort Ghost-steered Arrow rendering. Broker, shape inference, repair loops, and validation gates are off; diagnostics still stream.</p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
+          <label className={toggleClassName} title="Render best-effort Arrow surfaces with validation as diagnostics only">
+            <input id="playground-mode" type="checkbox" checked={playgroundMode} onChange={(event) => setPlaygroundMode(event.target.checked)} />
+            <span>Playground mode</span>
+          </label>
           <ModeGroup title="Run profile">
             <label>
               <input id="run-profile-fast" type="radio" name="run-profile" value="fast" checked={runProfile === 'fast'} onChange={() => onRunProfileChange('fast')} />
@@ -271,7 +283,7 @@ export function ContractInspector({
             <label><input type="radio" name="mode" value="interactive" checked={mode === 'interactive'} onChange={() => setMode('interactive')} /><span>Interactive</span></label>
           </ModeGroup>
           <label className={toggleClassName} title="Infer surface policy from the prompt within host ceilings">
-            <input id="agent-broker-enabled" type="checkbox" checked={agentBrokerEnabled} disabled={customContractEnabled || scenarioUsesFixedPolicy(selectedScenario)} onChange={(event) => setAgentBrokerEnabled(event.target.checked)} />
+            <input id="agent-broker-enabled" type="checkbox" checked={agentBrokerEnabled} disabled={playgroundMode || customContractEnabled || scenarioUsesFixedPolicy(selectedScenario)} onChange={(event) => setAgentBrokerEnabled(event.target.checked)} />
             <span>Agent broker</span>
           </label>
         </div>
@@ -300,7 +312,7 @@ export function ContractInspector({
           }} />
           <span>Custom Surface Config</span>
         </label>
-        <div id="custom-contract-panel" className="mt-2.5" hidden={!customContractEnabled}>
+        <div id="custom-contract-panel" className="mt-2.5" hidden={!customContractEnabled || playgroundMode}>
           <div className="grid grid-cols-1 gap-2" aria-label="Surface config controls">
             <select id="surface-purpose" className={selectClassName} title="Surface purpose" value={surfacePlan.purpose} onChange={(event) => setSurfacePlan((plan) => ({ ...plan, purpose: event.target.value as SurfacePlan['purpose'] }))}>
               {SURFACE_PURPOSE_VALUES.map((value) => <option key={value} value={value}>{value}</option>)}

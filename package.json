@@ -7,6 +7,7 @@
     "dev": "pnpm dev:workbench",
     "dev:server": "pnpm --filter @summon-internal/demo-server dev",
     "dev:workbench": "pnpm -r --parallel --stream --filter @summon-internal/demo-server --filter @summon-internal/demo dev",
+    "dev:playground": "pnpm dev:workbench",
     "dev:gallery": "pnpm -r --parallel --stream --filter @summon-internal/demo-server --filter @summon-internal/surface-gallery dev",
     "dev:demos": "pnpm -r --parallel --stream --filter @summon-internal/demo-server --filter @summon-internal/demo --filter @summon-internal/surface-gallery dev",
     "dev:all": "pnpm dev:demos",
