@@ -12,7 +12,7 @@ import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import type { ActiveContract, Mode } from '../../../showcase.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
 import { applyTokenOverrideCss } from '../surfaceHelpers.js';
-import type { ChildSurfaceModel, LogEntry, StreamOptions, StreamResult } from '../types.js';
+import type { ChildSurfaceModel, LogEntry, StreamOptions, StreamResult, TimingEntry } from '../types.js';
 
 export function useGenerationRuns({
   surfaceRef,
@@ -38,6 +38,7 @@ export function useGenerationRuns({
   setRuntimeToolNames,
   setLogs,
   setDevEvents,
+  setTimingEntries,
   setSurfaceTokensSource,
   setShowWelcome,
   setRunning,
@@ -76,6 +77,7 @@ export function useGenerationRuns({
   setRuntimeToolNames: Dispatch<SetStateAction<string[] | null>>;
   setLogs: Dispatch<SetStateAction<LogEntry[]>>;
   setDevEvents: Dispatch<SetStateAction<Array<DevtoolsEvent | ExtraDevtoolsEvent>>>;
+  setTimingEntries: Dispatch<SetStateAction<TimingEntry[]>>;
   setSurfaceTokensSource: Dispatch<SetStateAction<string>>;
   setShowWelcome: Dispatch<SetStateAction<boolean>>;
   setRunning: Dispatch<SetStateAction<boolean>>;
@@ -106,6 +108,7 @@ export function useGenerationRuns({
     setRuntimeToolNames(null);
     setLogs([]);
     setDevEvents([]);
+    setTimingEntries([]);
     clearRuntimeState();
     setSurfaceTokensSource(runTokensSource);
     setShowWelcome(false);
@@ -161,6 +164,7 @@ export function useGenerationRuns({
     setCurrentStreamHealth,
     setCurrentValidationSummary,
     setDevEvents,
+    setTimingEntries,
     setLogs,
     setRunning,
     setRuntimeToolNames,
@@ -177,6 +181,7 @@ export function useGenerationRuns({
     clearApprovals('Approval request was replaced');
     setLogs([]);
     setDevEvents([]);
+    setTimingEntries([]);
     const arrowArtifact = findArrowArtifact(envelope.protocolLines);
     if (!arrowArtifact) {
       setStatus('replay error');
@@ -223,6 +228,7 @@ export function useGenerationRuns({
     setCurrentSurfaceContractView,
     setCurrentValidationSummary,
     setDevEvents,
+    setTimingEntries,
     setLogs,
     setMode,
     setRuntimeToolNames,

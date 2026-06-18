@@ -54,6 +54,40 @@ function arrowText(html: string): string {
   })}\n`;
 }
 
+function lineRefs(lines: ProtocolLine[]): string[] {
+  return lines.map((line) => `${line.op} ${line.path}`);
+}
+
+function withoutTiming(lines: readonly ProtocolLine[]): ProtocolLine[] {
+  return lines.filter((line) => !(line.op === 'meta' && line.path === '/timing'));
+}
+
+function timingValues(lines: readonly ProtocolLine[]): Array<Record<string, unknown>> {
+  return lines.flatMap((line) => (
+    line.op === 'meta' && line.path === '/timing' && line.value && typeof line.value === 'object'
+      ? [line.value as Record<string, unknown>]
+      : []
+  ));
+}
+
+function phaseStatuses(lines: ProtocolLine[]): string[] {
+  return lines.flatMap((line) => {
+    if (line.op !== 'event' || line.path !== '/surface') return [];
+    const value = line.value as { type?: unknown; status?: unknown } | undefined;
+    return value?.type === 'surface.status' && typeof value.status === 'string'
+      ? [value.status]
+      : [];
+  });
+}
+
+function firstMetaLine(lines: ProtocolLine[], path: string): Extract<ProtocolLine, { op: 'meta' }> {
+  const line = lines.find((candidate): candidate is Extract<ProtocolLine, { op: 'meta' }> => (
+    candidate.op === 'meta' && candidate.path === path
+  ));
+  assert.ok(line, `missing meta line ${path}`);
+  return line;
+}
+
 test('api generate sends narrowed contract and stream meta shape through package runner', async (t) => {
   const anthropicRequests: unknown[] = [];
   const anthropic = createServer(async (req, res) => {
@@ -191,18 +225,25 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 10), [
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
+    'event /surface',
     'meta /status',
-    'artifact /artifact',
+    'meta /status',
   ]);
-  assert.equal(lines[0]?.op, 'meta');
-  assert.deepEqual((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, surfacePlan);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
   assert.equal(lines[1]?.op, 'meta');
-  assert.equal((lines[3] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
-  assert.equal(lines.at(-1)?.path, '/stream-graph-summary');
+  assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'planning');
+  assert.deepEqual(firstMetaLine(lines, '/surface-plan').value, surfacePlan);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/status' && line.value === 'writing'));
+  assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
+  assert.equal(withoutTiming(lines).at(-1)?.path, '/stream-graph-summary');
   assert.equal(lines.some((line) => line.path === '/error'), false);
 
   const policyResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
@@ -236,22 +277,28 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(policyLines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 10), [
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
+    'event /surface',
     'meta /status',
-    'artifact /artifact',
+    'meta /status',
   ]);
+  assert.deepEqual(phaseStatuses(policyLines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
   assert.equal(policyLines.some((line) => line.path === '/mode-upgraded'), false);
-  assert.deepEqual((policyLines[0] as Extract<ProtocolLine, { op: 'meta' }>).value, {
+  assert.deepEqual(firstMetaLine(policyLines, '/surface-policy').value, {
     tier: 'declarative',
     purpose: 'explore',
     grants: ['search'],
     persistence: 'replayable',
   });
-  assert.deepEqual((policyLines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, surfacePlan);
-  const policyContract = (policyLines[2] as Extract<ProtocolLine, { op: 'meta' }>).value as {
+  assert.deepEqual(firstMetaLine(policyLines, '/surface-plan').value, surfacePlan);
+  const policyContract = firstMetaLine(policyLines, '/surface-contract').value as {
     tools?: Array<{ name: string }>;
   };
   assert.deepEqual(policyContract.tools?.map((tool) => tool.name), ['search']);
@@ -281,20 +328,26 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(agentLines.slice(0, 6).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 11), [
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
+    'event /surface',
     'meta /status',
   ]);
+  assert.deepEqual(phaseStatuses(agentLines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
   assert.equal(agentLines.some((line) => line.path === '/mode-upgraded'), false);
-  const agentGoal = agentLines[0] as Extract<ProtocolLine, { op: 'meta' }>;
+  const agentGoal = firstMetaLine(agentLines, '/agent-goal');
   assert.equal((agentGoal.value as { interaction?: unknown }).interaction, 'search');
-  const agentResolution = agentLines[1] as Extract<ProtocolLine, { op: 'meta' }>;
+  const agentResolution = firstMetaLine(agentLines, '/agent-policy-resolution');
   assert.equal((agentResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
-  const agentPolicy = agentLines[2] as Extract<ProtocolLine, { op: 'meta' }>;
+  const agentPolicy = firstMetaLine(agentLines, '/surface-policy');
   assert.deepEqual(agentPolicy.value, {
     tier: 'declarative',
     purpose: 'explore',
@@ -482,7 +535,13 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 8).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 15), [
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /agent-goal',
@@ -490,9 +549,11 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
+    'event /surface',
     'meta /status',
   ]);
-  const ghostAgentResolution = lines[3] as Extract<ProtocolLine, { op: 'meta' }>;
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering']);
+  const ghostAgentResolution = firstMetaLine(lines, '/agent-policy-resolution');
   assert.equal((ghostAgentResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
 
   const ghostContext = lines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
@@ -788,14 +849,20 @@ test('api generate can stream with OpenAI provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 10), [
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
+    'event /surface',
     'meta /status',
-    'artifact /artifact',
+    'meta /status',
   ]);
-  assert.equal((lines[3] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/status' && line.value === 'writing'));
   assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 
@@ -893,15 +960,188 @@ test('api generate can stream with Gemini provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lines.slice(0, 5).map((line) => `${line.op} ${line.path}`), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 10), [
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
+    'event /surface',
     'meta /status',
-    'artifact /artifact',
+    'meta /status',
   ]);
-  assert.equal((lines[3] as Extract<ProtocolLine, { op: 'meta' }>).value, 'writing');
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering']);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/status' && line.value === 'writing'));
   assert.equal(lines.some((line) => line.path === '/error'), false);
+});
+
+test('api generate streams planning preview before slow preflight finishes', async (t) => {
+  const anthropicRequests: unknown[] = [];
+  const anthropic = createServer(async (req, res) => {
+    if (req.method !== 'POST' || req.url !== '/v1/messages') {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    const request = JSON.parse(await readBody(req)) as { stream?: unknown; max_tokens?: number; model?: string };
+    anthropicRequests.push(request);
+    if (request.stream !== true) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const text = request.max_tokens === 100
+        ? '{"shape":"card"}'
+        : JSON.stringify({
+            purpose: 'explore',
+            interaction: 'search',
+            dataNeed: 'host-resource',
+            sideEffect: 'none',
+            requestedTools: ['search'],
+            confidence: 0.82,
+          });
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({
+        id: 'msg_preflight',
+        type: 'message',
+        role: 'assistant',
+        model: request.model,
+        content: [{ type: 'text', text }],
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        usage: { input_tokens: 3, output_tokens: 2 },
+      }));
+      return;
+    }
+
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    });
+    res.end([
+      sse('message_start', {
+        type: 'message_start',
+        message: {
+          id: 'msg_test',
+          type: 'message',
+          role: 'assistant',
+          model: request.model,
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 12, output_tokens: 0 },
+        },
+      }),
+      sse('content_block_start', {
+        type: 'content_block_start',
+        index: 0,
+        content_block: { type: 'text', text: '' },
+      }),
+      sse('content_block_delta', {
+        type: 'content_block_delta',
+        index: 0,
+        delta: {
+          type: 'text_delta',
+          text: arrowText('<section><h1>Preflight streamed</h1></section>'),
+        },
+      }),
+      sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
+      sse('message_delta', {
+        type: 'message_delta',
+        delta: { stop_reason: 'end_turn', stop_sequence: null },
+        usage: { input_tokens: 12, output_tokens: 24 },
+      }),
+      sse('message_stop', { type: 'message_stop' }),
+    ].join(''));
+  });
+  await listen(anthropic);
+  t.after(async () => {
+    await closeServer(anthropic);
+  });
+
+  const anthropicPort = addressPort(anthropic);
+  const appPort = await reservePort();
+  const app = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(appPort),
+      SUMMON_MODEL_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'test-key',
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${anthropicPort}`,
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = captureOutput(app);
+  t.after(async () => {
+    await stopChild(app);
+  });
+  await waitForHealth(appPort, app, output);
+
+  const startedAt = Date.now();
+  const response = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a dinner finder where i can search',
+      tools: searchTools,
+    }),
+  });
+  assert.equal(response.status, 200);
+  assert.ok(response.body);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const first = await reader.read();
+  const firstChunkElapsed = Date.now() - startedAt;
+  assert.equal(first.done, false);
+  assert.ok(first.value);
+  const firstChunk = decoder.decode(first.value, { stream: true });
+  assert.ok(
+    firstChunkElapsed < 350,
+    `first stream chunk took ${firstChunkElapsed}ms, expected it before slow utility preflight completed`,
+  );
+  assert.match(firstChunk, /"op":"event"/);
+  assert.match(firstChunk, /"path":"\/surface"/);
+  assert.match(firstChunk, /Preparing generation request/);
+
+  let body = firstChunk;
+  while (true) {
+    const next = await reader.read();
+    if (next.done) break;
+    body += decoder.decode(next.value, { stream: true });
+  }
+  body += decoder.decode();
+  const lines = body
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 8), [
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
+    'event /surface',
+    'meta /status',
+    'meta /agent-goal',
+    'meta /agent-policy-resolution',
+  ]);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'planning', 'contract', 'drafting', 'validating', 'rendering']);
+  const timings = timingValues(lines);
+  for (const phase of ['shape', 'policy']) {
+    const timing = timings.find((entry) => entry.phase === phase);
+    assert.ok(timing, `missing timing phase ${phase}`);
+    assert.equal(timing.source, 'server');
+    assert.equal(typeof timing.elapsedMs, 'number');
+    assert.equal(typeof timing.durationMs, 'number');
+    assert.ok(Number(timing.elapsedMs) >= 0);
+    assert.ok(Number(timing.durationMs) >= 0);
+  }
+  assert.equal(anthropicRequests.length, 3);
 });
 
 async function makeRouteGhostFixture(): Promise<string> {

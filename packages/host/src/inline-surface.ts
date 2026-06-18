@@ -1,6 +1,7 @@
 import type { EventStore } from '@summon-internal/devtools';
 import type {
   ArrowSurfaceArtifact,
+  SurfaceStatus,
   SurfaceEvent,
   ValidationTool,
 } from '@summon-internal/engine';
@@ -37,7 +38,7 @@ export interface SurfacePreviewSnapshot {
     title?: string;
   } | null;
   status?: {
-    status: 'planning' | 'drafting' | 'validating' | 'finalizing';
+    status: SurfaceStatus;
     text?: string;
   };
   nodes: SurfacePreviewNode[];
@@ -425,15 +426,24 @@ function renderPreview(root: HTMLElement, snapshot: SurfacePreviewSnapshot): voi
   }
   previewRoot.className = 'summon-preview';
   previewRoot.replaceChildren();
+  previewRoot.dataset.summonPreviewStatus = snapshot.status?.status ?? 'planning';
 
   const header = document.createElement('div');
   header.className = 'summon-preview__header';
+  const heading = document.createElement('div');
+  heading.className = 'summon-preview__heading';
   const title = document.createElement('strong');
-  title.textContent = snapshot.surface?.title ?? 'Composing surface';
+  title.textContent = snapshot.surface?.title ?? 'Surface forming';
   const meta = document.createElement('span');
-  meta.textContent = snapshot.status?.text ?? snapshot.status?.status ?? snapshot.surface?.kind ?? 'planning';
-  header.append(title, meta);
+  meta.textContent = snapshot.status?.text ?? statusLabel(snapshot.status?.status ?? 'planning');
+  heading.append(title, meta);
+  const kind = document.createElement('span');
+  kind.className = 'summon-preview__kind';
+  kind.textContent = snapshot.surface?.kind ?? 'preview';
+  header.append(heading, kind);
   previewRoot.append(header);
+
+  previewRoot.append(renderPreviewPhases(snapshot.status?.status ?? 'planning'));
 
   const body = document.createElement('div');
   body.className = 'summon-preview__body';
@@ -447,6 +457,45 @@ function renderPreview(root: HTMLElement, snapshot: SurfacePreviewSnapshot): voi
     body.append(shimmer);
   }
   previewRoot.append(body);
+}
+
+const PREVIEW_PHASES: Array<{ status: SurfaceStatus; label: string }> = [
+  { status: 'planning', label: 'Planning' },
+  { status: 'contract', label: 'Contract' },
+  { status: 'drafting', label: 'Drafting' },
+  { status: 'validating', label: 'Validating' },
+  { status: 'rendering', label: 'Rendering' },
+];
+
+function renderPreviewPhases(status: SurfaceStatus): HTMLElement {
+  const phases = document.createElement('ol');
+  phases.className = 'summon-preview__phases';
+  const activeIndex = previewPhaseIndex(status);
+  PREVIEW_PHASES.forEach((phase, index) => {
+    const item = document.createElement('li');
+    item.className = 'summon-preview__phase';
+    if (index < activeIndex) item.dataset.state = 'complete';
+    if (index === activeIndex) item.dataset.state = 'active';
+    const marker = document.createElement('span');
+    marker.className = 'summon-preview__phase-marker';
+    marker.textContent = String(index + 1);
+    const label = document.createElement('span');
+    label.className = 'summon-preview__phase-label';
+    label.textContent = phase.label;
+    item.append(marker, label);
+    phases.append(item);
+  });
+  return phases;
+}
+
+function previewPhaseIndex(status: SurfaceStatus): number {
+  if (status === 'finalizing') return PREVIEW_PHASES.length - 1;
+  const index = PREVIEW_PHASES.findIndex((phase) => phase.status === status);
+  return index === -1 ? 0 : index;
+}
+
+function statusLabel(status: SurfaceStatus): string {
+  return PREVIEW_PHASES.find((phase) => phase.status === status)?.label ?? 'Finalizing';
 }
 
 function renderPreviewNode(node: SurfacePreviewNode, all: SurfacePreviewNode[]): HTMLElement {
@@ -501,7 +550,7 @@ function defaultPreviewCss(surfaceId: string): string {
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview {
   display: grid;
-  gap: var(--space-4, 16px);
+  gap: var(--space-5, 24px);
   min-height: 220px;
   padding: var(--space-5, 24px);
   background: var(--color-surface, Canvas);
@@ -514,6 +563,11 @@ function defaultPreviewCss(surfaceId: string): string {
   justify-content: space-between;
   gap: var(--space-3, 12px);
 }
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__heading {
+  display: grid;
+  gap: var(--space-1, 4px);
+  min-width: 0;
+}
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__header strong {
   font-size: var(--text-lg, 18px);
 }
@@ -521,6 +575,61 @@ function defaultPreviewCss(surfaceId: string): string {
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__label {
   color: var(--color-text-muted, color-mix(in srgb, CanvasText 60%, transparent));
   font-size: var(--text-sm, 13px);
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__kind {
+  flex: 0 0 auto;
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted, color-mix(in srgb, CanvasText 60%, transparent));
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phases {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phase {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+  padding: var(--space-2, 8px);
+  border: 1px solid var(--color-border, color-mix(in srgb, CanvasText 14%, transparent));
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-text-muted, color-mix(in srgb, CanvasText 60%, transparent));
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="active"] {
+  border-color: var(--color-accent, CanvasText);
+  color: var(--color-text, CanvasText);
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="complete"] {
+  background: var(--color-surface-muted, color-mix(in srgb, CanvasText 5%, Canvas));
+  color: var(--color-text, CanvasText);
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phase-marker {
+  display: inline-grid;
+  width: 1.4em;
+  height: 1.4em;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-surface-muted, color-mix(in srgb, CanvasText 5%, Canvas));
+  font-size: var(--text-xs, 11px);
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="active"] .summon-preview__phase-marker {
+  background: var(--color-accent, CanvasText);
+  color: var(--color-accent-fg, Canvas);
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phase-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs, 11px);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__body {
   display: grid;
@@ -540,6 +649,11 @@ function defaultPreviewCss(surfaceId: string): string {
   min-height: 96px;
   border-radius: var(--radius-sm, 6px);
   background: linear-gradient(90deg, transparent, color-mix(in srgb, CanvasText 8%, transparent), transparent);
+}
+@media (max-width: 700px) {
+  [data-summon-inline-surface="${surfaceId}"] .summon-preview__phases {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 `;
 }

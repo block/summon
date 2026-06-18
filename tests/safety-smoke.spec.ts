@@ -20,6 +20,75 @@ const staticSummaryPlan = {
   network: 'none',
 };
 
+const modelProviderCatalog = {
+  defaultProvider: 'anthropic',
+  providers: [
+    {
+      id: 'anthropic',
+      name: 'Anthropic',
+      configured: true,
+      model: 'claude-opus-4-8',
+      utilityModel: 'claude-sonnet-4-6',
+      models: [
+        {
+          id: 'claude-opus-4-8',
+          label: 'Claude Opus 4.8',
+          status: 'stable',
+          tier: 'frontier',
+          maxOutputTokens: 128000,
+        },
+        {
+          id: 'claude-haiku-4-5',
+          label: 'Claude Haiku 4.5',
+          status: 'stable',
+          tier: 'fast',
+          maxOutputTokens: 64000,
+        },
+      ],
+      utilityModels: [
+        {
+          id: 'claude-sonnet-4-6',
+          label: 'Claude Sonnet 4.6',
+          status: 'stable',
+          tier: 'balanced',
+          maxOutputTokens: 64000,
+        },
+        {
+          id: 'claude-haiku-4-5',
+          label: 'Claude Haiku 4.5',
+          status: 'stable',
+          tier: 'fast',
+          maxOutputTokens: 64000,
+        },
+      ],
+      defaults: {
+        generationModel: 'claude-opus-4-8',
+        utilityModel: 'claude-sonnet-4-6',
+        modelOptions: {
+          maxOutputTokens: 64000,
+          anthropicThinking: 'adaptive',
+          effort: 'medium',
+        },
+      },
+      controls: {
+        customModels: true,
+        maxOutputTokens: {
+          default: 64000,
+          presets: [8000, 12000, 16000, 32000, 64000],
+        },
+        anthropicThinking: {
+          default: 'adaptive',
+          options: ['adaptive', 'off'],
+        },
+        effort: {
+          default: 'medium',
+          options: ['low', 'medium', 'high'],
+        },
+      },
+    },
+  ],
+};
+
 function jsonl(lines: ProtocolLine[]): string {
   return `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`;
 }
@@ -61,7 +130,7 @@ async function stubCatalogRoutes(page: Page): Promise<void> {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify([]),
+      body: JSON.stringify(modelProviderCatalog),
     });
   });
   await page.route('**/api/directions', async (route) => {
@@ -110,8 +179,30 @@ test('generate page boots the inline Arrow workbench without server credentials'
   await expect(page.locator('#contract-summary [data-contract-row="grants"]')).toContainText('1: search');
   await expect(page.locator('#network-policy')).toHaveValue('none');
   await expect(page.locator('#runtime-policy')).toHaveValue('arrow');
+  await expect(page.locator('#run-profile-fast')).toBeChecked();
+  await expect(page.locator('#generation-model')).toHaveValue('claude-haiku-4-5');
+  await expect(page.locator('#utility-model')).toHaveValue('claude-haiku-4-5');
+  await expect(page.locator('#max-output-tokens')).toHaveValue('12000');
+  await expect(page.locator('#anthropic-thinking')).toHaveValue('off');
+  await expect(page.locator('#model-effort')).toHaveValue('low');
 
   expect(pageErrors.map((error) => error.message)).toEqual([]);
+});
+
+test('generate page run profiles restore quality defaults and mark manual changes custom', async ({ page }) => {
+  await page.goto('/generate');
+
+  await page.getByRole('button', { name: 'Options' }).click();
+  await expect(page.locator('#run-profile-fast')).toBeChecked();
+  await page.locator('label', { has: page.locator('#run-profile-quality') }).click();
+  await expect(page.locator('#generation-model')).toHaveValue('claude-opus-4-8');
+  await expect(page.locator('#utility-model')).toHaveValue('claude-sonnet-4-6');
+  await expect(page.locator('#max-output-tokens')).toHaveValue('64000');
+  await expect(page.locator('#anthropic-thinking')).toHaveValue('adaptive');
+  await expect(page.locator('#model-effort')).toHaveValue('medium');
+
+  await page.locator('#generation-model').selectOption('claude-haiku-4-5');
+  await expect(page.locator('#run-profile-custom')).toBeChecked();
 });
 
 test('generate page renders a mocked Arrow artifact through the inline sandbox', async ({ page }) => {
@@ -158,6 +249,17 @@ test('generate page renders a mocked Arrow artifact through the inline sandbox',
         },
         { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'explore', grants: ['search'] } },
         { op: 'meta', path: '/surface-plan', value: hostSearchPlan },
+        {
+          op: 'meta',
+          path: '/timing',
+          value: {
+            phase: 'drafting',
+            label: 'Drafting Arrow artifact',
+            elapsedMs: 12,
+            durationMs: 4,
+            source: 'server',
+          },
+        },
         arrowHtmlArtifact('<section id="arrow-probe"><h1>Dinner Finder</h1><p>Rendered by Arrow.</p></section>'),
         streamGraphSummary(),
       ]),
@@ -174,8 +276,15 @@ test('generate page renders a mocked Arrow artifact through the inline sandbox',
   await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.locator('#contract-summary [data-contract-row="broker"]')).toContainText('default');
   await expect(page.locator('#contract-summary [data-contract-row="stream"]')).toContainText('complete');
+  await page.getByRole('button', { name: 'Diagnostics' }).click();
+  await page.locator('#tab-timing').click();
+  await expect(page.locator('#diagnostics-timing')).toBeVisible();
+  await expect(page.locator('#timing-rows')).toContainText('server');
+  await expect(page.locator('#timing-rows')).toContainText('drafting');
+  await expect(page.locator('#timing-rows')).toContainText('first-artifact');
 
   expect(captured).toBeTruthy();
+  expect(captured?.validationMode).toBe('observe');
   expect(captured?.agent).toEqual({ enabled: true });
   expect(captured?.surfacePolicy).toBeUndefined();
   expect(captured?.surfacePlan).toBeUndefined();

@@ -12,6 +12,9 @@ Open the **Stream** drawer on `/generate` and check:
 - `/validation-blocked` - a blocking issue stopped generation.
 - `/validation-summary` - grouped validation issue counts and examples.
 - `/protocol-skip` - a non-fatal raw model line was skipped before the sandbox.
+- `/validation-observed` - workbench-only observe mode diagnostic for an
+  artifact issue that would block in production but was forwarded for runtime
+  inspection.
 - `/stream-graph-summary` - final artifact/validation stream diagnostics.
 
 Common fixes:
@@ -112,6 +115,7 @@ stays blank:
 | `/token-overrides` | Resolved direction token overrides, including applied and rejected entries. |
 | `/validation-summary` | Final grouped `ContractIssue` counts and examples. |
 | `/validation-blocked` | A blocking issue stopped generation. |
+| `/validation-observed` | Workbench-only observe mode diagnostic for a production-blocking issue that was forwarded to the sandbox for inspection. |
 | `/stream-graph-summary` | Final `StreamGraph.snapshot()` for the server stream. |
 | `/protocol-skip` | A non-fatal line was skipped before reaching the sandbox. |
 | `/mode-upgraded` | The server upgraded static generation to interactive mode. |

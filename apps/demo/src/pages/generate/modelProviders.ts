@@ -4,6 +4,7 @@ import type {
   ModelProviderControls,
   ModelProviderDefaults,
   ModelProviderInfo,
+  RunProfile,
 } from './types.js';
 
 export function parseModelCatalog(raw: unknown): ModelCatalogEntry[] {
@@ -129,4 +130,81 @@ export function fallbackCatalog(id: string, label: string): ModelCatalogEntry[] 
     tier: 'balanced',
     maxOutputTokens: 64000,
   }];
+}
+
+export interface RunProfileDefaults {
+  generationModel: string;
+  utilityModel: string;
+  maxOutputTokens: number;
+  anthropicThinking: 'adaptive' | 'off';
+  effort: 'low' | 'medium' | 'high';
+}
+
+export function defaultsForRunProfile(
+  provider: ModelProviderInfo,
+  profile: Exclude<RunProfile, 'custom'>,
+): RunProfileDefaults {
+  const quality = qualityDefaults(provider);
+  if (profile === 'quality') return quality;
+
+  const generationModel = firstFastModel(provider.models)?.id ?? quality.generationModel;
+  const utilityModel = firstFastModel(provider.utilityModels)?.id ?? quality.utilityModel;
+  const generationEntry = modelById(provider.models, generationModel);
+  return {
+    generationModel,
+    utilityModel,
+    maxOutputTokens: fastMaxOutputTokens(provider.controls, quality.maxOutputTokens, generationEntry?.maxOutputTokens),
+    anthropicThinking: optionOrDefault(
+      provider.controls?.anthropicThinking?.options,
+      'off',
+      quality.anthropicThinking,
+    ),
+    effort: optionOrDefault(provider.controls?.effort?.options, 'low', quality.effort),
+  };
+}
+
+function qualityDefaults(provider: ModelProviderInfo): RunProfileDefaults {
+  return {
+    generationModel: provider.defaults?.generationModel ?? provider.model,
+    utilityModel: provider.defaults?.utilityModel ?? provider.utilityModel,
+    maxOutputTokens: provider.controls?.maxOutputTokens.default ??
+      provider.defaults?.modelOptions.maxOutputTokens ??
+      64000,
+    anthropicThinking: provider.controls?.anthropicThinking?.default ??
+      provider.defaults?.modelOptions.anthropicThinking ??
+      'adaptive',
+    effort: provider.controls?.effort?.default ??
+      provider.defaults?.modelOptions.effort ??
+      'medium',
+  };
+}
+
+function firstFastModel(models: readonly ModelCatalogEntry[]): ModelCatalogEntry | null {
+  return models.find((model) => model.tier === 'fast') ?? null;
+}
+
+function modelById(models: readonly ModelCatalogEntry[], id: string): ModelCatalogEntry | null {
+  return models.find((model) => model.id === id) ?? null;
+}
+
+function fastMaxOutputTokens(
+  controls: ModelProviderControls | undefined,
+  fallback: number,
+  modelMaxOutputTokens: number | undefined,
+): number {
+  const target = Math.min(12000, modelMaxOutputTokens ?? 12000);
+  const presets = controls?.maxOutputTokens.presets ?? [];
+  if (presets.includes(target)) return target;
+  const nearestLowerPreset = presets
+    .filter((value) => value <= target)
+    .sort((a, b) => b - a)[0];
+  return nearestLowerPreset ?? controls?.maxOutputTokens.default ?? fallback;
+}
+
+function optionOrDefault<T extends string>(
+  options: readonly T[] | undefined,
+  desired: T,
+  fallback: T,
+): T {
+  return options?.includes(desired) ? desired : fallback;
 }

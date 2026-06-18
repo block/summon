@@ -25,7 +25,7 @@ import {
   surfaceRequestFor,
   toolPackFor,
 } from '../surfaceHelpers.js';
-import type { StreamOptions, StreamResult } from '../types.js';
+import type { StreamOptions, StreamResult, TimingEntry } from '../types.js';
 
 async function* chunksWithByteCounts(
   streamBody: ReadableStream<Uint8Array>,
@@ -66,6 +66,7 @@ export function useSurfaceStream({
   setCurrentStreamHealth,
   setStatus,
   setArtifactRevision,
+  appendTimingEntry,
 }: {
   surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
   modeRef: MutableRefObject<Mode>;
@@ -87,6 +88,7 @@ export function useSurfaceStream({
   setCurrentStreamHealth: (value: string | null) => void;
   setStatus: (value: string) => void;
   setArtifactRevision: (value: number) => void;
+  appendTimingEntry: (entry: Omit<TimingEntry, 'id' | 'at'> & { at?: number }) => void;
 }) {
   const applyLineTo = useCallback((line: ProtocolLine, context: SurfaceStreamContext) => {
     if (line.op === 'meta' && line.path === '/error') {
@@ -191,8 +193,20 @@ export function useSurfaceStream({
       logLine('op-meta', `stream diagnostics -> ${JSON.stringify(line.value)}`);
       return;
     }
+    if (line.op === 'meta' && line.path === '/timing') {
+      const timing = parseTimingEntry(line.value);
+      if (timing) {
+        appendTimingEntry(timing);
+        logLine('op-meta', `timing -> ${timing.source}:${timing.phase} ${formatTimingMs(timing.elapsedMs)}`);
+      } else {
+        logLine('op-meta', `timing -> invalid ${JSON.stringify(line.value)}`);
+      }
+      return;
+    }
     if (line.op === 'meta' && line.path === '/status') {
-      setStatus(String(line.value));
+      const status = String(line.value);
+      setStatus(status);
+      logLine('op-meta', `status -> ${status}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/thinking') {
@@ -220,6 +234,7 @@ export function useSurfaceStream({
     }
   }, [
     appendDevEvent,
+    appendTimingEntry,
     artifactRevisionRef,
     directionId,
     logLine,
@@ -246,6 +261,20 @@ export function useSurfaceStream({
     const toolPack = toolPackFor(active);
     const surfaceRequest = surfaceRequestFor(active);
     const agent = agentBrokerRequestFor(active);
+    const streamStartedAt = performance.now();
+    const markClientTiming = (
+      phase: string,
+      label: string,
+      durationMs?: number,
+    ) => {
+      appendTimingEntry({
+        phase,
+        label,
+        elapsedMs: roundMs(performance.now() - streamStartedAt),
+        ...(durationMs === undefined ? {} : { durationMs: roundMs(durationMs) }),
+        source: 'client',
+      });
+    };
     const validationContext: ValidationContext = {
       mode: active.mode,
       allowedTools: toolPack.tools.map((tool) => tool.name),
@@ -253,11 +282,13 @@ export function useSurfaceStream({
       surfacePlan: active.surfacePlan,
     };
 
+    markClientTiming('request-start', 'Generation request started');
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prompt: opts.prompt,
+        validationMode: 'observe',
         ...(active.modelProvider ? { modelProvider: active.modelProvider } : {}),
         ...(active.generationModel ? { generationModel: active.generationModel } : {}),
         ...(active.utilityModel ? { utilityModel: active.utilityModel } : {}),
@@ -280,6 +311,7 @@ export function useSurfaceStream({
       }),
       signal: opts.signal,
     });
+    markClientTiming('response-headers', 'Response headers received');
 
     if (!response.ok) {
       const text = await readErrorResponse(response);
@@ -288,9 +320,15 @@ export function useSurfaceStream({
     if (!response.body) throw new Error('no response body');
 
     let byteTotal = 0;
+    let firstByteSeen = false;
+    let firstArtifactSeen = false;
     let surfacePlanFromStream: SurfacePlan | null = null;
     let shapeFromStream: string | null = null;
     const result = await consumeSurfaceStream(chunksWithByteCounts(response.body, (count) => {
+      if (!firstByteSeen) {
+        firstByteSeen = true;
+        markClientTiming('first-byte', 'First response byte received');
+      }
       byteTotal += count;
       setBytes(byteTotal);
     }), {
@@ -306,6 +344,10 @@ export function useSurfaceStream({
         applyLineTo(line, context);
       },
       onArtifact: (artifact, line, context) => {
+        if (!firstArtifactSeen) {
+          firstArtifactSeen = true;
+          markClientTiming('first-artifact', 'First accepted artifact received');
+        }
         surfaceRef.current?.renderArtifact(artifact);
       },
       onSurfaceEvent: (event) => {
@@ -336,7 +378,9 @@ export function useSurfaceStream({
         });
       },
       validationContext,
+      validationMode: 'observe',
     });
+    markClientTiming('stream-complete', 'Stream complete');
     if (
       active.surfacePlan.runtime === 'arrow' &&
       !result.protocolLines.some((line) => line.op === 'artifact' && line.path === '/artifact')
@@ -357,11 +401,39 @@ export function useSurfaceStream({
     appendDevEvent,
     applyLineTo,
     artifactRevisionRef,
+    appendTimingEntry,
     logLine,
     modeRef,
     setBytes,
     surfaceRef,
   ]);
+}
+
+function parseTimingEntry(value: unknown): Omit<TimingEntry, 'id' | 'at'> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const item = value as Record<string, unknown>;
+  if (typeof item.phase !== 'string') return null;
+  if (typeof item.elapsedMs !== 'number' || !Number.isFinite(item.elapsedMs)) return null;
+  const source = item.source === 'client' || item.source === 'server' ? item.source : null;
+  if (!source) return null;
+  const durationMs = typeof item.durationMs === 'number' && Number.isFinite(item.durationMs)
+    ? roundMs(item.durationMs)
+    : undefined;
+  return {
+    phase: item.phase,
+    label: typeof item.label === 'string' ? item.label : item.phase,
+    elapsedMs: roundMs(item.elapsedMs),
+    ...(durationMs === undefined ? {} : { durationMs }),
+    source,
+  };
+}
+
+function roundMs(value: number): number {
+  return Math.max(0, Math.round(value));
+}
+
+function formatTimingMs(value: number): string {
+  return `${Math.round(value).toLocaleString()}ms`;
 }
 
 async function readErrorResponse(response: Response): Promise<string> {

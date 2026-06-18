@@ -34,6 +34,7 @@ export interface SurfaceEnvelope {
     layoutId?: string | null;
     shape?: string | null;
     mode?: 'static' | 'interactive';
+    validationMode?: 'observe';
   };
   tokenCss?: string | null;
   runtimeVersion: string;
@@ -62,10 +63,13 @@ export function createSurfaceEnvelope(input: CreateSurfaceEnvelopeInput): Surfac
     ? input.createdAt.toISOString()
     : input.createdAt ?? new Date().toISOString();
   const validationContext = validationContextForEnvelope(input);
+  const observeValidation = input.metadata?.validationMode === 'observe';
   const protocolIssues: ContractIssue[] = [];
   const protocolLines = input.protocolLines.map((line) => {
-    for (const issue of validateProtocolLine(line, validationContext)) {
-      protocolIssues.push(issue);
+    if (!observeValidation) {
+      for (const issue of validateProtocolLine(line, validationContext)) {
+        protocolIssues.push(issue);
+      }
     }
     return { ...line };
   });
@@ -131,9 +135,16 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
   }
 
   const validationContext = validationContextForEnvelope(input as unknown as CreateSurfaceEnvelopeInput);
+  const observeValidation = (input.metadata as SurfaceEnvelope['metadata']).validationMode === 'observe';
   for (const line of input.protocolLines as ProtocolLine[]) {
     const issues = validateProtocolLine(line, validationContext);
-    if (issues.some((issue) => issue.severity === 'block')) return false;
+    if (issues.some((issue) => issue.severity === 'block')) {
+      if (!observeValidation) return false;
+      const savedIssues = input.validationIssues as ContractIssue[];
+      if (!issues.every((issue) => savedIssues.some((saved) => sameIssue(saved, issue)))) {
+        return false;
+      }
+    }
   }
 
   return true;
@@ -205,6 +216,17 @@ function isMetadata(value: unknown): value is SurfaceEnvelope['metadata'] {
     (metadata.directionId === undefined || metadata.directionId === null || typeof metadata.directionId === 'string') &&
     (metadata.layoutId === undefined || metadata.layoutId === null || typeof metadata.layoutId === 'string') &&
     (metadata.shape === undefined || metadata.shape === null || typeof metadata.shape === 'string') &&
-    (metadata.mode === undefined || metadata.mode === 'static' || metadata.mode === 'interactive')
+    (metadata.mode === undefined || metadata.mode === 'static' || metadata.mode === 'interactive') &&
+    (metadata.validationMode === undefined || metadata.validationMode === 'observe')
+  );
+}
+
+function sameIssue(a: ContractIssue, b: ContractIssue): boolean {
+  return (
+    a.source === b.source &&
+    a.severity === b.severity &&
+    a.code === b.code &&
+    a.message === b.message &&
+    a.path === b.path
   );
 }

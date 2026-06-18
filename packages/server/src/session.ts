@@ -27,12 +27,14 @@ export class SurfaceGenerationSession {
   private readonly emittedLines: ProtocolLine[] = [];
   private readonly validationIssues: ContractIssue[];
   private readonly streamGraph = new StreamGraph();
+  private readonly timingStartedAt: number;
   private blocked = false;
 
   constructor(
     private readonly input: SurfaceGenerationInput,
     private readonly emit: (line: ProtocolLine) => void | Promise<void>,
   ) {
+    this.timingStartedAt = timingStartedAtFromSeedLines(input.seedLines) ?? nowMs();
     this.surfacePolicy = input.surfacePolicy
       ? compileSurfacePolicy(input.surfacePolicy, {
           tools: input.tools ?? null,
@@ -58,6 +60,7 @@ export class SurfaceGenerationSession {
       validationContext: {
         ...this.systemContracts.validationContext,
       },
+      validationMode: input.validationMode,
     });
 
     this.validationIssues = [
@@ -67,6 +70,10 @@ export class SurfaceGenerationSession {
   }
 
   async writeStartupLines(): Promise<void> {
+    for (const line of this.input.seedLines ?? []) {
+      this.emittedLines.push(line);
+      this.streamGraph.applyLine(line);
+    }
     for (const line of this.input.preludeLines ?? []) {
       await this.writeProtocolLine(line);
     }
@@ -93,15 +100,27 @@ export class SurfaceGenerationSession {
   }
 
   async consumeProvider(): Promise<void> {
+    await this.writePhase('drafting', 'Drafting Arrow artifact');
+    await this.writeTiming('drafting', 'Drafting Arrow artifact');
+    const providerStartedAt = nowMs();
     const provider = await this.input.modelProvider({
       prompt: this.input.prompt,
       promptBlocks: this.systemContracts.promptBlocks,
       signal: this.input.signal,
     });
     const textState = { buffer: '' };
+    let firstChunkSeen = false;
 
     for await (const chunk of provider) {
       if (this.blocked) break;
+      if (!firstChunkSeen) {
+        firstChunkSeen = true;
+        await this.writeTiming(
+          'first-provider-chunk',
+          'Received first provider chunk',
+          nowMs() - providerStartedAt,
+        );
+      }
       if (typeof chunk === 'string') {
         await this.handleText(textState, chunk);
       } else if (chunk.type === 'text') {
@@ -122,6 +141,11 @@ export class SurfaceGenerationSession {
       validationIssues: this.validationIssues,
       streamGraph: this.streamGraph,
     });
+    await this.writeTiming(
+      'complete',
+      this.blocked ? 'Generation blocked' : 'Generation complete',
+      nowMs() - this.timingStartedAt,
+    );
     return this.summary();
   }
 
@@ -139,8 +163,25 @@ export class SurfaceGenerationSession {
 
   private async handleModelLine(raw: string): Promise<void> {
     if (this.blocked) return;
+    const isArtifact = isArtifactProtocolLine(raw);
+    const validationStartedAt = isArtifact ? nowMs() : null;
+    if (isArtifact) {
+      await this.writePhase('validating', 'Validating Arrow artifact');
+    }
     const result = this.hardener.processRawLine(raw);
     this.validationIssues.push(...result.issues);
+    if (validationStartedAt !== null) {
+      const observedBlocker = !result.blocked && result.issues.some((issue) => issue.severity === 'block');
+      await this.writeTiming(
+        'validating',
+        result.blocked
+          ? 'Blocked Arrow artifact'
+          : observedBlocker
+            ? 'Observed blocked Arrow artifact'
+            : 'Validated Arrow artifact',
+        nowMs() - validationStartedAt,
+      );
+    }
     if (result.blocked) {
       await this.blockGeneration(result.blocked);
       return;
@@ -154,8 +195,49 @@ export class SurfaceGenerationSession {
   ): Promise<void> {
     this.acceptedLines.push(...result.acceptedLines);
     for (const line of result.outboundLines) {
+      if (line.op === 'artifact') {
+        await this.writePhase('rendering', 'Rendering accepted artifact');
+        const renderStartedAt = nowMs();
+        await this.writeProtocolLine(line);
+        await this.writeTiming(
+          'rendering',
+          'Rendered accepted artifact',
+          nowMs() - renderStartedAt,
+        );
+        continue;
+      }
       await this.writeProtocolLine(line);
     }
+  }
+
+  private async writePhase(
+    status: 'planning' | 'contract' | 'drafting' | 'validating' | 'rendering' | 'finalizing',
+    text: string,
+  ): Promise<void> {
+    await this.writeProtocolLine({
+      op: 'event',
+      path: '/surface',
+      value: { type: 'surface.status', status, text },
+    });
+    await this.writeProtocolLine({ op: 'meta', path: '/status', value: status });
+  }
+
+  private async writeTiming(
+    phase: ServerTimingPhase,
+    label: string,
+    durationMs?: number,
+  ): Promise<void> {
+    await this.writeProtocolLine({
+      op: 'meta',
+      path: '/timing',
+      value: {
+        phase,
+        label,
+        elapsedMs: roundMs(nowMs() - this.timingStartedAt),
+        ...(durationMs === undefined ? {} : { durationMs: roundMs(durationMs) }),
+        source: 'server',
+      },
+    });
   }
 
   private async writeProtocolLine(line: ProtocolLine): Promise<void> {
@@ -184,5 +266,46 @@ export class SurfaceGenerationSession {
       streamGraph: this.streamGraph.snapshot(),
       blocked: this.blocked,
     };
+  }
+}
+
+type ServerTimingPhase =
+  | 'drafting'
+  | 'first-provider-chunk'
+  | 'validating'
+  | 'rendering'
+  | 'complete';
+
+function nowMs(): number {
+  return performance.now();
+}
+
+function roundMs(value: number): number {
+  return Math.max(0, Math.round(value));
+}
+
+function timingStartedAtFromSeedLines(lines: readonly ProtocolLine[] | undefined): number | null {
+  let latestElapsed: number | null = null;
+  for (const line of lines ?? []) {
+    if (line.op !== 'meta' || line.path !== '/timing') continue;
+    const value = line.value;
+    if (!value || typeof value !== 'object') continue;
+    const elapsedMs = (value as { elapsedMs?: unknown }).elapsedMs;
+    if (typeof elapsedMs !== 'number' || !Number.isFinite(elapsedMs)) continue;
+    latestElapsed = Math.max(latestElapsed ?? 0, elapsedMs);
+  }
+  return latestElapsed === null ? null : nowMs() - latestElapsed;
+}
+
+function isArtifactProtocolLine(raw: string): boolean {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return !!parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed) &&
+      (parsed as { op?: unknown; path?: unknown }).op === 'artifact' &&
+      (parsed as { path?: unknown }).path === '/artifact';
+  } catch {
+    return false;
   }
 }

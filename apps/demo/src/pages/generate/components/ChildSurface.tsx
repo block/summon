@@ -35,6 +35,7 @@ export function ChildSurface({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: child.prompt,
+            validationMode: 'observe',
             ...(child.directionId ? { directionId: child.directionId } : { directionId: '' }),
             ...child.modelSelection,
             tools: contract.pack,
@@ -48,6 +49,7 @@ export function ChildSurface({
         if (!response.body) throw new Error('no response body');
         await consumeSurfaceStream(response.body, {
           mode: 'interactive',
+          validationMode: 'observe',
           onMeta: (line) => {
             if (line.path === '/status') setStatus(String(line.value));
           },

@@ -1,5 +1,6 @@
 import {
   parseProtocolLineStrict,
+  type ArtifactLine,
   type MetaLine,
   type ProtocolLine,
 } from './protocol.js';
@@ -22,6 +23,8 @@ export interface ProtocolSkipMetaValue {
   rawPreview?: string;
 }
 
+export type ProtocolValidationMode = 'enforce' | 'observe';
+
 export interface ProtocolHardenerResult {
   outboundLines: ProtocolLine[];
   acceptedLines: ProtocolLine[];
@@ -36,11 +39,13 @@ export interface ProtocolHardener {
 
 export interface ProtocolHardenerOptions {
   validationContext: ValidationContext;
+  validationMode?: ProtocolValidationMode;
 }
 
 const RAW_PREVIEW_LIMIT = 240;
 
 export function createProtocolHardener(options: ProtocolHardenerOptions): ProtocolHardener {
+  const validationMode = options.validationMode ?? 'enforce';
   return {
     processRawLine(raw: string): ProtocolHardenerResult {
       const trimmed = raw.trim();
@@ -68,6 +73,25 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
       const issues = validateProtocolLine(line, options.validationContext);
       const blocker = issues.find((issue) => issue.severity === 'block');
       if (blocker) {
+        if (validationMode === 'observe') {
+          const observedLines = issues
+            .filter((issue) => issue.severity === 'block')
+            .map(validationObservedLine);
+          if (isArtifactShapedLine(line)) {
+            return {
+              outboundLines: [...observedLines, line],
+              acceptedLines: [line],
+              issues,
+              rejectedLine: line,
+            };
+          }
+          return {
+            outboundLines: observedLines,
+            acceptedLines: [],
+            issues,
+            rejectedLine: line,
+          };
+        }
         return {
           outboundLines: [],
           acceptedLines: [],
@@ -134,6 +158,20 @@ function protocolSkipLine(
   if (line) value.op = line.op;
   if (raw) value.rawPreview = previewRaw(raw);
   return { op: 'meta', path: '/protocol-skip', value };
+}
+
+function validationObservedLine(issue: ContractIssue): MetaLine {
+  return { op: 'meta', path: '/validation-observed', value: issue };
+}
+
+function isArtifactShapedLine(line: ProtocolLine): line is ArtifactLine {
+  if (line.op !== 'artifact') return false;
+  const value = line.value;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const artifact = value as { runtime?: unknown; source?: unknown };
+  if (artifact.runtime !== 'arrow') return false;
+  if (!artifact.source || typeof artifact.source !== 'object' || Array.isArray(artifact.source)) return false;
+  return Object.values(artifact.source).every((contents) => typeof contents === 'string');
 }
 
 function previewRaw(raw: string): string {

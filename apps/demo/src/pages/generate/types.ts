@@ -66,7 +66,19 @@ export interface ModelSelectionPayload {
   modelOptions?: ModelOptions;
 }
 
-export type DiagnosticsTab = 'stream' | 'devtools' | 'history' | 'safety';
+export type DiagnosticsTab = 'stream' | 'devtools' | 'timing' | 'history' | 'safety';
+
+export type RunProfile = 'fast' | 'quality' | 'custom';
+
+export interface TimingEntry {
+  id: number;
+  at: number;
+  source: 'client' | 'server';
+  phase: string;
+  label: string;
+  elapsedMs: number;
+  durationMs?: number;
+}
 
 export interface StreamOptions {
   prompt: string;

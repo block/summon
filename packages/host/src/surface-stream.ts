@@ -10,6 +10,7 @@ import {
   type ArtifactLine,
   type MetaLine,
   type ProtocolLine,
+  type ProtocolValidationMode,
   type SurfaceEvent,
   type SurfaceEventLine,
   type StreamGraphSnapshot,
@@ -80,6 +81,7 @@ export interface SurfaceStreamOptions {
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
   validationContext?: ValidationContext;
+  validationMode?: ProtocolValidationMode;
 }
 
 export interface SurfaceStreamResult {
@@ -144,7 +146,13 @@ export async function consumeSurfaceStream(
       return;
     }
 
-    const acceptedLine = compileAcceptedLine(line, options.validationContext, validationIssues, graph);
+    const acceptedLine = compileAcceptedLine(
+      line,
+      options.validationContext,
+      options.validationMode ?? 'enforce',
+      validationIssues,
+      graph,
+    );
     if (!acceptedLine) {
       await emitGraph(context(raw));
       return;
@@ -158,6 +166,9 @@ export async function consumeSurfaceStream(
     protocolLines.push(acceptedLine);
 
     if (acceptedLine.op === 'meta' && acceptedLine.path === '/validation-blocked' && isContractIssue(acceptedLine.value)) {
+      pushValidationIssue(validationIssues, acceptedLine.value);
+    }
+    if (acceptedLine.op === 'meta' && acceptedLine.path === '/validation-observed' && isContractIssue(acceptedLine.value)) {
       pushValidationIssue(validationIssues, acceptedLine.value);
     }
     if (acceptedLine.op === 'meta' && acceptedLine.path === '/validation-summary') {
@@ -229,11 +240,12 @@ export async function consumeSurfaceStream(
 function compileAcceptedLine(
   line: ProtocolLine,
   validationContext: ValidationContext | undefined,
+  validationMode: ProtocolValidationMode,
   validationIssues: ContractIssue[],
   graph: StreamGraph,
 ): ProtocolLine | null {
   if (line.op === 'artifact') {
-    return compileAcceptedArtifactLine(line, validationContext, validationIssues, graph);
+    return compileAcceptedArtifactLine(line, validationContext, validationMode, validationIssues, graph);
   }
   if (line.op === 'event') {
     return compileAcceptedEventLine(line, validationContext, validationIssues, graph);
@@ -266,10 +278,14 @@ function compileAcceptedEventLine(
 function compileAcceptedArtifactLine(
   line: ArtifactLine,
   validationContext: ValidationContext | undefined,
+  validationMode: ProtocolValidationMode,
   validationIssues: ContractIssue[],
   graph: StreamGraph,
 ): ArtifactLine | null {
   const normalized = normalizeArrowSurfaceArtifact(line.value);
+  const observedArtifact = validationMode === 'observe'
+    ? artifactFromObservedValue(line.value)
+    : null;
   const issues = [...normalized.issues];
   if (normalized.artifact) {
     const limits = normalizeValidationLimits(validationContext?.limits);
@@ -285,8 +301,13 @@ function compileAcceptedArtifactLine(
     graph.recordIssue(issue);
     if (issue.severity === 'block') blocked = true;
   }
-  if (blocked || !normalized.artifact) return null;
-  return { ...line, value: normalized.artifact };
+  if ((blocked && validationMode !== 'observe') || (!normalized.artifact && !observedArtifact)) return null;
+  return { ...line, value: normalized.artifact ?? observedArtifact };
+}
+
+function artifactFromObservedValue(value: unknown): ArrowSurfaceArtifact | null {
+  if (!isArrowSurfaceArtifactValue(value)) return null;
+  return value;
 }
 
 function isArrowSurfaceArtifactValue(value: unknown): value is ArrowSurfaceArtifact {
@@ -314,7 +335,12 @@ function isSurfaceEventValue(value: unknown): value is SurfaceEvent {
     case 'node.patch':
       return typeof event.id === 'string' && !!event.props && typeof event.props === 'object' && !Array.isArray(event.props);
     case 'surface.status':
-      return event.status === 'planning' || event.status === 'drafting' || event.status === 'validating' || event.status === 'finalizing';
+      return event.status === 'planning' ||
+        event.status === 'contract' ||
+        event.status === 'drafting' ||
+        event.status === 'validating' ||
+        event.status === 'rendering' ||
+        event.status === 'finalizing';
     case 'surface.finalize':
       return event.artifactExpected === true;
     default:

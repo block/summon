@@ -9,6 +9,7 @@ import type {
   SummonLayout,
   SurfacePolicy,
   TokenOverride,
+  ProtocolValidationMode,
 } from '@summon-internal/engine';
 
 export type { GhostGenerationContext } from '@summon-internal/engine';
@@ -40,6 +41,8 @@ export interface SurfaceGenerationInput {
   tokenOverrides?: TokenOverride[];
   activeTokensCss?: string | null;
   preludeLines?: ProtocolLine[];
+  seedLines?: ProtocolLine[];
+  validationMode?: ProtocolValidationMode;
   signal?: AbortSignal;
 }
 

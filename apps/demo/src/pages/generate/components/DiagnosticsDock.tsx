@@ -7,7 +7,7 @@ import { cn } from '../../../lib/cn.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
 import { formatDevtoolsEvent } from '../devtools.js';
 import { compactPlanText } from '../surfaceHelpers.js';
-import type { DiagnosticsTab, LogEntry } from '../types.js';
+import type { DiagnosticsTab, LogEntry, TimingEntry } from '../types.js';
 
 export function DiagnosticsDock({
   diagnosticsTab,
@@ -16,6 +16,7 @@ export function DiagnosticsDock({
   devtoolsTally,
   logs,
   devEvents,
+  timingEntries,
   savedSurfaces,
   replaySurface,
   embedded = false,
@@ -26,6 +27,7 @@ export function DiagnosticsDock({
   devtoolsTally: string;
   logs: LogEntry[];
   devEvents: Array<DevtoolsEvent | ExtraDevtoolsEvent>;
+  timingEntries: TimingEntry[];
   savedSurfaces: SurfaceEnvelope[];
   replaySurface: (envelope: SurfaceEnvelope) => void;
   embedded?: boolean;
@@ -38,6 +40,7 @@ export function DiagnosticsDock({
       <div className="flex flex-wrap gap-1.5 border-b border-line bg-surface p-2.5" role="tablist" aria-label="Diagnostics tabs">
         <button id="tab-stream" type="button" className={tabClass(diagnosticsTab === 'stream')} data-diagnostics-tab="stream" aria-selected={diagnosticsTab === 'stream'} onClick={() => setDiagnosticsTab('stream')}>Stream <span id="stream-tail" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{statusText}</span></button>
         <button id="tab-devtools" type="button" className={tabClass(diagnosticsTab === 'devtools')} data-diagnostics-tab="devtools" aria-selected={diagnosticsTab === 'devtools'} onClick={() => setDiagnosticsTab('devtools')}>Devtools <span id="devtools-tally" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{devtoolsTally}</span></button>
+        <button id="tab-timing" type="button" className={tabClass(diagnosticsTab === 'timing')} data-diagnostics-tab="timing" aria-selected={diagnosticsTab === 'timing'} onClick={() => setDiagnosticsTab('timing')}>Timing <span id="timing-count" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{timingEntries.length}</span></button>
         <button id="tab-history" type="button" className={tabClass(diagnosticsTab === 'history')} data-diagnostics-tab="history" aria-selected={diagnosticsTab === 'history'} onClick={() => setDiagnosticsTab('history')}>History <span id="saved-count" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{savedSurfaces.length}</span></button>
         <button id="tab-safety" type="button" className={tabClass(diagnosticsTab === 'safety')} data-diagnostics-tab="safety" aria-selected={diagnosticsTab === 'safety'} onClick={() => setDiagnosticsTab('safety')}>Safety</button>
       </div>
@@ -57,6 +60,36 @@ export function DiagnosticsDock({
             </div>
           ))}
         </LogView>
+      </div>
+      <div className="bg-surface" id="diagnostics-timing" data-diagnostics-panel="timing" hidden={diagnosticsTab !== 'timing'}>
+        {timingEntries.length === 0 ? (
+          <div className="border-b border-line px-3.5 py-3 text-[13px] text-ink-muted">No timing entries yet</div>
+        ) : (
+          <div className="max-h-[420px] overflow-auto">
+            <table className="w-full border-collapse text-left font-mono text-[11px]">
+              <thead className="sticky top-0 bg-surface-muted text-ink-muted">
+                <tr>
+                  <th className="border-b border-line px-3 py-2 font-semibold">Phase</th>
+                  <th className="border-b border-line px-3 py-2 font-semibold">Source</th>
+                  <th className="border-b border-line px-3 py-2 font-semibold">Elapsed</th>
+                  <th className="border-b border-line px-3 py-2 font-semibold">Duration</th>
+                  <th className="border-b border-line px-3 py-2 font-semibold">Label</th>
+                </tr>
+              </thead>
+              <tbody id="timing-rows">
+                {timingEntries.map((entry) => (
+                  <tr key={entry.id} className="border-b border-line last:border-b-0">
+                    <td className="px-3 py-2 text-ink">{entry.phase}</td>
+                    <td className={cn('px-3 py-2 font-semibold', entry.source === 'server' ? 'text-good' : 'text-ink-soft')}>{entry.source}</td>
+                    <td className="px-3 py-2 text-ink">{formatMs(entry.elapsedMs)}</td>
+                    <td className="px-3 py-2 text-ink-muted">{entry.durationMs === undefined ? '-' : formatMs(entry.durationMs)}</td>
+                    <td className="px-3 py-2 text-ink-soft">{entry.label}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       <div className="bg-surface" id="diagnostics-history" data-diagnostics-panel="history" hidden={diagnosticsTab !== 'history'}>
         <div id="saved-surfaces">
@@ -94,4 +127,8 @@ export function DiagnosticsDock({
       </div>
     </section>
   );
+}
+
+function formatMs(value: number): string {
+  return `${Math.round(value).toLocaleString()} ms`;
 }

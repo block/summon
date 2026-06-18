@@ -30,7 +30,7 @@ import { useGenerationRuns } from './hooks/useGenerationRuns.js';
 import { useSavedSurfaces } from './hooks/useSavedSurfaces.js';
 import { useSurfaceStream } from './hooks/useSurfaceStream.js';
 import { useWorkbenchCatalogs } from './hooks/useWorkbenchCatalogs.js';
-import { fallbackCatalog } from './modelProviders.js';
+import { defaultsForRunProfile, fallbackCatalog } from './modelProviders.js';
 import { loadSavedSurfaces } from './savedSurfaces.js';
 import {
   buildContractRows,
@@ -47,7 +47,9 @@ import type {
   LogEntry,
   ModelOptions,
   ModelSelectionPayload,
+  RunProfile,
   StreamResult,
+  TimingEntry,
 } from './types.js';
 
 export function GeneratePage() {
@@ -74,6 +76,7 @@ export function GeneratePage() {
   const [generationModel, setGenerationModel] = useState('');
   const [utilityModel, setUtilityModel] = useState('');
   const [customModel, setCustomModel] = useState('');
+  const [runProfile, setRunProfile] = useState<RunProfile>('fast');
   const [maxOutputTokens, setMaxOutputTokens] = useState(64000);
   const [anthropicThinking, setAnthropicThinking] = useState<'adaptive' | 'off'>('adaptive');
   const [modelEffort, setModelEffort] = useState<'low' | 'medium' | 'high'>('medium');
@@ -86,6 +89,7 @@ export function GeneratePage() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [devEvents, setDevEvents] = useState<Array<DevtoolsEvent | ExtraDevtoolsEvent>>([]);
+  const [timingEntries, setTimingEntries] = useState<TimingEntry[]>([]);
   const [currentEffectiveSurfacePlan, setCurrentEffectiveSurfacePlan] = useState<SurfacePlan | null>(null);
   const [currentShape, setCurrentShape] = useState<string | null>(null);
   const [currentValidationSummary, setCurrentValidationSummary] = useState<string | null>(null);
@@ -101,6 +105,7 @@ export function GeneratePage() {
   const [approvalCards, setApprovalCards] = useState<ApprovalCard[]>([]);
   const [children, setChildren] = useState<ChildSurfaceModel[]>([]);
   const [running, setRunning] = useState(false);
+  const timingEntryIdRef = useRef(0);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -130,6 +135,20 @@ export function GeneratePage() {
     [modelProviderId, modelProviders],
   );
 
+  const applyRunProfileDefaults = useCallback((
+    profile: Exclude<RunProfile, 'custom'>,
+    provider = selectedProvider,
+  ) => {
+    if (!provider) return;
+    const defaults = defaultsForRunProfile(provider, profile);
+    setGenerationModel(defaults.generationModel);
+    setUtilityModel(defaults.utilityModel);
+    setCustomModel('');
+    setMaxOutputTokens(defaults.maxOutputTokens);
+    setAnthropicThinking(defaults.anthropicThinking);
+    setModelEffort(defaults.effort);
+  }, [selectedProvider]);
+
   useEffect(() => {
     if (modelProviders.length === 0) {
       setModelProviderId('');
@@ -150,14 +169,8 @@ export function GeneratePage() {
       setMaxOutputTokens(64000);
       return;
     }
-    const generationDefault = selectedProvider.defaults?.generationModel ?? selectedProvider.model;
-    const utilityDefault = selectedProvider.defaults?.utilityModel ?? selectedProvider.utilityModel;
-    setGenerationModel((current) => current || generationDefault);
-    setUtilityModel((current) => current || utilityDefault);
-    setMaxOutputTokens(selectedProvider.controls?.maxOutputTokens.default ?? selectedProvider.defaults?.modelOptions.maxOutputTokens ?? 64000);
-    setAnthropicThinking(selectedProvider.controls?.anthropicThinking?.default ?? 'adaptive');
-    setModelEffort(selectedProvider.controls?.effort?.default ?? 'medium');
-  }, [selectedProvider]);
+    if (runProfile !== 'custom') applyRunProfileDefaults(runProfile, selectedProvider);
+  }, [applyRunProfileDefaults, runProfile, selectedProvider]);
 
   const tokensFor = useCallback((id: string | null): string => {
     if (!id) return defaultTokensSource;
@@ -177,6 +190,17 @@ export function GeneratePage() {
     setDevEvents((items) => [...items.slice(-799), event]);
   }, []);
 
+  const appendTimingEntry = useCallback((entry: Omit<TimingEntry, 'id' | 'at'> & { at?: number }) => {
+    setTimingEntries((items) => [
+      ...items.slice(-199),
+      {
+        ...entry,
+        id: timingEntryIdRef.current++,
+        at: entry.at ?? Date.now(),
+      },
+    ]);
+  }, []);
+
   const handleSurfaceGoalRejected = useCallback((reason: string) => {
     logLine('op-error', `rejected: ${reason}`);
   }, [logLine]);
@@ -190,6 +214,7 @@ export function GeneratePage() {
     artifactRevisionRef.current = 0;
     activeTokensSourceOverrideRef.current = null;
     setActiveTokensSourceOverride(null);
+    setTimingEntries([]);
     setCurrentEffectiveSurfacePlan(null);
     setCurrentShape(null);
     setCurrentValidationSummary(null);
@@ -198,6 +223,58 @@ export function GeneratePage() {
     setCurrentAgentGoalSummary(null);
     setCurrentAgentPolicySummary(null);
   }, []);
+
+  const markCustomRunProfile = useCallback(() => {
+    setRunProfile('custom');
+  }, []);
+
+  const handleRunProfileChange = useCallback((profile: RunProfile) => {
+    setRunProfile(profile);
+    if (profile !== 'custom') applyRunProfileDefaults(profile);
+  }, [applyRunProfileDefaults]);
+
+  const handleModelProviderChange = useCallback((value: string) => {
+    markCustomRunProfile();
+    setModelProviderId(value);
+    const provider = modelProviders.find((item) => item.id === value) ?? null;
+    if (provider) {
+      applyRunProfileDefaults('quality', provider);
+    } else {
+      setGenerationModel('');
+      setUtilityModel('');
+    }
+  }, [applyRunProfileDefaults, markCustomRunProfile, modelProviders]);
+
+  const handleGenerationModelChange = useCallback((value: string) => {
+    markCustomRunProfile();
+    setGenerationModel(value);
+    if (value !== '__custom__') setCustomModel('');
+  }, [markCustomRunProfile]);
+
+  const handleCustomModelChange = useCallback((value: string) => {
+    markCustomRunProfile();
+    setCustomModel(value);
+  }, [markCustomRunProfile]);
+
+  const handleUtilityModelChange = useCallback((value: string) => {
+    markCustomRunProfile();
+    setUtilityModel(value);
+  }, [markCustomRunProfile]);
+
+  const handleMaxOutputTokensChange = useCallback((value: number) => {
+    markCustomRunProfile();
+    setMaxOutputTokens(value);
+  }, [markCustomRunProfile]);
+
+  const handleAnthropicThinkingChange = useCallback((value: 'adaptive' | 'off') => {
+    markCustomRunProfile();
+    setAnthropicThinking(value);
+  }, [markCustomRunProfile]);
+
+  const handleModelEffortChange = useCallback((value: 'low' | 'medium' | 'high') => {
+    markCustomRunProfile();
+    setModelEffort(value);
+  }, [markCustomRunProfile]);
 
   const settleApproval = useCallback((id: string, decision: ApprovalDecision) => {
     const resolve = approvalResolvers.current.get(id);
@@ -348,6 +425,7 @@ export function GeneratePage() {
     setShowWelcome(true);
     setRuntimeToolNames(null);
     setChildren([]);
+    setTimingEntries([]);
     summonedCountRef.current = 0;
     clearRuntimeState();
   }
@@ -394,6 +472,7 @@ export function GeneratePage() {
     setCurrentStreamHealth,
     setStatus,
     setArtifactRevision,
+    appendTimingEntry,
   });
 
   const readLayout = useCallback((): SummonLayout | null => {
@@ -420,6 +499,7 @@ export function GeneratePage() {
         layoutId: readLayout()?.id ?? null,
         shape: result.shape,
         mode,
+        validationMode: 'observe',
       },
       tokenCss: activeTokensSourceOverride ?? tokensFor(directionId),
     });
@@ -462,6 +542,7 @@ export function GeneratePage() {
     setRuntimeToolNames,
     setLogs,
     setDevEvents,
+    setTimingEntries,
     setSurfaceTokensSource,
     setShowWelcome,
     setRunning,
@@ -500,13 +581,6 @@ export function GeneratePage() {
   }, [logs]);
   const stageNotice = useMemo(() => {
     const hasRenderedArtifact = artifactRevision > 0;
-    if (!showWelcome && running && !hasRenderedArtifact) {
-      return {
-        tone: 'pending' as const,
-        title: 'Generating surface',
-        detail: 'Waiting for the first accepted artifact.',
-      };
-    }
     if (!showWelcome && !hasRenderedArtifact && (status === 'error' || status.startsWith('error'))) {
       return {
         tone: 'error' as const,
@@ -521,7 +595,7 @@ export function GeneratePage() {
       };
     }
     return null;
-  }, [artifactRevision, latestStageError, running, showWelcome, status]);
+  }, [artifactRevision, latestStageError, showWelcome, status]);
   const contractRows = buildContractRows({
     active: activeContract,
     selectedScenario,
@@ -648,24 +722,26 @@ export function GeneratePage() {
             contractRows={contractRows}
             currentSurfaceContractView={currentSurfaceContractView}
             currentEffectiveSurfacePlan={currentEffectiveSurfacePlan}
+            runProfile={runProfile}
+            onRunProfileChange={handleRunProfileChange}
             modelProviderId={modelProviderId}
-            setModelProviderId={setModelProviderId}
+            setModelProviderId={handleModelProviderChange}
             modelProviders={modelProviders}
             selectedProvider={selectedProvider}
             providerModels={providerModels}
             utilityModels={utilityModels}
             generationModel={generationModel}
-            setGenerationModel={setGenerationModel}
+            setGenerationModel={handleGenerationModelChange}
             customModel={customModel}
-            setCustomModel={setCustomModel}
+            setCustomModel={handleCustomModelChange}
             utilityModel={utilityModel}
-            setUtilityModel={setUtilityModel}
+            setUtilityModel={handleUtilityModelChange}
             maxOutputTokens={maxOutputTokens}
-            setMaxOutputTokens={setMaxOutputTokens}
+            setMaxOutputTokens={handleMaxOutputTokensChange}
             anthropicThinking={anthropicThinking}
-            setAnthropicThinking={setAnthropicThinking}
+            setAnthropicThinking={handleAnthropicThinkingChange}
             modelEffort={modelEffort}
-            setModelEffort={setModelEffort}
+            setModelEffort={handleModelEffortChange}
             directions={directions}
             ghostRoots={ghostRoots}
             directionId={directionId}
@@ -719,6 +795,7 @@ export function GeneratePage() {
           devtoolsTally={devtoolsTally}
           logs={logs}
           devEvents={devEvents}
+          timingEntries={timingEntries}
           savedSurfaces={savedSurfaces}
           replaySurface={replaySurface}
           embedded

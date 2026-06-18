@@ -20,6 +20,7 @@ import type {
   GhostRootInfo,
   ModelCatalogEntry,
   ModelProviderInfo,
+  RunProfile,
 } from '../types.js';
 import { ModeGroup } from '../../../components/chrome.js';
 import { cn } from '../../../lib/cn.js';
@@ -29,6 +30,8 @@ export function ContractInspector({
   contractRows,
   currentSurfaceContractView,
   currentEffectiveSurfacePlan,
+  runProfile,
+  onRunProfileChange,
   modelProviderId,
   setModelProviderId,
   modelProviders,
@@ -74,6 +77,8 @@ export function ContractInspector({
   contractRows: Array<{ key: string; label: string; value: string; tone: string }>;
   currentSurfaceContractView: SurfaceContractView | null;
   currentEffectiveSurfacePlan: SurfacePlan | null;
+  runProfile: RunProfile;
+  onRunProfileChange: (value: RunProfile) => void;
   modelProviderId: string;
   setModelProviderId: (value: string) => void;
   modelProviders: ModelProviderInfo[];
@@ -146,6 +151,22 @@ export function ContractInspector({
       </div>
 
       <section className="grid gap-3 border-t border-line pt-5" aria-label="Run settings">
+        <div className="flex flex-wrap items-center gap-2">
+          <ModeGroup title="Run profile">
+            <label>
+              <input id="run-profile-fast" type="radio" name="run-profile" value="fast" checked={runProfile === 'fast'} onChange={() => onRunProfileChange('fast')} />
+              <span>Fast</span>
+            </label>
+            <label>
+              <input id="run-profile-quality" type="radio" name="run-profile" value="quality" checked={runProfile === 'quality'} onChange={() => onRunProfileChange('quality')} />
+              <span>Quality</span>
+            </label>
+            <label>
+              <input id="run-profile-custom" type="radio" name="run-profile" value="custom" checked={runProfile === 'custom'} onChange={() => onRunProfileChange('custom')} />
+              <span>Custom</span>
+            </label>
+          </ModeGroup>
+        </div>
         <div className="grid grid-cols-2 gap-3 max-[820px]:grid-cols-1">
           <label className="min-w-0">
             <span className={fieldLabelClass}>Provider</span>

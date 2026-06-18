@@ -40,6 +40,7 @@ export interface StreamGraphSnapshot {
  */
 export class StreamGraph {
   private artifacts: StreamGraphArtifact[] = [];
+  private issueKeys = new Set<string>();
   private skippedCount = 0;
   private blockedCount = 0;
   private lineCount = 0;
@@ -66,10 +67,14 @@ export class StreamGraph {
   }
 
   recordIssue(issue: ContractIssue): void {
-    if (issue.severity === 'block') {
-      this.blockedCount += 1;
-    } else if (issue.code === 'malformed-jsonl' || issue.code === 'protocol-skip') {
-      this.skippedCount += 1;
+    const key = issueKey(issue);
+    if (!this.issueKeys.has(key)) {
+      this.issueKeys.add(key);
+      if (issue.severity === 'block') {
+        this.blockedCount += 1;
+      } else if (issue.code === 'malformed-jsonl' || issue.code === 'protocol-skip') {
+        this.skippedCount += 1;
+      }
     }
 
     const latest = this.artifacts.at(-1);
@@ -94,6 +99,7 @@ export class StreamGraph {
       ? snapshot.artifacts.map(cloneArtifact)
       : [];
     this.preview = clonePreview(snapshot.preview ?? { events: { count: 0 } });
+    this.issueKeys.clear();
     this.lineCount = this.artifacts.reduce(
       (max, artifact) => Math.max(max, artifact.firstSeenLine ?? 0, artifact.lastUpdatedLine ?? 0),
       Math.max(this.preview.events.firstSeenLine ?? 0, this.preview.events.lastUpdatedLine ?? 0),
@@ -104,6 +110,7 @@ export class StreamGraph {
 
   reset(): void {
     this.artifacts = [];
+    this.issueKeys.clear();
     this.skippedCount = 0;
     this.blockedCount = 0;
     this.lineCount = 0;
@@ -143,8 +150,10 @@ export class StreamGraph {
       const status = event.status;
       if (
         status === 'planning' ||
+        status === 'contract' ||
         status === 'drafting' ||
         status === 'validating' ||
+        status === 'rendering' ||
         status === 'finalizing'
       ) {
         this.preview.lastStatus = status;
@@ -160,6 +169,11 @@ export class StreamGraph {
     }
 
     if (line.path === '/validation-blocked' && isContractIssue(line.value)) {
+      this.recordIssue(line.value);
+      return;
+    }
+
+    if (line.path === '/validation-observed' && isContractIssue(line.value)) {
       this.recordIssue(line.value);
       return;
     }
@@ -216,4 +230,14 @@ function isContractIssue(value: unknown): value is ContractIssue {
     typeof obj.code === 'string' &&
     typeof obj.message === 'string'
   );
+}
+
+function issueKey(issue: ContractIssue): string {
+  return [
+    issue.source,
+    issue.severity,
+    issue.code,
+    issue.message,
+    issue.path ?? '',
+  ].join('\0');
 }

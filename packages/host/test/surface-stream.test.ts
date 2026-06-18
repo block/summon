@@ -66,6 +66,28 @@ test('consumeSurfaceStream delivers valid semantic preview events before artifac
   assert.equal(result.protocolLines.map((line) => line.op).join(','), 'event,artifact');
 });
 
+test('consumeSurfaceStream accepts host-owned contract and rendering phases', async () => {
+  const result = await consumeSurfaceStream([
+    `${JSON.stringify({
+      op: 'event',
+      path: '/surface',
+      value: { type: 'surface.status', status: 'contract', text: 'Compiling host contract' },
+    })}\n`,
+    `${JSON.stringify({
+      op: 'event',
+      path: '/surface',
+      value: { type: 'surface.status', status: 'rendering', text: 'Rendering accepted artifact' },
+    })}\n`,
+  ], {
+    mode: 'interactive',
+  });
+
+  assert.equal(result.surfaceEvents.length, 2);
+  assert.equal(result.streamGraph.preview.events.count, 2);
+  assert.equal(result.streamGraph.preview.lastStatus, 'rendering');
+  assert.equal(result.streamGraph.preview.lastStatusText, 'Rendering accepted artifact');
+});
+
 test('consumeSurfaceStream skips invalid preview events without delivering executable UI', async () => {
   const events: string[] = [];
   const result = await consumeSurfaceStream([
@@ -121,6 +143,25 @@ test('consumeSurfaceStream blocks invalid Arrow artifacts before callback delive
   assert.equal(result.protocolLines.length, 0);
   assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
     'unsupported-arrow-idl-binding',
+  ]);
+  assert.equal(result.streamGraph.health.blockedCount, 1);
+});
+
+test('consumeSurfaceStream observe mode delivers artifact-shaped payloads with blocking diagnostics', async () => {
+  const artifacts: string[] = [];
+  const result = await consumeSurfaceStream([
+    artifactLine('import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`'),
+  ], {
+    mode: 'interactive',
+    validationMode: 'observe',
+    onArtifact: (artifact) => artifacts.push(artifact.source['main.ts'] ?? ''),
+  });
+
+  assert.equal(artifacts.length, 1);
+  assert.match(artifacts[0]!, /disabled/);
+  assert.equal(result.protocolLines.length, 1);
+  assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
+    'unsupported-arrow-open-tag-expression',
   ]);
   assert.equal(result.streamGraph.health.blockedCount, 1);
 });

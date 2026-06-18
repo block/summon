@@ -127,8 +127,11 @@ Rules:
 - The \`value.runtime\` must be \`"arrow"\`.
 - \`source\` must contain exactly one entry file: \`main.ts\` or \`main.js\`.
 - \`main.css\` is optional and should contain all visual styling.
-- The default export from \`main.ts\` must be an Arrow template.
+- The default export from the entry file must be an Arrow template or component result.
 - Import Arrow primitives from \`@arrow-js/core\`; do not rely on ambient globals. Use only \`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`watch\`, \`onCleanup\`, and \`nextTick\`.
+- Use \`reactive()\` for local state and wrap live reads as functions, such as \`\${() => state.count}\`, so Arrow can track updates.
+- Use quoted Arrow event and attribute bindings, such as \`@click="\${() => state.count++}"\` and \`disabled="\${() => state.loading}"\`.
+- For boolean attributes, return \`false\` to remove the attribute rather than injecting a bare attribute string.
 - Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this sandbox does not support them. Use normal HTML attributes like \`value=\` and read form input through event snapshots such as \`event.target.value\`.
 - Do not inject standalone expressions inside opening tags to create dynamic attributes. Expressions must be text nodes, child nodes, or quoted attribute values.
 - Bad: \`<button \${() => state.loading ? "disabled" : ""}>Search</button>\`. Good: \`<button class="\${() => state.loading ? "loading" : ""}">\${() => state.loading ? "Searching..." : "Search"}</button>\`.
@@ -194,8 +197,11 @@ Rules:
 - The \`value.runtime\` must be \`"arrow"\`.
 - \`source\` must contain exactly one entry file: \`main.ts\` or \`main.js\`.
 - \`main.css\` is optional and should contain all visual styling.
-- The default export from \`main.ts\` must be an Arrow template.
+- The default export from the entry file must be an Arrow template or component result.
 - Import Arrow primitives from \`@arrow-js/core\`; do not rely on ambient globals. Use only \`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`watch\`, \`onCleanup\`, and \`nextTick\`.
+- Use \`reactive()\` for local state and wrap live reads as functions, such as \`\${() => state.count}\`, so Arrow can track updates.
+- Use quoted Arrow event and attribute bindings, such as \`@click="\${() => state.count++}"\` and \`disabled="\${() => state.loading}"\`.
+- For boolean attributes, return \`false\` to remove the attribute rather than injecting a bare attribute string.
 - Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this sandbox does not support them. Use normal HTML attributes like \`value=\` and read form input through event snapshots such as \`event.target.value\`.
 - Do not inject standalone expressions inside opening tags to create dynamic attributes. Expressions must be text nodes, child nodes, or quoted attribute values.
 - Bad: \`<button \${() => state.loading ? "disabled" : ""}>Search</button>\`. Good: \`<button class="\${() => state.loading ? "loading" : ""}">\${() => state.loading ? "Searching..." : "Search"}</button>\`.

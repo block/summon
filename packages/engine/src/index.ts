@@ -10,6 +10,7 @@ export type {
   ProtocolLine,
   MetaLine,
   SurfaceEvent,
+  SurfaceStatus,
   SurfaceEventLine,
   ArtifactLine,
   ProtocolParseErrorCode,
@@ -180,4 +181,5 @@ export type {
   ProtocolHardenerOptions,
   ProtocolHardenerResult,
   ProtocolSkipMetaValue,
+  ProtocolValidationMode,
 } from './protocol-hardener.js';

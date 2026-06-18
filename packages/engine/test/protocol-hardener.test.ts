@@ -86,6 +86,19 @@ test('invalid Arrow artifacts block with validation issues', () => {
   assert.deepEqual(issueCodes(result.issues), ['unsupported-arrow-idl-binding']);
 });
 
+test('observe mode forwards artifact-shaped payloads with blocking diagnostics', () => {
+  const hardener = createProtocolHardener({
+    validationContext: baseContext,
+    validationMode: 'observe',
+  });
+  const result = hardener.processRawLine(artifactLine('import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`'));
+
+  assert.equal(result.blocked, undefined);
+  assert.deepEqual(result.acceptedLines.map((line) => line.path), ['/artifact']);
+  assert.deepEqual(result.outboundLines.map((line) => line.path), ['/validation-observed', '/artifact']);
+  assert.deepEqual(issueCodes(result.issues), ['unsupported-arrow-open-tag-expression']);
+});
+
 test('legacy section protocol is skipped as unsupported JSONL protocol', () => {
   const hardener = createProtocolHardener({ validationContext: baseContext });
   const setResult = hardener.processRawLine(JSON.stringify({ op: 'set', path: '/screen', value: { sections: ['hero'] } }));

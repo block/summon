@@ -21,6 +21,14 @@ export interface ArtifactLine {
   value?: unknown;
 }
 
+export type SurfaceStatus =
+  | 'planning'
+  | 'contract'
+  | 'drafting'
+  | 'validating'
+  | 'rendering'
+  | 'finalizing';
+
 export type SurfaceEvent =
   | {
       type: 'surface.start';
@@ -49,7 +57,7 @@ export type SurfaceEvent =
     }
   | {
       type: 'surface.status';
-      status: 'planning' | 'drafting' | 'validating' | 'finalizing';
+      status: SurfaceStatus;
       text?: string;
     }
   | {
@@ -190,8 +198,10 @@ export function isSurfaceEvent(value: unknown): value is SurfaceEvent {
     case 'surface.status':
       return (
         (event.status === 'planning' ||
+          event.status === 'contract' ||
           event.status === 'drafting' ||
           event.status === 'validating' ||
+          event.status === 'rendering' ||
           event.status === 'finalizing') &&
         (event.text === undefined || typeof event.text === 'string')
       );

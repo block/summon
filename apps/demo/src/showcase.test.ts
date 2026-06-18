@@ -12,6 +12,8 @@ import {
 } from './showcase.js';
 import { ALL_PROMPTS } from './prompts.js';
 import { groupScenarios } from './pages/generate/surfaceHelpers.js';
+import { defaultsForRunProfile } from './pages/generate/modelProviders.js';
+import type { ModelProviderInfo } from './pages/generate/types.js';
 
 const allDemoToolNames = [
   'log',
@@ -192,3 +194,99 @@ test('token override scenario uses the Pulse direction', () => {
 
   assert.equal(scenario?.directionId, 'pulse');
 });
+
+test('generate run profile fast picks fast catalog models and low-cost Anthropic options', () => {
+  const provider = providerFixture();
+
+  assert.deepEqual(defaultsForRunProfile(provider, 'fast'), {
+    generationModel: 'claude-haiku-4-5',
+    utilityModel: 'claude-haiku-4-5',
+    maxOutputTokens: 12000,
+    anthropicThinking: 'off',
+    effort: 'low',
+  });
+});
+
+test('generate run profile quality restores provider-reported defaults', () => {
+  const provider = providerFixture();
+
+  assert.deepEqual(defaultsForRunProfile(provider, 'quality'), {
+    generationModel: 'claude-opus-4-8',
+    utilityModel: 'claude-sonnet-4-6',
+    maxOutputTokens: 64000,
+    anthropicThinking: 'adaptive',
+    effort: 'medium',
+  });
+});
+
+test('generate run profile fast falls back to nearest lower output preset', () => {
+  const provider = providerFixture({
+    fastModelMaxOutputTokens: 10000,
+    presets: [8000, 16000, 32000],
+  });
+
+  assert.equal(defaultsForRunProfile(provider, 'fast').maxOutputTokens, 8000);
+});
+
+function providerFixture({
+  fastModelMaxOutputTokens = 64000,
+  presets = [8000, 12000, 16000, 32000, 64000],
+}: {
+  fastModelMaxOutputTokens?: number;
+  presets?: number[];
+} = {}): ModelProviderInfo {
+  return {
+    id: 'anthropic',
+    name: 'Anthropic',
+    configured: true,
+    model: 'claude-opus-4-8',
+    utilityModel: 'claude-sonnet-4-6',
+    models: [
+      {
+        id: 'claude-opus-4-8',
+        label: 'Claude Opus 4.8',
+        status: 'stable',
+        tier: 'frontier',
+        maxOutputTokens: 128000,
+      },
+      {
+        id: 'claude-haiku-4-5',
+        label: 'Claude Haiku 4.5',
+        status: 'stable',
+        tier: 'fast',
+        maxOutputTokens: fastModelMaxOutputTokens,
+      },
+    ],
+    utilityModels: [
+      {
+        id: 'claude-sonnet-4-6',
+        label: 'Claude Sonnet 4.6',
+        status: 'stable',
+        tier: 'balanced',
+        maxOutputTokens: 64000,
+      },
+      {
+        id: 'claude-haiku-4-5',
+        label: 'Claude Haiku 4.5',
+        status: 'stable',
+        tier: 'fast',
+        maxOutputTokens: fastModelMaxOutputTokens,
+      },
+    ],
+    defaults: {
+      generationModel: 'claude-opus-4-8',
+      utilityModel: 'claude-sonnet-4-6',
+      modelOptions: {
+        maxOutputTokens: 64000,
+        anthropicThinking: 'adaptive',
+        effort: 'medium',
+      },
+    },
+    controls: {
+      customModels: true,
+      maxOutputTokens: { default: 64000, presets },
+      anthropicThinking: { default: 'adaptive', options: ['adaptive', 'off'] },
+      effort: { default: 'medium', options: ['low', 'medium', 'high'] },
+    },
+  };
+}
