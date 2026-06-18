@@ -374,6 +374,8 @@ function buildSummonFingerprintSurfaceBrief(
     '',
     'Generation rules:',
     '',
+    '- Do not pause to inspect suggested files or ask the host for more Ghost context. Use the supplied Ghost Relay Brief as the complete fingerprint entrypoint for this run.',
+    '- Return a structured Arrow sandbox bundle through the `create_summon_arrow_surface` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata.',
     '- Compose from the fingerprint prose, inventory, and composition layers. Prose states tool; inventory supplies material and evidence; composition supplies reusable surface patterns.',
     '- Do not imitate Ghost UI as a visual style. Use inventory examples only when they support the selected tool and composition pattern.',
     '- The agent broker controls host authority and tools. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',

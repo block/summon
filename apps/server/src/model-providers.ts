@@ -1,8 +1,12 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { ContractPromptBlock } from '@anarchitecture/summon/engine';
+import {
+  normalizeArrowBundle,
+  type ContractPromptBlock,
+  type SummonArrowBundle,
+} from '@anarchitecture/summon/engine';
 import type {
-  SummonModelChunk,
-  SummonModelRequest,
+  ArrowBundleRepairRequest,
+  ArrowBundleRequest,
 } from '@anarchitecture/summon-server';
 
 export type ModelProviderId = 'anthropic' | 'openai' | 'gemini';
@@ -93,11 +97,8 @@ export interface ModelSelection {
 }
 
 export interface ModelProviderAdapter extends ModelProviderInfo, TextCompletionClient {
-  streamSurfaceGeneration(
-    request: SummonModelRequest,
-    onUsage: (usage: ProviderUsageSnapshot) => void,
-    selection?: ModelSelection,
-  ): AsyncGenerator<SummonModelChunk, void, void>;
+  generateArrowBundle(request: ArrowBundleRequest, selection?: ModelSelection): Promise<SummonArrowBundle>;
+  repairArrowBundle(request: ArrowBundleRepairRequest, selection?: ModelSelection): Promise<SummonArrowBundle>;
   completeText(request: TextCompletionRequest, selection?: ModelSelection): Promise<string>;
   resolveSelection(raw: unknown): { ok: true; selection: ModelSelection } | { ok: false; error: string };
 }
@@ -119,6 +120,7 @@ const DEFAULT_OPENAI_UTILITY_MODEL = 'gpt-5-mini';
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
 const DEFAULT_GEMINI_UTILITY_MODEL = 'gemini-2.5-flash';
 const DEFAULT_GENERATION_MAX_TOKENS = 64000;
+const STRUCTURED_GENERATION_MAX_TOKENS = 16000;
 const MIN_OUTPUT_TOKENS = 1000;
 const MAX_OUTPUT_TOKENS = 128000;
 const MODEL_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
@@ -491,10 +493,10 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     controls,
     missingEnv: 'ANTHROPIC_API_KEY',
     resolveSelection,
-    async *streamSurfaceGeneration(request, onUsage, selection = defaultsToSelection(defaults)) {
-      const stream = ensureClient().messages.stream({
+    async generateArrowBundle(request, selection = defaultsToSelection(defaults)) {
+      const result = await ensureClient().messages.create({
         model: selection.generationModel,
-        max_tokens: selection.options.maxOutputTokens,
+        max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
         ...(selection.options.anthropicThinking === 'adaptive'
           ? { thinking: { type: 'adaptive' as const } }
           : {}),
@@ -503,28 +505,27 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
           : {}),
         system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: request.prompt }],
+        tools: [anthropicArrowBundleTool(request.schema)],
+        tool_choice: { type: 'tool' as const, name: 'create_summon_arrow_surface' },
       });
-
-      for await (const event of stream) {
-        if (event.type === 'content_block_start') {
-          if (event.content_block.type === 'thinking') {
-            yield { type: 'meta', path: '/status', value: 'thinking' };
-          } else if (event.content_block.type === 'text') {
-            yield { type: 'meta', path: '/status', value: 'writing' };
-          }
-          continue;
-        }
-        if (event.type === 'content_block_delta') {
-          if (event.delta.type === 'text_delta') {
-            yield { type: 'text', text: event.delta.text };
-          } else if (event.delta.type === 'thinking_delta') {
-            yield { type: 'meta', path: '/thinking', value: event.delta.thinking };
-          }
-        }
-      }
-
-      const final = await stream.finalMessage();
-      onUsage(normalizeAnthropicUsage(final.usage));
+      return normalizeProviderArrowBundle(extractAnthropicToolInput(result.content));
+    },
+    async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
+      const result = await ensureClient().messages.create({
+        model: selection.generationModel,
+        max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
+        ...(selection.options.anthropicThinking === 'adaptive'
+          ? { thinking: { type: 'adaptive' as const } }
+          : {}),
+        ...(selection.options.effort
+          ? { output_config: { effort: selection.options.effort } }
+          : {}),
+        system: anthropicSystemBlocks(request.promptBlocks),
+        messages: [{ role: 'user', content: repairPrompt(request) }],
+        tools: [anthropicArrowBundleTool(request.schema)],
+        tool_choice: { type: 'tool' as const, name: 'create_summon_arrow_surface' },
+      });
+      return normalizeProviderArrowBundle(extractAnthropicToolInput(result.content));
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
@@ -609,46 +610,33 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     controls,
     missingEnv: 'OPENAI_API_KEY',
     resolveSelection,
-    async *streamSurfaceGeneration(request, onUsage, selection = defaultsToSelection(defaults)) {
+    async generateArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         '/responses',
-        responsesBody(
+        openAIStructuredBody(
           selection.generationModel,
           promptBlocksToText(request.promptBlocks),
           request.prompt,
           selection.options.maxOutputTokens,
-          true,
+          request.schema,
         ),
         request.signal,
       );
-
-      let hasStatus = false;
-      for await (const event of readSseEvents(response.body)) {
-        if (!event.data || event.data === '[DONE]') continue;
-        const payload = parseJsonObject(event.data);
-        if (!payload) continue;
-
-        const type = typeof payload.type === 'string' ? payload.type : event.event;
-        const textDelta = openAITextDelta(payload, type);
-        if (textDelta) {
-          if (!hasStatus) {
-            hasStatus = true;
-            yield { type: 'meta', path: '/status', value: 'writing' };
-          }
-          yield { type: 'text', text: textDelta };
-          continue;
-        }
-
-        const thinkingDelta = openAIThinkingDelta(payload, type);
-        if (thinkingDelta) {
-          yield { type: 'meta', path: '/status', value: 'thinking' };
-          yield { type: 'meta', path: '/thinking', value: thinkingDelta };
-          continue;
-        }
-
-        const usage = openAIUsage(payload);
-        if (usage) onUsage(usage);
-      }
+      return normalizeProviderArrowBundle(extractOpenAIToolInput(await response.json()));
+    },
+    async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
+      const response = await post(
+        '/responses',
+        openAIStructuredBody(
+          selection.generationModel,
+          promptBlocksToText(request.promptBlocks),
+          repairPrompt(request),
+          selection.options.maxOutputTokens,
+          request.schema,
+        ),
+        request.signal,
+      );
+      return normalizeProviderArrowBundle(extractOpenAIToolInput(await response.json()));
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
@@ -721,30 +709,33 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     controls,
     missingEnv: 'GEMINI_API_KEY',
     resolveSelection,
-    async *streamSurfaceGeneration(request, onUsage, selection = defaultsToSelection(defaults)) {
+    async generateArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         selection.generationModel,
-        'streamGenerateContent',
-        geminiBody(promptBlocksToText(request.promptBlocks), request.prompt, selection.options.maxOutputTokens),
+        'generateContent',
+        geminiStructuredBody(
+          promptBlocksToText(request.promptBlocks),
+          request.prompt,
+          selection.options.maxOutputTokens,
+          request.schema,
+        ),
         request.signal,
       );
-
-      let hasStatus = false;
-      for await (const event of readSseEvents(response.body)) {
-        if (!event.data || event.data === '[DONE]') continue;
-        const payload = parseJsonObject(event.data);
-        if (!payload) continue;
-        const text = extractGeminiText(payload);
-        if (text) {
-          if (!hasStatus) {
-            hasStatus = true;
-            yield { type: 'meta', path: '/status', value: 'writing' };
-          }
-          yield { type: 'text', text };
-        }
-        const usage = geminiUsage(payload);
-        if (usage) onUsage(usage);
-      }
+      return normalizeProviderArrowBundle(extractGeminiToolInput(await response.json()));
+    },
+    async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
+      const response = await post(
+        selection.generationModel,
+        'generateContent',
+        geminiStructuredBody(
+          promptBlocksToText(request.promptBlocks),
+          repairPrompt(request),
+          selection.options.maxOutputTokens,
+          request.schema,
+        ),
+        request.signal,
+      );
+      return normalizeProviderArrowBundle(extractGeminiToolInput(await response.json()));
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
@@ -1028,4 +1019,193 @@ function trimTrailingSlash(value: string): string {
 async function readErrorBody(response: Response): Promise<string> {
   const text = await response.text().catch(() => '');
   return text.slice(0, 1000) || response.statusText;
+}
+
+function anthropicArrowBundleTool(schema: Record<string, unknown>): Anthropic.ToolUnion {
+  return {
+    name: 'create_summon_arrow_surface',
+    description: 'Create an Arrow sandbox surface bundle for Summon. The server owns streaming protocol and validation; return only the structured bundle fields.',
+    input_schema: schema as Anthropic.Tool.InputSchema,
+  };
+}
+
+function openAIStructuredBody(
+  selectedModel: string,
+  system: string,
+  prompt: string,
+  maxTokens: number,
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    model: selectedModel,
+    instructions: system,
+    input: prompt,
+    max_output_tokens: maxTokens,
+    stream: false,
+    tools: [{
+      type: 'function',
+      name: 'create_summon_arrow_surface',
+      description: 'Create an Arrow sandbox surface bundle for Summon.',
+      parameters: schema,
+      strict: true,
+    }],
+    tool_choice: { type: 'function', name: 'create_summon_arrow_surface' },
+  };
+}
+
+function geminiStructuredBody(
+  system: string,
+  prompt: string,
+  maxOutputTokens: number,
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    systemInstruction: {
+      parts: [{ text: system }],
+    },
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: prompt }],
+      },
+    ],
+    generationConfig: {
+      maxOutputTokens,
+    },
+    tools: [{
+      functionDeclarations: [{
+        name: 'create_summon_arrow_surface',
+        description: 'Create an Arrow sandbox surface bundle for Summon.',
+        parameters: schema,
+      }],
+    }],
+    toolConfig: {
+      functionCallingConfig: {
+        mode: 'ANY',
+        allowedFunctionNames: ['create_summon_arrow_surface'],
+      },
+    },
+  };
+}
+
+function normalizeProviderArrowBundle(value: unknown): SummonArrowBundle {
+  const normalized = normalizeArrowBundle(value);
+  if (!normalized.bundle) {
+    const messages = normalized.issues.map((issue) => `${issue.code}: ${issue.message}`).join('; ');
+    throw new Error(`provider returned invalid Arrow bundle${messages ? ` (${messages})` : ''}`);
+  }
+  return normalized.bundle;
+}
+
+function extractAnthropicToolInput(content: Anthropic.Message['content']): unknown {
+  for (const block of content) {
+    if (block.type === 'tool_use' && block.name === 'create_summon_arrow_surface') {
+      return block.input;
+    }
+  }
+  throw new Error('Anthropic response did not include create_summon_arrow_surface tool use');
+}
+
+function extractOpenAIToolInput(payload: unknown): unknown {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('OpenAI response was not an object');
+  }
+  const output = (payload as { output?: unknown }).output;
+  if (Array.isArray(output)) {
+    for (const item of output) {
+      if (!item || typeof item !== 'object') continue;
+      const candidate = item as Record<string, unknown>;
+      if (
+        (candidate.type === 'function_call' || candidate.type === 'function_call_output') &&
+        candidate.name === 'create_summon_arrow_surface'
+      ) {
+        return parseStructuredArguments(candidate.arguments ?? candidate.input ?? candidate.output);
+      }
+      const content = candidate.content;
+      if (Array.isArray(content)) {
+        for (const part of content) {
+          if (!part || typeof part !== 'object') continue;
+          const partObj = part as Record<string, unknown>;
+          if (partObj.type === 'tool_call' && partObj.name === 'create_summon_arrow_surface') {
+            return parseStructuredArguments(partObj.arguments ?? partObj.input);
+          }
+        }
+      }
+    }
+  }
+  const toolCalls = (payload as { tool_calls?: unknown }).tool_calls;
+  if (Array.isArray(toolCalls)) {
+    for (const call of toolCalls) {
+      if (!call || typeof call !== 'object') continue;
+      const fn = (call as { function?: unknown }).function;
+      if (fn && typeof fn === 'object' && (fn as { name?: unknown }).name === 'create_summon_arrow_surface') {
+        return parseStructuredArguments((fn as { arguments?: unknown }).arguments);
+      }
+    }
+  }
+  const text = extractOpenAIText(payload);
+  if (text) return parseStructuredArguments(text);
+  throw new Error('OpenAI response did not include create_summon_arrow_surface function call');
+}
+
+function extractGeminiToolInput(payload: unknown): unknown {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Gemini response was not an object');
+  }
+  const candidates = (payload as { candidates?: unknown }).candidates;
+  if (Array.isArray(candidates)) {
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== 'object') continue;
+      const parts = (candidate as { content?: { parts?: unknown } }).content?.parts;
+      if (!Array.isArray(parts)) continue;
+      for (const part of parts) {
+        if (!part || typeof part !== 'object') continue;
+        const functionCall = (part as { functionCall?: unknown }).functionCall;
+        if (functionCall && typeof functionCall === 'object') {
+          const call = functionCall as { name?: unknown; args?: unknown };
+          if (call.name === 'create_summon_arrow_surface') return call.args;
+        }
+      }
+    }
+  }
+  const text = extractGeminiText(payload).trim();
+  if (text) return parseStructuredArguments(text);
+  throw new Error('Gemini response did not include create_summon_arrow_surface function call');
+}
+
+function parseStructuredArguments(value: unknown): unknown {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      throw new Error('structured tool arguments were not valid JSON');
+    }
+  }
+  return value;
+}
+
+function repairPrompt(request: ArrowBundleRepairRequest): string {
+  const issues = request.issues.map((issue) => {
+    const path = issue.path ? ` at ${issue.path}` : '';
+    return `- ${issue.code}${path}: ${issue.message}`;
+  }).join('\n');
+  const hints = request.hints.length > 0
+    ? request.hints.map((hint) => `- ${hint}`).join('\n')
+    : '- Return one complete corrected bundle.';
+  return [
+    request.prompt,
+    '',
+    'The previous structured Arrow bundle failed Summon validation.',
+    '',
+    'Validation issues:',
+    issues || '- unknown validation issue',
+    '',
+    'Repair hints:',
+    hints,
+    '',
+    'Previous bundle:',
+    JSON.stringify(request.previousBundle, null, 2),
+    '',
+    'Return a complete replacement bundle using the create_summon_arrow_surface tool. Do not widen host authority, add ungranted tools, add generated network access, or change the schema.',
+  ].join('\n');
 }

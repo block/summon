@@ -15,6 +15,8 @@ export type {
   ArtifactLine,
   ProtocolParseErrorCode,
   ProtocolParseOptions,
+  ProtocolSkipMetaValue,
+  ProtocolValidationMode,
 } from './protocol.js';
 export {
   isArrowSurfaceArtifact,
@@ -26,6 +28,20 @@ export type {
   ArrowSurfaceArtifact,
   ArrowArtifactValidationOptions,
 } from './arrow-artifact.js';
+export {
+  SUMMON_ARROW_BUNDLE_SCHEMA,
+  arrowArtifactFromBundle,
+  createArrowBundleJsonSchema,
+  createArrowBundleToolDefinition,
+  isSummonArrowBundle,
+  normalizeArrowBundle,
+} from './arrow-bundle.js';
+export type {
+  NormalizeArrowBundleResult,
+  SummonArrowBundle,
+  SummonArrowPreview,
+  SummonArrowPreviewRegion,
+} from './arrow-bundle.js';
 export {
   DEFAULT_VALIDATION_LIMITS,
   normalizeValidationLimits,
@@ -41,7 +57,7 @@ export type {
 } from './stream-graph.js';
 export {
   SUMMON_FIXED_INSTRUCTIONS,
-  SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
+  SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   buildDirectionBlock,
   buildLayoutBlock,
   buildToolsBlock,
@@ -175,11 +191,3 @@ export type {
   SurfaceContractTool,
   SurfaceContractView,
 } from './surface-contract.js';
-export { createProtocolHardener } from './protocol-hardener.js';
-export type {
-  ProtocolHardener,
-  ProtocolHardenerOptions,
-  ProtocolHardenerResult,
-  ProtocolSkipMetaValue,
-  ProtocolValidationMode,
-} from './protocol-hardener.js';

@@ -104,50 +104,30 @@ Before using a card grid, ask what job the boxes are doing. Use cards when the c
 
 **Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific tool actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
 
-## Output protocol — semantic preview events, then Arrow artifact
+## Structured Arrow sandbox bundle
 
-Emit JSONL only: one valid JSON object per physical line. No markdown fences, no prose outside JSON, no headings, no commentary.
+You return a structured object through the provided create_summon_arrow_surface tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with op/path fields, or host-owned meta paths. The server owns streaming, preview events, validation summaries, and artifact delivery.
 
-First emit a short progressive preview stream. Preview events are non-executable and help the host show the surface forming:
+The returned object must include:
 
-{"op":"event","path":"/surface","value":{"type":"surface.status","status":"planning","text":"Choosing the right surface shape"}}
-{"op":"event","path":"/surface","value":{"type":"surface.start","id":"main","kind":"comparison","title":"Rollout decision"}}
-{"op":"event","path":"/surface","value":{"type":"region.add","id":"verdict","parent":"main","role":"summary","label":"Verdict"}}
-{"op":"event","path":"/surface","value":{"type":"node.add","id":"verdict-copy","parent":"verdict","kind":"text","props":{"text":"Drafting the recommendation"}}}
+- schema: "summon.arrow-bundle/v1"
+- source with exactly one main.ts or main.js entry file
+- optional main.css for all visual styling
+- optional compact preview describing the surface kind, title, and semantic regions
 
-Then emit exactly one final Arrow artifact line with real source strings:
+Arrow entry rules:
 
-{"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"...","main.css":"..."}}}
-
-Rules:
-
-- Emit 3–8 preview event lines before the final artifact. Keep them useful and compact.
-- Preview events must never include tool calls, credentials, generated JavaScript, native bridge names, or executable authority.
-- The final Arrow artifact is the only executable UI. It must stand alone even if preview events were ignored.
-- The \`value.runtime\` must be \`"arrow"\`.
-- \`source\` must contain exactly one entry file: \`main.ts\` or \`main.js\`.
-- \`main.css\` is optional and should contain all visual styling.
 - The default export from the entry file must be an Arrow template or component result.
-- Import Arrow primitives from \`@arrow-js/core\`; do not rely on ambient globals. Use only \`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`watch\`, \`onCleanup\`, and \`nextTick\`.
-- Use \`reactive()\` for local state and wrap live reads as functions, such as \`\${() => state.count}\`, so Arrow can track updates.
-- Use quoted Arrow event and attribute bindings, such as \`@click="\${() => state.count++}"\` and \`disabled="\${() => state.loading}"\`.
-- For boolean attributes, return \`false\` to remove the attribute rather than injecting a bare attribute string.
-- Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this sandbox does not support them. Use normal HTML attributes like \`value=\` and read form input through event snapshots such as \`event.target.value\`.
+- Import Arrow primitives from @arrow-js/core; do not rely on ambient globals. Use only html, reactive, component, props, pick, watch, onCleanup, and nextTick.
+- Use reactive() for local state and wrap live reads as functions so Arrow can track updates.
+- Use quoted Arrow event and attribute bindings for clicks, form events, disabled states, and classes.
+- For boolean attributes, return false to remove the attribute rather than injecting a bare attribute string.
+- Do not use Arrow IDL property bindings such as .value=, .checked=, .selected=, or .disabled=; this Summon sandbox subset rejects them until compatibility is verified.
 - Do not inject standalone expressions inside opening tags to create dynamic attributes. Expressions must be text nodes, child nodes, or quoted attribute values.
-- Bad: \`<button \${() => state.loading ? "disabled" : ""}>Search</button>\`. Good: \`<button class="\${() => state.loading ? "loading" : ""}">\${() => state.loading ? "Searching..." : "Search"}</button>\`.
-- For host actions and resources, import from \`host-bridge:summon\`:
-
-\`\`\`ts
-import { callTool, getState, onState } from "host-bridge:summon"
-\`\`\`
-
-- Call \`await callTool(toolName, args)\` for granted host tools. The result is \`{ ok, state, error? }\`.
-- Call \`await getState()\` to read the latest host-pushed state.
-- Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
-- Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
-- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
-- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, host-owned meta lines, HTML fragments, or any protocol op other than \`event\` and the final \`artifact\`.
-- Keep the JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.
+- For host actions and resources, import from host-bridge:summon and call await callTool(toolName, args) for granted host tools only.
+- Use await getState() and onState((state) => ...) to read host-pushed state.
+- Do not use window, document, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, or external URLs.
+- Use fetch() only when the Surface plan network is restricted-fetch; otherwise use host tools.
 
 ## Arrow/CSS rules
 
@@ -176,48 +156,39 @@ Decide your section structure and styling approach before the final artifact. Us
 
 Pick one structural approach and ship it. Preview events should make the UI feel like it is coming into focus; the final artifact should not contradict them.
 
-Begin. Emit semantic preview events followed by exactly one Arrow artifact JSONL line.`;
+Begin. Return one complete structured Arrow bundle through the provided tool/schema.`;
 
-export const SUMMON_ARROW_ARTIFACT_INSTRUCTIONS = `## Arrow sandbox artifact output
+export const SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS = `## Structured Arrow sandbox bundle
 
-This block is the output contract for Summon Arrow runtimes.
+You are creating an Arrow sandbox payload for Summon. Return a structured object through the provided \`create_summon_arrow_surface\` tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with \`op\`/\`path\` fields, or host-owned meta paths.
 
-Your response must be JSONL. Emit a few \`event /surface\` preview lines, then exactly one final Arrow artifact line. Do not wrap it in Markdown. Do not add prose before or after it. Do not emit code fences. Do not emit \`set /screen\`, \`add /section/*\`, or any other protocol op.
+The returned object must include:
 
-Preview event shape:
+- \`schema: "summon.arrow-bundle/v1"\`
+- \`source\` with exactly one \`main.ts\` or \`main.js\` entry file
+- optional \`main.css\` for all visual styling
+- optional compact \`preview\` describing the surface kind, title, and regions
 
-{"op":"event","path":"/surface","value":{"type":"surface.status","status":"drafting","text":"Drafting the surface"}}
+The server owns streaming, preview events, validation summaries, and artifact delivery. You only author the sandbox source files and optional preview description.
 
-Final artifact shape:
+Arrow bundle rules:
 
-{"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"...","main.css":"..."}}}
-
-Rules:
-
-- The \`value.runtime\` must be \`"arrow"\`.
-- \`source\` must contain exactly one entry file: \`main.ts\` or \`main.js\`.
-- \`main.css\` is optional and should contain all visual styling.
-- The default export from the entry file must be an Arrow template or component result.
 - Import Arrow primitives from \`@arrow-js/core\`; do not rely on ambient globals. Use only \`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`watch\`, \`onCleanup\`, and \`nextTick\`.
-- Use \`reactive()\` for local state and wrap live reads as functions, such as \`\${() => state.count}\`, so Arrow can track updates.
+- The default export from the entry file must be an Arrow template or component result.
+- Use \`reactive()\` for local state and wrap live reads as functions, such as \`\${() => state.count}\`.
 - Use quoted Arrow event and attribute bindings, such as \`@click="\${() => state.count++}"\` and \`disabled="\${() => state.loading}"\`.
 - For boolean attributes, return \`false\` to remove the attribute rather than injecting a bare attribute string.
-- Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this sandbox does not support them. Use normal HTML attributes like \`value=\` and read form input through event snapshots such as \`event.target.value\`.
-- Do not inject standalone expressions inside opening tags to create dynamic attributes. Expressions must be text nodes, child nodes, or quoted attribute values.
-- Bad: \`<button \${() => state.loading ? "disabled" : ""}>Search</button>\`. Good: \`<button class="\${() => state.loading ? "loading" : ""}">\${() => state.loading ? "Searching..." : "Search"}</button>\`.
-- For host actions and resources, import from \`host-bridge:summon\`:
-
-\`\`\`ts
-import { callTool, getState, onState } from "host-bridge:summon"
-\`\`\`
-
-- Call \`await callTool(toolName, args)\` for granted host tools. The result is \`{ ok, state, error? }\`.
-- Call \`await getState()\` to read the latest host-pushed state.
-- Call \`onState((state) => { ... })\` to keep Arrow \`reactive()\` state synchronized with host pushes. It returns an unsubscribe function.
-- Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, or native bridges.
+- Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this Summon sandbox subset rejects them until compatibility is verified.
+- Do not inject standalone expressions inside opening tags to create dynamic attributes.
+- For host actions and resources, import from \`host-bridge:summon\` and call \`await callTool(toolName, args)\` for granted host tools only.
+- Use \`await getState()\` and \`onState((state) => { ... })\` to read host-pushed state.
+- Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, external URLs, external images, external fonts, or external stylesheets.
 - Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
-- Do not emit \`set /screen\`, \`add /section/*\`, unsupported binding attributes, scripts, host-owned meta lines, or component island placeholders.
-- Keep every JSONL line on one physical line. Escape newlines inside source strings as \`\\n\`.`;
+- Use plain semantic HTML inside Arrow templates.
+- Put visual styling in \`main.css\`; use class names, not generated inline style strings, for major layout.
+- Use CSS custom properties for every color, space, radius, and type size. Do not hardcode hex colors, rgb(), pixel spacing, or specific font stacks.
+
+Return a complete structured bundle. The run is incomplete until the bundle contains a valid Arrow entry file.`;
 
 /**
  * Compose the direction-specific block that follows the fixed instructions:
@@ -290,7 +261,7 @@ Rules:
 
 - Use each slot for its purpose.
 - Do not invent page chrome or alternate slot names that obscure the layout.
-- Do not emit \`set /screen\` or \`add /section/*\`; the output is still exactly one Arrow \`/artifact\` JSONL line.
+- Do not emit transport records or stream lines such as \`set /screen\`, \`add /section/*\`, \`/surface-plan\`, or \`/artifact\`; the server owns the stream.
 - The host layout controls semantic order; the direction controls visual language.`;
 }
 

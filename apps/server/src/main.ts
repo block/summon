@@ -282,7 +282,7 @@ app.get('/api/health', (_req, res) => {
     directions: directions.map((d) => d.id),
     defaultModelProvider: defaultModelProvider.id,
     modelProviders: modelProviders.info(),
-    generationApi: typeof runSurfaceGeneration === 'function',
+    generationApi: true,
   });
 });
 
@@ -324,8 +324,8 @@ app.get('/api/ghost-roots', (_req, res) => {
 });
 
 /**
- * Streams LLM output as raw text — the client parses JSONL out of it. Each
- * completed newline-terminated line should be one protocol message.
+ * Generates a structured Arrow bundle, validates it, and streams server-owned
+ * protocol lines to the client.
  */
 app.post('/api/generate', async (req, res) => {
   const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
@@ -425,7 +425,7 @@ app.post('/api/generate', async (req, res) => {
   const hasSurfacePolicy =
     req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
   const toolCeiling = parseToolPack(req.body?.tools);
-  const validationMode = req.body?.validationMode === 'observe' ? 'observe' : 'enforce';
+  const validationMode: 'observe' | 'enforce' = req.body?.validationMode === 'observe' ? 'observe' : 'enforce';
 
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -585,7 +585,7 @@ app.post('/api/generate', async (req, res) => {
 
     await withConcurrencyCap(async () => {
       let usage: ProviderUsageSnapshot | null = null;
-      const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
+      const commonGenerationInput = {
         prompt,
         direction: direction
           ? {
@@ -611,9 +611,14 @@ app.post('/api/generate', async (req, res) => {
         preludeLines,
         seedLines,
         validationMode,
-        modelProvider: (request) => modelProvider.streamSurfaceGeneration(request, (nextUsage) => {
-          usage = nextUsage;
-        }, modelSelection),
+      };
+      const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
+        ...commonGenerationInput,
+        maxRepairAttempts: clampInt(req.body?.maxRepairAttempts, 0, 3, 1),
+        modelProvider: {
+          generateArrowBundle: (request) => modelProvider.generateArrowBundle(request, modelSelection),
+          repairArrowBundle: (request) => modelProvider.repairArrowBundle(request, modelSelection),
+        },
       }, (line) => {
         writeGenerateLine(res, line);
       });

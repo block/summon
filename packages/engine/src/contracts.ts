@@ -1,6 +1,7 @@
 import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   buildToolsBlock,
   buildDirectionBlock,
   buildLayoutBlock,
@@ -182,7 +183,7 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'bad-attr-binding-placement':
       return ['Use normal quoted Arrow attributes and sanitize dynamic values before rendering them.'];
     case 'host-owned-meta':
-      return ['Remove host-owned meta lines; the host emits /surface-policy, /surface-plan, and /surface-contract before model output.'];
+      return ['Remove host-owned meta lines; the host emits /surface-policy, /surface-plan, and /surface-contract before artifact delivery.'];
     case 'surface-policy-invalid':
     case 'surface-policy-unknown-grant':
     case 'surface-policy-tier-exceeded':
@@ -367,6 +368,12 @@ export function compileSystemContracts(
       cache: 'ephemeral',
     });
   }
+
+  promptBlocks.push({
+    id: 'output-contract',
+    text: SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
+    cache: 'none',
+  });
 
   return {
     promptBlocks,

@@ -75,6 +75,17 @@ export type ProtocolLine = MetaLine | SurfaceEventLine | ArtifactLine;
 
 export const SUMMON_PROTOCOL_VERSION = 1;
 
+export type ProtocolValidationMode = 'enforce' | 'observe';
+
+export interface ProtocolSkipMetaValue {
+  code: string;
+  message: string;
+  severity: 'warn';
+  path?: string;
+  op?: string;
+  rawPreview?: string;
+}
+
 export type ProtocolParseErrorCode =
   | 'empty'
   | 'oversized-line'

@@ -5,7 +5,7 @@ import {
   planAgentSurface,
   runAgentSurfaceGeneration,
   type AgentGoalTextClient,
-  type SummonModelProvider,
+  type SurfaceModelProvider,
 } from '../src/index.ts';
 import type {
   ToolPack,
@@ -49,18 +49,14 @@ const tools: ToolPack = {
   ],
 };
 
-function arrowProtocolLine(html: string): string {
+function arrowBundle(html: string) {
   const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
-  return `${JSON.stringify({
-    op: 'artifact',
-    path: '/artifact',
-    value: {
-      runtime: 'arrow',
-      source: {
-        'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\`;`,
-      },
+  return {
+    schema: 'summon.arrow-bundle/v1' as const,
+    source: {
+      'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\`;`,
     },
-  })}\n`;
+  };
 }
 
 const multiToolPack: ToolPack = {
@@ -292,8 +288,10 @@ test('host policy resolver can force a static fallback', async () => {
 
 test('runAgentSurfaceGeneration emits agent diagnostics before policy metadata', async () => {
   const lines: ProtocolLine[] = [];
-  const provider: SummonModelProvider = async function* () {
-    yield arrowProtocolLine('<section><h1>Dinner finder</h1><p>Ready.</p></section>');
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      return arrowBundle('<section><h1>Dinner finder</h1><p>Ready.</p></section>');
+    },
   };
 
   const summary = await runAgentSurfaceGeneration({

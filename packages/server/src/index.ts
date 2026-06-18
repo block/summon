@@ -32,9 +32,10 @@ export type {
   GenerateSurfaceInput,
   GenerationSummary,
   GhostGenerationContext,
-  SummonModelChunk,
-  SummonModelProvider,
-  SummonModelRequest,
+  ArrowBundleRequest,
+  ArrowBundleRepairRequest,
+  SurfaceModelProvider,
+  SurfaceModelRequest,
   SurfaceGenerationInput,
   SurfaceGenerationSummary,
 } from './types.js';

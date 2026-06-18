@@ -3,14 +3,21 @@ import {
   compileSurfacePolicy,
   surfaceContractViewFromCompiledPolicy,
   compileSystemContracts,
-  createProtocolHardener,
+  createArrowBundleJsonSchema,
+  normalizeArrowBundle,
+  arrowArtifactFromBundle,
+  validateArrowSurfaceArtifact,
+  validateProtocolLine,
+  hintsForContractIssue,
+  contractIssue,
   type CompiledSurfacePolicy,
   type CompiledSystemContracts,
   type ContractIssue,
-  type ProtocolHardener,
-  type ProtocolHardenerResult,
   type ProtocolLine,
   type SurfaceContractView,
+  type SurfaceEventLine,
+  type SurfacePlan,
+  type SummonArrowBundle,
 } from '@summon-internal/engine';
 import { writeFinalSummaries } from './summary.js';
 import type {
@@ -22,7 +29,6 @@ export class SurfaceGenerationSession {
   private readonly systemContracts: CompiledSystemContracts;
   private readonly surfacePolicy: CompiledSurfacePolicy | null;
   private readonly surfaceContract: SurfaceContractView | null;
-  private readonly hardener: ProtocolHardener;
   private readonly acceptedLines: ProtocolLine[] = [];
   private readonly emittedLines: ProtocolLine[] = [];
   private readonly validationIssues: ContractIssue[];
@@ -56,13 +62,6 @@ export class SurfaceGenerationSession {
       activeTokensCss: input.activeTokensCss ?? null,
     });
 
-    this.hardener = createProtocolHardener({
-      validationContext: {
-        ...this.systemContracts.validationContext,
-      },
-      validationMode: input.validationMode,
-    });
-
     this.validationIssues = [
       ...(this.surfacePolicy?.issues ?? []),
       ...this.systemContracts.issues,
@@ -86,6 +85,15 @@ export class SurfaceGenerationSession {
     if (this.surfaceContract) {
       await this.writeProtocolLine({ op: 'meta', path: '/surface-contract', value: this.surfaceContract });
     }
+    await this.writeProtocolLine({
+      op: 'meta',
+      path: '/model-output-mode',
+      value: {
+        format: 'arrow-bundle',
+        schema: 'summon.arrow-bundle/v1',
+        repairAttempts: 0,
+      },
+    });
     for (const line of this.systemContracts.startupLines) {
       this.acceptedLines.push(line);
       await this.writeProtocolLine(line);
@@ -100,42 +108,44 @@ export class SurfaceGenerationSession {
   }
 
   async consumeProvider(): Promise<void> {
-    await this.writePhase('drafting', 'Drafting Arrow artifact');
-    await this.writeTiming('drafting', 'Drafting Arrow artifact');
+    await this.emitServerPreviewScaffold();
+    await this.writePhase('drafting', 'Composing Arrow bundle');
+    await this.writeTiming('drafting', 'Composing Arrow bundle');
     const providerStartedAt = nowMs();
-    const provider = await this.input.modelProvider({
-      prompt: this.input.prompt,
-      promptBlocks: this.systemContracts.promptBlocks,
-      signal: this.input.signal,
+    const schema = createArrowBundleJsonSchema();
+    const bundle = await this.withStatusHeartbeat({
+      status: 'drafting',
+      messages: [
+        'Still composing Arrow bundle',
+        'Waiting for structured Arrow bundle',
+        'Keeping host contract bound while composing',
+      ],
+      run: () => this.input.modelProvider.generateArrowBundle({
+        prompt: this.input.prompt,
+        promptBlocks: this.systemContracts.promptBlocks,
+        schema,
+        signal: this.input.signal,
+      }),
     });
-    const textState = { buffer: '' };
-    let firstChunkSeen = false;
-
-    for await (const chunk of provider) {
-      if (this.blocked) break;
-      if (!firstChunkSeen) {
-        firstChunkSeen = true;
-        await this.writeTiming(
-          'first-provider-chunk',
-          'Received first provider chunk',
-          nowMs() - providerStartedAt,
-        );
-      }
-      if (typeof chunk === 'string') {
-        await this.handleText(textState, chunk);
-      } else if (chunk.type === 'text') {
-        await this.handleText(textState, chunk.text);
-      } else {
-        await this.writeProtocolLine({ op: 'meta', path: chunk.path, value: chunk.value });
-      }
-    }
-
-    if (!this.blocked && textState.buffer.trim()) {
-      await this.handleModelLine(textState.buffer.trim());
-    }
+    await this.writeTiming(
+      'bundle-received',
+      'Received structured Arrow bundle',
+      nowMs() - providerStartedAt,
+    );
+    await this.acceptBundleWithRepair(bundle, schema);
   }
 
   async finalize(): Promise<SurfaceGenerationSummary> {
+    if (!this.blocked && !this.acceptedLines.some((line) => line.op === 'artifact')) {
+      await this.blockGeneration(contractIssue({
+        source: 'protocol',
+        severity: 'block',
+        code: 'missing-arrow-artifact',
+        message: 'Generation completed without a valid Arrow artifact',
+        path: '/artifact',
+      }));
+    }
+    await this.writePhase('finalizing', 'Finalizing diagnostics');
     await writeFinalSummaries({
       writeProtocolLine: (line) => this.writeProtocolLine(line),
       validationIssues: this.validationIssues,
@@ -149,64 +159,177 @@ export class SurfaceGenerationSession {
     return this.summary();
   }
 
-  private async handleText(state: { buffer: string }, text: string): Promise<void> {
-    if (this.blocked) return;
-    state.buffer += text;
-    let nl = state.buffer.indexOf('\n');
-    while (nl !== -1) {
-      const raw = state.buffer.slice(0, nl);
-      state.buffer = state.buffer.slice(nl + 1);
-      await this.handleModelLine(raw);
-      nl = state.buffer.indexOf('\n');
-    }
-  }
-
-  private async handleModelLine(raw: string): Promise<void> {
-    if (this.blocked) return;
-    const isArtifact = isArtifactProtocolLine(raw);
-    const validationStartedAt = isArtifact ? nowMs() : null;
-    if (isArtifact) {
-      await this.writePhase('validating', 'Validating Arrow artifact');
-    }
-    const result = this.hardener.processRawLine(raw);
-    this.validationIssues.push(...result.issues);
-    if (validationStartedAt !== null) {
-      const observedBlocker = !result.blocked && result.issues.some((issue) => issue.severity === 'block');
-      await this.writeTiming(
-        'validating',
-        result.blocked
-          ? 'Blocked Arrow artifact'
-          : observedBlocker
-            ? 'Observed blocked Arrow artifact'
-            : 'Validated Arrow artifact',
-        nowMs() - validationStartedAt,
-      );
-    }
-    if (result.blocked) {
-      await this.blockGeneration(result.blocked);
-      return;
-    }
-
-    await this.acceptHardenedResult(result);
-  }
-
-  private async acceptHardenedResult(
-    result: Pick<ProtocolHardenerResult, 'acceptedLines' | 'outboundLines'>,
+  private async acceptBundleWithRepair(
+    initialBundle: SummonArrowBundle,
+    schema: Record<string, unknown>,
   ): Promise<void> {
-    this.acceptedLines.push(...result.acceptedLines);
-    for (const line of result.outboundLines) {
-      if (line.op === 'artifact') {
-        await this.writePhase('rendering', 'Rendering accepted artifact');
-        const renderStartedAt = nowMs();
-        await this.writeProtocolLine(line);
-        await this.writeTiming(
-          'rendering',
-          'Rendered accepted artifact',
-          nowMs() - renderStartedAt,
-        );
-        continue;
+    let bundle: SummonArrowBundle | null = initialBundle;
+    const maxRepairAttempts = Math.max(0, Math.floor(this.input.maxRepairAttempts ?? 1));
+    for (let attempt = 0; attempt <= maxRepairAttempts; attempt++) {
+      if (this.blocked || !bundle) return;
+      const result = await this.validateAndAcceptBundle(bundle);
+      if (result.accepted) return;
+      if (attempt >= maxRepairAttempts || !this.input.modelProvider.repairArrowBundle) {
+        await this.blockGeneration(result.blocker);
+        return;
       }
+      if (!isRepairable(result.issues)) {
+        await this.blockGeneration(result.blocker);
+        return;
+      }
+      await this.writeProtocolLine({
+        op: 'meta',
+        path: '/model-output-mode',
+        value: {
+          format: 'arrow-bundle',
+          schema: 'summon.arrow-bundle/v1',
+          repairAttempts: attempt + 1,
+          repairing: result.issues.map((issue) => issue.code),
+        },
+      });
+      await this.writePhase('validating', 'Repairing Arrow bundle');
+      bundle = await this.withStatusHeartbeat({
+        status: 'validating',
+        messages: [
+          'Still repairing Arrow bundle',
+          'Applying validation hints',
+          'Waiting for repaired Arrow bundle',
+        ],
+        run: () => this.input.modelProvider.repairArrowBundle!({
+          prompt: this.input.prompt,
+          promptBlocks: this.systemContracts.promptBlocks,
+          schema,
+          previousBundle: bundle,
+          issues: result.issues,
+          hints: result.issues.flatMap((issue) => hintsForContractIssue(issue)),
+          attempt: attempt + 1,
+          signal: this.input.signal,
+        }),
+      });
+    }
+  }
+
+  private async validateAndAcceptBundle(bundle: SummonArrowBundle): Promise<{
+    accepted: boolean;
+    issues: ContractIssue[];
+    blocker: ContractIssue;
+  }> {
+    await this.writePhase('validating', 'Validating Arrow bundle');
+    const validationStartedAt = nowMs();
+    const normalized = normalizeArrowBundle(bundle);
+    const issues = [...normalized.issues];
+    const artifact = normalized.bundle ? arrowArtifactFromBundle(normalized.bundle) : null;
+    if (artifact) {
+      issues.push(...validateArrowSurfaceArtifact(artifact, {
+        network: this.systemContracts.validationContext.surfacePlan?.network ?? 'none',
+      }));
+      issues.push(...validateProtocolLine({
+        op: 'artifact',
+        path: '/artifact',
+        value: artifact,
+      }, this.systemContracts.validationContext));
+    }
+
+    this.validationIssues.push(...issues);
+    const blocker = issues.find((issue) => issue.severity === 'block');
+    await this.writeTiming(
+      'validating',
+      blocker ? 'Blocked Arrow bundle' : 'Validated Arrow bundle',
+      nowMs() - validationStartedAt,
+    );
+    if (blocker || !artifact) {
+      return {
+        accepted: false,
+        issues: issues.length > 0 ? issues : [contractIssue({
+          source: 'protocol',
+          severity: 'block',
+          code: 'invalid-arrow-bundle',
+          message: 'Model output did not produce a valid Arrow bundle',
+          path: '/bundle',
+        })],
+        blocker: blocker ?? contractIssue({
+          source: 'protocol',
+          severity: 'block',
+          code: 'invalid-arrow-bundle',
+          message: 'Model output did not produce a valid Arrow bundle',
+          path: '/bundle',
+        }),
+      };
+    }
+
+    const acceptedBundle = normalized.bundle;
+    if (!acceptedBundle) {
+      return {
+        accepted: false,
+        issues,
+        blocker: contractIssue({
+          source: 'protocol',
+          severity: 'block',
+          code: 'invalid-arrow-bundle',
+          message: 'Model output did not produce a valid Arrow bundle',
+          path: '/bundle',
+        }),
+      };
+    }
+    for (const line of previewLinesFromBundle(acceptedBundle)) {
+      this.acceptedLines.push(line);
       await this.writeProtocolLine(line);
+    }
+    await this.writePhase('rendering', 'Rendering accepted artifact');
+    const renderStartedAt = nowMs();
+    const artifactLine: ProtocolLine = { op: 'artifact', path: '/artifact', value: artifact };
+    this.acceptedLines.push(artifactLine);
+    await this.writeProtocolLine(artifactLine);
+    await this.writeTiming('rendering', 'Rendered accepted artifact', nowMs() - renderStartedAt);
+    return { accepted: true, issues: [], blocker: null as never };
+  }
+
+  private async emitServerPreviewScaffold(): Promise<void> {
+    for (const line of buildServerPreviewScaffold({
+      prompt: this.input.prompt,
+      surfacePlan: this.surfacePolicy?.surfacePlan ?? null,
+      surfaceContract: this.surfaceContract,
+      layoutId: this.input.layout?.id ?? null,
+      ghostProduct: this.input.ghost?.product ?? null,
+    })) {
+      this.acceptedLines.push(line);
+      await this.writeProtocolLine(line);
+    }
+  }
+
+  private async withStatusHeartbeat<T>({
+    status,
+    messages,
+    run,
+  }: {
+    status: 'drafting' | 'validating';
+    messages: string[];
+    run: () => Promise<T>;
+  }): Promise<T> {
+    const intervalMs = Math.max(0, Math.floor(this.input.heartbeatIntervalMs ?? 3000));
+    if (intervalMs === 0) return run();
+    let done = false;
+    let tick = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let heartbeatWrites: Promise<void> = Promise.resolve();
+
+    const schedule = () => {
+      timer = setTimeout(() => {
+        if (done || this.input.signal?.aborted) return;
+        const message = messages[tick % messages.length] ?? messages.at(-1) ?? 'Still working';
+        tick += 1;
+        heartbeatWrites = heartbeatWrites.then(() => this.writePhase(status, message));
+        schedule();
+      }, intervalMs);
+    };
+
+    schedule();
+    try {
+      return await run();
+    } finally {
+      done = true;
+      if (timer) clearTimeout(timer);
+      await heartbeatWrites;
     }
   }
 
@@ -271,10 +394,142 @@ export class SurfaceGenerationSession {
 
 type ServerTimingPhase =
   | 'drafting'
-  | 'first-provider-chunk'
+  | 'bundle-received'
   | 'validating'
   | 'rendering'
   | 'complete';
+
+function previewLinesFromBundle(bundle: SummonArrowBundle): SurfaceEventLine[] {
+  const preview = bundle.preview;
+  if (!preview) {
+    return [{
+      op: 'event',
+      path: '/surface',
+      value: {
+        type: 'surface.status',
+        status: 'rendering',
+        text: 'Rendering accepted Arrow artifact',
+      },
+    }];
+  }
+  const lines: SurfaceEventLine[] = [{
+    op: 'event',
+    path: '/surface',
+    value: {
+      type: 'surface.start',
+      id: 'main',
+      kind: preview.kind,
+      ...(preview.title ? { title: preview.title } : {}),
+    },
+  }];
+  for (const region of preview.regions ?? []) {
+    lines.push({
+      op: 'event',
+      path: '/surface',
+      value: {
+        type: 'region.add',
+        id: region.id,
+        parent: 'main',
+        role: region.role,
+        ...(region.label ? { label: region.label } : {}),
+      },
+    });
+    if (region.summary) {
+      lines.push({
+        op: 'event',
+        path: '/surface',
+        value: {
+          type: 'node.add',
+          id: `${region.id}-summary`,
+          parent: region.id,
+          kind: 'text',
+          props: { text: region.summary },
+        },
+      });
+    }
+  }
+  return lines;
+}
+
+function buildServerPreviewScaffold(input: {
+  prompt: string;
+  surfacePlan: SurfacePlan | null;
+  surfaceContract: SurfaceContractView | null;
+  layoutId: string | null;
+  ghostProduct: string | null;
+}): SurfaceEventLine[] {
+  const purpose = input.surfacePlan?.purpose ?? 'surface';
+  const title = input.ghostProduct ?? titleFromPrompt(input.prompt);
+  const toolCount = input.surfaceContract?.tools.length ?? 0;
+  const authority = input.surfacePlan?.authority ?? 'none';
+  const data = input.surfacePlan?.data ?? 'embedded';
+  const layoutText = input.layoutId ? `Layout ${input.layoutId}` : 'Free composition';
+  return [
+    {
+      op: 'event',
+      path: '/surface',
+      value: {
+        type: 'surface.start',
+        id: 'main',
+        kind: purpose,
+        title,
+      },
+    },
+    {
+      op: 'event',
+      path: '/surface',
+      value: {
+        type: 'region.add',
+        id: 'progress',
+        parent: 'main',
+        role: 'status',
+        label: 'Preparing surface',
+      },
+    },
+    {
+      op: 'event',
+      path: '/surface',
+      value: {
+        type: 'node.add',
+        id: 'progress-text',
+        parent: 'progress',
+        kind: 'text',
+        props: {
+          text: `Host contract bound: ${data}/${authority}; tools=${toolCount}; ${layoutText}.`,
+        },
+      },
+    },
+  ];
+}
+
+function titleFromPrompt(prompt: string): string {
+  const compact = prompt.replace(/\s+/g, ' ').trim();
+  if (!compact) return 'Building surface';
+  const withoutPrefix = compact.replace(/^(build|create|make|draft|show|generate)\s+(me\s+)?/i, '');
+  const title = withoutPrefix.charAt(0).toUpperCase() + withoutPrefix.slice(1);
+  return title.length > 64 ? `${title.slice(0, 61)}...` : title;
+}
+
+function isRepairable(issues: ContractIssue[]): boolean {
+  const repairable = new Set([
+    'invalid-arrow-entry',
+    'invalid-arrow-source',
+    'invalid-arrow-source-path',
+    'arrow-source-limit',
+    'arrow-network-not-granted',
+    'unsupported-arrow-idl-binding',
+    'unsupported-arrow-open-tag-expression',
+    'unsupported-legacy-data-summon-binding',
+    'invalid-arrow-network',
+    'invalid-arrow-bundle',
+    'invalid-arrow-bundle-schema',
+    'missing-arrow-bundle-source',
+    'invalid-arrow-bundle-entry',
+    'arrow-bundle-extra-file',
+    'invalid-arrow-bundle-source-file',
+  ]);
+  return issues.some((issue) => issue.severity === 'block' && repairable.has(issue.code));
+}
 
 function nowMs(): number {
   return performance.now();
@@ -295,17 +550,4 @@ function timingStartedAtFromSeedLines(lines: readonly ProtocolLine[] | undefined
     latestElapsed = Math.max(latestElapsed ?? 0, elapsedMs);
   }
   return latestElapsed === null ? null : nowMs() - latestElapsed;
-}
-
-function isArtifactProtocolLine(raw: string): boolean {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    return !!parsed &&
-      typeof parsed === 'object' &&
-      !Array.isArray(parsed) &&
-      (parsed as { op?: unknown; path?: unknown }).op === 'artifact' &&
-      (parsed as { path?: unknown }).path === '/artifact';
-  } catch {
-    return false;
-  }
 }

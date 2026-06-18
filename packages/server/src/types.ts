@@ -10,28 +10,36 @@ import type {
   SurfacePolicy,
   TokenOverride,
   ProtocolValidationMode,
+  SummonArrowBundle,
 } from '@summon-internal/engine';
 
 export type { GhostGenerationContext } from '@summon-internal/engine';
 
-export interface SummonModelRequest {
+export interface SurfaceModelRequest {
   prompt: string;
   promptBlocks: ContractPromptBlock[];
   signal?: AbortSignal;
 }
 
-export type SummonModelChunk =
-  | string
-  | { type: 'text'; text: string }
-  | { type: 'meta'; path: string; value: unknown };
+export interface ArrowBundleRequest extends SurfaceModelRequest {
+  schema: Record<string, unknown>;
+}
 
-export type SummonModelProvider = (
-  request: SummonModelRequest,
-) => AsyncIterable<SummonModelChunk> | Promise<AsyncIterable<SummonModelChunk>>;
+export interface ArrowBundleRepairRequest extends ArrowBundleRequest {
+  previousBundle: SummonArrowBundle | null;
+  issues: ContractIssue[];
+  hints: string[];
+  attempt: number;
+}
+
+export interface SurfaceModelProvider {
+  generateArrowBundle(request: ArrowBundleRequest): Promise<SummonArrowBundle>;
+  repairArrowBundle?(request: ArrowBundleRepairRequest): Promise<SummonArrowBundle>;
+}
 
 export interface SurfaceGenerationInput {
   prompt: string;
-  modelProvider: SummonModelProvider;
+  modelProvider: SurfaceModelProvider;
   direction?: DirectionContractInput | null;
   ghost?: GhostGenerationContext | null;
   layout?: SummonLayout | null;
@@ -43,6 +51,8 @@ export interface SurfaceGenerationInput {
   preludeLines?: ProtocolLine[];
   seedLines?: ProtocolLine[];
   validationMode?: ProtocolValidationMode;
+  maxRepairAttempts?: number;
+  heartbeatIntervalMs?: number;
   signal?: AbortSignal;
 }
 

@@ -165,6 +165,9 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /# Ghost Relay Brief/);
     assert.match(prepared.prompt, /## Summon Surface Brief/);
     assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=arrow; data=embedded; authority=none; persistence=replayable/);
+    assert.match(prepared.prompt, /Use the supplied Ghost Relay Brief as the complete fingerprint entrypoint/);
+    assert.match(prepared.prompt, /structured Arrow sandbox bundle/);
+    assert.match(prepared.prompt, /Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata/);
     assert.match(prepared.prompt, /The agent broker controls host authority and tools/);
     assert.match(prepared.prompt, /Compose from the fingerprint prose, inventory, and composition layers/);
     assert.match(prepared.prompt, /Preserve quiet density/);

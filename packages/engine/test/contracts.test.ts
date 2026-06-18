@@ -10,6 +10,7 @@ import {
   normalizeSurfacePlan,
   suggestSurfacePlan,
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_NETWORK_VALUES,
@@ -24,13 +25,20 @@ const defaultTokens = readFileSync(
   'utf-8',
 );
 
-test('fixed prompt describes Arrow-only artifact output', () => {
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Output protocol — semantic preview events, then Arrow artifact/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /"op":"event"/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /"op":"artifact"/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /"runtime":"arrow"/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /`watch`/);
-  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Do not emit `set \/screen`, `add \/section\/\*`/);
+test('fixed prompt describes structured Arrow bundle output', () => {
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /Structured Arrow sandbox bundle/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /create_summon_arrow_surface/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /summon\.arrow-bundle\/v1/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /server owns streaming/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /watch/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /transport records, stream lines/);
+});
+
+test('structured output instructions restate the bundle contract', () => {
+  assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /schema: "summon\.arrow-bundle\/v1"/);
+  assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /exactly one `main.ts` or `main.js`/);
+  assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /server owns streaming/);
+  assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /objects with `op`\/`path` fields/);
 });
 
 test('token compiler emits prompt vocabulary and validates from the token contract', () => {
@@ -62,7 +70,7 @@ test('system compiler ignores component island metadata in V2', () => {
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed'],
+    ['fixed', 'output-contract'],
   );
   assert.equal('components' in compiled.validationContext, false);
 });
@@ -150,8 +158,10 @@ test('system compiler returns deterministic prompt block order and validation co
       'layout:two-slot',
       'tools',
       'token-overrides',
+      'output-contract',
     ],
   );
+  assert.equal(compiled.promptBlocks.at(-1)?.cache, 'none');
   assert.equal(compiled.validationContext.mode, 'interactive');
   assert.deepEqual([...(compiled.validationContext.allowedTools ?? [])], ['choose']);
   assert.equal(compiled.validationContext.definedTokens?.has('color-bg'), true);
@@ -186,7 +196,7 @@ test('system compiler includes a host-owned surface plan block', () => {
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'surface-plan', 'tools'],
+    ['fixed', 'surface-plan', 'tools', 'output-contract'],
   );
   assert.deepEqual(compiled.validationContext.surfacePlan, {
     purpose: 'explore',
@@ -230,7 +240,7 @@ test('system compiler includes compact surface contract view without dropping de
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'surface-contract', 'tools'],
+    ['fixed', 'surface-contract', 'tools', 'output-contract'],
   );
   const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-contract');
   assert.match(surfaceBlock?.text ?? '', /compact, read-only view/);
