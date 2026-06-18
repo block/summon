@@ -74,9 +74,11 @@ Canonical Ghost packages use this layout:
         └── composition.yml
 ```
 
-Only canonical split fingerprint packages are supported. Roots must include
-`.ghost/fingerprint/manifest.yml`; legacy `.ghost/fingerprint.yml` files are
-not accepted.
+Only canonical split fingerprint packages are supported. By default, roots must
+include `.ghost/fingerprint/manifest.yml`; host wrappers can set
+`GHOST_MEMORY_DIR` when the package directory lives somewhere else, and an
+explicit `ghost.memoryDir` request value overrides that process default. Legacy
+`.ghost/fingerprint.yml` files are not accepted.
 
 Then start the gallery or the workbench:
 
@@ -95,9 +97,9 @@ package does not provide contract-complete tokens.
 
 When the run starts, the Stream drawer should show `/ghost-context`,
 `/ghost-token-source`, and `/ghost-review-packet` metadata. Those lines confirm
-Ghost relay resolved the fingerprint stack, Summon chose token CSS, generated a
-surface, and emitted the review packet needed to inspect the output against the
-same Ghost fingerprint.
+Ghost relay resolved the fingerprint stack and Task Contract, Summon chose token
+CSS, generated a surface, and emitted the review packet needed to inspect the
+output against the same Ghost fingerprint.
 
 Useful checks for a configured root:
 

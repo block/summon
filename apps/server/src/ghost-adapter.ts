@@ -42,7 +42,7 @@ export interface GhostRootRequest {
   source: 'root';
   rootId: string;
   targetPath: string;
-  memoryDir: string;
+  memoryDir: string | null;
   baseDirectionId: string | null;
 }
 
@@ -111,6 +111,8 @@ export interface GhostReviewPacket {
     targetPaths: string[];
     match: RelayGatherResult['entrypoint']['match'];
   };
+  taskContract: RelayGatherResult['entrypoint']['actionContract'];
+  suggestedReads: RelayGatherResult['entrypoint']['suggestedReads'];
   tokenSource: Omit<GhostTokenSource, 'css'>;
   baseDirectionId: string | null;
   styleSource: GhostTokenSource['kind'];
@@ -192,8 +194,8 @@ export function parseGhostRequest(
   const target = normalizeTargetPath(obj.targetPath);
   if (!target.ok) return { ok: false, error: target.error };
 
-  let memoryDir = '.ghost';
-  if (obj.memoryDir !== undefined) {
+  let memoryDir: string | null = null;
+  if (obj.memoryDir !== undefined && obj.memoryDir !== null && obj.memoryDir !== '') {
     if (typeof obj.memoryDir !== 'string') {
       return { ok: false, error: 'ghost.memoryDir must be a string' };
     }
@@ -249,7 +251,7 @@ export async function resolveGhostGenerationContext(
   const relay = await gatherRelayContext({
     cwd: root,
     target: request.targetPath,
-    memoryDir: request.memoryDir,
+    ...(request.memoryDir ? { memoryDir: request.memoryDir } : {}),
   });
   if (relay.source.kind !== 'stack') {
     throw new Error('Ghost relay did not resolve a fingerprint stack source');
@@ -295,6 +297,8 @@ export function ghostContextMeta(ctx: ResolvedGhostContext) {
     product: ctx.product,
     baseDirectionId: ctx.baseDirectionId,
     styleSource: ctx.tokenSource.kind,
+    taskContract: ctx.relay.entrypoint.actionContract,
+    suggestedReads: ctx.relay.entrypoint.suggestedReads,
     provenance: fingerprintProvenance(ctx.relay),
   };
 }
@@ -328,6 +332,8 @@ export function buildGhostReviewPacket(input: {
     product: input.context.product,
     layers: input.context.relay.source.provenance.layers.map((layer: RelayStackLayer) => layer.relative_root),
     fingerprintProvenance: fingerprintProvenance(input.context.relay),
+    taskContract: input.context.relay.entrypoint.actionContract,
+    suggestedReads: input.context.relay.entrypoint.suggestedReads,
     tokenSource: {
       kind: input.context.tokenSource.kind,
       source: input.context.tokenSource.source,

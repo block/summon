@@ -27,9 +27,11 @@ It should not be bundled into Summon as a default visual direction.
 
 1. The server receives a trusted root from `SUMMON_GHOST_ROOTS` and a relative
    target path.
-2. Summon asks Ghost 0.9 relay for the stack-aware handoff with
-   `gatherRelayContext({ cwd: root, target, memoryDir })`. The resulting
-   `# Ghost Relay Brief` is the only Ghost generation prompt source.
+2. Summon asks Ghost 0.12 relay for the stack-aware handoff with
+   `gatherRelayContext({ cwd: root, target, memoryDir })` when a request
+   supplies `memoryDir`, or with no `memoryDir` when the host should use
+   Ghost's `GHOST_MEMORY_DIR` default. The resulting `# Ghost Relay Brief` is
+   the only Ghost generation prompt source.
 3. Summon resolves tokens from `.ghost/config.yml`, an optional token fallback
    direction, or Summon defaults.
 4. After the server resolves SurfacePlan, mode, tools, and components,
@@ -39,7 +41,9 @@ It should not be bundled into Summon as a default visual direction.
 5. The engine passes the fingerprint handoff as a generation prompt block and
    passes fingerprint token CSS as `activeTokensCss`.
 6. The stream emits `/ghost-context`, `/ghost-token-source`, and
-   `/ghost-review-packet`. The review packet uses
+   `/ghost-review-packet`. `/ghost-context` and the review packet include the
+   structured Relay Task Contract (`preserve`, `inspect`, `avoid`, and
+   `validate`) from Ghost 0.12. The review packet uses
    `summon.ghost-fingerprint-generation/v1`.
 
 Validate fingerprint packages with `ghost lint`, `ghost verify`, and

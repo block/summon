@@ -151,14 +151,25 @@ export function useSurfaceStream({
       return;
     }
     if (line.op === 'meta' && line.path === '/ghost-context') {
-      const value = line.value as { product?: unknown; source?: unknown; targetPath?: unknown; layers?: unknown; baseDirectionId?: unknown; styleSource?: unknown } | undefined;
+      const value = line.value as {
+        product?: unknown;
+        source?: unknown;
+        targetPath?: unknown;
+        layers?: unknown;
+        baseDirectionId?: unknown;
+        styleSource?: unknown;
+        taskContract?: { preserve?: unknown; validate?: unknown };
+      } | undefined;
       const product = typeof value?.product === 'string' ? value.product : 'Ghost fingerprint';
       const source = typeof value?.source === 'string' ? value.source : 'root';
       const targetPath = typeof value?.targetPath === 'string' ? value.targetPath : '.';
       const layers = Array.isArray(value?.layers) ? value.layers.filter((layer): layer is string => typeof layer === 'string') : [];
       const base = typeof value?.baseDirectionId === 'string' ? value.baseDirectionId : 'none';
       const style = typeof value?.styleSource === 'string' ? value.styleSource : 'unknown';
-      logLine('op-meta', `fingerprint context -> ${product}; source=${source}; target=${targetPath}; layers=${layers.join(' > ') || '.'}; token fallback=${base}; style=${style}`);
+      const preserveCount = Array.isArray(value?.taskContract?.preserve) ? value.taskContract.preserve.length : 0;
+      const validateCount = Array.isArray(value?.taskContract?.validate) ? value.taskContract.validate.length : 0;
+      const task = preserveCount || validateCount ? `; task=${preserveCount}/${validateCount}` : '';
+      logLine('op-meta', `fingerprint context -> ${product}; source=${source}; target=${targetPath}; layers=${layers.join(' > ') || '.'}; token fallback=${base}; style=${style}${task}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/ghost-token-source') {

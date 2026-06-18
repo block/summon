@@ -54,7 +54,7 @@ describe('Ghost adapter', () => {
       source: 'root',
       rootId: 'checkout',
       targetPath: '.',
-      memoryDir: '.ghost',
+      memoryDir: null,
       baseDirectionId: null,
     });
 
@@ -102,6 +102,8 @@ describe('Ghost adapter', () => {
     assert.equal(ctx.product, 'Test Product');
     assert.match(ctx.prompt, /# Ghost Relay Brief/);
     assert.match(ctx.prompt, /## Identity Capsule/);
+    assert.match(ctx.prompt, /## Task Contract/);
+    assert.match(ctx.prompt, /### Preserve/);
     assert.match(ctx.prompt, /Product: Test Product/);
     assert.match(ctx.prompt, /Preserve quiet density/);
     assert.match(ctx.prompt, /Status surfaces must foreground current state/);
@@ -109,6 +111,33 @@ describe('Ghost adapter', () => {
     assert.match(ctx.prompt, /exacting workflows/);
     assert.match(ctx.prompt, /Suggested Reads/);
     assert.match(ctx.prompt, /fingerprint\/prose\.yml/);
+    assert.ok(ctx.relay.entrypoint.actionContract.preserve.some((entry) => entry.includes('Preserve quiet density')));
+  });
+
+  it('lets Ghost resolve its default memory dir when the request omits memoryDir', async () => {
+    const root = await makeGhostFixture({ memoryDir: '.surface-memory' });
+    const roots = parseGhostRoots(`checkout=${root}`);
+    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+    assert.equal(parsed.request.memoryDir, null);
+
+    const previousMemoryDir = process.env.GHOST_MEMORY_DIR;
+    process.env.GHOST_MEMORY_DIR = '.surface-memory';
+    try {
+      const ctx = await resolveGhostContext(parsed.request, roots);
+      assert.equal(ctx.relay.source.fingerprintDir, '.surface-memory');
+      assert.deepEqual(
+        ctx.relay.source.provenance.layers.map((layer: { fingerprint_dir: string }) => layer.fingerprint_dir),
+        ['.surface-memory'],
+      );
+    } finally {
+      if (previousMemoryDir === undefined) {
+        delete process.env.GHOST_MEMORY_DIR;
+      } else {
+        process.env.GHOST_MEMORY_DIR = previousMemoryDir;
+      }
+    }
   });
 
   it('appends a Summon surface brief without recompiling the fingerprint', async () => {
@@ -212,6 +241,8 @@ describe('Ghost adapter', () => {
     assert.equal(packet.baseDirectionId, null);
     assert.equal(packet.styleSource, 'summon-default');
     assert.equal(packet.fingerprintProvenance.merge, 'child-wins-by-id');
+    assert.ok(packet.taskContract.preserve.some((entry) => entry.includes('Preserve quiet density')));
+    assert.ok(packet.suggestedReads.some((entry) => entry.path === 'fingerprint/prose.yml'));
     assert.deepEqual(
       packet.fingerprintProvenance.layers.map(({ relativeRoot, memoryDir, dir }) => ({ relativeRoot, memoryDir, dir })),
       [{ relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' }],
@@ -223,11 +254,12 @@ describe('Ghost adapter', () => {
   });
 });
 
-async function makeGhostFixture(options: { tokenCss?: string; large?: boolean } = {}): Promise<string> {
+async function makeGhostFixture(options: { tokenCss?: string; large?: boolean; memoryDir?: string } = {}): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-'));
+  const memoryDir = options.memoryDir ?? '.ghost';
   fixtureRoots.push(root);
-  await mkdir(join(root, '.ghost', 'fingerprint', 'enforcement'), { recursive: true });
-  await mkdir(join(root, '.ghost', 'fingerprint', 'memory'), { recursive: true });
+  await mkdir(join(root, memoryDir, 'fingerprint', 'enforcement'), { recursive: true });
+  await mkdir(join(root, memoryDir, 'fingerprint', 'memory'), { recursive: true });
   const extraPrinciples = options.large
     ? Array.from({ length: 30 }, (_, index) => `  - id: extra-principle-${index}
     principle: Extra accepted principle ${index} ${'keeps operational hierarchy clear '.repeat(12)}
@@ -244,13 +276,13 @@ async function makeGhostFixture(options: { tokenCss?: string; large?: boolean } 
 `)
     : [];
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'manifest.yml'),
+    join(root, memoryDir, 'fingerprint', 'manifest.yml'),
     `schema: ghost.fingerprint-package/v1
 id: test-product
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'prose.yml'),
+    join(root, memoryDir, 'fingerprint', 'prose.yml'),
     `summary:
   product: Test Product
   audience: [operators]
@@ -290,7 +322,7 @@ ${extraPrinciples.join('')}experience_contracts:
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'inventory.yml'),
+    join(root, memoryDir, 'fingerprint', 'inventory.yml'),
     `topology:
   scopes:
     - id: app
@@ -304,7 +336,7 @@ building_blocks:
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'composition.yml'),
+    join(root, memoryDir, 'fingerprint', 'composition.yml'),
     `patterns:
   - id: measured-surfaces
     kind: structure
@@ -321,7 +353,7 @@ ${extraPatterns.join('')}
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'enforcement', 'checks.yml'),
+    join(root, memoryDir, 'fingerprint', 'enforcement', 'checks.yml'),
     `schema: ghost.checks/v1
 id: test-product
 checks:
@@ -342,14 +374,14 @@ checks:
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'memory', 'tool.md'),
+    join(root, memoryDir, 'fingerprint', 'memory', 'tool.md'),
     `# Tool
 
 Human-approved test tool keeps generated surfaces grounded.
 `,
   );
   await writeFile(
-    join(root, '.ghost', 'config.yml'),
+    join(root, memoryDir, 'config.yml'),
     `schema: ghost.config/v1
 targets:
   - id: web

@@ -560,10 +560,18 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   const contextMeta = ghostContext.value as {
     source?: unknown;
     product?: unknown;
+    taskContract?: { preserve?: unknown; validate?: unknown };
+    suggestedReads?: unknown;
     provenance?: { merge?: unknown; layers?: Array<{ relativeRoot?: unknown; memoryDir?: unknown; dir?: unknown }> };
   };
   assert.equal(contextMeta.source, 'root');
   assert.equal(contextMeta.product, 'Checkout');
+  const contextPreserve = contextMeta.taskContract?.preserve;
+  const contextValidate = contextMeta.taskContract?.validate;
+  assert.ok(Array.isArray(contextPreserve));
+  assert.ok(contextPreserve.some((entry) => typeof entry === 'string' && entry.includes('Keep operator status legible')));
+  assert.ok(Array.isArray(contextValidate));
+  assert.ok(Array.isArray(contextMeta.suggestedReads));
   assert.equal(contextMeta.provenance?.merge, 'child-wins-by-id');
   assert.deepEqual(contextMeta.provenance?.layers, [
     { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
@@ -571,11 +579,16 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   const ghostReviewPacket = lines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
   const reviewPacket = ghostReviewPacket.value as {
     source?: unknown;
+    taskContract?: { preserve?: unknown };
+    suggestedReads?: unknown;
     fingerprintProvenance?: { merge?: unknown; layers?: unknown };
     artifactRuntime?: unknown;
     artifactFiles?: unknown;
   };
   assert.equal(reviewPacket.source, 'root');
+  const reviewPreserve = reviewPacket.taskContract?.preserve;
+  assert.ok(Array.isArray(reviewPreserve));
+  assert.ok(Array.isArray(reviewPacket.suggestedReads));
   assert.equal(reviewPacket.fingerprintProvenance?.merge, 'child-wins-by-id');
   assert.deepEqual(reviewPacket.fingerprintProvenance?.layers, [
     { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
