@@ -69,8 +69,8 @@ export function AdversarialPage() {
     <>
       <AppNav />
       <PageHeader
-        title="Phase 1 adversarial harness"
-        lede="Loads a sandbox with a deliberately malicious artifact. Each attempt that fails is a win."
+        title="Arrow adversarial harness"
+        lede="Loads deliberately hostile Arrow source. Each blocked attempt is a win."
       />
       <div className={cn(pageWidthClass, 'grid grid-cols-2 gap-5 max-[820px]:grid-cols-1')}>
         <Pane title="Inline Arrow sandbox">

@@ -107,8 +107,10 @@ pnpm dev:demos
   wiring, direction-token visual coverage, throughput, and consistency checks.
 - `/adversarial` - sandbox boundary checks for network, storage, parent
   access, and unallowed host tool requests.
-- `/strict` - retired trusted-overlay note for the previous iframe runtime.
-- `/fatal` - retired bootstrap note for the previous iframe runtime.
+- `/strict` - retired overlay note; the current runtime is the inline Arrow
+  sandbox.
+- `/fatal` - retired boot note; current errors surface through the inline Arrow
+  handle and Devtools events.
 
 ## Public Packages
 

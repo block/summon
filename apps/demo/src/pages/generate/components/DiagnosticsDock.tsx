@@ -87,9 +87,9 @@ export function DiagnosticsDock({
       </div>
       <div className="bg-surface" id="diagnostics-safety" data-diagnostics-panel="safety" hidden={diagnosticsTab !== 'safety'}>
         <div className="flex flex-wrap items-center gap-1.5 p-3.5" aria-label="Safety checks">
-          <a className={buttonClass({ variant: 'chip', size: 'xs', className: 'rounded-card no-underline' })} href="/adversarial">Adversarial</a>
-          <a className={buttonClass({ variant: 'chip', size: 'xs', className: 'rounded-card no-underline' })} href="/strict">Strict input</a>
-          <a className={buttonClass({ variant: 'chip', size: 'xs', className: 'rounded-card no-underline' })} href="/fatal">Fatal boot</a>
+          <a className={buttonClass({ variant: 'chip', size: 'xs', className: 'rounded-card no-underline' })} href="/adversarial">Arrow boundary</a>
+          <a className={buttonClass({ variant: 'chip', size: 'xs', className: 'rounded-card no-underline' })} href="/strict">Overlay notes</a>
+          <a className={buttonClass({ variant: 'chip', size: 'xs', className: 'rounded-card no-underline' })} href="/fatal">Boot notes</a>
         </div>
       </div>
     </section>

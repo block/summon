@@ -4,7 +4,7 @@ const cards = [
   {
     href: "/generate",
     title: "Generate",
-    body: "One prompt. Watch semantic preview events stream into an inline Arrow surface, then resolve into a validated artifact.",
+    body: "One prompt. Stream Arrow JSONL, render the accepted artifact in the inline sandbox, and inspect diagnostics.",
     icon: (
       <>
         <path d="M3 12c2-4 3.5-4 5.5 0s3.5 4 5.5 0 3.5-4 5.5 0" />

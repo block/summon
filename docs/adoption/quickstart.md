@@ -165,9 +165,8 @@ configured, and validation diagnostics.
 To run the gallery and workbench side by side, use `pnpm dev:demos`.
 
 Open `http://localhost:5173/strict` or `http://localhost:5173/fatal` only when
-you need the retired notes for strict overlays or iframe bootstraps. The current
-runtime path is the inline Arrow sandbox exercised by `/generate` and
-`/adversarial`.
+you need the retired overlay or boot notes. The current runtime path is the
+inline Arrow sandbox exercised by `/generate` and `/adversarial`.
 
 ## Troubleshooting
 
