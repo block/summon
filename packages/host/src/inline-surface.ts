@@ -428,6 +428,11 @@ function renderPreview(root: HTMLElement, snapshot: SurfacePreviewSnapshot): voi
   previewRoot.replaceChildren();
   previewRoot.dataset.summonPreviewStatus = snapshot.status?.status ?? 'planning';
 
+  const ambient = document.createElement('div');
+  ambient.className = 'summon-preview__ambient';
+  ambient.setAttribute('aria-hidden', 'true');
+  previewRoot.append(ambient);
+
   const header = document.createElement('div');
   header.className = 'summon-preview__header';
   const heading = document.createElement('div');
@@ -501,6 +506,7 @@ function statusLabel(status: SurfaceStatus): string {
 function renderPreviewNode(node: SurfacePreviewNode, all: SurfacePreviewNode[]): HTMLElement {
   const el = document.createElement('div');
   el.className = `summon-preview__node summon-preview__node--${safeClass(node.kind)}`;
+  if (node.role) el.dataset.role = node.role;
   const label = document.createElement('span');
   label.className = 'summon-preview__label';
   label.textContent = node.label ?? stringProp(node.props, 'label') ?? node.role ?? node.kind;
@@ -544,115 +550,255 @@ function defaultPreviewCss(surfaceId: string): string {
   return `
 [data-summon-inline-surface="${surfaceId}"] {
   min-height: 100%;
-  background: var(--color-bg, Canvas);
+  background:
+    radial-gradient(circle at 16% 10%, color-mix(in srgb, var(--color-accent, #7c5cff) 18%, transparent), transparent 30%),
+    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent), transparent 26%),
+    linear-gradient(135deg, var(--color-bg, Canvas), color-mix(in srgb, var(--color-surface, Canvas) 88%, var(--color-text, CanvasText) 5%));
   color: var(--color-text, CanvasText);
   font-family: var(--font-sans, system-ui, sans-serif);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview {
+  position: relative;
+  isolation: isolate;
   display: grid;
-  gap: var(--space-5, 24px);
-  min-height: 220px;
-  padding: var(--space-5, 24px);
-  background: var(--color-surface, Canvas);
-  border: 1px solid var(--color-border, color-mix(in srgb, CanvasText 14%, transparent));
-  border-radius: var(--radius-md, 10px);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: clamp(18px, 3vw, 34px);
+  min-height: 100%;
+  padding: clamp(22px, 4vw, 54px);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface, Canvas) 76%, transparent), color-mix(in srgb, var(--color-bg, Canvas) 88%, transparent)),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-text, CanvasText) 5%, transparent) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--color-text, CanvasText) 4%, transparent) 0 1px, transparent 1px 72px);
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__ambient {
+  position: absolute;
+  inset: -30%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 24% 24%, color-mix(in srgb, var(--color-accent, #7c5cff) 24%, transparent), transparent 24%),
+    radial-gradient(circle at 76% 28%, color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent), transparent 22%),
+    conic-gradient(from 110deg at 50% 50%, transparent, color-mix(in srgb, var(--color-accent, #7c5cff) 16%, transparent), transparent 34%);
+  filter: blur(18px);
+  opacity: 0.72;
+  animation: summon-preview-drift 9s ease-in-out infinite alternate;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3, 12px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: clamp(16px, 3vw, 32px);
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid color-mix(in srgb, var(--color-text, CanvasText) 12%, transparent);
+  border-radius: clamp(20px, 3vw, 34px);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-surface, Canvas) 86%, transparent), color-mix(in srgb, var(--color-surface, Canvas) 48%, transparent));
+  box-shadow:
+    0 24px 90px color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 34%, transparent);
+  backdrop-filter: blur(18px);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__heading {
   display: grid;
-  gap: var(--space-1, 4px);
+  gap: var(--space-2, 8px);
   min-width: 0;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__header strong {
-  font-size: var(--text-lg, 18px);
+  max-width: min(820px, 100%);
+  overflow-wrap: anywhere;
+  color: var(--color-text, CanvasText);
+  font-size: clamp(30px, 6vw, 76px);
+  font-weight: 780;
+  letter-spacing: -0.058em;
+  line-height: 0.88;
 }
-[data-summon-inline-surface="${surfaceId}"] .summon-preview__header span,
-[data-summon-inline-surface="${surfaceId}"] .summon-preview__label {
-  color: var(--color-text-muted, color-mix(in srgb, CanvasText 60%, transparent));
-  font-size: var(--text-sm, 13px);
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__header span {
+  max-width: 72ch;
+  color: var(--color-text-muted, color-mix(in srgb, CanvasText 62%, transparent));
+  font-size: clamp(13px, 1.45vw, 16px);
+  line-height: 1.45;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__kind {
-  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   max-width: 28ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-text-muted, color-mix(in srgb, CanvasText 60%, transparent));
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-accent, CanvasText) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent, CanvasText) 10%, transparent);
+  color: var(--color-text, CanvasText);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__kind::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-accent, CanvasText);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent, CanvasText) 14%, transparent);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phases {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-2, 8px);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+  border: 1px solid color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface, Canvas) 62%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 24%, transparent);
+  overflow: hidden;
+  backdrop-filter: blur(14px);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase {
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: var(--space-2, 8px);
+  gap: 9px;
   min-width: 0;
-  padding: var(--space-2, 8px);
-  border: 1px solid var(--color-border, color-mix(in srgb, CanvasText 14%, transparent));
-  border-radius: var(--radius-sm, 6px);
-  color: var(--color-text-muted, color-mix(in srgb, CanvasText 60%, transparent));
+  padding: 12px 14px;
+  color: var(--color-text-muted, color-mix(in srgb, CanvasText 58%, transparent));
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phase + .summon-preview__phase {
+  border-left: 1px solid color-mix(in srgb, var(--color-text, CanvasText) 8%, transparent);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="active"] {
-  border-color: var(--color-accent, CanvasText);
   color: var(--color-text, CanvasText);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-accent, CanvasText) 18%, transparent), transparent 88%);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="complete"] {
-  background: var(--color-surface-muted, color-mix(in srgb, CanvasText 5%, Canvas));
-  color: var(--color-text, CanvasText);
+  color: color-mix(in srgb, var(--color-text, CanvasText) 78%, transparent);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase-marker {
   display: inline-grid;
-  width: 1.4em;
-  height: 1.4em;
+  width: 24px;
+  height: 24px;
   place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-text, CanvasText) 14%, transparent);
   border-radius: 999px;
-  background: var(--color-surface-muted, color-mix(in srgb, CanvasText 5%, Canvas));
-  font-size: var(--text-xs, 11px);
+  background: color-mix(in srgb, var(--color-bg, Canvas) 72%, transparent);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 800;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="active"] .summon-preview__phase-marker {
+  border-color: var(--color-accent, CanvasText);
   background: var(--color-accent, CanvasText);
   color: var(--color-accent-fg, Canvas);
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-accent, CanvasText) 14%, transparent);
+  animation: summon-preview-pulse 1.8s ease-in-out infinite;
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="complete"] .summon-preview__phase-marker {
+  border-color: color-mix(in srgb, var(--color-accent, CanvasText) 42%, transparent);
+  color: var(--color-accent, CanvasText);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--text-xs, 11px);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__body {
   display: grid;
-  gap: var(--space-3, 12px);
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+  align-content: start;
+  gap: clamp(14px, 2vw, 22px);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__node {
+  position: relative;
   display: grid;
-  gap: var(--space-2, 8px);
-  padding: var(--space-4, 16px);
-  background: var(--color-surface-muted, color-mix(in srgb, CanvasText 5%, Canvas));
-  border-radius: var(--radius-sm, 6px);
+  gap: 12px;
+  min-height: 128px;
+  padding: clamp(16px, 2vw, 22px);
+  border: 1px solid color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent);
+  border-radius: clamp(16px, 2vw, 24px);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-surface, Canvas) 76%, transparent), color-mix(in srgb, var(--color-bg, Canvas) 56%, transparent));
+  box-shadow:
+    0 18px 60px color-mix(in srgb, var(--color-text, CanvasText) 8%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 22%, transparent);
+  overflow: hidden;
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__node::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(var(--color-accent, CanvasText), transparent);
+  opacity: 0.88;
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__node[data-role="status"] {
+  grid-column: 1 / -1;
+  min-height: 150px;
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__label {
+  color: var(--color-text-muted, color-mix(in srgb, CanvasText 58%, transparent));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__node p {
+  max-width: 70ch;
   margin: 0;
+  color: var(--color-text, CanvasText);
+  font-size: clamp(14px, 1.55vw, 17px);
+  line-height: 1.48;
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-preview__node .summon-preview__node {
+  min-height: 72px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: none;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__shimmer {
-  min-height: 96px;
-  border-radius: var(--radius-sm, 6px);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, CanvasText 8%, transparent), transparent);
+  min-height: 210px;
+  border: 1px solid color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent);
+  border-radius: clamp(18px, 2vw, 28px);
+  background:
+    linear-gradient(110deg, transparent 0 28%, color-mix(in srgb, white 22%, transparent) 42%, transparent 56%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface, Canvas) 74%, transparent), color-mix(in srgb, var(--color-bg, Canvas) 58%, transparent));
+  background-size: 220% 100%, 100% 100%;
+  animation: summon-preview-shimmer 1.8s linear infinite;
 }
-@media (max-width: 700px) {
+@keyframes summon-preview-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent, CanvasText) 13%, transparent); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 11px color-mix(in srgb, var(--color-accent, CanvasText) 5%, transparent); }
+}
+@keyframes summon-preview-shimmer {
+  from { background-position: 180% 0, 0 0; }
+  to { background-position: -60% 0, 0 0; }
+}
+@keyframes summon-preview-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to { transform: translate3d(2%, 1.5%, 0) scale(1.04); }
+}
+@media (max-width: 860px) {
+  [data-summon-inline-surface="${surfaceId}"] .summon-preview__header,
+  [data-summon-inline-surface="${surfaceId}"] .summon-preview__body {
+    grid-template-columns: 1fr;
+  }
   [data-summon-inline-surface="${surfaceId}"] .summon-preview__phases {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
+    border-radius: 22px;
+  }
+  [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase + .summon-preview__phase {
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--color-text, CanvasText) 8%, transparent);
   }
 }
 `;
