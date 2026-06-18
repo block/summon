@@ -55,7 +55,7 @@ pnpm dev:workbench
 
 Open `http://localhost:5173/generate`.
 
-1. Choose the **Host Data Search** showcase scenario.
+1. Choose the **Host resource search** showcase scenario.
 2. Confirm the agent broker selects an interactive run with only the `search`
    host tool allowed.
 3. Run it, then submit a generated search such as `chicken pasta`.

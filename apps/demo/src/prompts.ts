@@ -7,7 +7,7 @@
  */
 
 export const QUICKSTART_PROMPT =
-  "help me build a weeknight dinner finder where i can search for recipes, pick a result, and see loading/error/data states clearly";
+  "help me build a weeknight dinner finder where i can search recipes, compare a few results, and see loading/error/data states clearly";
 
 export const SAMPLES: string[] = [
   QUICKSTART_PROMPT,
@@ -15,7 +15,11 @@ export const SAMPLES: string[] = [
   "i'm picking a name for our new puppy — golden retriever, female, kind of goofy",
   "i want to understand where my money actually goes each month",
   "compare switching to a standing desk vs an ergonomic chair for back pain",
-  "i'm trying to decide between Notion and Obsidian for my notes — help me think it through",
+  "i'm trying to decide between Notion and Obsidian for my notes — help me compare them and save the best fit",
+  "collect a team lunch order for eight people, including dietary notes, and let me submit the final order",
+  "look up a GitHub username and summarize the profile, followers, and public repo signal from the returned data",
+  "analyze launch readiness for instant payouts, compute a score, and show the biggest blockers",
+  "prepare a release note i can review, then ask for approval before publishing it to the team update log",
   "track my reading toward 24 books this year, with a breakdown by genre",
   "help me cut my monthly subscriptions — i'll list what i pay for and you flag what to drop",
   "i want to plan a 3-day Portland trip for two, first time visiting, around $800",
@@ -24,13 +28,16 @@ export const SAMPLES: string[] = [
   "help me prep for tomorrow's 1:1 about asking for a promotion to senior engineer",
   "explain Roth vs traditional IRA — assume i know nothing",
   "i want to log how i'm sleeping this week so i can spot patterns",
-  "what's actually going on with the housing market right now, in plain English",
+  "explain how mortgage rates, inventory, and local prices affect a homebuying decision in plain English",
   "i'm deciding what to make for dinner — i've got chicken, pasta, and not much energy",
   "draft a thank-you note to my mentor who wrote my grad school reference",
   "help me and my partner vote on weekend activities — we keep getting stuck",
   "quiz me on the EU capitals so i stop embarrassing myself at trivia",
   "what should i wear to an outdoor wedding next weekend — mid-60s, semi-formal",
   "show me a dashboard of my 14 houseplants — when i last watered each, which are thriving",
+  "search merchant payout records for a cafe owner and summarize the next questions to ask",
+  "create a project intake card where i can submit owner, deadline, risk, and requested next step",
+  "compare three customer retention offers and let me save the preferred offer",
 ];
 
 export const ALL_PROMPTS: string[] = SAMPLES;

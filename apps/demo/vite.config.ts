@@ -1,15 +1,11 @@
 import { createReadStream } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const quickJsReleaseAsyncWasm = path.resolve(
-  __dirname,
-  '../../node_modules/@jitl/quickjs-wasmfile-release-asyncify/dist/emscripten-module.wasm',
-);
+const require = createRequire(import.meta.url);
+const quickJsReleaseAsyncWasm = require.resolve('@jitl/quickjs-wasmfile-release-asyncify/wasm');
 
 export default defineConfig({
   assetsInclude: ['**/*.wasm'],

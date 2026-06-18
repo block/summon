@@ -107,7 +107,7 @@ sandbox containment and generate-page boot. It starts only the Vite demo app and
 does not require `ANTHROPIC_API_KEY`.
 
 Manual smoke path: run `pnpm dev:workbench`, open `http://localhost:5173/generate`, choose the
-**Host-resource search** showcase scenario, keep **Free layout**, confirm the
+**Host resource search** showcase scenario, keep **Free layout**, confirm the
 contract cockpit shows `explore/arrow/host-resource/read/replayable` and
 `Grants 1: search`, run the scenario, submit a generated search such as
 `chicken pasta`, inspect the Stream and Devtools drawers, replay from Saved

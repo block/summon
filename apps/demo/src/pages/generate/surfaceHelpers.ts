@@ -22,26 +22,26 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
   }
   switch (scenario.id) {
     case 'host-resource-search':
-      return { category: 'Host data', description: 'Host-owned data resource with explicit read authority.' };
+      return { category: 'Host resources', description: 'Host-owned data resource with explicit read authority.' };
     case 'host-ai-brainstorm':
-      return { category: 'Host data', description: 'Host-owned AI resource with loading, error, and response states.' };
+      return { category: 'Host resources', description: 'Host-owned AI resource with loading, error, and response states.' };
     case 'github-profile-lookup':
-      return { category: 'Host data', description: 'Host-owned external lookup with proxied image data and read authority.' };
+      return { category: 'Host resources', description: 'Host-owned external lookup with proxied image data and read authority.' };
     case 'arrow-fidelity':
-      return { category: 'Host action', description: 'Arrow-rendered dashboard with host-owned action authority.' };
+      return { category: 'Host actions', description: 'Arrow-rendered dashboard with host-owned action authority.' };
     case 'static-summary':
-      return { category: 'Read-only', description: 'Static generated UI with embedded data and no host actions.' };
+      return { category: 'Static', description: 'Static generated UI with embedded data and no host actions.' };
     case 'declarative-form':
     case 'decision-picker':
-      return { category: 'Host action', description: 'Declarative controls routed through host-owned handlers.' };
+      return { category: 'Host actions', description: 'Declarative controls routed through host-owned handlers.' };
     case 'worker-analysis':
       return { category: 'Worker', description: 'Background worker data plus host-action authority.' };
     case 'approval-publish':
       return { category: 'Approval', description: 'Publish workflow guarded by an approval-gated host action.' };
     case 'local-state-motion':
-      return { category: 'Runtime', description: 'Declarative local state and host-owned motion recipes.' };
+      return { category: 'Arrow behavior', description: 'Arrow components, keyed lists, computed local state, styling, and motion.' };
     case 'token-override':
-      return { category: 'Tokens', description: 'Token override request that repaints through host CSS.' };
+      return { category: 'Design tokens', description: 'Token override request that repaints through host CSS.' };
     case 'layout-card':
       return { category: 'Layout', description: 'Host layout slots constrain the generated card shape.' };
     case 'sibling-summon':

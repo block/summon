@@ -29,6 +29,7 @@ test('fixed prompt describes Arrow-only artifact output', () => {
   assert.match(SUMMON_FIXED_INSTRUCTIONS, /"op":"event"/);
   assert.match(SUMMON_FIXED_INSTRUCTIONS, /"op":"artifact"/);
   assert.match(SUMMON_FIXED_INSTRUCTIONS, /"runtime":"arrow"/);
+  assert.match(SUMMON_FIXED_INSTRUCTIONS, /`watch`/);
   assert.match(SUMMON_FIXED_INSTRUCTIONS, /Do not emit `set \/screen`, `add \/section\/\*`/);
 });
 

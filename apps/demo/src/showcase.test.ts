@@ -10,6 +10,8 @@ import {
   narrowToolPack,
   SHOWCASE_SCENARIOS,
 } from './showcase.js';
+import { ALL_PROMPTS } from './prompts.js';
+import { groupScenarios } from './pages/generate/surfaceHelpers.js';
 
 const allDemoToolNames = [
   'log',
@@ -127,6 +129,50 @@ test('showcase scenarios cover every non-utility demo tool', () => {
   );
 
   assert.deepEqual(missing, []);
+});
+
+test('showcase menu groups use current Arrow-first labels', () => {
+  const categories = groupScenarios(SHOWCASE_SCENARIOS).map((group) => group.category);
+
+  assert.deepEqual(categories, [
+    'Host resources',
+    'Static',
+    'Host actions',
+    'Worker',
+    'Approval',
+    'Arrow behavior',
+    'Design tokens',
+    'Layout',
+    'Composition',
+  ]);
+  assert.equal(categories.includes('Host data'), false);
+  assert.equal(categories.includes('Read-only'), false);
+  assert.equal(categories.includes('Runtime'), false);
+});
+
+test('batch prompt pool covers representative surface intents', () => {
+  const requiredSignals: Array<[string, RegExp]> = [
+    ['host data lookup', /\b(search|lookup|find)\b/i],
+    ['host AI brainstorm', /\bbrainstorm\b/i],
+    ['form submit', /\b(collect|intake|submit|order)\b/i],
+    ['host action choice', /\b(save|choose|vote|pick)\b/i],
+    ['worker analysis', /\b(analy[sz]e|compute|score)\b/i],
+    ['approval-gated operation', /\b(approval|approve|publish)\b/i],
+    ['GitHub resource', /\bgithub\b/i],
+  ];
+
+  for (const [label, pattern] of requiredSignals) {
+    assert.ok(
+      ALL_PROMPTS.some((prompt) => pattern.test(prompt)),
+      `batch prompt pool is missing ${label}`,
+    );
+  }
+
+  assert.equal(
+    ALL_PROMPTS.some((prompt) => /\b(right now|latest|today's)\b/i.test(prompt)),
+    false,
+    'batch prompt pool should not require current external facts',
+  );
 });
 
 test('showcase scenarios reference bundled public directions', () => {

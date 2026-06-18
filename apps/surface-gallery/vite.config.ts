@@ -1,16 +1,12 @@
 import { createReadStream } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
 const port = Number(process.env.SUMMON_GALLERY_PORT ?? 5174);
 const apiTarget = process.env.SUMMON_GALLERY_API_TARGET ?? 'http://localhost:3001';
-const quickJsReleaseAsyncWasm = path.resolve(
-  __dirname,
-  '../../node_modules/@jitl/quickjs-wasmfile-release-asyncify/dist/emscripten-module.wasm',
-);
+const quickJsReleaseAsyncWasm = require.resolve('@jitl/quickjs-wasmfile-release-asyncify/wasm');
 
 export default defineConfig({
   assetsInclude: ['**/*.wasm'],

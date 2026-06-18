@@ -46,7 +46,7 @@ export interface ActiveContract {
 export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   {
     id: 'host-resource-search',
-    label: 'Host Data Search',
+    label: 'Host resource search',
     prompt:
       'help me build a weeknight dinner finder where i can search for recipes and see loading, error, and real host data states clearly',
     mode: 'interactive',
@@ -99,7 +99,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     id: 'arrow-fidelity',
     label: 'Arrow launch dashboard',
     prompt:
-      'build a compact launch-readiness dashboard with metric cards, a trend sparkline, an approval status treatment, and a choose control for the final launch recommendation, all rendered directly in Arrow',
+      'build a compact launch-readiness dashboard with metric cards, a trend sparkline, launch status treatments, and a choose control for the final launch recommendation, all rendered directly in Arrow',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: {
@@ -134,7 +134,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'decision-picker',
-    label: 'Decision Picker',
+    label: 'Decision picker',
     prompt:
       'help me choose between three launch announcement approaches for a small developer tool. Compare tradeoffs and let me save the best option.',
     mode: 'interactive',
@@ -168,7 +168,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'worker-analysis',
-    label: 'Worker Analysis',
+    label: 'Worker analysis',
     prompt:
       'run host analysis for a product launch readiness topic, compute a score with a host-owned background worker, and show loading, error, and result states',
     mode: 'interactive',
@@ -185,7 +185,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'approval-publish',
-    label: 'Approval Publish',
+    label: 'Approval publish',
     prompt:
       'build a publish approval panel where i can review a titled summary, request host approval, and show pending, approved, denied, and error states',
     mode: 'interactive',
@@ -204,7 +204,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     id: 'local-state-motion',
     label: 'Local state + motion',
     prompt:
-      'build a scoring picker with tabs, disclosure, local highlighted selection, state-driven styling, and subtle motion using only declarative local state plus host-backed choose and counter controls',
+      'build an Arrow behavior lab for ranking launch options: use reusable option rows, a keyed list, computed local summary, tabs or disclosure, state-driven styling, subtle motion, and host-backed choose and counter controls',
     mode: 'interactive',
     toolNames: ['choose', 'counter'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },

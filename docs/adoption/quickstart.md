@@ -109,7 +109,7 @@ ghost relay gather .
 
 ## Golden Scenario
 
-In the workbench, use the **Host Data Search** scenario. The scenario is
+In the workbench, use the **Host resource search** scenario. The scenario is
 shaped to exercise the adopter path:
 
 - The host registers a `search` data tool with `defineDataResource`.
@@ -120,7 +120,7 @@ shaped to exercise the adopter path:
 
 ## What To Verify
 
-1. Select **Host Data Search**.
+1. Select **Host resource search**.
 2. Keep layout on **Free layout**.
 3. Confirm the run is interactive and only the `search` host tool is allowed.
 4. Run the scenario.

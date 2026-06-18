@@ -37,13 +37,13 @@ export const layoutPresets = new Map<string, SummonLayout>([
 ]);
 
 export const scenarioCategoryOrder = [
-  'Host data',
-  'Read-only',
-  'Host action',
+  'Host resources',
+  'Static',
+  'Host actions',
   'Worker',
   'Approval',
-  'Runtime',
-  'Tokens',
+  'Arrow behavior',
+  'Design tokens',
   'Layout',
   'Composition',
   'Diagnostics',
