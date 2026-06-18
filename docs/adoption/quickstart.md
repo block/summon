@@ -29,8 +29,9 @@ host-backed search, host-owned actions, approval flows, direct Arrow
 composition, and background host work.
 
 Each preset chooses a surface config and a short list of allowed host tools.
-The server turns that into the stricter validation details Summon uses during
-generation and replay.
+In API terms, that config is a `SurfacePolicy`. The server compiles it into the
+stricter `SurfacePlan` and `SurfaceContractView` Summon uses during generation,
+validation, diagnostics, and replay.
 
 ## Run The Workbench
 
@@ -164,8 +165,8 @@ configured, and validation diagnostics.
 To run the gallery and workbench side by side, use `pnpm dev:demos`.
 
 Open `http://localhost:5173/strict` or `http://localhost:5173/fatal` only when
-you need the retired V1 notes for strict overlays or iframe bootstraps. The
-current runtime path is the inline Arrow sandbox exercised by `/generate` and
+you need the retired notes for strict overlays or iframe bootstraps. The current
+runtime path is the inline Arrow sandbox exercised by `/generate` and
 `/adversarial`.
 
 ## Troubleshooting

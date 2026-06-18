@@ -12,7 +12,7 @@ Summon is consumed as built public packages. Do not import `src/*.ts` paths or
 The root `@anarchitecture/summon` entrypoint is curated for host-authoring:
 registering host tools, choosing surface configs, compiling contract views, and
 dispatching host-owned requests. Use explicit subpaths when you need lower-level
-browser, engine, host, policy, envelope, assets, or Devtools APIs:
+browser, engine, host, policy, envelope, assets, Devtools, or token CSS APIs:
 
 - `@anarchitecture/summon/browser` for Arrow stream consumption and inline
   sandbox mounting.
@@ -20,6 +20,11 @@ browser, engine, host, policy, envelope, assets, or Devtools APIs:
   stream diagnostics, and hardening APIs.
 - `@anarchitecture/summon/host` for adapter authors who need the full host
   runtime surface.
+- `@anarchitecture/summon/policy` for direct `PolicyEngine` wiring.
+- `@anarchitecture/summon/envelope` for saved replay envelopes.
+- `@anarchitecture/summon/assets` for bundled token CSS as `tokensSource`.
+- `@anarchitecture/summon/devtools` for event-store types and helpers.
+- `@anarchitecture/summon/tokens.css` for bundlers that import CSS directly.
 
 ## React Hosts
 
@@ -39,6 +44,7 @@ const toolRegistry = createToolRegistry([
       data: 'searchResults',
       error: 'searchError',
     },
+    triggers: ['submit', 'mount'],
     fetch: searchHostData,
   }),
 ]);
@@ -58,6 +64,10 @@ For live generation, keep a ref and render accepted artifacts from
 `consumeSurfaceStream()`:
 
 ```tsx
+import { type SummonSurfaceHandle } from '@anarchitecture/summon-react';
+import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
+import { useRef } from 'react';
+
 const surfaceRef = useRef<SummonSurfaceHandle>(null);
 
 <SummonSurface
@@ -118,8 +128,10 @@ handle = mountInlineSurface({
   validationTools: toolContract.validationTools,
   initialState: policy.getState(),
   tokensSource,
-  onToolCall: (tool, args) => {
-    return policy.dispatch(tool, args).then((result) => result.state);
+  onToolCall: async (tool, args) => {
+    const result = await policy.dispatch(tool, args);
+    if (!result.ok) throw new Error(result.error ?? `Tool "${tool}" failed`);
+    return result.state;
   },
 });
 
@@ -149,6 +161,13 @@ await consumeSurfaceStream(response.body!, {
 policy-derived compact view that the server emits as `/surface-contract` for
 policy-backed runs. Use it for previews, Devtools panels, and replay summaries;
 do not use it as an enforcement source.
+
+Saved replay envelopes are versioned runtime records, not authority. A
+`SurfaceEnvelope` stores the prompt, compiled `SurfacePlan`, accepted Arrow
+artifact, protocol lines, validation issues, stream graph snapshot, granted
+tools/validation tools, optional metadata, token CSS, and runtime version.
+`SummonSurface` can replay one, but live host handlers still come from the
+current `toolRegistry` or `onToolCall` wiring.
 
 ## Generation Servers
 

@@ -13,6 +13,10 @@ The TypeScript APIs still use precise runtime names such as tool,
 `SurfacePolicy`, and `PolicyEngine`. In adopter-facing prose, think of them as
 host tools, surface config, and host dispatch.
 
+`SurfacePolicy` is the public per-run config. Summon compiles it into a
+host-owned `SurfacePlan` and `SurfaceContractView`; generated artifacts may read
+those diagnostics but cannot emit or widen them.
+
 ## 1. Register Host Tools
 
 Host tools are data sources or actions the generated UI may request. The host
@@ -80,10 +84,10 @@ pushes pending, done, and error state around the host handler so generated UI ca
 disable the trigger, show host errors, and render success only after the host
 actually finishes.
 
-Approval actions are still host tools. The difference is that the host prepares
-the exact operation before asking for a decision. The generated surface gets
-only small status state such as pending, approved, denied, failed, and a request
-id; approve and deny controls stay in trusted host UI.
+Approval actions are still host tools. The difference is that the host can
+prepare the exact operation before asking for a decision. The generated surface
+gets only small status state such as pending, approved, denied, failed, and a
+request id; approve and deny controls should stay in trusted host UI.
 
 ```ts
 defineApprovalAction({
@@ -279,8 +283,10 @@ handle = mountInlineSurface({
   validationTools: toolContract.validationTools,
   initialState: policy.getState(),
   tokensSource,
-  onToolCall: (tool, args) => {
-    return policy.dispatch(tool, args).then((result) => result.state);
+  onToolCall: async (tool, args) => {
+    const result = await policy.dispatch(tool, args);
+    if (!result.ok) throw new Error(result.error ?? `Tool "${tool}" failed`);
+    return result.state;
   },
 });
 

@@ -14,6 +14,10 @@ The adopter mental model is intentionally small:
 | Surface config | The host's choice of what the surface is allowed to do. |
 | Diagnostics | Stream and Devtools information used when something breaks. |
 
+In the TypeScript API, a surface config is `SurfacePolicy`. Summon compiles it
+into a stricter `SurfacePlan` plus a read-only `SurfaceContractView` before any
+model-authored output is accepted.
+
 ## Project Status: Beta
 
 Summon is pre-1.0 and under active development. The protocol,
@@ -103,14 +107,14 @@ pnpm dev:demos
   wiring, direction-token visual coverage, throughput, and consistency checks.
 - `/adversarial` - sandbox boundary checks for network, storage, parent
   access, and unallowed host tool requests.
-- `/strict` - retired V1 trusted-overlay note for the previous iframe runtime.
-- `/fatal` - retired V1 bootstrap note for the previous iframe runtime.
+- `/strict` - retired trusted-overlay note for the previous iframe runtime.
+- `/fatal` - retired bootstrap note for the previous iframe runtime.
 
 ## Public Packages
 
 - `@anarchitecture/summon` - curated host-authoring helpers, surface config
   helpers, and explicit subpaths for advanced browser, engine, host, policy,
-  envelope, assets, and Devtools APIs.
+  envelope, assets, Devtools, and token CSS APIs.
 - `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
   Arrow protocol hardening, validation summaries, and model-provider
   interfaces.
@@ -127,7 +131,7 @@ pnpm dev:demos
   direction loading, Arrow protocol diagnostics, and demo backing routes.
 - `apps/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/demo` - Vite maintainer workbench for generation, batch runs,
-  adversarial checks, Ghost steering, diagnostics, and retired V1 notes.
+  adversarial checks, Ghost steering, diagnostics, and retired iframe-era notes.
 
 ## Adoption Docs
 

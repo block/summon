@@ -1,8 +1,9 @@
 # Mobile WebView Requirements
 
-Summon is web-first. Native iOS or Android wrappers are not part of V1, but any
-WebView host must preserve the same shape: generated logic runs inside the
-Arrow VM boundary, and native privileges stay with the host.
+Summon is web-first. Native iOS or Android wrappers are not part of the current
+supported runtime, but any WebView host must preserve the same shape: generated
+logic runs inside the Arrow VM boundary, and native privileges stay with the
+host.
 
 - Generated UI must never receive a native bridge object.
 - Generated Arrow logic must not receive `window`, `document`, storage, native
@@ -12,5 +13,5 @@ Arrow VM boundary, and native privileges stay with the host.
   APIs directly.
 - If the host cannot prove the Arrow VM boundary holds in its WebView, degrade
   to read-only surfaces with no executable host tools.
-- Treat WebKit safety tests as the feasible V1 proxy for WebView behavior, then
-  add native wrapper tests before enabling privileged mobile bridges.
+- Treat WebKit safety tests as the feasible browser proxy for WebView behavior,
+  then add native wrapper tests before enabling privileged mobile bridges.

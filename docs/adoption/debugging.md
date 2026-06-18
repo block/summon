@@ -94,6 +94,10 @@ stays blank:
 5. **Sandbox boundary** - the inline Arrow VM withholds ambient browser APIs;
    Summon removes generated fetch for no-network artifacts and rejects
    ungranted host tool requests.
+6. **Replay envelope** - saved surfaces preserve the accepted Arrow artifact,
+   compiled surface plan, protocol history, validation issues, stream graph,
+   grants, metadata, and token CSS for replay and diagnostics. They do not
+   grant new host tools.
 
 ## Stream Meta Lines
 
@@ -125,10 +129,14 @@ accepted revision with `renderArtifact()`.
 The generate demo records a per-run `EventStore`. Open the **Devtools** drawer
 and look for:
 
-- `protocol-line` - accepted `meta` or `artifact` records after parsing.
+- `protocol-line` - accepted `meta`, `event`, or `artifact` records after
+  parsing.
 - `protocol-parse-error` - raw model output that was not valid JSONL.
+- `stream-lifecycle` - client streaming started or ended.
 - `surface-mounted` - the inline Arrow sandbox root was created with the current
   host grants.
+- `surface-preview-event` - a semantic preview event was accepted before the
+  final Arrow artifact mounted.
 - `render` - an accepted Arrow artifact was sent to the inline sandbox.
 - `rendered` - the inline sandbox finished mounting that Arrow artifact
   revision.
@@ -143,6 +151,8 @@ and look for:
   `StreamGraph.snapshot()`.
 - `surface-runtime-error` - Arrow compilation, VM execution, or renderer mount
   failed.
+- `surface-disposed` - the inline surface handle was disposed and the sandbox
+  root was cleared.
 
 ## Reading Contract Issues
 

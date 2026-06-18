@@ -27,12 +27,15 @@ including compiled `SurfacePlan` APIs, live behind explicit subpaths:
 @anarchitecture/summon/envelope
 @anarchitecture/summon/assets
 @anarchitecture/summon/devtools
+@anarchitecture/summon/tokens.css
 ```
 
 Use `/browser` for inline Arrow sandbox mounting and stream consumption. Use
 `/engine` for protocol, validation, prompt contracts, stream diagnostics, and
-hardening. Use `/host` only when writing adapters that need the full host
-runtime surface.
+hardening. Use `/policy` for direct `PolicyEngine` wiring, `/envelope` for
+saved replay envelopes, `/assets` or `/tokens.css` for bundled token CSS, and
+`/devtools` for event-store types and helpers. Use `/host` only when writing
+adapters that need the full host runtime surface.
 
 `@anarchitecture/summon-server` is the provider-neutral generation package. It
 owns `runSurfaceGeneration`, prompt/contract assembly, Arrow protocol

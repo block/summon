@@ -119,6 +119,6 @@ The safety harness should cover:
 - Generate-page boot without server credentials.
 
 The manual containment page remains available at
-`http://localhost:5173/adversarial`. WebKit remains the V1 browser proxy for
-mobile WebView behavior; native wrapper tests should be added before any mobile
-bridge is exposed.
+`http://localhost:5173/adversarial`. WebKit remains the browser proxy for mobile
+WebView behavior; native wrapper tests should be added before any mobile bridge
+is exposed.
