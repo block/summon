@@ -28,13 +28,13 @@ Follow this path unless the user explicitly asks for a runtime redesign:
 
 ```txt
 host tool registry
-  -> SurfacePolicy: tier/grants/components/purpose/persistence
+  -> SurfacePolicy: tier/grants/purpose/persistence
   -> compiled SurfacePlan: purpose/runtime/data/authority/persistence
   -> createToolRegistry(...).toContract()
   -> compileSystemContracts()
   -> Arrow protocol hardener
   -> StreamGraph artifact diagnostics
-  -> PolicyEngine and spawnSandbox()
+  -> PolicyEngine and mountInlineSurface()
 ```
 
 Tools are host-owned. The model sees the contract; the host owns handlers,
@@ -52,9 +52,10 @@ host approval adapter.
 
 ## Safe Output Rules
 
-- Keep the iframe null-origin. Do not add `allow-same-origin`.
 - Grant tools from the host with `grantedTools`; never trust artifact-declared
   tools as permission.
+- Keep generated network access disabled by default. Use host tools for product
+  data and credentials.
 - Prefer Arrow-native generated artifacts with `host-bridge:summon` and
   `callTool()`. Generated custom scripts, legacy runtime controls, and raw
   section/fragment protocols are rejected before generation or at the parser.
@@ -73,14 +74,14 @@ For generation failures, inspect `/error`, `/validation-summary`,
 `/agent-policy-resolution`, `/shape`, `/token-overrides`, and `/mode-upgraded`.
 
 For client behavior, inspect Devtools events: `surface-plan`,
-`surface-contract`, `protocol-line`, `protocol-parse-error`, `sandbox-ready`,
+`surface-contract`, `protocol-line`, `protocol-parse-error`, `surface-mounted`,
 `render`, `rendered`, `tool-called`, `tool-rejected`,
-`tool-dispatched`, `tool-settled`, `state-pushed`, `component-sync`,
-`stream-graph`, and `sandbox-fatal`.
+`tool-dispatched`, `tool-settled`, `state-pushed`, `stream-graph`, and
+`surface-runtime-error`.
 
 Use `ContractIssue` plus `hintsForContractIssue(issue)` when feeding validation
 problems back to a model or another agent. For surface problems, check whether
-the requested grant/component exceeds the selected `SurfacePolicy` or compiled
+the requested grant exceeds the selected `SurfacePolicy` or compiled
 `SurfacePlan`.
 
 ## Commands
@@ -102,15 +103,13 @@ pnpm eval-directions [--prompts N] [--directions id,id] [--seed N] [--dry]
 ```
 
 `pnpm test:safety` runs the Playwright Chromium and WebKit smoke suite for
-sandbox containment, bootstrap fatal checks, strict input, and generate-page
-boot. It starts only the Vite demo app and does not require
-`ANTHROPIC_API_KEY`.
+sandbox containment and generate-page boot. It starts only the Vite demo app and
+does not require `ANTHROPIC_API_KEY`.
 
 Manual smoke path: run `pnpm dev:workbench`, open `http://localhost:5173/generate`, choose the
 **Host-resource search** showcase scenario, keep **Free layout**, confirm the
 contract cockpit shows `explore/arrow/host-resource/read/replayable` and
 `Grants 1: search`, run the scenario, submit a generated search such as
 `chicken pasta`, inspect the Stream and Devtools drawers, replay from Saved
-surfaces, then open `http://localhost:5173/adversarial`. Use `/batch`,
-`/strict`, and `/fatal` for prompt/token health, trusted input overlay,
-and sandbox startup failure checks.
+surfaces, then open `http://localhost:5173/adversarial`. Use `/batch` for
+prompt/token health; `/strict` and `/fatal` only retain retired V1 notes.

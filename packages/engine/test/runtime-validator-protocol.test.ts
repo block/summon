@@ -181,6 +181,27 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
         value: {
           runtime: 'arrow',
           source: {
+            'main.ts': [
+              'import { html } from "@arrow-js/core";',
+              'void fetch("https://example.test/track");',
+              'export default html`<div>Weather</div>`;',
+            ].join('\n'),
+          },
+        },
+      },
+      baseContext,
+    )),
+    ['arrow-network-not-granted'],
+  );
+
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
             'main.ts': 'import { html } from "@arrow-js/core"; export default html`<input .value="${() => "nope"}" />`',
           },
         },

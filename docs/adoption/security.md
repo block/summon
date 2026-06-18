@@ -1,36 +1,40 @@
 # Summon Security Posture
 
-Summon's security invariant is simple: generated UI runs in a locked iframe and
-can only request host tools the host allowed for that run. The host owns network,
-credentials, durable state, native APIs, handlers, and persistence.
+Summon's security invariant is simple: generated UI can only request host tools
+the host allowed for that run. The host owns network, credentials, durable
+state, native APIs, handlers, approvals, and persistence.
 
-The model may propose Arrow source, CSS, and requests to use host tools. It
-does not get ambient access to the parent app, and it cannot give itself new
-authority.
+The model may propose Arrow source, CSS, preview events, and requests to use
+host tools. It does not get ambient access to the parent app, and it cannot give
+itself new authority.
 
 ## Security Boundary
 
-The hard boundary is the browser sandbox:
+The current boundary is the inline Arrow sandbox:
 
-- `spawnSandbox()` creates a null-origin iframe with `sandbox="allow-scripts"`.
-- The sandbox CSP blocks network, external assets, forms, frames, workers,
-  object/embed content, and storage-backed same-origin access.
-- The bridge accepts only messages carrying the per-sandbox random
-  `sandbox_id`.
-- Host-owned allowlists (`grantedTools` and `validationTools`) decide
-  which generated requests can run.
+- `mountInlineSurface()` mounts accepted Arrow source into an `<arrow-sandbox>`
+  element.
+- User-authored logic runs inside Arrow's QuickJS/WASM VM, not in the page's
+  `window` realm.
+- The host page mutates the real DOM only through Arrow's trusted renderer.
+- The VM does not receive direct `window`, `document`, DOM nodes, storage,
+  cookies, parent frame, or native bridge access.
+- Host-owned allowlists (`grantedTools` and `validationTools`) decide which
+  generated requests can run.
 - `PolicyEngine` validates request args before host handlers run.
 - Data resources fetch through host-owned handlers and validate returned data
   before pushing state back.
-- Trusted host components render outside the iframe after the host validates
-  registered component names and props.
+- Generated network access is off by default. For `network: "none"` surfaces,
+  validation blocks generated `fetch()` usage and the inline runtime removes
+  the Arrow VM's fetch global before mounting.
 
-The validator is not the security perimeter. It is a contract gate and
+The validator is not the only security perimeter. It is a contract gate and
 diagnostic guide that rejects or warns on malformed Arrow artifacts,
 unsupported Arrow template bindings, unsafe URLs, bad args, unknown host tool
-requests, missing resource states, token drift, and layout violations before an
-artifact renders in the iframe. If validation misses a weird artifact shape,
-the iframe/CSP/bridge should still contain it.
+requests, missing resource states, token drift, layout violations, and
+ungranted generated network usage before an artifact renders. Runtime defenses
+still enforce tool allowlists and remove default network access for no-network
+artifacts.
 
 ## Surface Types
 
@@ -39,16 +43,16 @@ for this choice is `SurfacePolicy.tier`.
 
 | Surface type | API setting | When to use |
 | --- | --- | --- |
-| Read-only | `SurfacePolicy.tier: "static"` | Summaries, cards, explainers, comparisons, and dashboards. Scripts and host tools are omitted. |
+| Read-only | `SurfacePolicy.tier: "static"` | Summaries, cards, explainers, comparisons, and dashboards. Host tools are omitted. |
 | Arrow interactive | `SurfacePolicy.tier: "declarative"` | Production default for forms, search, pickers, loading/error/data states, and result lists. Generates Arrow runtime artifacts that call host tools through `host-bridge:summon`; the tier name remains `declarative` for API compatibility. |
 | Background host work | `SurfacePolicy.tier: "worker"` | Host-owned background work through worker-backed resources/actions. |
 | Requires approval | `SurfacePolicy.tier: "approval"` | Operations that require a host approval adapter before the handler runs. |
 
-Declarative interactive surfaces still support clicks, submits,
-mount-triggered reads, data resources, loading/error/data bindings, foreach
-templates, text binding, safe image/data attributes, local ephemeral state, and
-host-owned motion recipes. Generated `<script>` tags are not a public artifact
-tool.
+Declarative interactive surfaces support clicks, submits, mount-triggered reads,
+data resources, loading/error/data bindings, foreach templates, text binding,
+safe image/data attributes, local ephemeral state, and host-owned motion
+recipes. Generated `<script>` tags, legacy section protocols, and component
+island placeholders are not public artifact tools.
 
 ## Advanced Safety Details
 
@@ -61,40 +65,19 @@ scripted-plan request fields are rejected before generation.
 
 Summon also derives a `SurfaceContractView` from the compiled policy. It is a
 compact diagnostic and prompt-facing view of the selected policy, narrowed host
-tools/resources, narrowed trusted components, optional host layout slots, and
-compile issues. It does not grant authority and it does not replace validators
-or the `PolicyEngine`.
+tools/resources, optional host layout slots, and compile issues. It does not
+grant authority and it does not replace validators or the `PolicyEngine`.
 
 Generated UI must not emit or widen `/surface-policy`, `/surface-plan`, or
 `/surface-contract`. Those meta lines are host-owned diagnostics.
-
-## Trusted Host Components
-
-Trusted host components preserve the same boundary. The model can emit a
-placeholder such as `data-summon-component="MetricCard"` with JSON props, but
-the actual component code runs only in the host overlay. The sandbox bootstrap
-measures placeholders and posts `SUMMON_COMPONENTS` with the per-iframe
-`sandbox_id`; the host ignores messages for any other sandbox.
-
-The sandbox can lie about placeholder bounds. That can affect where an overlay
-would be placed, so the host island registry clips bounds to the iframe and
-rejects empty, offscreen, or oversized rectangles. The sandbox still cannot read
-host component DOM, call component methods, import component code, bypass Zod
-prop validation, or dispatch durable actions except through the existing
-host-allowed request path.
-
-Missing, unknown, or invalid component placeholders fail closed: leave the
-sandbox-authored placeholder visible, do not render host DOM, and emit a
-component diagnostic event. Replaying a saved envelope with component allowlists
-requires a compatible host registry for the same reason.
 
 ## Host Rules
 
 - Always pass allowed host tools from a host-owned registry. Use `[]` for
   read-only surfaces. Do not rely on generated declarations for authority.
 - Always submit a host-selected surface config for generation. Summon narrows
-  host tool and component catalogs from that config and emits compiled safety
-  diagnostics before model output.
+  host tool catalogs from that config and emits compiled safety diagnostics
+  before model output.
 - Prefer `defineAction` and `defineDataResource`; they keep schemas, prompt
   text, runtime validation, host handlers, and initial state in one place.
 - Use `defineWorkerAction` / `defineWorkerResource` for host-owned background
@@ -109,37 +92,33 @@ requires a compatible host registry for the same reason.
   approved handler executes from `ctx.approval.plan`. Summon core does not
   persist approval requests, and generated surfaces should render only waiting,
   approved, denied, or failed state.
-- Proxy external data and assets through host handlers. The sandbox should see
+- Proxy product data and assets through host handlers. The sandbox should see
   validated state and data URLs, not credentials or network endpoints.
-- Treat component definitions as trusted host code. Register only components
-  whose data and authority match the selected surface config.
 - Use Arrow local state and motion primitives for tabs, disclosures, selection,
-  staged reveal, and visual feedback. Do not grant custom generated scripts;
-  legacy script-control request fields are rejected before generation.
-- Run the adversarial browser harness before changing iframe sandbox
-  attributes, CSP, postMessage routing, bootstrap startup checks, or script
-  execution behavior.
+  staged reveal, and visual feedback.
+- Do not grant custom generated scripts; legacy script-control request fields
+  are rejected before generation.
+- Run the adversarial browser harness before changing inline runtime, Arrow
+  bridge, generated network policy, or tool-dispatch behavior.
 
 ## Test Expectations
 
 Unit tests cover protocol validation, hardening, stream diagnostics, host tool
-registry conversion, `PolicyEngine` schema dispatch, and data-resource lifecycle
-behavior.
+registry conversion, `PolicyEngine` schema dispatch, generated network rejection,
+and data-resource lifecycle behavior.
 
-`pnpm test:safety` runs the automated Chromium and WebKit smoke suite for:
+The safety harness should cover:
 
-- CSP blocking of fetch, XHR, WebSocket, EventSource, beacons, external images,
-  external scripts, dynamic imports, eval, and `Function`.
-- Null-origin behavior for parent/top access, storage, IndexedDB, and cookies.
-- `sandbox_id` routing with multiple iframes and forged messages.
-- Component-sync routing, component prop validation, and host-overlay isolation.
+- QuickJS/Arrow VM absence of ambient browser globals such as `window`,
+  `document`, storage, XHR, WebSocket, workers, and native bridge APIs.
+- Generated `fetch()` unavailability for no-network surfaces.
 - Rejection of unallowed host tool requests and generated permission-escalation
   attempts.
-- Bootstrap fatal behavior for unsafe sandbox configuration.
-- Strict input overlay tokenization and generate-page boot without server
-  credentials.
+- Stream validation rejection for malformed Arrow artifacts, legacy section
+  protocols, legacy `data-summon-*` bindings, and unsupported Arrow bindings.
+- Generate-page boot without server credentials.
 
 The manual containment page remains available at
-`http://localhost:5173/adversarial`. WebKit is the V1 browser proxy for
+`http://localhost:5173/adversarial`. WebKit remains the V1 browser proxy for
 mobile WebView behavior; native wrapper tests should be added before any mobile
 bridge is exposed.

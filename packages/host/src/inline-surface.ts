@@ -55,6 +55,97 @@ export interface InlineSurfaceHandle {
 }
 
 const PREVIEW_ROOT_ATTR = 'data-summon-preview-root';
+const DISABLE_FETCH_PRELUDE = [
+  'try {',
+  '  Object.defineProperty(globalThis, "fetch", { value: undefined, configurable: true, writable: false });',
+  '} catch {',
+  '  globalThis.fetch = undefined;',
+  '}',
+  '',
+].join('\n');
+
+interface InlineToolCallOptions {
+  surfaceId: string;
+  toolAllowlist: ReadonlySet<string>;
+  currentState: Record<string, unknown>;
+  tool: unknown;
+  rawArgs: unknown;
+  onToolCall?: InlineSurfaceOptions['onToolCall'];
+  onToolRejected?: InlineSurfaceOptions['onToolRejected'];
+  events?: EventStore;
+}
+
+interface InlineToolCallResult {
+  ok: boolean;
+  state: Record<string, unknown>;
+  error?: string;
+  stateChanged: boolean;
+}
+
+export async function resolveInlineToolCall(options: InlineToolCallOptions): Promise<InlineToolCallResult> {
+  const { currentState, events, onToolCall, onToolRejected, rawArgs, surfaceId, tool, toolAllowlist } = options;
+  if (typeof tool !== 'string' || !tool) {
+    return rejectInlineToolCall('tool not a non-empty string', {
+      currentState,
+      events,
+      onToolRejected,
+      raw: { tool, args: rawArgs },
+      surfaceId,
+    });
+  }
+  if (!toolAllowlist.has(tool)) {
+    return rejectInlineToolCall(`tool "${tool}" not granted`, {
+      currentState,
+      events,
+      onToolRejected,
+      raw: { tool, args: rawArgs },
+      surfaceId,
+    });
+  }
+  if (!onToolCall) {
+    return rejectInlineToolCall(`tool "${tool}" has no host handler`, {
+      currentState,
+      events,
+      onToolRejected,
+      raw: { tool, args: rawArgs },
+      surfaceId,
+    });
+  }
+
+  const args = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs)
+    ? rawArgs as Record<string, unknown>
+    : {};
+  events?.push({ kind: 'tool-called', at: Date.now(), surfaceId, tool, args });
+  try {
+    const result = await onToolCall(tool, args);
+    if (result && typeof result === 'object' && !Array.isArray(result)) {
+      return {
+        ok: true,
+        state: cloneState(result as Record<string, unknown>),
+        stateChanged: true,
+      };
+    }
+    return { ok: true, state: cloneState(currentState), stateChanged: false };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return { ok: false, state: cloneState(currentState), error, stateChanged: false };
+  }
+}
+
+function rejectInlineToolCall(
+  error: string,
+  options: {
+    currentState: Record<string, unknown>;
+    raw: unknown;
+    onToolRejected?: InlineSurfaceOptions['onToolRejected'];
+    events?: EventStore;
+    surfaceId?: string;
+  },
+): InlineToolCallResult {
+  options.events?.push({ kind: 'tool-rejected', at: Date.now(), surfaceId: options.surfaceId, reason: error, raw: options.raw });
+  options.onToolRejected?.(error, options.raw);
+  return { ok: false, state: cloneState(options.currentState), error, stateChanged: false };
+}
 
 type SandboxFactory = (
   options: {
@@ -99,33 +190,21 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     tool: unknown,
     rawArgs: unknown,
   ): Promise<{ ok: boolean; state: Record<string, unknown>; error?: string }> => {
-    if (typeof tool !== 'string' || !tool) {
-      const error = 'tool not a non-empty string';
-      options.onToolRejected?.(error, { tool, args: rawArgs });
-      return { ok: false, state: cloneState(currentState), error };
+    const result = await resolveInlineToolCall({
+      surfaceId,
+      toolAllowlist,
+      currentState,
+      tool,
+      rawArgs,
+      onToolCall: options.onToolCall,
+      onToolRejected: options.onToolRejected,
+      events: options.events,
+    });
+    if (result.stateChanged) {
+      currentState = cloneState(result.state);
+      notifyState();
     }
-    if (!toolAllowlist.has(tool)) {
-      const error = `tool "${tool}" not granted`;
-      options.events?.push({ kind: 'tool-rejected', at: Date.now(), surfaceId, reason: error, raw: { tool, args: rawArgs } });
-      options.onToolRejected?.(error, { tool, args: rawArgs });
-      return { ok: false, state: cloneState(currentState), error };
-    }
-
-    const args = rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs)
-      ? rawArgs as Record<string, unknown>
-      : {};
-    options.events?.push({ kind: 'tool-called', at: Date.now(), surfaceId, tool, args });
-    try {
-      const result = await options.onToolCall?.(tool, args);
-      if (result && typeof result === 'object' && !Array.isArray(result)) {
-        currentState = cloneState(result as Record<string, unknown>);
-        notifyState();
-      }
-      return { ok: true, state: cloneState(currentState) };
-    } catch (err) {
-      const error = err instanceof Error ? err.message : String(err);
-      return { ok: false, state: cloneState(currentState), error };
-    }
+    return result;
   };
 
   const handle: InlineSurfaceHandle = {
@@ -155,7 +234,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
           if (disposed || revision !== renderRevision) return;
           const view = sandbox(
             {
-              source: artifact.source,
+              source: sourceForNetworkPolicy(artifact),
               shadowDOM: true,
               onError(error) {
                 const reason = `Arrow runtime error: ${String(error instanceof Error ? error.message : error)}`;
@@ -257,6 +336,15 @@ async function loadSandboxFactory(): Promise<SandboxFactory> {
     return candidate as SandboxFactory;
   });
   return sandboxFactoryPromise;
+}
+
+function sourceForNetworkPolicy(artifact: ArrowSurfaceArtifact): Record<string, string> {
+  if (artifact.network === 'restricted-fetch') return artifact.source;
+  const source: Record<string, string> = {};
+  for (const [path, contents] of Object.entries(artifact.source)) {
+    source[path] = path.endsWith('.css') ? contents : `${DISABLE_FETCH_PRELUDE}${contents}`;
+  }
+  return source;
 }
 
 function reportRuntimeError(

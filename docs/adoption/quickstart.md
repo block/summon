@@ -25,8 +25,8 @@ The gallery is live-first. It requires `apps/server` and one configured model
 provider key; it does not silently fall back to replay. Set
 `SUMMON_MODEL_PROVIDER` to choose the default provider when more than one key is
 configured. Use the preset cards to generate read-only surfaces,
-host-backed search, host-owned actions, approval flows, trusted host
-components, and background host work.
+host-backed search, host-owned actions, approval flows, direct Arrow
+composition, and background host work.
 
 Each preset chooses a surface config and a short list of allowed host tools.
 The server turns that into the stricter validation details Summon uses during
@@ -142,8 +142,8 @@ rendered and interacted with a surface:
   broker goal, selected surface config, validation summaries, skipped raw
   lines, and Arrow artifact revisions.
 - Open the **Devtools** drawer to inspect sandbox startup, render events, host
-  tool requests, host dispatch, pushed state, trusted component sync, and
-  stream diagnostics.
+  tool requests, host dispatch, pushed state, runtime errors, and stream
+  diagnostics.
 - For a healthy interactive run, expect to see `render` and `rendered` events,
   a host tool request when you submit the search, host dispatch, and pushed
   state.
@@ -156,16 +156,17 @@ contracts, directions, host tool wiring, visual direction coverage, or
 throughput behavior.
 
 Use the other `/generate` scenarios to exercise static summaries,
-declarative forms, host AI calls, GitHub lookup, trusted host components,
+declarative forms, host AI calls, GitHub lookup, direct Arrow composition,
 background host work, approval-required publish, local state and motion,
 token overrides, layout constraints, sibling summon, Ghost steering when
 configured, and validation diagnostics.
 
 To run the gallery and workbench side by side, use `pnpm dev:demos`.
 
-Open `http://localhost:5173/strict` to see the trusted host overlay pattern
-for sensitive input. The generated sandbox describes the slot; the host owns the
-real input and pushes only safe state back.
+Open `http://localhost:5173/strict` or `http://localhost:5173/fatal` only when
+you need the retired V1 notes for strict overlays or iframe bootstraps. The
+current runtime path is the inline Arrow sandbox exercised by `/generate` and
+`/adversarial`.
 
 ## Troubleshooting
 
@@ -180,4 +181,4 @@ real input and pushes only safe state back.
   and pushed state.
 - If the surface stays blank, inspect Stream diagnostics for accepted Arrow
   `/artifact` revisions, then inspect Devtools for `render`, `rendered`, and
-  `sandbox-fatal`.
+  `surface-runtime-error`.

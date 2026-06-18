@@ -148,7 +148,10 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
         if (Object.prototype.hasOwnProperty.call(handlers, tool)) {
           return policy.dispatch(tool, args).then((result) => result.state);
         }
-        return policy.getState();
+        if (props.onToolCall) {
+          return policy.getState();
+        }
+        throw new Error(`tool "${tool}" has no host handler`);
       },
     });
     handleRef.current = handle;

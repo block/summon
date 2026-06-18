@@ -21,6 +21,7 @@ const MODULE_RE = /^[A-Za-z0-9_./-]+\.(?:ts|js|mjs|css)$/;
 const UNSUPPORTED_IDL_PROPERTY_BINDING_RE = /(^|[\s`<])\.[A-Za-z_$][A-Za-z0-9_$-]*\s*=/m;
 const UNSUPPORTED_OPEN_TAG_EXPRESSION_RE = /<[^>`]*\s\$\{/m;
 const DATA_SUMMON_ATTR_RE = /\b(data-summon-[a-z0-9-]+)\b/gi;
+const FETCH_USAGE_RE = /\bfetch\s*\(|\bglobalThis\s*(?:\.\s*fetch|\[\s*['"]fetch['"]\s*\])/m;
 
 export function isArrowSurfaceArtifact(value: unknown): value is ArrowSurfaceArtifact {
   return normalizeArrowSurfaceArtifact(value).artifact !== null;
@@ -105,6 +106,13 @@ export function validateArrowSurfaceArtifact(
   }
   for (const [path, contents] of Object.entries(normalized.source)) {
     if (path.endsWith('.css')) continue;
+    if (options.network === 'none' && FETCH_USAGE_RE.test(contents)) {
+      issues.push(arrowIssue(
+        'arrow-network-not-granted',
+        `Arrow artifact source "${path}" uses fetch(), but this surface does not grant generated network access. Use host tools instead.`,
+        `/artifact/${path}`,
+      ));
+    }
     if (UNSUPPORTED_IDL_PROPERTY_BINDING_RE.test(contents)) {
       issues.push(arrowIssue(
         'unsupported-arrow-idl-binding',

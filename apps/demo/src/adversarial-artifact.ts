@@ -45,6 +45,7 @@ async function runAll() {
     "sessionStorage",
     "indexedDB",
     "navigator",
+    "fetch",
     "XMLHttpRequest",
     "WebSocket",
     "EventSource",

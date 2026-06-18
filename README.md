@@ -1,8 +1,8 @@
 # Summon
 
-Summon renders AI-generated UI in a locked iframe. The generated UI can only use
-host tools you register, so the host keeps control of data, actions, credentials,
-network access, state, and persistence.
+Summon renders AI-generated UI in an inline Arrow sandbox. The generated UI can
+only use host tools you register, so the host keeps control of data, actions,
+credentials, network access, state, and persistence.
 
 The adopter mental model is intentionally small:
 
@@ -10,7 +10,7 @@ The adopter mental model is intentionally small:
 | --- | --- |
 | Surface | The generated UI Summon renders. |
 | Host tool | A host-owned data source or action the surface may request. |
-| Sandbox | The locked iframe where generated UI runs. |
+| Sandbox | The inline Arrow VM and trusted renderer where generated UI runs. |
 | Surface config | The host's choice of what the surface is allowed to do. |
 | Diagnostics | Stream and Devtools information used when something breaks. |
 
@@ -40,7 +40,7 @@ pnpm dev:gallery
 Open `http://localhost:5174`.
 
 The Surface Gallery is the first OSS demo. It shows static surfaces, host-backed
-search, host-owned actions, approval flows, trusted host components, and
+search, host-owned actions, approval flows, direct Arrow composition, and
 background host work without exposing the maintainer workbench.
 
 For the maintainer workbench:
@@ -75,7 +75,7 @@ The architecture boundary is documented in
 
 Summon's supported integration path is narrow:
 
-1. Register the host tools and trusted host components the surface may use.
+1. Register the host tools the surface may use.
 2. Choose a surface config for the run.
 3. Generate the surface on the server.
 4. Render accepted output in the sandbox.
@@ -94,19 +94,17 @@ pnpm dev:demos
 ## Demo Map
 
 - `apps/surface-gallery` - primary adopter gallery with curated live
-  presets, compact host tools, Ghost-root presets when configured, a sandboxed
-  surface, and a small event strip.
+  presets, compact host tools, Ghost-root presets when configured, an inline
+  Arrow surface, and a small event strip.
 - `/generate` - diagnostic maintainer workbench for broker-selected
-  surface configs, allowed host tools, trusted host components, token
-  overrides, validation summaries, replay, Ghost steering, Devtools, and
-  stream diagnostics.
+  surface configs, allowed host tools, token overrides, validation summaries,
+  replay, Ghost steering, Devtools, and stream diagnostics.
 - `/batch` - parallel broker harness for prompt coverage, host tool
   wiring, direction-token visual coverage, throughput, and consistency checks.
 - `/adversarial` - sandbox boundary checks for network, storage, parent
   access, and unallowed host tool requests.
-- `/strict` - trusted host overlay for sensitive input inside a generated
-  sandbox description.
-- `/fatal` - sandbox startup failure handling.
+- `/strict` - retired V1 trusted-overlay note for the previous iframe runtime.
+- `/fatal` - retired V1 bootstrap note for the previous iframe runtime.
 
 ## Public Packages
 
@@ -116,8 +114,8 @@ pnpm dev:demos
 - `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
   Arrow protocol hardening, validation summaries, and model-provider
   interfaces.
-- `@anarchitecture/summon-react` - `SummonSurface` and React trusted-component
-  adapter. `react` and `react-dom` are peer dependencies.
+- `@anarchitecture/summon-react` - `SummonSurface` React adapter for inline
+  Arrow surfaces. `react` and `react-dom` are peer dependencies.
 
 ## Workspace Map
 
@@ -129,8 +127,7 @@ pnpm dev:demos
   direction loading, Arrow protocol diagnostics, and demo backing routes.
 - `apps/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/demo` - Vite maintainer workbench for generation, batch runs,
-  adversarial checks, strict input, Ghost steering, diagnostics, and fatal
-  sandbox testing.
+  adversarial checks, Ghost steering, diagnostics, and retired V1 notes.
 
 ## Adoption Docs
 
@@ -144,18 +141,20 @@ pnpm dev:demos
 - [Security Posture](docs/adoption/security.md) - surface types, host rules,
   and browser-test expectations.
 - [Debugging](docs/adoption/debugging.md) - diagnostics for failed generation,
-  broken controls, missing data, trusted components, and sandbox safety.
+  broken controls, missing data, runtime errors, and sandbox safety.
 - [Agent skill](.agents/skills/summon/SKILL.md) - repo-local operating guide
   for AI agents working on Summon.
 
 ## Security Boundary
 
-Summon renders generated UI in a null-origin iframe with a restrictive CSP and a
-typed postMessage bridge. The host explicitly chooses the allowed host tools for
-each run; declarations from generated UI are never executable authority.
+Summon runs generated Arrow logic inside a QuickJS/WASM VM and mutates the page
+only through Arrow's trusted renderer. The host explicitly chooses the allowed
+host tools for each run; declarations from generated UI are never executable
+authority. Generated network access is off by default and product data should
+flow through host tools.
 
-Run the safety harness before changing iframe sandbox attributes, CSP,
-postMessage routing, bootstrap startup checks, or script execution behavior:
+Run the safety harness before changing the inline runtime, Arrow bridge,
+generated network policy, or tool-dispatch behavior:
 
 ```sh
 pnpm test:safety
@@ -180,6 +179,5 @@ pnpm eval-directions [--prompts N] [--directions id,id] [--seed N] [--dry]
 ```
 
 `pnpm test:safety` runs the Playwright Chromium and WebKit smoke suite for
-sandbox containment, bootstrap fatal checks, strict input, and generate-page
-boot. It starts only the Vite demo app and does not require
-a model-provider API key.
+sandbox containment and generate-page boot. It starts only the Vite demo app and
+does not require a model-provider API key.

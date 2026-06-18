@@ -10,60 +10,69 @@ Summon is consumed as built public packages. Do not import `src/*.ts` paths or
 ```
 
 The root `@anarchitecture/summon` entrypoint is curated for host-authoring:
-registering host tools, registering trusted host components, choosing surface
-configs, and dispatching host-owned requests. Use explicit subpaths when you
-need lower-level browser, engine, host, policy, envelope, assets, or Devtools
-APIs:
+registering host tools, choosing surface configs, compiling contract views, and
+dispatching host-owned requests. Use explicit subpaths when you need lower-level
+browser, engine, host, policy, envelope, assets, or Devtools APIs:
 
-- `@anarchitecture/summon/browser` for sandbox spawning, Arrow stream
-  consumption, trusted component overlays, and strict input.
+- `@anarchitecture/summon/browser` for Arrow stream consumption and inline
+  sandbox mounting.
 - `@anarchitecture/summon/engine` for protocol, validation, prompt contract,
-  stream diagnostic, and hardening APIs.
+  stream diagnostics, and hardening APIs.
 - `@anarchitecture/summon/host` for adapter authors who need the full host
   runtime surface.
 
 ## React Hosts
 
 ```tsx
-import { SummonSurface, defineReactComponent } from '@anarchitecture/summon-react';
-import { createComponentRegistry } from '@anarchitecture/summon';
+import { SummonSurface } from '@anarchitecture/summon-react';
+import { createToolRegistry, defineDataResource } from '@anarchitecture/summon';
+
+const toolRegistry = createToolRegistry([
+  defineDataResource({
+    name: 'search',
+    description: 'Search host data.',
+    argsSchema,
+    resultSchema,
+    defaultData: [],
+    stateKeys: {
+      loading: 'searchLoading',
+      data: 'searchResults',
+      error: 'searchError',
+    },
+    fetch: searchHostData,
+  }),
+]);
 
 <SummonSurface
   envelope={savedEnvelope}
   toolRegistry={toolRegistry}
-  componentRegistry={componentRegistry}
 />;
 ```
 
-`SummonSurface` renders replay envelopes or Arrow artifacts. Generated
-declarations are advisory and are never executable permission. Trusted host
-component overlays require the host app to provide `react-dom` as a peer
-dependency.
+`SummonSurface` renders replay envelopes or Arrow artifacts through the inline
+Arrow sandbox. Generated declarations are advisory and are never executable
+permission. Host tools still execute only through the supplied registry or
+custom `onToolCall` handler.
 
-React hosts can register trusted host components:
+For live generation, keep a ref and render accepted artifacts from
+`consumeSurfaceStream()`:
 
 ```tsx
-import { z } from 'zod';
-import { createComponentRegistry } from '@anarchitecture/summon';
-import { defineReactComponent } from '@anarchitecture/summon-react';
+const surfaceRef = useRef<SummonSurfaceHandle>(null);
 
-const componentRegistry = createComponentRegistry([
-  defineReactComponent({
-    name: 'MetricCard',
-    description: 'Compact KPI card with label, value, and optional delta.',
-    propsSchema: z.object({
-      label: z.string(),
-      value: z.string(),
-      delta: z.string().optional(),
-    }),
-    component: MetricCard,
-  }),
-]);
+<SummonSurface
+  ref={surfaceRef}
+  toolRegistry={toolRegistry}
+  validationTools={toolRegistry.toContract().validationTools}
+/>;
+
+await consumeSurfaceStream(response.body!, {
+  mode: compiledPolicy.mode,
+  validationContext,
+  onSurfaceEvent: (event) => surfaceRef.current?.applyPreviewEvent(event),
+  onArtifact: (artifact) => surfaceRef.current?.renderArtifact(artifact),
+});
 ```
-
-Pass `componentRegistry.toContract().pack` to generation when requesting the
-surface. The React component renders in host DOM as an overlay, not inside the
-sandbox iframe.
 
 ## Frameworkless Hosts
 
@@ -71,64 +80,46 @@ sandbox iframe.
 import {
   compileSurfaceContractView,
   compileSurfacePolicy,
-  createComponentRegistry,
-  defineComponent,
+  PolicyEngine,
 } from '@anarchitecture/summon';
 import {
   consumeSurfaceStream,
-  createComponentIslandRegistry,
-  spawnSandbox,
-  type SandboxHandle,
+  mountInlineSurface,
+  type InlineSurfaceHandle,
 } from '@anarchitecture/summon/browser';
-import { PolicyEngine } from '@anarchitecture/summon/policy';
-import { bootstrapSource, tokensSource } from '@anarchitecture/summon/assets';
+import { tokensSource } from '@anarchitecture/summon/assets';
 ```
 
 Use `consumeSurfaceStream()` to decode streamed chunks, parse accepted JSONL,
 validate Arrow artifacts, update stream diagnostics, and render through the
-sandbox handle. The only generated surface payload is:
+inline sandbox handle. The only generated executable payload is:
 
 ```json
 {"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"..."}}}
 ```
 
-Spawn the iframe with host-owned contracts:
+Mount the inline sandbox with host-owned contracts:
 
 ```ts
 const compiledPolicy = compileSurfacePolicy(surfacePolicy, {
   tools: toolContract.pack,
-  components: componentContract.pack,
 });
 
-let handle: SandboxHandle | null = null;
-const islands = createComponentIslandRegistry({
-  outerIframe: iframe,
-  registry: componentRegistry,
-});
+let handle: InlineSurfaceHandle | null = null;
 const policy = new PolicyEngine({
-  initialState,
-  handlers,
+  initialState: toolContract.initialState,
+  handlers: registry.toPolicyHandlers(),
   onStateChange: (state) => handle?.pushState(state),
 });
 
-handle = spawnSandbox({
-  iframe,
-  artifact: {
-    tools: policy.tools,
-    validationTools: toolContract.validationTools,
-    components: componentContract.validationComponents,
-    initialState: policy.getState(),
-  },
+handle = mountInlineSurface({
+  root: surfaceRoot,
   grantedTools: policy.tools,
   validationTools: toolContract.validationTools,
-  bootstrapSource,
+  initialState: policy.getState(),
   tokensSource,
-  onToolCall: (tool, args) => void policy.dispatch(tool, args),
-  onComponents: (components, sandboxId) => {
-    islands.sync(components, {
-      sandboxId,
-      callTool: (tool, args = {}) => void policy.dispatch(tool, args),
-    });
+  onToolCall: (tool, args) => {
+    return policy.dispatch(tool, args).then((result) => result.state);
   },
 });
 
@@ -138,7 +129,6 @@ const response = await fetch('/api/generate', {
     prompt,
     surfacePolicy,
     tools: toolContract.pack,
-    components: componentContract.pack,
   }),
 });
 
@@ -148,9 +138,9 @@ await consumeSurfaceStream(response.body!, {
     mode: compiledPolicy.mode,
     allowedTools: policy.tools,
     tools: toolContract.validationTools,
-    components: componentContract.validationComponents,
     surfacePlan: compiledPolicy.surfacePlan,
   },
+  onSurfaceEvent: (event) => handle?.applyPreviewEvent(event),
   onArtifact: (artifact) => handle?.renderArtifact(artifact),
 });
 ```

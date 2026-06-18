@@ -1,9 +1,8 @@
 # Summon Debugging Guide
 
 Summon diagnostics explain why an Arrow artifact failed, why a generated
-control did nothing, or why host-owned data/components did not appear. Start
-from the symptom, then drill into protocol paths and Devtools events only as
-needed.
+control did nothing, or why host-owned data did not appear. Start from the
+symptom, then drill into protocol paths and Devtools events only as needed.
 
 ## Generation Failed
 
@@ -24,11 +23,11 @@ Common fixes:
   entrypoint.
 - `unsupported-arrow-idl-binding` / `unsupported-arrow-open-tag-expression` -
   rewrite the Arrow template to use supported bindings.
-- `arrow-network-not-granted` - remove restricted fetch usage or select a
-  surface config whose host grants that network policy.
+- `arrow-network-not-granted` - remove generated `fetch()` usage and route data
+  through a host tool.
 - `surface-policy-*` - fix the host-selected surface config. The compiler
-  blocks unknown allowed tools/components and authority above the selected
-  surface type before the model is called.
+  blocks unknown allowed tools and authority above the selected surface type
+  before the model is called.
 
 ## Generated Control Did Nothing
 
@@ -54,49 +53,31 @@ Common fixes:
 - `surface-authority-exceeded` - remove the action or select a config that
   carries the needed authority, such as `approval-gated`.
 
-## Trusted Component Did Not Appear
-
-Trusted host components render as host overlays. If a component placeholder
-remains visible or nothing appears:
-
-1. Confirm the host registered the component and passed
-   `componentRegistry.toContract().pack` into generation.
-2. Confirm replay data includes compatible component allowlists for the same
-   host registry.
-3. Check the Stream drawer for `unknown-component`,
-   `component-props-invalid`, `nested-component`, and compiled safety plan
-   issues.
-4. Check Devtools for `component-sync` followed by `component-error`.
-5. Use the `component-error` code to narrow the fix: `bounds-invalid` means the
-   placeholder has empty/offscreen/oversized bounds, `props-invalid` means Zod
-   rejected the props, and `registry-missing` means replay has component
-   allowlists but the host did not provide a compatible registry.
-
 ## Sandbox Safety Looks Suspect
 
 1. Run `pnpm test:safety`.
 2. If it fails, inspect the Playwright trace/screenshot.
 3. For manual inspection, run `pnpm dev:workbench` and open
    `http://localhost:5173/adversarial`.
-4. Confirm network, storage, parent DOM, and unallowed host tool request checks
-   still pass.
-5. Inspect `spawnSandbox` before changing iframe sandbox attributes or CSP.
+4. Confirm browser globals, generated network, storage, native bridge access,
+   and unallowed host tool request checks still pass.
+5. Inspect `mountInlineSurface`, Arrow bridge wiring, and `PolicyEngine` before
+   changing sandbox behavior.
 
 ## Surface Stayed Blank
 
-If the Stream drawer shows an accepted Arrow `/artifact` but the iframe stays
-blank:
+If the Stream drawer shows an accepted Arrow `/artifact` but the inline surface
+stays blank:
 
 1. Check Devtools for `render`. That means the host sent the accepted artifact
-   to the iframe.
-2. Check Devtools for `rendered`. That means the iframe waited for Arrow's
-   runtime mount, applied bindings/component measurement, and acknowledged the
-   mounted revision.
-3. If `render` appears without `rendered`, inspect `sandbox-fatal` and browser
-   console errors. The failure is in iframe bootstrap, Arrow runtime mount, or
-   CSP.
-4. If `rendered` appears but the UI is not visible, inspect component errors,
-   layout constraints, and artifact CSS.
+   to the inline Arrow sandbox.
+2. Check Devtools for `rendered`. That means the inline Arrow sandbox mounted
+   the accepted artifact revision.
+3. If `render` appears without `rendered`, inspect `surface-runtime-error` and
+   browser console errors. The failure is in Arrow compilation, VM execution, or
+   the trusted renderer mount path.
+4. If `rendered` appears but the UI is not visible, inspect layout constraints
+   and artifact CSS.
 
 ## Advanced Diagnostic Layers
 
@@ -110,21 +91,19 @@ blank:
    skipped and blocked counts.
 4. **Host dispatch** - `PolicyEngine` validates args, runs host handlers, emits
    state patches, and reports handler errors.
-5. **Trusted component overlays** - the sandbox reports placeholder bounds, then
-   the host validates registered component names and props before rendering
-   overlay DOM.
-6. **Sandbox boundary** - `spawnSandbox` keeps the iframe null-origin and emits
-   fatal or rejection signals when the boundary is misconfigured or abused.
+5. **Sandbox boundary** - the inline Arrow VM withholds ambient browser APIs;
+   Summon removes generated fetch for no-network artifacts and rejects
+   ungranted host tool requests.
 
 ## Stream Meta Lines
 
 | Path | Meaning |
 | --- | --- |
 | `/agent-goal` | Broker-advisory goal inferred from the prompt before host policy narrowing. |
-| `/agent-policy-resolution` | Brokered proposed/effective surface config, host policy source, goal source, and rejected tools/components. |
+| `/agent-policy-resolution` | Brokered proposed/effective surface config, host policy source, goal source, and rejected tools. |
 | `/surface-policy` | Host-owned public surface config selected for this run. |
 | `/surface-plan` | Host-owned compiled safety plan selected for this run. |
-| `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, trusted components, optional layout, and compile issues. |
+| `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, optional layout, and compile issues. |
 | `/shape` | Optional server-inferred response shape used to narrow direction exemplars. |
 | `/token-overrides` | Resolved direction token overrides, including applied and rejected entries. |
 | `/validation-summary` | Final grouped `ContractIssue` counts and examples. |
@@ -148,23 +127,22 @@ and look for:
 
 - `protocol-line` - accepted `meta` or `artifact` records after parsing.
 - `protocol-parse-error` - raw model output that was not valid JSONL.
-- `sandbox-ready` - the iframe booted and can receive state or renders.
-- `render` - an accepted Arrow artifact was sent to the sandbox.
-- `rendered` - the sandbox finished mounting that Arrow artifact revision.
+- `surface-mounted` - the inline Arrow sandbox root was created with the current
+  host grants.
+- `render` - an accepted Arrow artifact was sent to the inline sandbox.
+- `rendered` - the inline sandbox finished mounting that Arrow artifact
+  revision.
 - `tool-called` - generated UI emitted an allowed host tool request.
 - `tool-rejected` - generated UI tried an unknown or malformed request.
 - `tool-dispatched` / `tool-settled` - `PolicyEngine` ran a host handler.
 - `state-pushed` - host state changed and was pushed back to the sandbox.
-- `component-sync` - the sandbox reported the current component placeholders
-  with measured bounds.
-- `component-error` - the host rejected or unmounted a component overlay because
-  the name, props, bounds, or registry compatibility failed.
 - `surface-contract` - host-owned compact contract view emitted by the server
   for policy-backed generations.
 - `surface-plan` - host-owned compiled safety plan.
 - `stream-graph` - client-side artifact diagnostics from
   `StreamGraph.snapshot()`.
-- `sandbox-fatal` - bootstrap detected an unsafe sandbox configuration.
+- `surface-runtime-error` - Arrow compilation, VM execution, or renderer mount
+  failed.
 
 ## Reading Contract Issues
 

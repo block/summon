@@ -15,9 +15,9 @@ Publish by install environment, not by internal implementation layer.
 ```
 
 `@anarchitecture/summon` is the frameworkless client/core package. Its root
-entrypoint is curated for host-authoring helpers: host tool and component
-registries, `PolicyEngine`, and `SurfacePolicy` helpers/types. Advanced runtime
-helpers, including compiled `SurfacePlan` APIs, live behind explicit subpaths:
+entrypoint is curated for host-authoring helpers: host tool registries,
+`PolicyEngine`, and `SurfacePolicy` helpers/types. Advanced runtime helpers,
+including compiled `SurfacePlan` APIs, live behind explicit subpaths:
 
 ```txt
 @anarchitecture/summon/browser
@@ -29,10 +29,10 @@ helpers, including compiled `SurfacePlan` APIs, live behind explicit subpaths:
 @anarchitecture/summon/devtools
 ```
 
-Use `/browser` for sandbox spawning, stream consumption, trusted component
-overlays, and strict input. Use `/engine` for protocol, validation, prompt
-contracts, stream diagnostics, and hardening. Use `/host` only when writing
-adapters that need the full host runtime surface.
+Use `/browser` for inline Arrow sandbox mounting and stream consumption. Use
+`/engine` for protocol, validation, prompt contracts, stream diagnostics, and
+hardening. Use `/host` only when writing adapters that need the full host
+runtime surface.
 
 `@anarchitecture/summon-server` is the provider-neutral generation package. It
 owns `runSurfaceGeneration`, prompt/contract assembly, Arrow protocol
@@ -40,9 +40,9 @@ hardening, validation summaries, summary helpers, and model-provider
 interfaces. It may depend on the core package but should not pull in browser or
 React peers.
 
-`@anarchitecture/summon-react` is the React adapter. It owns `SummonSurface`,
-`defineReactComponent`, and trusted component overlay lifecycle. It depends on
-the core package and has `react` / `react-dom` as peer dependencies.
+`@anarchitecture/summon-react` is the React adapter. It owns `SummonSurface` for
+inline Arrow surfaces. It depends on the core package and has `react` /
+`react-dom` as peer dependencies.
 
 Future adapters should follow the same rule:
 
