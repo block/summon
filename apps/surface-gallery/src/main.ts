@@ -129,7 +129,7 @@ const inspectorPanels = Array.from(document.querySelectorAll<HTMLElement>('[data
 const contractSummary = document.getElementById('contract-summary')!;
 const statusEl = document.getElementById('status')!;
 const acceptedCountEl = document.getElementById('accepted-count')!;
-const skippedCountEl = document.getElementById('skipped-count')!;
+const warningCountEl = document.getElementById('warning-count')!;
 const blockedCountEl = document.getElementById('blocked-count')!;
 const statePreview = document.getElementById('state-preview')!;
 const setupNote = document.getElementById('setup-note')!;
@@ -153,7 +153,7 @@ let modelProviders: ModelProviderInfo[] = [];
 let generationInFlight = false;
 let surfaceRenderedDuringRun = false;
 let acceptedStructuralLines = 0;
-let skippedLines = 0;
+let warningLines = 0;
 let blockedLines = 0;
 let currentSurfaceContractView: SurfaceContractView | null = null;
 let approvalStack: HTMLElement | null = null;
@@ -366,7 +366,7 @@ async function generateSelectedSurface(): Promise<void> {
         handle?.renderArtifact(artifact);
       },
       onParseError: (raw) => {
-        events.push({ kind: 'protocol-parse-error', at: Date.now(), raw });
+        events.push({ kind: 'transport-parse-error', at: Date.now(), raw });
         selectInspectorTab('stream');
       },
     });
@@ -415,15 +415,12 @@ function handleLine(line: ProtocolLine, context: SurfaceStreamContext): void {
       showStreamingWelcome(topbarRunStatusEl.textContent);
     }
   }
-  events.push({ kind: 'protocol-line', at: Date.now(), line });
+  events.push({ kind: 'server-line', at: Date.now(), line });
 }
 
 function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
   if (line.path === '/status') {
     renderHealth(String(line.value));
-  }
-  if (line.path === '/protocol-skip') {
-    skippedLines += 1;
   }
   if (line.path === '/surface-contract') {
     const contract = parseSurfaceContractView(line.value);
@@ -437,10 +434,15 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
     blockedLines += 1;
     selectInspectorTab('stream');
   }
+  if (line.path === '/validation-summary') {
+    const value = line.value as { warnings?: unknown; blocked?: unknown };
+    if (typeof value.warnings === 'number') warningLines = value.warnings;
+    if (typeof value.blocked === 'number') blockedLines = value.blocked;
+    if (blockedLines > 0) selectInspectorTab('stream');
+  }
   if (line.path === '/stream-graph-summary') {
-    const value = line.value as { health?: { blockedCount?: unknown; skippedCount?: unknown } };
+    const value = line.value as { health?: { blockedCount?: unknown } };
     if (typeof value.health?.blockedCount === 'number') blockedLines = value.health.blockedCount;
-    if (typeof value.health?.skippedCount === 'number') skippedLines = value.health.skippedCount;
     if (blockedLines > 0) selectInspectorTab('stream');
   }
   if (line.path === '/ghost-token-source') {
@@ -450,7 +452,7 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
       remountSurface();
     }
   }
-  skippedCountEl.textContent = String(skippedLines);
+  warningCountEl.textContent = String(warningLines);
   blockedCountEl.textContent = String(blockedLines);
 }
 
@@ -721,7 +723,7 @@ function renderHealth(status: string): void {
   topbarRunStatusEl.textContent = status;
   sandboxModeEl.textContent = status === 'idle' ? 'isolated' : status;
   acceptedCountEl.textContent = String(acceptedStructuralLines);
-  skippedCountEl.textContent = String(skippedLines);
+  warningCountEl.textContent = String(warningLines);
   blockedCountEl.textContent = String(blockedLines);
   if (generationInFlight && !surfaceRenderedDuringRun) {
     showStreamingWelcome(status);
@@ -729,21 +731,38 @@ function renderHealth(status: string): void {
 }
 
 function showStreamingWelcome(status: string): void {
-  const normalized = status.toLowerCase();
-  const label = normalized === 'thinking'
-    ? 'Thinking'
-    : normalized === 'writing'
-      ? 'Writing'
-      : normalized === 'done'
-        ? 'Stream complete'
-        : 'Streaming';
   const lineText = acceptedStructuralLines === 0
-    ? 'Waiting for validated surface lines.'
+    ? 'Waiting for the server-owned surface stream.'
     : `${acceptedStructuralLines} validated surface line${acceptedStructuralLines === 1 ? '' : 's'} received.`;
-  document.getElementById('welcome-kicker')!.textContent = label;
+  document.getElementById('welcome-kicker')!.textContent = generationPhaseLabel(status);
   welcomeTitle.textContent = selectedPreset.title;
-  welcomeDetail.textContent = `${lineText} The sandbox updates as structure arrives.`;
+  welcomeDetail.textContent = `${lineText} The sandbox updates as validated structure arrives.`;
   welcome.hidden = false;
+}
+
+function generationPhaseLabel(status: string): string {
+  switch (status.toLowerCase()) {
+    case 'planning':
+      return 'Planning';
+    case 'contract':
+      return 'Binding host contract';
+    case 'drafting':
+      return 'Composing Arrow bundle';
+    case 'validating':
+      return 'Validating bundle';
+    case 'rendering':
+      return 'Rendering artifact';
+    case 'finalizing':
+      return 'Finalizing diagnostics';
+    case 'done':
+      return 'Stream complete';
+    case 'aborted':
+      return 'Aborted';
+    case 'error':
+      return 'Error';
+    default:
+      return status || 'Streaming';
+  }
 }
 
 function renderPromptLength(): void {
@@ -810,8 +829,8 @@ function parseSurfaceContractView(value: unknown): SurfaceContractView | null {
 
 function describeEvent(event: DevtoolsEvent): string {
   switch (event.kind) {
-    case 'protocol-line':
-      return `protocol ${event.line.op} ${event.line.path}`;
+    case 'server-line':
+      return `server ${event.line.op} ${event.line.path}`;
     case 'tool-called':
       return `host tool ${event.tool}`;
     case 'tool-dispatched':
@@ -941,10 +960,10 @@ function formatApprovalDetails(details: unknown): string {
 
 function resetCounters(): void {
   acceptedStructuralLines = 0;
-  skippedLines = 0;
+  warningLines = 0;
   blockedLines = 0;
   acceptedCountEl.textContent = '0';
-  skippedCountEl.textContent = '0';
+  warningCountEl.textContent = '0';
   blockedCountEl.textContent = '0';
 }
 

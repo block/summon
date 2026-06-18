@@ -1,5 +1,6 @@
 import {
   parseTokenValues,
+  type ProtocolLine,
   type ToolPack,
   type SurfaceContractView,
   type SurfacePlan,
@@ -12,6 +13,34 @@ import {
 } from '../../showcase.js';
 import { baseToolPack, scenarioCategoryOrder } from './constants.js';
 import type { ModelProviderInfo, StreamOptionsPayload } from './types.js';
+
+
+export function generationPhaseLabel(status: string): string {
+  switch (status.toLowerCase()) {
+    case 'planning':
+      return 'Planning';
+    case 'contract':
+      return 'Binding host contract';
+    case 'drafting':
+      return 'Composing Arrow bundle';
+    case 'validating':
+      return 'Validating bundle';
+    case 'rendering':
+      return 'Rendering artifact';
+    case 'finalizing':
+      return 'Finalizing diagnostics';
+    case 'done':
+      return 'Done';
+    case 'aborted':
+      return 'Aborted';
+    case 'error':
+      return 'Error';
+    case 'idle':
+      return 'Idle';
+    default:
+      return status || 'Streaming';
+  }
+}
 
 export function describeScenario(scenario: ShowcaseScenario): { category: string; description: string } {
   if (scenario.id.startsWith('ghost-')) {
@@ -150,12 +179,67 @@ export function summarizeValidationMeta(value: unknown): string {
 
 export function summarizeStreamGraphMeta(value: unknown): string {
   const summary = value as
-    | { artifacts?: unknown[]; health?: { complete?: unknown; blockedCount?: unknown; skippedCount?: unknown } }
+    | { artifacts?: unknown[]; health?: { complete?: unknown; blockedCount?: unknown; warningCount?: unknown } }
     | undefined;
   const complete = summary?.health?.complete === true;
   const artifacts = Array.isArray(summary?.artifacts) ? summary.artifacts.length : 0;
   const blocked = typeof summary?.health?.blockedCount === 'number' ? summary.health.blockedCount : 0;
   return `${complete ? 'complete' : 'blocked'} · artifacts=${artifacts} blocked=${blocked}`;
+}
+
+export function missingArtifactMessage(protocolLines: ProtocolLine[]): string {
+  const serverError = findLastMetaValue(protocolLines, '/error');
+  if (serverError !== undefined) {
+    return `Generation server error: ${String(serverError)}`;
+  }
+
+  const blocked = findLastMetaValue(protocolLines, '/validation-blocked');
+  if (isIssueLike(blocked)) {
+    return `Generation blocked before an Arrow artifact was accepted: ${blocked.code}: ${blocked.message}`;
+  }
+
+  const validation = findLastMetaValue(protocolLines, '/validation-summary');
+  if (validation && typeof validation === 'object' && !Array.isArray(validation)) {
+    const item = validation as { blocked?: unknown; warnings?: unknown; codes?: unknown };
+    const blockedCount = typeof item.blocked === 'number' ? item.blocked : 0;
+    const warningCount = typeof item.warnings === 'number' ? item.warnings : 0;
+    const codes = item.codes && typeof item.codes === 'object' && !Array.isArray(item.codes)
+      ? Object.entries(item.codes)
+        .filter(([, count]) => typeof count === 'number' && count > 0)
+        .map(([code, count]) => `${code}=${count}`)
+      : [];
+    if (blockedCount > 0 || warningCount > 0 || codes.length > 0) {
+      return `Generation ended before a validated Arrow artifact was accepted. Validation: blocked=${blockedCount}; warnings=${warningCount}${codes.length ? `; ${codes.join(', ')}` : ''}.`;
+    }
+  }
+
+  const graph = findLastMetaValue(protocolLines, '/stream-graph-summary');
+  if (graph && typeof graph === 'object' && !Array.isArray(graph)) {
+    const item = graph as { artifacts?: unknown; health?: { blockedCount?: unknown; complete?: unknown } };
+    const artifacts = Array.isArray(item.artifacts) ? item.artifacts.length : 0;
+    const graphBlocked = typeof item.health?.blockedCount === 'number' ? item.health.blockedCount : 0;
+    return `Generation ended before a validated Arrow artifact was accepted. Stream ended with artifacts=${artifacts}, blocked=${graphBlocked}.`;
+  }
+
+  return 'Generation ended before a validated Arrow artifact was accepted.';
+}
+
+function findLastMetaValue(protocolLines: ProtocolLine[], path: string): unknown {
+  for (let index = protocolLines.length - 1; index >= 0; index--) {
+    const line = protocolLines[index];
+    if (line?.op === 'meta' && line.path === path) return line.value;
+  }
+  return undefined;
+}
+
+function isIssueLike(value: unknown): value is { code: string; message: string } {
+  return Boolean(
+    value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      typeof (value as { code?: unknown }).code === 'string' &&
+      typeof (value as { message?: unknown }).message === 'string',
+  );
 }
 
 export function parseSurfaceContractView(value: unknown): SurfaceContractView | null {

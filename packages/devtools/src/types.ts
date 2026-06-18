@@ -2,7 +2,7 @@
  * Devtools event vocabulary. Every interesting boundary in summon emits one of
  * these so a panel can reconstruct what happened: which surface mounted, what
  * tools the artifact tried, which were rejected at the bridge, which made it
- * to the policy engine, what state was pushed back, what the LLM streamed.
+ * to the policy engine, what state was pushed back, and what the server streamed.
  *
  * Events are append-only. Producers should treat the EventStore as fire-and-
  * forget — if no store is wired in, the host code paths run unchanged.
@@ -87,15 +87,15 @@ export interface StatePushedEvent extends BaseEvent {
   next: Record<string, unknown>;
 }
 
-/** A streaming protocol line was successfully parsed. */
-export interface ProtocolLineEvent extends BaseEvent {
-  kind: 'protocol-line';
+/** A server-owned stream line was successfully parsed. */
+export interface ServerLineEvent extends BaseEvent {
+  kind: 'server-line';
   line: { op: 'meta' | 'event' | 'artifact'; path: string; value?: unknown };
 }
 
-/** A line in the LLM stream did not parse as a protocol line. */
-export interface ProtocolParseErrorEvent extends BaseEvent {
-  kind: 'protocol-parse-error';
+/** A server transport line did not parse as a stream line. */
+export interface TransportParseErrorEvent extends BaseEvent {
+  kind: 'transport-parse-error';
   raw: string;
 }
 
@@ -110,7 +110,7 @@ export interface StreamGraphEvent extends BaseEvent {
   kind: 'stream-graph';
   health: {
     complete: boolean;
-    skippedCount: number;
+    warningCount: number;
     blockedCount: number;
   };
   artifacts: Array<{
@@ -178,8 +178,8 @@ export type DevtoolsEvent =
   | ToolDispatchedEvent
   | ToolSettledEvent
   | StatePushedEvent
-  | ProtocolLineEvent
-  | ProtocolParseErrorEvent
+  | ServerLineEvent
+  | TransportParseErrorEvent
   | StreamLifecycleEvent
   | StreamGraphEvent
   | SurfacePlanEvent

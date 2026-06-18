@@ -117,11 +117,16 @@
               role="region"
               aria-label="Summon surface gallery sandbox"
             ></div>
-            <div id="welcome" class="absolute inset-0 grid place-items-center bg-black p-7 text-gallery-muted">
-              <div class="w-[min(520px,100%)] border-y border-gallery-line-strong py-6">
-                <span id="welcome-kicker" class="block font-mono text-[10.5px] font-extrabold uppercase leading-none tracking-normal text-gallery-accent">Ready to run</span>
-                <strong id="welcome-title" class="mt-[11px] block break-words text-[28px] font-bold leading-tight text-gallery-ink">Static Brief</strong>
-                <span id="welcome-detail" class="mt-2.5 block max-w-[440px] text-sm leading-normal text-gallery-muted">Surface stream standing by.</span>
+            <div id="welcome" class="absolute inset-0 overflow-hidden bg-black p-7 text-gallery-muted">
+              <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(255,255,255,0.16),transparent_28%),radial-gradient(circle_at_82%_8%,rgba(117,255,214,0.12),transparent_24%),repeating-linear-gradient(90deg,rgba(255,255,255,0.055)_0_1px,transparent_1px_72px),repeating-linear-gradient(0deg,rgba(255,255,255,0.04)_0_1px,transparent_1px_72px)]"></div>
+              <div class="absolute -left-28 top-14 h-72 w-72 rounded-full bg-gallery-accent/20 blur-3xl"></div>
+              <div class="absolute -right-24 bottom-20 h-80 w-80 rounded-full bg-white/10 blur-3xl"></div>
+              <div class="relative z-[1] grid h-full place-items-center">
+                <div class="grid w-[min(680px,100%)] gap-5 rounded-[28px] border border-gallery-line bg-black/45 p-[clamp(22px,4vw,42px)] shadow-[0_28px_100px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+                  <span id="welcome-kicker" class="font-mono text-[10.5px] font-extrabold uppercase leading-none tracking-[0.18em] text-gallery-accent">Ready to run</span>
+                  <strong id="welcome-title" class="block max-w-[9ch] break-words text-[clamp(44px,8vw,92px)] font-bold leading-[0.86] tracking-[-0.065em] text-gallery-ink">Static Brief</strong>
+                  <span id="welcome-detail" class="block max-w-[560px] text-sm leading-normal text-gallery-muted">Surface stream standing by.</span>
+                </div>
               </div>
             </div>
           </div>
@@ -199,8 +204,8 @@
               <strong id="accepted-count" class="min-w-0 break-words font-mono text-[17px] font-bold leading-none text-gallery-ink">0</strong>
             </div>
             <div class="grid min-w-0 gap-[7px] border-r border-gallery-line p-[11px]">
-              <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Skipped</span>
-              <strong id="skipped-count" class="min-w-0 break-words font-mono text-[17px] font-bold leading-none text-gallery-ink">0</strong>
+              <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Warnings</span>
+              <strong id="warning-count" class="min-w-0 break-words font-mono text-[17px] font-bold leading-none text-gallery-ink">0</strong>
             </div>
             <div class="grid min-w-0 gap-[7px] p-[11px]">
               <span class="font-mono text-[10px] font-extrabold uppercase leading-none tracking-normal text-gallery-muted">Blocked</span>

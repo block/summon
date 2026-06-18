@@ -109,7 +109,7 @@ async function startProgressiveApiServer(): Promise<Server> {
           health: {
             complete: true,
             blockedCount: 0,
-            skippedCount: 0,
+            warningCount: 0,
           },
           artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
         },
@@ -245,7 +245,7 @@ export default html\`
             health: {
               complete: true,
               blockedCount: 0,
-              skippedCount: 0,
+              warningCount: 0,
             },
             artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
@@ -365,7 +365,7 @@ export default html\`
             health: {
               complete: true,
               blockedCount: 0,
-              skippedCount: 0,
+              warningCount: 0,
             },
             artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
@@ -475,7 +475,7 @@ export default html\`
             health: {
               complete: true,
               blockedCount: 0,
-              skippedCount: 0,
+              warningCount: 0,
             },
             artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
@@ -557,7 +557,7 @@ test('Arrow fidelity preset renders generated visuals without component grants',
             health: {
               complete: true,
               blockedCount: 0,
-              skippedCount: 0,
+              warningCount: 0,
             },
             artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },
@@ -653,7 +653,7 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
             health: {
               complete: true,
               blockedCount: 0,
-              skippedCount: 0,
+              warningCount: 0,
             },
             artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
           },

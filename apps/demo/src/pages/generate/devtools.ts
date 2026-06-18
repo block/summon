@@ -4,8 +4,8 @@ import type { SurfaceStreamResult } from '@anarchitecture/summon/browser';
 import { planText } from './surfaceHelpers.js';
 
 export type ExtraDevtoolsEvent =
-  | { kind: 'protocol-line'; at: number; line: ProtocolLine }
-  | { kind: 'protocol-parse-error'; at: number; raw: string }
+  | { kind: 'server-line'; at: number; line: ProtocolLine }
+  | { kind: 'transport-parse-error'; at: number; raw: string }
   | { kind: 'stream-lifecycle'; at: number; phase: 'start' | 'end'; ok?: boolean }
   | { kind: 'stream-graph'; at: number; health: SurfaceStreamResult['streamGraph']['health']; artifacts: SurfaceStreamResult['streamGraph']['artifacts'] }
   | { kind: 'surface-plan'; at: number; plan: SurfacePlan }
@@ -35,14 +35,14 @@ export function formatDevtoolsEvent(ev: DevtoolsEvent | ExtraDevtoolsEvent): str
       return `${ev.bytes.toLocaleString()} B`;
     case 'rendered':
       return `revision ${ev.revision}`;
-    case 'protocol-line':
-      return `${ev.line.op} ${ev.line.path}`;
-    case 'protocol-parse-error':
-      return ev.raw.slice(0, 80);
+    case 'server-line':
+      return `server ${ev.line.op} ${ev.line.path}`;
+    case 'transport-parse-error':
+      return `transport parse error: ${ev.raw.slice(0, 80)}`;
     case 'stream-lifecycle':
       return ev.phase === 'start' ? 'start' : `end ok=${ev.ok}`;
     case 'stream-graph':
-      return `artifacts=${ev.artifacts.length} skipped=${ev.health.skippedCount} blocked=${ev.health.blockedCount}`;
+      return `artifacts=${ev.artifacts.length} blocked=${ev.health.blockedCount}`;
     case 'surface-plan':
       return planText(ev.plan as SurfacePlan);
     case 'surface-contract':
@@ -62,6 +62,10 @@ export function displayEventKind(kind: string): string {
       return 'host settled';
     case 'stream-graph':
       return 'stream diagnostics';
+    case 'server-line':
+      return 'server line';
+    case 'transport-parse-error':
+      return 'transport parse error';
     case 'surface-mounted':
       return 'surface mounted';
     case 'surface-preview-event':

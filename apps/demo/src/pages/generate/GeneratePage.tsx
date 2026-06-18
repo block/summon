@@ -34,6 +34,7 @@ import { defaultsForRunProfile, fallbackCatalog } from './modelProviders.js';
 import { loadSavedSurfaces } from './savedSurfaces.js';
 import {
   buildContractRows,
+  generationPhaseLabel,
   ghostRootFromSelection,
   groupScenarios,
   scenarioUsesFixedPolicy,
@@ -571,7 +572,8 @@ export function GeneratePage() {
     : selectedProvider
       ? fallbackCatalog(selectedProvider.utilityModel, selectedProvider.utilityModel)
       : [];
-  const statusText = bytes ? `${status} · ${bytes.toLocaleString()} B` : status;
+  const statusLabel = generationPhaseLabel(status);
+  const statusText = bytes ? `${statusLabel} · ${bytes.toLocaleString()} B` : statusLabel;
   const latestStageError = useMemo(() => {
     for (let i = logs.length - 1; i >= 0; i -= 1) {
       const entry = logs[i];

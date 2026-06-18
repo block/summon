@@ -118,7 +118,7 @@ function streamGraphSummary(): ProtocolLine {
       health: {
         complete: true,
         blockedCount: 0,
-        skippedCount: 0,
+        warningCount: 0,
       },
       artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
     },
@@ -305,7 +305,7 @@ test('generate page surfaces streamed errors instead of leaving a blank stage', 
             health: {
               complete: false,
               blockedCount: 0,
-              skippedCount: 0,
+              warningCount: 0,
             },
             artifacts: [],
           },

@@ -11,7 +11,7 @@ import {
   SHOWCASE_SCENARIOS,
 } from './showcase.js';
 import { ALL_PROMPTS } from './prompts.js';
-import { groupScenarios } from './pages/generate/surfaceHelpers.js';
+import { groupScenarios, missingArtifactMessage } from './pages/generate/surfaceHelpers.js';
 import { defaultsForRunProfile } from './pages/generate/modelProviders.js';
 import type { ModelProviderInfo } from './pages/generate/types.js';
 
@@ -205,6 +205,40 @@ test('generate run profile fast picks fast catalog models and low-cost Anthropic
     anthropicThinking: 'off',
     effort: 'low',
   });
+});
+
+test('missing artifact errors include validation-blocked evidence', () => {
+  const message = missingArtifactMessage([
+    {
+      op: 'meta',
+      path: '/validation-blocked',
+      value: {
+        code: 'invalid-arrow-bundle-entry',
+        message: 'Arrow bundle must include exactly one main.ts or main.js entry file',
+        severity: 'block',
+      },
+    },
+  ]);
+
+  assert.match(message, /Generation blocked/);
+  assert.match(message, /invalid-arrow-bundle-entry/);
+  assert.match(message, /exactly one main.ts or main.js/);
+});
+
+test('missing artifact errors include stream graph evidence', () => {
+  const message = missingArtifactMessage([
+    {
+      op: 'meta',
+      path: '/stream-graph-summary',
+      value: {
+        artifacts: [],
+        health: { complete: false, blockedCount: 0 },
+      },
+    },
+  ]);
+
+  assert.match(message, /artifacts=0/);
+  assert.match(message, /blocked=0/);
 });
 
 test('generate run profile quality restores provider-reported defaults', () => {

@@ -18,6 +18,7 @@ import {
   agentPolicyText,
   applyTokenOverrideCss,
   ghostRootFromSelection,
+  missingArtifactMessage,
   parseAppliedTokenOverrides,
   parseSurfaceContractView,
   summarizeStreamGraphMeta,
@@ -220,13 +221,18 @@ export function useSurfaceStream({
       logLine('op-meta', `status -> ${status}`);
       return;
     }
+    if (line.op === 'meta' && line.path === '/model-output-mode') {
+      const value = line.value as { format?: unknown; schema?: unknown; repairAttempts?: unknown; repairing?: unknown } | undefined;
+      const format = typeof value?.format === 'string' ? value.format : 'unknown';
+      const schema = typeof value?.schema === 'string' ? value.schema : 'unknown';
+      const repairs = typeof value?.repairAttempts === 'number' ? value.repairAttempts : 0;
+      const repairing = Array.isArray(value?.repairing) ? `; repairing=${value.repairing.join(',')}` : '';
+      logLine('op-meta', `model output -> ${format}; schema=${schema}; repairs=${repairs}${repairing}`);
+      return;
+    }
     if (line.op === 'meta' && line.path === '/thinking') {
       const text = typeof line.value === 'string' ? line.value : JSON.stringify(line.value);
       logLine('op-meta', `. ${text.slice(0, 160)}${text.length > 160 ? '...' : ''}`);
-      return;
-    }
-    if (line.op === 'meta' && line.path === '/protocol-skip') {
-      logLine('op-meta', `skip ${JSON.stringify(line.value)}`);
       return;
     }
     if (line.op === 'meta') {
@@ -346,7 +352,7 @@ export function useSurfaceStream({
       mode: () => modeRef.current,
       shouldApplyLine: () => 'apply',
       onLine: (line, context) => {
-        appendDevEvent({ kind: 'protocol-line', at: Date.now(), line });
+        appendDevEvent({ kind: 'server-line', at: Date.now(), line });
         if (line.op !== 'meta') applyLineTo(line, context);
       },
       onMeta: (line, context) => {
@@ -371,7 +377,7 @@ export function useSurfaceStream({
         }
       },
       onParseError: (raw) => {
-        appendDevEvent({ kind: 'protocol-parse-error', at: Date.now(), raw });
+        appendDevEvent({ kind: 'transport-parse-error', at: Date.now(), raw });
         logLine('raw', `. ${raw.slice(0, 120)}`);
       },
       onGraph: (snapshot) => {
@@ -396,11 +402,7 @@ export function useSurfaceStream({
       active.surfacePlan.runtime === 'arrow' &&
       !result.protocolLines.some((line) => line.op === 'artifact' && line.path === '/artifact')
     ) {
-      const serverError = result.protocolLines.find((line) => line.op === 'meta' && line.path === '/error');
-      const message = serverError
-        ? `Generation server error: ${String(serverError.value)}`
-        : 'Arrow runtime expected one /artifact line, but the model produced no accepted Arrow artifact';
-      throw new Error(message);
+      throw new Error(missingArtifactMessage(result.protocolLines));
     }
 
     return {

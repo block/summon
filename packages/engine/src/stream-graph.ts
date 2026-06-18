@@ -12,7 +12,7 @@ export interface StreamGraphArtifact {
 
 export interface StreamGraphHealth {
   complete: boolean;
-  skippedCount: number;
+  warningCount: number;
   blockedCount: number;
 }
 
@@ -36,12 +36,12 @@ export interface StreamGraphSnapshot {
 }
 
 /**
- * Observe the Arrow JSONL stream as artifact revisions plus validation health.
+ * Observe the server-owned surface stream as artifact revisions plus validation health.
  */
 export class StreamGraph {
   private artifacts: StreamGraphArtifact[] = [];
   private issueKeys = new Set<string>();
-  private skippedCount = 0;
+  private warningCount = 0;
   private blockedCount = 0;
   private lineCount = 0;
   private preview: StreamGraphPreview = {
@@ -72,8 +72,8 @@ export class StreamGraph {
       this.issueKeys.add(key);
       if (issue.severity === 'block') {
         this.blockedCount += 1;
-      } else if (issue.code === 'malformed-jsonl' || issue.code === 'protocol-skip') {
-        this.skippedCount += 1;
+      } else if (issue.severity === 'warn') {
+        this.warningCount += 1;
       }
     }
 
@@ -87,7 +87,7 @@ export class StreamGraph {
       preview: clonePreview(this.preview),
       health: {
         complete: this.blockedCount === 0,
-        skippedCount: this.skippedCount,
+        warningCount: this.warningCount,
         blockedCount: this.blockedCount,
       },
     };
@@ -104,14 +104,14 @@ export class StreamGraph {
       (max, artifact) => Math.max(max, artifact.firstSeenLine ?? 0, artifact.lastUpdatedLine ?? 0),
       Math.max(this.preview.events.firstSeenLine ?? 0, this.preview.events.lastUpdatedLine ?? 0),
     );
-    this.skippedCount = snapshot.health.skippedCount;
+    this.warningCount = snapshot.health.warningCount;
     this.blockedCount = snapshot.health.blockedCount;
   }
 
   reset(): void {
     this.artifacts = [];
     this.issueKeys.clear();
-    this.skippedCount = 0;
+    this.warningCount = 0;
     this.blockedCount = 0;
     this.lineCount = 0;
     this.preview = {
@@ -163,11 +163,6 @@ export class StreamGraph {
   }
 
   private applyMeta(line: ProtocolLine & { op: 'meta' }): void {
-    if (line.path === '/protocol-skip') {
-      this.skippedCount += 1;
-      return;
-    }
-
     if (line.path === '/validation-blocked' && isContractIssue(line.value)) {
       this.recordIssue(line.value);
       return;
@@ -190,7 +185,7 @@ export class StreamGraph {
       this.blockedCount = Math.max(this.blockedCount, summary.blocked);
     }
     if (typeof summary.warnings === 'number') {
-      this.skippedCount = Math.max(this.skippedCount, summary.warnings);
+      this.warningCount = Math.max(this.warningCount, summary.warnings);
     }
   }
 }

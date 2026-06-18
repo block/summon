@@ -44,14 +44,14 @@ test('artifact lines create ordered Arrow revisions', () => {
   assert.equal(snap.health.complete, true);
 });
 
-test('contract issues update skipped and blocked health counters', () => {
+test('contract issues update warning and blocked health counters', () => {
   const graph = new StreamGraph();
   graph.applyLine({ op: 'artifact', path: '/artifact', value: artifact });
-  const skipped: ContractIssue = {
-    source: 'protocol',
+  const warning: ContractIssue = {
+    source: 'artifact',
     severity: 'warn',
-    code: 'protocol-skip',
-    message: 'Protocol line skipped',
+    code: 'unsupported-arrow-pattern',
+    message: 'Arrow source uses a discouraged pattern',
   };
   const blocked: ContractIssue = {
     source: 'protocol',
@@ -61,11 +61,11 @@ test('contract issues update skipped and blocked health counters', () => {
     path: '/artifact',
   };
 
-  graph.recordIssue(skipped);
+  graph.recordIssue(warning);
   graph.recordIssue(blocked);
 
   const snap = graph.snapshot();
-  assert.equal(snap.health.skippedCount, 1);
+  assert.equal(snap.health.warningCount, 1);
   assert.equal(snap.health.blockedCount, 1);
   assert.equal(snap.health.complete, false);
   assert.equal(snap.artifacts[0]?.lastIssue?.code, 'invalid-arrow-artifact');
@@ -83,7 +83,7 @@ test('validation summary merges aggregate graph health', () => {
   });
 
   const snap = graph.snapshot();
-  assert.equal(snap.health.skippedCount, 3);
+  assert.equal(snap.health.warningCount, 3);
   assert.equal(snap.health.blockedCount, 2);
 });
 
@@ -117,11 +117,10 @@ test('snapshots, hydrates, and resets deterministically', () => {
   graph.applyLine({ op: 'artifact', path: '/artifact', value: artifact });
   graph.applyLine({
     op: 'meta',
-    path: '/protocol-skip',
+    path: '/validation-summary',
     value: {
-      code: 'malformed-jsonl',
-      message: 'Model emitted a non-JSONL protocol line',
-      severity: 'warn',
+      blocked: 0,
+      warnings: 1,
     },
   });
 
@@ -139,7 +138,7 @@ test('snapshots, hydrates, and resets deterministically', () => {
     },
     health: {
       complete: true,
-      skippedCount: 0,
+      warningCount: 0,
       blockedCount: 0,
     },
   });
