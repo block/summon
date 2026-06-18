@@ -14,10 +14,10 @@ registering host tools, choosing surface configs, compiling contract views, and
 dispatching host-owned requests. Use explicit subpaths when you need lower-level
 browser, engine, host, policy, envelope, assets, Devtools, or token CSS APIs:
 
-- `@anarchitecture/summon/browser` for Arrow stream consumption and inline
+- `@anarchitecture/summon/browser` for server stream consumption and inline
   sandbox mounting.
-- `@anarchitecture/summon/engine` for protocol, validation, prompt contract,
-  stream diagnostics, and hardening APIs.
+- `@anarchitecture/summon/engine` for stream transport types, validation, prompt
+  contract, and stream diagnostics APIs.
 - `@anarchitecture/summon/host` for adapter authors who need the full host
   runtime surface.
 - `@anarchitecture/summon/policy` for direct `PolicyEngine` wiring.
@@ -100,9 +100,10 @@ import {
 import { tokensSource } from '@anarchitecture/summon/assets';
 ```
 
-Use `consumeSurfaceStream()` to decode streamed chunks, parse accepted JSONL,
-validate Arrow artifacts, update stream diagnostics, and render through the
-inline sandbox handle. The only generated executable payload is:
+Use `consumeSurfaceStream()` to decode server-owned streamed chunks, parse
+accepted stream lines, validate Arrow artifacts, update stream diagnostics, and
+render through the inline sandbox handle. The only executable runtime payload
+that reaches the sandbox is:
 
 ```json
 {"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"..."}}}
@@ -164,8 +165,9 @@ do not use it as an enforcement source.
 
 Saved replay envelopes are versioned runtime records, not authority. A
 `SurfaceEnvelope` stores the prompt, compiled `SurfacePlan`, accepted Arrow
-artifact, protocol lines, validation issues, stream graph snapshot, granted
-tools/validation tools, optional metadata, token CSS, and runtime version.
+artifact, server stream lines, validation issues, stream graph snapshot,
+granted tools/validation tools, optional metadata, token CSS, and runtime
+version.
 `SummonSurface` can replay one, but live host handlers still come from the
 current `toolRegistry` or `onToolCall` wiring.
 
@@ -175,14 +177,16 @@ current `toolRegistry` or `onToolCall` wiring.
 import {
   runAgentSurfaceGeneration,
   runSurfaceGeneration,
-  type SummonModelProvider,
+  type SurfaceModelProvider,
 } from '@anarchitecture/summon-server';
 ```
 
 `runSurfaceGeneration()` is provider-neutral. The provider receives compiled
-prompt blocks and returns text chunks. The runner applies the surface config,
-hardens streamed JSONL, emits accepted Arrow lines and diagnostics, and returns
-a replay summary.
+prompt blocks plus the structured Arrow bundle schema, then returns a
+`summon.arrow-bundle/v1` object from its tool/function-calling integration. The
+runner applies the surface config, validates and optionally repairs the bundle,
+emits server-owned preview/artifact/diagnostic lines, and returns a replay
+summary.
 
 For agent-driven hosts, use `runAgentSurfaceGeneration(input, emit)` when the
 end user should not choose Summon-specific configs. The broker converts the

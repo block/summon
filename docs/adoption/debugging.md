@@ -1,8 +1,9 @@
 # Summon Debugging Guide
 
-Summon diagnostics explain why an Arrow artifact failed, why a generated
-control did nothing, or why host-owned data did not appear. Start from the
-symptom, then drill into protocol paths and Devtools events only as needed.
+Summon diagnostics explain why an Arrow bundle failed validation, why an
+accepted artifact did not render, why a generated control did nothing, or why
+host-owned data did not appear. Start from the symptom, then drill into server
+stream paths and Devtools events only as needed.
 
 ## Generation Failed
 
@@ -11,17 +12,23 @@ Open the **Stream** drawer on `/generate` and check:
 - `/error` - server-side generation error or blocked-generation message.
 - `/validation-blocked` - a blocking issue stopped generation.
 - `/validation-summary` - grouped validation issue counts and examples.
-- `/protocol-skip` - a non-fatal raw model line was skipped before the sandbox.
+- `/model-output-mode` - the structured model-output contract used for this
+  run, including schema and repair attempts.
 - `/validation-observed` - workbench-only observe mode diagnostic for an
   artifact issue that would block in production but was forwarded for runtime
   inspection.
 - `/stream-graph-summary` - final artifact/validation stream diagnostics.
 
+The model does not author Summon's stream. The model returns a structured Arrow
+bundle through the provider/tool schema, and the server validates, repairs when
+possible, and emits the stream lines consumed by the client.
+
 Common fixes:
 
-- `malformed-jsonl` - the model emitted prose, Markdown, or an unsupported
-  protocol op instead of JSONL.
-- `invalid-arrow-artifact` - the `/artifact` value was not an Arrow artifact.
+- `invalid-arrow-bundle` / `invalid-arrow-bundle-entry` - the structured bundle
+  did not include exactly one valid `main.ts` or `main.js` entry file.
+- `invalid-arrow-artifact` - the normalized bundle did not produce an Arrow
+  artifact accepted by the runtime validator.
 - `invalid-arrow-entry` - the artifact source did not contain one valid Arrow
   entrypoint.
 - `unsupported-arrow-idl-binding` / `unsupported-arrow-open-tag-expression` -
@@ -30,7 +37,7 @@ Common fixes:
   through a host tool.
 - `surface-policy-*` - fix the host-selected surface config. The compiler
   blocks unknown allowed tools and authority above the selected surface type
-  before the model is called.
+  before generation proceeds.
 
 ## Generated Control Did Nothing
 
@@ -41,8 +48,8 @@ does not work:
    allowed host tools.
 2. Confirm the host tool exists in `createToolRegistry(...).toContract()`.
 3. Confirm the Arrow code invokes only an allowed tool name.
-4. Check Devtools for `tool-rejected`, `tool-dispatched`,
-   `tool-settled`, and `state-pushed`.
+4. Check Devtools for `tool-rejected`, `tool-dispatched`, `tool-settled`, and
+   `state-pushed`.
 5. Check the host handler in `PolicyEngine` and the resource's `stateKeys`.
 
 Common fixes:
@@ -84,23 +91,23 @@ stays blank:
 
 ## Advanced Diagnostic Layers
 
-1. **Protocol parsing** - `parseProtocolLine` accepts only JSONL `meta` and
-   Arrow `/artifact` records. Bad raw lines become client-side
-   `protocol-parse-error` events or server `/protocol-skip` meta.
-2. **Artifact validation** - malformed Arrow source, unsupported bindings,
-   host-owned meta paths, token drift, and surface-plan violations become
-   `ContractIssue` records.
-3. **Stream diagnostics** - `StreamGraph` tracks Arrow artifact revisions plus
-   skipped and blocked counts.
+1. **Structured model output** - the provider returns `summon.arrow-bundle/v1`:
+   source files plus optional preview metadata. The server owns all stream
+   lines.
+2. **Bundle/artifact validation** - malformed Arrow source, unsupported
+   bindings, generated network without grants, token drift, and surface-plan
+   violations become `ContractIssue` records.
+3. **Stream diagnostics** - `StreamGraph` tracks server-emitted preview events,
+   Arrow artifact revisions, warning counts, and blocked counts.
 4. **Host dispatch** - `PolicyEngine` validates args, runs host handlers, emits
    state patches, and reports handler errors.
 5. **Sandbox boundary** - the inline Arrow VM withholds ambient browser APIs;
-   Summon removes generated fetch for no-network artifacts and rejects
-   ungranted host tool requests.
+   Summon removes generated fetch for no-network artifacts and rejects ungranted
+   host tool requests.
 6. **Replay envelope** - saved surfaces preserve the accepted Arrow artifact,
-   compiled surface plan, protocol history, validation issues, stream graph,
-   grants, metadata, and token CSS for replay and diagnostics. They do not
-   grant new host tools.
+   compiled surface plan, server stream history, validation issues, stream graph,
+   grants, metadata, and token CSS for replay and diagnostics. They do not grant
+   new host tools.
 
 ## Stream Meta Lines
 
@@ -111,31 +118,31 @@ stays blank:
 | `/surface-policy` | Host-owned public surface config selected for this run. |
 | `/surface-plan` | Host-owned compiled safety plan selected for this run. |
 | `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, optional layout, and compile issues. |
+| `/model-output-mode` | Structured model-output contract details, currently `arrow-bundle` with schema `summon.arrow-bundle/v1` and repair-attempt diagnostics. |
 | `/shape` | Optional server-inferred response shape used to narrow direction exemplars. |
 | `/token-overrides` | Resolved direction token overrides, including applied and rejected entries. |
 | `/validation-summary` | Final grouped `ContractIssue` counts and examples. |
 | `/validation-blocked` | A blocking issue stopped generation. |
 | `/validation-observed` | Workbench-only observe mode diagnostic for a production-blocking issue that was forwarded to the sandbox for inspection. |
 | `/stream-graph-summary` | Final `StreamGraph.snapshot()` for the server stream. |
-| `/protocol-skip` | A non-fatal line was skipped before reaching the sandbox. |
 | `/mode-upgraded` | The server upgraded static generation to interactive mode. |
 | `/error` | Server-side generation error or blocked-generation message. |
 
 ## Progressive Rendering
 
-Summon streams at complete JSONL protocol-line granularity. It does not render
-raw model tokens or partial source. Progressive perceived rendering comes from
-emitting newer complete Arrow `/artifact` revisions. The host renders each
-accepted revision with `renderArtifact()`.
+Summon streams complete server-owned lines. It does not render provider token
+chunks or partial source. Progressive perceived rendering comes from server-emitted
+preview events and accepted complete Arrow artifact revisions. The host renders
+each accepted revision with `renderArtifact()`.
 
 ## Devtools Events
 
 The generate demo records a per-run `EventStore`. Open the **Devtools** drawer
 and look for:
 
-- `protocol-line` - accepted `meta`, `event`, or `artifact` records after
-  parsing.
-- `protocol-parse-error` - raw model output that was not valid JSONL.
+- `server-line` - accepted server-emitted `meta`, `event`, or `artifact`
+  records after transport parsing.
+- `transport-parse-error` - a server transport line was malformed.
 - `stream-lifecycle` - client streaming started or ended.
 - `surface-mounted` - the inline Arrow sandbox root was created with the current
   host grants.
@@ -184,7 +191,7 @@ what happened.
 Watch these health counters:
 
 - `complete` - no blocking validation issue was recorded.
-- `skippedCount` - raw lines were skipped by parser/hardener.
+- `warningCount` - warning-level validation issues were recorded.
 - `blockedCount` - blocking validation issues were recorded.
 
 Server streams end with `/stream-graph-summary`. The demo client also emits

@@ -141,9 +141,9 @@ boundary.
 The Stream and Devtools drawers are for understanding a run after you have
 rendered and interacted with a surface:
 
-- Open the **Stream** drawer to inspect accepted protocol lines, the selected
-  broker goal, selected surface config, validation summaries, skipped raw
-  lines, and Arrow artifact revisions.
+- Open the **Stream** drawer to inspect server stream lines, the selected
+  broker goal, selected surface config, validation summaries, model-output mode,
+  and Arrow artifact revisions.
 - Open the **Devtools** drawer to inspect sandbox startup, render events, host
   tool requests, host dispatch, pushed state, runtime errors, and stream
   diagnostics.
@@ -176,8 +176,8 @@ inline Arrow sandbox exercised by `/generate` and `/adversarial`.
   provider key and confirm the server is listening on `:3001`.
 - If generated controls do nothing, confirm the run is interactive. Static
   surfaces intentionally have no allowed host tools.
-- If the model emits malformed or unsafe Arrow output, inspect the Stream
-  drawer for validation summaries, blocked output, and `/protocol-skip`.
+- If generation returns malformed or unsafe Arrow output, inspect the Stream
+  drawer for `/model-output-mode`, validation summaries, and blocked output.
 - If the sandbox does not update after a generated control is used, inspect
   Devtools for rejected host tool requests, host dispatch, handler completion,
   and pushed state.

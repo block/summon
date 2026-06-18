@@ -199,19 +199,39 @@ and `PolicyEngine`.
 ## 3. Generate The Surface
 
 The generation server should use `@anarchitecture/summon-server` for the
-repeatable lifecycle: assemble prompts, apply the surface config, validate
-streamed JSONL, accept only Arrow artifacts, and emit diagnostics.
+repeatable lifecycle: assemble prompts, apply the host surface config, request a
+structured Arrow bundle from the provider, validate/repair it, and emit
+server-owned diagnostics plus the accepted Arrow artifact.
+
+The model does **not** author Summon's stream lines. It returns a structured
+`summon.arrow-bundle/v1` payload through your provider's tool/function
+calling mechanism; Summon then serializes the server-to-client stream.
 
 ```ts
 import {
   runSurfaceGeneration,
-  type SummonModelProvider,
+  type SurfaceModelProvider,
 } from '@anarchitecture/summon-server';
 
-const modelProvider: SummonModelProvider = async function* ({ prompt, promptBlocks }) {
-  // Convert promptBlocks into your provider's system-message shape, then yield
-  // provider text chunks as they arrive.
-  yield* callYourModel({ prompt, promptBlocks });
+const modelProvider: SurfaceModelProvider = {
+  async generateArrowBundle({ prompt, promptBlocks, schema, signal }) {
+    return callYourProviderStructuredTool({
+      prompt,
+      promptBlocks,
+      schema,
+      toolName: 'create_summon_arrow_surface',
+      signal,
+    });
+  },
+  async repairArrowBundle(request) {
+    return callYourProviderStructuredTool({
+      prompt: buildRepairPrompt(request),
+      promptBlocks: request.promptBlocks,
+      schema: request.schema,
+      toolName: 'create_summon_arrow_surface',
+      signal: request.signal,
+    });
+  },
 };
 
 await runSurfaceGeneration({
@@ -230,14 +250,35 @@ await runSurfaceGeneration({
 });
 ```
 
-For policy-backed runs, `runSurfaceGeneration()` emits host-owned metadata in
-this order before model-authored output:
+For policy-backed runs, `runSurfaceGeneration()` emits host-owned metadata
+before preview/artifact delivery:
 
 1. `/surface-policy` - the normalized host policy.
 2. `/surface-plan` - the compiled safety plan.
 3. `/surface-contract` - the compact derived `SurfaceContractView`.
+4. `/model-output-mode` - the structured model-output schema and repair-attempt
+   diagnostics.
 
-The only executable generated payload is an Arrow artifact:
+The structured provider response has this shape:
+
+```ts
+{
+  schema: 'summon.arrow-bundle/v1',
+  preview?: {
+    kind: string;
+    title?: string;
+    regions?: Array<{ id: string; role: string; label?: string }>;
+  };
+  source: {
+    'main.ts'?: string;
+    'main.js'?: string;
+    'main.css'?: string;
+  };
+}
+```
+
+The server validates that bundle and emits the only executable runtime payload
+as an accepted Arrow artifact on `/artifact`:
 
 ```json
 {"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{"main.ts":"..."}}}
@@ -250,7 +291,7 @@ Use host tools for product data, credentials, and external APIs.
 
 ## 4. Render In The Inline Sandbox
 
-The client should let `@anarchitecture/summon` own chunk decoding, protocol
+The client should let `@anarchitecture/summon` own chunk decoding, server stream
 parsing, stream diagnostics, and render timing. Product hosts still own
 fetching, aborts, request payloads, and product-specific meta interpretation.
 
@@ -310,7 +351,8 @@ await consumeSurfaceStream(response.body!, {
   onMeta: (line) => {
     if (line.path === '/status') renderStatus(String(line.value));
     if (line.path === '/surface-contract') renderContractSummary(line.value);
-    if (line.path === '/protocol-skip') renderSkippedLine(line.value);
+    if (line.path === '/model-output-mode') renderModelOutputMode(line.value);
+    if (line.path === '/validation-summary') renderValidationSummary(line.value);
   },
   onGraph: (snapshot) => {
     events.push({
@@ -384,8 +426,8 @@ export default html`
 Diagnostics are for failures and maintainer investigation, not the first thing
 an adopter needs to learn.
 
-- If generation fails, inspect `/error`, `/validation-summary`,
-  `/validation-blocked`, and `/protocol-skip` in the Stream drawer.
+- If generation fails, inspect `/error`, `/model-output-mode`,
+  `/validation-summary`, and `/validation-blocked` in the Stream drawer.
 - If a generated control does nothing, inspect Devtools for rejected host tool
   requests, host dispatch, handler completion, and pushed state.
 - If the surface stays blank, inspect Stream diagnostics for accepted Arrow

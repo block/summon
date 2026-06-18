@@ -19,7 +19,7 @@ export function FatalPage() {
             </p>
             <p className="m-0">
               The replacement smoke path is Arrow VM isolation plus the host bridge allowlist: no ambient browser access,
-              no ungranted tools, and protocol events that never execute generated code.
+              no ungranted tools, and server-owned preview and diagnostic events that never execute generated code.
             </p>
           </div>
         </Pane>

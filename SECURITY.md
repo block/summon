@@ -10,7 +10,7 @@ Use GitHub private vulnerability reporting for this repository. Include:
 
 - A minimal reproduction.
 - Browser/runtime and operating system.
-- Generated protocol lines or HTML involved, if applicable.
+- Generated Arrow bundle/source, accepted server stream lines, or HTML involved, if applicable.
 - The selected `SurfacePlan`, granted intents, and granted capabilities.
 - Whether the issue affects static, declarative, scripted, worker, or component
   island surfaces.

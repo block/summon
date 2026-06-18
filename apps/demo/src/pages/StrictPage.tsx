@@ -18,8 +18,8 @@ export function StrictPage() {
               architecture is no longer part of the Arrow-only runtime.
             </p>
             <p className="m-0">
-              Use the Generate page for the current path: Arrow JSONL is validated, accepted artifacts mount in the
-              inline sandbox, and generated code may call only granted host tools.
+              Use the Generate page for the current path: structured Arrow bundles are validated, accepted artifacts
+              mount in the inline sandbox, and generated code may call only granted host tools.
             </p>
           </div>
         </Pane>
