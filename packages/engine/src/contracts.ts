@@ -182,6 +182,23 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'unsafe-attr-binding':
     case 'bad-attr-binding-placement':
       return ['Use normal quoted Arrow attributes and sanitize dynamic values before rendering them.'];
+    case 'unsupported-arrow-open-tag-expression':
+      return [
+        'Remove bare `${...}` expressions from opening tags. Do not write `<button ${() => "disabled"}>` or `<section ${dynamicAttrs}>`.',
+        'Put dynamic values inside named, quoted attributes instead, such as `disabled="${() => state.loading}"`, `class="${() => state.active ? \'active\' : \'\'}"`, or `aria-expanded="${() => state.open ? \'true\' : \'false\'}"`.',
+        'If the expression creates child content, move it between tags: `<button>${() => state.label}</button>`.',
+      ];
+    case 'invalid-arrow-bundle-entry':
+      return [
+        'Return exactly one Arrow entry file under source: either "main.ts" or "main.js", not both and not neither.',
+        'If both entry files were returned, keep the complete Arrow implementation in one file and remove the other entry file. Optional CSS may remain in "main.css".',
+      ];
+    case 'invalid-arrow-source-syntax':
+      return [
+        'Fix the TypeScript/JavaScript syntax error in the Arrow entry file before returning the bundle.',
+        'Check nested template literals carefully: quote generated copy, escape accidental backticks, and keep apostrophes inside double-quoted strings when needed.',
+        'Return the full corrected source file, not a patch or Markdown fence.',
+      ];
     case 'host-owned-meta':
       return ['Remove host-owned meta lines; the host emits /surface-policy, /surface-plan, and /surface-contract before artifact delivery.'];
     case 'surface-policy-invalid':

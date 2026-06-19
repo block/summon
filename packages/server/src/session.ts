@@ -1,3 +1,4 @@
+import * as ts from 'typescript';
 import {
   StreamGraph,
   compileSurfacePolicy,
@@ -6,7 +7,6 @@ import {
   createArrowBundleJsonSchema,
   normalizeArrowBundle,
   arrowArtifactFromBundle,
-  validateArrowSurfaceArtifact,
   validateProtocolLine,
   hintsForContractIssue,
   contractIssue,
@@ -114,7 +114,9 @@ export class SurfaceGenerationSession {
   }
 
   async consumeProvider(): Promise<void> {
-    await this.emitServerPreviewScaffold();
+    if (!this.input.playground) {
+      await this.emitServerPreviewScaffold();
+    }
     await this.writePhase('drafting', 'Composing Arrow bundle');
     await this.writeTiming('drafting', 'Composing Arrow bundle');
     const providerStartedAt = nowMs();
@@ -166,20 +168,20 @@ export class SurfaceGenerationSession {
   }
 
   private async acceptBundleWithRepair(
-    initialBundle: SummonArrowBundle,
+    initialBundle: unknown,
     schema: Record<string, unknown>,
   ): Promise<void> {
-    let bundle: SummonArrowBundle | null = initialBundle;
+    let bundle: unknown = initialBundle;
     const maxRepairAttempts = Math.max(0, Math.floor(this.input.maxRepairAttempts ?? 1));
     for (let attempt = 0; attempt <= maxRepairAttempts; attempt++) {
-      if (this.blocked || !bundle) return;
-      const result = await this.validateAndAcceptBundle(bundle);
+      if (this.blocked) return;
+      const result = await this.validateAndAcceptBundle(bundle, attempt);
       if (result.accepted) return;
       if (attempt >= maxRepairAttempts || !this.input.modelProvider.repairArrowBundle) {
         await this.blockGeneration(result.blocker);
         return;
       }
-      if (!isRepairable(result.issues)) {
+      if (!isRepairable(result.issues, this.input.repairIssueCodes)) {
         await this.blockGeneration(result.blocker);
         return;
       }
@@ -215,59 +217,55 @@ export class SurfaceGenerationSession {
     }
   }
 
-  private async validateAndAcceptBundle(bundle: SummonArrowBundle): Promise<{
+  private async validateAndAcceptBundle(bundle: unknown, attempt: number): Promise<{
     accepted: boolean;
     issues: ContractIssue[];
     blocker: ContractIssue;
   }> {
     await this.writePhase('validating', 'Validating Arrow bundle');
     const validationStartedAt = nowMs();
+    const diagnostic = bundleDiagnostic(bundle, attempt);
+    await this.writeProtocolLine({ op: 'meta', path: '/arrow-bundle-diagnostic', value: diagnostic });
     const normalized = normalizeArrowBundle(bundle);
     const issues = [...normalized.issues];
     const artifact = normalized.bundle ? arrowArtifactFromBundle(normalized.bundle) : null;
     if (artifact) {
-      issues.push(...validateArrowSurfaceArtifact(artifact, {
-        network: this.systemContracts.validationContext.surfacePlan?.network ?? 'none',
-      }));
       issues.push(...validateProtocolLine({
         op: 'artifact',
         path: '/artifact',
         value: artifact,
       }, this.systemContracts.validationContext));
+      issues.push(...validateArrowSourceSyntax(artifact.source));
     }
 
     this.validationIssues.push(...issues);
     const blocker = issues.find((issue) => issue.severity === 'block');
+    const runtimeBlocker = issues.find((issue) => issue.severity === 'block' && isAlwaysBlockingRuntimeIssue(issue));
     const observeValidation = this.isObserveValidation();
     await this.writeTiming(
       'validating',
-      blocker && !observeValidation ? 'Blocked Arrow bundle' : 'Validated Arrow bundle',
+      blocker && (!observeValidation || runtimeBlocker) ? 'Blocked Arrow bundle' : 'Validated Arrow bundle',
       nowMs() - validationStartedAt,
     );
     if (!artifact) {
+      const invalidBundleIssue = contractIssue({
+        source: 'protocol',
+        severity: 'block',
+        code: 'invalid-arrow-bundle',
+        message: 'Model output did not produce a valid Arrow bundle',
+        path: '/bundle',
+      });
       return {
         accepted: false,
-        issues: issues.length > 0 ? issues : [contractIssue({
-          source: 'protocol',
-          severity: 'block',
-          code: 'invalid-arrow-bundle',
-          message: 'Model output did not produce a valid Arrow bundle',
-          path: '/bundle',
-        })],
-        blocker: blocker ?? contractIssue({
-          source: 'protocol',
-          severity: 'block',
-          code: 'invalid-arrow-bundle',
-          message: 'Model output did not produce a valid Arrow bundle',
-          path: '/bundle',
-        }),
+        issues: issues.length > 0 ? issues : [invalidBundleIssue],
+        blocker: blocker ?? invalidBundleIssue,
       };
     }
-    if (blocker && !observeValidation) {
+    if (blocker && (!observeValidation || runtimeBlocker)) {
       return {
         accepted: false,
         issues,
-        blocker,
+        blocker: runtimeBlocker ?? blocker,
       };
     }
     if (blocker && observeValidation) {
@@ -290,9 +288,11 @@ export class SurfaceGenerationSession {
         }),
       };
     }
-    for (const line of previewLinesFromBundle(acceptedBundle)) {
-      this.acceptedLines.push(line);
-      await this.writeProtocolLine(line);
+    if (!this.input.playground) {
+      for (const line of previewLinesFromBundle(acceptedBundle)) {
+        this.acceptedLines.push(line);
+        await this.writeProtocolLine(line);
+      }
     }
     await this.writePhase('rendering', 'Rendering accepted artifact');
     const renderStartedAt = nowMs();
@@ -426,6 +426,104 @@ type ServerTimingPhase =
   | 'rendering'
   | 'complete';
 
+function bundleDiagnostic(bundle: unknown, attempt: number): Record<string, unknown> {
+  if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) {
+    return {
+      attempt,
+      shape: Array.isArray(bundle) ? 'array' : bundle === null ? 'null' : typeof bundle,
+      sourceKeys: [],
+      entryKeys: [],
+    };
+  }
+  const input = bundle as Record<string, unknown>;
+  const source = input.source;
+  const sourceKeys = source && typeof source === 'object' && !Array.isArray(source)
+    ? Object.keys(source as Record<string, unknown>).sort()
+    : [];
+  const entryKeys = sourceKeys.filter((key) => key === 'main.ts' || key === 'main.js');
+  const rootKeys = Object.keys(input).sort();
+  const topLevelEntryKeys = rootKeys.filter((key) => key === 'main.ts' || key === 'main.js');
+  const sourceShape = source === null
+    ? 'null'
+    : Array.isArray(source)
+      ? 'array'
+      : typeof source;
+  const diagnostic: Record<string, unknown> = {
+    attempt,
+    shape: 'object',
+    schema: typeof input.schema === 'string' ? input.schema : null,
+    rootKeys,
+    topLevelEntryKeys,
+    hasSource: Boolean(source && typeof source === 'object' && !Array.isArray(source)),
+    sourceShape,
+    sourceKeys,
+    entryKeys,
+  };
+  if (typeof source === 'string') {
+    diagnostic.sourceStringPreview = previewString(source);
+  }
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    diagnostic.sourceObjectKeys = Object.keys(source as Record<string, unknown>).sort();
+  }
+  return diagnostic;
+}
+
+function previewString(value: string): string {
+  const compact = value.replace(/\s+/g, ' ').trim();
+  return compact.length > 500 ? `${compact.slice(0, 500)}...` : compact;
+}
+
+function validateArrowSourceSyntax(source: Record<string, string>): ContractIssue[] {
+  const issues: ContractIssue[] = [];
+  for (const [path, contents] of Object.entries(source)) {
+    if (!path.endsWith('.ts') && !path.endsWith('.js') && !path.endsWith('.mjs')) continue;
+    const diagnostics = ts.transpileModule(contents, {
+      fileName: path,
+      reportDiagnostics: true,
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        isolatedModules: true,
+        noEmitOnError: false,
+      },
+    }).diagnostics ?? [];
+    for (const diagnostic of diagnostics) {
+      if (diagnostic.category !== ts.DiagnosticCategory.Error) continue;
+      const position = diagnostic.file && diagnostic.start !== undefined
+        ? diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start)
+        : null;
+      const location = position
+        ? `${path}:${position.line + 1}:${position.character + 1}`
+        : path;
+      const excerpt = sourceExcerpt(contents, position?.line ?? null);
+      const flattened = ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ');
+      issues.push(contractIssue({
+        source: 'protocol',
+        severity: 'block',
+        code: 'invalid-arrow-source-syntax',
+        message: `Arrow source syntax error in ${location}: ${flattened}${excerpt ? `\n\nSource excerpt:\n${excerpt}` : ''}`,
+        path: `/artifact/${path}`,
+        hint: 'Fix the TypeScript/JavaScript syntax error before the Arrow sandbox compiles this entry file.',
+      }));
+    }
+  }
+  return issues;
+}
+
+function sourceExcerpt(source: string, zeroBasedLine: number | null, radius = 3): string {
+  if (zeroBasedLine === null) return '';
+  const lines = source.split(/\r?\n/);
+  const start = Math.max(0, zeroBasedLine - radius);
+  const end = Math.min(lines.length, zeroBasedLine + radius + 1);
+  const lineNumberWidth = String(end).length;
+  return lines.slice(start, end).map((line, index) => {
+    const lineNumber = start + index + 1;
+    const marker = lineNumber === zeroBasedLine + 1 ? '>' : ' ';
+    return `${marker} ${String(lineNumber).padStart(lineNumberWidth, ' ')} | ${line}`;
+  }).join('\n');
+}
+
 function previewLinesFromBundle(bundle: SummonArrowBundle): SurfaceEventLine[] {
   const preview = bundle.preview;
   if (!preview) {
@@ -537,7 +635,11 @@ function titleFromPrompt(prompt: string): string {
   return title.length > 64 ? `${title.slice(0, 61)}...` : title;
 }
 
-function isRepairable(issues: ContractIssue[]): boolean {
+function isAlwaysBlockingRuntimeIssue(issue: ContractIssue): boolean {
+  return issue.code === 'invalid-arrow-source-syntax';
+}
+
+function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[]): boolean {
   const repairable = new Set([
     'invalid-arrow-entry',
     'invalid-arrow-source',
@@ -547,6 +649,7 @@ function isRepairable(issues: ContractIssue[]): boolean {
     'unsupported-arrow-idl-binding',
     'unsupported-arrow-open-tag-expression',
     'unsupported-legacy-data-summon-binding',
+    'invalid-arrow-source-syntax',
     'invalid-arrow-network',
     'invalid-arrow-bundle',
     'invalid-arrow-bundle-schema',
@@ -555,7 +658,12 @@ function isRepairable(issues: ContractIssue[]): boolean {
     'arrow-bundle-extra-file',
     'invalid-arrow-bundle-source-file',
   ]);
-  return issues.some((issue) => issue.severity === 'block' && repairable.has(issue.code));
+  const allowed = allowedCodes && allowedCodes.length > 0 ? new Set(allowedCodes) : null;
+  return issues.some((issue) => (
+    issue.severity === 'block' &&
+    repairable.has(issue.code) &&
+    (!allowed || allowed.has(issue.code))
+  ));
 }
 
 function nowMs(): number {

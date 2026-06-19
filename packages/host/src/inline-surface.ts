@@ -169,6 +169,12 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
   let currentState = cloneState(options.initialState);
   let arrowTeardown: (() => void) | null = null;
   let renderRevision = 0;
+  // Preview status events can arrive after an accepted artifact line but before
+  // Arrow's sandbox DOM exists. Track the host-owned render lifecycle instead
+  // of inferring it from DOM shape so late "finalizing" events cannot redraw the
+  // pulsing preview over a real surface. Keep the previous/preview surface in
+  // place until the sandbox factory is ready to avoid a blank handoff.
+  let renderState: 'preview' | 'rendering' | 'rendered' | 'failed' = 'preview';
   let disposed = false;
 
   root.dataset.summonInlineSurface = surfaceId;
@@ -223,7 +229,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
         }
         arrowTeardown = null;
       }
-      clearRuntimeChildren(root);
+      renderState = 'rendering';
       options.events?.push({
         kind: 'render',
         at: Date.now(),
@@ -233,12 +239,17 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       void loadSandboxFactory()
         .then((sandbox) => {
           if (disposed || revision !== renderRevision) return;
+          clearRuntimeChildren(root);
           const view = sandbox(
             {
               source: sourceForNetworkPolicy(artifact),
               shadowDOM: true,
               onError(error) {
+                if (disposed || revision !== renderRevision) return;
                 const reason = `Arrow runtime error: ${String(error instanceof Error ? error.message : error)}`;
+                renderState = 'failed';
+                clearRuntimeChildren(root);
+                renderRuntimeError(root, reason);
                 reportRuntimeError(options, surfaceId, reason);
               },
             },
@@ -272,13 +283,17 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
           if (typeof maybeTeardown === 'function') arrowTeardown = maybeTeardown;
           queueMicrotask(() => {
             if (!disposed && revision === renderRevision) {
+              renderState = 'rendered';
               options.events?.push({ kind: 'rendered', at: Date.now(), surfaceId, revision });
             }
           });
         })
         .catch((err: unknown) => {
           if (disposed || revision !== renderRevision) return;
+          renderState = 'failed';
           const reason = `Arrow runtime failed to mount: ${err instanceof Error ? err.message : String(err)}`;
+          clearRuntimeChildren(root);
+          renderRuntimeError(root, reason);
           reportRuntimeError(options, surfaceId, reason);
         });
     },
@@ -289,7 +304,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     },
     applyPreviewEvent(event) {
       const snapshot = preview.apply(event);
-      if (!root.querySelector('arrow-sandbox')) {
+      if (renderState === 'preview' || renderState === 'failed') {
         renderPreview(root, snapshot);
       }
       options.events?.push({ kind: 'surface-preview-event', at: Date.now(), surfaceId, event });
@@ -539,6 +554,22 @@ function clearRuntimeChildren(root: HTMLElement): void {
   }
 }
 
+function renderRuntimeError(root: HTMLElement, reason: string): void {
+  const errorRoot = document.createElement('section');
+  errorRoot.className = 'summon-runtime-error';
+  errorRoot.setAttribute('role', 'alert');
+
+  const kicker = document.createElement('span');
+  kicker.className = 'summon-runtime-error__kicker';
+  kicker.textContent = 'Surface runtime failed';
+
+  const message = document.createElement('p');
+  message.textContent = reason;
+
+  errorRoot.append(kicker, message);
+  root.append(errorRoot);
+}
+
 function scopeTokenCss(css: string, surfaceId: string): string {
   const selector = `[data-summon-inline-surface="${surfaceId}"]`;
   return css
@@ -551,7 +582,7 @@ function defaultPreviewCss(surfaceId: string): string {
 [data-summon-inline-surface="${surfaceId}"] {
   min-height: 100%;
   background:
-    radial-gradient(circle at 16% 10%, color-mix(in srgb, var(--color-accent, #7c5cff) 18%, transparent), transparent 30%),
+    radial-gradient(circle at 16% 10%, color-mix(in srgb, var(--color-text, CanvasText) 12%, transparent), transparent 30%),
     radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent), transparent 26%),
     linear-gradient(135deg, var(--color-bg, Canvas), color-mix(in srgb, var(--color-surface, Canvas) 88%, var(--color-text, CanvasText) 5%));
   color: var(--color-text, CanvasText);
@@ -577,9 +608,9 @@ function defaultPreviewCss(surfaceId: string): string {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 24% 24%, color-mix(in srgb, var(--color-accent, #7c5cff) 24%, transparent), transparent 24%),
+    radial-gradient(circle at 24% 24%, color-mix(in srgb, var(--color-text, CanvasText) 14%, transparent), transparent 24%),
     radial-gradient(circle at 76% 28%, color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent), transparent 22%),
-    conic-gradient(from 110deg at 50% 50%, transparent, color-mix(in srgb, var(--color-accent, #7c5cff) 16%, transparent), transparent 34%);
+    conic-gradient(from 110deg at 50% 50%, transparent, color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent), transparent 34%);
   filter: blur(18px);
   opacity: 0.72;
   animation: summon-preview-drift 9s ease-in-out infinite alternate;
@@ -628,9 +659,9 @@ function defaultPreviewCss(surfaceId: string): string {
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 9px 12px;
-  border: 1px solid color-mix(in srgb, var(--color-accent, CanvasText) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-text, CanvasText) 28%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-accent, CanvasText) 10%, transparent);
+  background: color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent);
   color: var(--color-text, CanvasText);
   font-size: 11px;
   font-weight: 800;
@@ -643,8 +674,8 @@ function defaultPreviewCss(surfaceId: string): string {
   height: 7px;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: var(--color-accent, CanvasText);
-  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent, CanvasText) 14%, transparent);
+  background: var(--color-text, CanvasText);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-text, CanvasText) 14%, transparent);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phases {
   display: grid;
@@ -675,7 +706,7 @@ function defaultPreviewCss(surfaceId: string): string {
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="active"] {
   color: var(--color-text, CanvasText);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--color-accent, CanvasText) 18%, transparent), transparent 88%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-text, CanvasText) 12%, transparent), transparent 88%);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="complete"] {
   color: color-mix(in srgb, var(--color-text, CanvasText) 78%, transparent);
@@ -693,15 +724,15 @@ function defaultPreviewCss(surfaceId: string): string {
   font-weight: 800;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="active"] .summon-preview__phase-marker {
-  border-color: var(--color-accent, CanvasText);
-  background: var(--color-accent, CanvasText);
-  color: var(--color-accent-fg, Canvas);
-  box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-accent, CanvasText) 14%, transparent);
+  border-color: var(--color-text, CanvasText);
+  background: var(--color-text, CanvasText);
+  color: var(--color-bg, Canvas);
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-text, CanvasText) 14%, transparent);
   animation: summon-preview-pulse 1.8s ease-in-out infinite;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase[data-state="complete"] .summon-preview__phase-marker {
-  border-color: color-mix(in srgb, var(--color-accent, CanvasText) 42%, transparent);
-  color: var(--color-accent, CanvasText);
+  border-color: color-mix(in srgb, var(--color-text, CanvasText) 34%, transparent);
+  color: var(--color-text, CanvasText);
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__phase-label {
   min-width: 0;
@@ -738,7 +769,7 @@ function defaultPreviewCss(surfaceId: string): string {
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
-  background: linear-gradient(var(--color-accent, CanvasText), transparent);
+  background: linear-gradient(var(--color-text, CanvasText), transparent);
   opacity: 0.88;
 }
 [data-summon-inline-surface="${surfaceId}"] .summon-preview__node[data-role="status"] {
@@ -775,9 +806,32 @@ function defaultPreviewCss(surfaceId: string): string {
   background-size: 220% 100%, 100% 100%;
   animation: summon-preview-shimmer 1.8s linear infinite;
 }
+[data-summon-inline-surface="${surfaceId}"] .summon-runtime-error {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-height: 100%;
+  padding: clamp(24px, 6vw, 72px);
+  background: var(--color-bg, Canvas);
+  color: var(--color-text, CanvasText);
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-runtime-error__kicker {
+  color: var(--color-text-muted, color-mix(in srgb, CanvasText 62%, transparent));
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-runtime-error p {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--color-text, CanvasText);
+  font-size: clamp(15px, 2vw, 20px);
+  line-height: 1.45;
+}
 @keyframes summon-preview-pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent, CanvasText) 13%, transparent); }
-  50% { transform: scale(1.06); box-shadow: 0 0 0 11px color-mix(in srgb, var(--color-accent, CanvasText) 5%, transparent); }
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-text, CanvasText) 13%, transparent); }
+  50% { transform: scale(1.06); box-shadow: 0 0 0 11px color-mix(in srgb, var(--color-text, CanvasText) 5%, transparent); }
 }
 @keyframes summon-preview-shimmer {
   from { background-position: 180% 0, 0 0; }

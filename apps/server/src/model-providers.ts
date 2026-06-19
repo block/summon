@@ -1,8 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import {
-  normalizeArrowBundle,
-  type ContractPromptBlock,
-  type SummonArrowBundle,
+import type {
+  ContractPromptBlock,
 } from '@anarchitecture/summon/engine';
 import type {
   ArrowBundleRepairRequest,
@@ -97,8 +95,8 @@ export interface ModelSelection {
 }
 
 export interface ModelProviderAdapter extends ModelProviderInfo, TextCompletionClient {
-  generateArrowBundle(request: ArrowBundleRequest, selection?: ModelSelection): Promise<SummonArrowBundle>;
-  repairArrowBundle(request: ArrowBundleRepairRequest, selection?: ModelSelection): Promise<SummonArrowBundle>;
+  generateArrowBundle(request: ArrowBundleRequest, selection?: ModelSelection): Promise<unknown>;
+  repairArrowBundle(request: ArrowBundleRepairRequest, selection?: ModelSelection): Promise<unknown>;
   completeText(request: TextCompletionRequest, selection?: ModelSelection): Promise<string>;
   resolveSelection(raw: unknown): { ok: true; selection: ModelSelection } | { ok: false; error: string };
 }
@@ -497,35 +495,23 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       const result = await ensureClient().messages.create({
         model: selection.generationModel,
         max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
-        ...(selection.options.anthropicThinking === 'adaptive'
-          ? { thinking: { type: 'adaptive' as const } }
-          : {}),
-        ...(selection.options.effort
-          ? { output_config: { effort: selection.options.effort } }
-          : {}),
         system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: request.prompt }],
         tools: [anthropicArrowBundleTool(request.schema)],
         tool_choice: { type: 'tool' as const, name: 'create_summon_arrow_surface' },
       });
-      return normalizeProviderArrowBundle(extractAnthropicToolInput(result.content));
+      return extractAnthropicToolInput(result.content);
     },
     async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
         model: selection.generationModel,
         max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
-        ...(selection.options.anthropicThinking === 'adaptive'
-          ? { thinking: { type: 'adaptive' as const } }
-          : {}),
-        ...(selection.options.effort
-          ? { output_config: { effort: selection.options.effort } }
-          : {}),
         system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: repairPrompt(request) }],
         tools: [anthropicArrowBundleTool(request.schema)],
         tool_choice: { type: 'tool' as const, name: 'create_summon_arrow_surface' },
       });
-      return normalizeProviderArrowBundle(extractAnthropicToolInput(result.content));
+      return extractAnthropicToolInput(result.content);
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
@@ -622,7 +608,7 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         ),
         request.signal,
       );
-      return normalizeProviderArrowBundle(extractOpenAIToolInput(await response.json()));
+      return extractOpenAIToolInput(await response.json());
     },
     async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
@@ -636,7 +622,7 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         ),
         request.signal,
       );
-      return normalizeProviderArrowBundle(extractOpenAIToolInput(await response.json()));
+      return extractOpenAIToolInput(await response.json());
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
@@ -721,7 +707,7 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         ),
         request.signal,
       );
-      return normalizeProviderArrowBundle(extractGeminiToolInput(await response.json()));
+      return extractGeminiToolInput(await response.json());
     },
     async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
@@ -735,7 +721,7 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         ),
         request.signal,
       );
-      return normalizeProviderArrowBundle(extractGeminiToolInput(await response.json()));
+      return extractGeminiToolInput(await response.json());
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
@@ -1088,15 +1074,6 @@ function geminiStructuredBody(
   };
 }
 
-function normalizeProviderArrowBundle(value: unknown): SummonArrowBundle {
-  const normalized = normalizeArrowBundle(value);
-  if (!normalized.bundle) {
-    const messages = normalized.issues.map((issue) => `${issue.code}: ${issue.message}`).join('; ');
-    throw new Error(`provider returned invalid Arrow bundle${messages ? ` (${messages})` : ''}`);
-  }
-  return normalized.bundle;
-}
-
 function extractAnthropicToolInput(content: Anthropic.Message['content']): unknown {
   for (const block of content) {
     if (block.type === 'tool_use' && block.name === 'create_summon_arrow_surface') {
@@ -1207,5 +1184,6 @@ function repairPrompt(request: ArrowBundleRepairRequest): string {
     JSON.stringify(request.previousBundle, null, 2),
     '',
     'Return a complete replacement bundle using the create_summon_arrow_surface tool. Do not widen host authority, add ungranted tools, add generated network access, or change the schema.',
+    'Important Arrow syntax reminder: never put a bare `${...}` expression directly in an opening tag. Replace patterns like `<button ${() => "disabled"}>` with quoted attributes like `<button disabled="${() => state.loading}">`, and move content expressions between tags.',
   ].join('\n');
 }

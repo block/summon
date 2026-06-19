@@ -57,6 +57,7 @@ export type {
 } from './stream-graph.js';
 export {
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS as SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   buildDirectionBlock,
   buildLayoutBlock,
@@ -191,3 +192,9 @@ export type {
   SurfaceContractTool,
   SurfaceContractView,
 } from './surface-contract.js';
+export { createProtocolHardener } from './protocol-hardener.js';
+export type {
+  ProtocolHardener,
+  ProtocolHardenerOptions,
+  ProtocolHardenerResult,
+} from './protocol-hardener.js';

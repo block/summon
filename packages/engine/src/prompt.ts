@@ -123,7 +123,7 @@ Arrow entry rules:
 - Use quoted Arrow event and attribute bindings for clicks, form events, disabled states, and classes.
 - For boolean attributes, return false to remove the attribute rather than injecting a bare attribute string.
 - Do not use Arrow IDL property bindings such as .value=, .checked=, .selected=, or .disabled=; this Summon sandbox subset rejects them until compatibility is verified.
-- Do not inject standalone expressions inside opening tags to create dynamic attributes. Expressions must be text nodes, child nodes, or quoted attribute values.
+- Do not inject standalone expressions inside opening tags to create dynamic attributes. Never write \`<button \${() => "disabled"}>\` or \`<section \${dynamicAttrs}>\`; write named, quoted attributes such as \`disabled="\${() => state.loading}"\`, \`class="\${() => state.active ? 'active' : ''}"\`, or move expressions between tags for content.
 - For host actions and resources, import from host-bridge:summon and call await callTool(toolName, args) for granted host tools only.
 - Use await getState() and onState((state) => ...) to read host-pushed state.
 - Do not use window, document, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, or external URLs.
@@ -179,7 +179,7 @@ Arrow bundle rules:
 - Use quoted Arrow event and attribute bindings, such as \`@click="\${() => state.count++}"\` and \`disabled="\${() => state.loading}"\`.
 - For boolean attributes, return \`false\` to remove the attribute rather than injecting a bare attribute string.
 - Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this Summon sandbox subset rejects them until compatibility is verified.
-- Do not inject standalone expressions inside opening tags to create dynamic attributes.
+- Do not inject standalone expressions inside opening tags to create dynamic attributes. Never write \`<button \${() => "disabled"}>\` or \`<section \${dynamicAttrs}>\`; write named, quoted attributes such as \`disabled="\${() => state.loading}"\`, \`class="\${() => state.active ? 'active' : ''}"\`, or move expressions between tags for content.
 - For host actions and resources, import from \`host-bridge:summon\` and call \`await callTool(toolName, args)\` for granted host tools only.
 - Use \`await getState()\` and \`onState((state) => { ... })\` to read host-pushed state.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, external URLs, external images, external fonts, or external stylesheets.

@@ -29,6 +29,8 @@ import { compactInputClass, compactSelectClass, fieldLabelClass } from '../../..
 export function ContractInspector({
   playgroundMode,
   setPlaygroundMode,
+  playgroundToolsEnabled,
+  setPlaygroundToolsEnabled,
   contractRows,
   currentSurfaceContractView,
   currentEffectiveSurfacePlan,
@@ -78,6 +80,8 @@ export function ContractInspector({
 }: {
   playgroundMode: boolean;
   setPlaygroundMode: (value: boolean) => void;
+  playgroundToolsEnabled: boolean;
+  setPlaygroundToolsEnabled: (value: boolean) => void;
   contractRows: Array<{ key: string; label: string; value: string; tone: string }>;
   currentSurfaceContractView: SurfaceContractView | null;
   currentEffectiveSurfacePlan: SurfacePlan | null;
@@ -128,33 +132,36 @@ export function ContractInspector({
   const selectClassName = cn(compactSelectClass, 'w-full rounded-card');
   const inputClassName = cn(compactInputClass, 'w-full rounded-card');
   const toggleClassName = 'flex min-h-[34px] cursor-pointer items-center gap-2 rounded-card border border-line px-2.5 text-xs font-semibold text-ink-soft [&_input]:size-[13px] [&_input]:accent-ink';
+  const ghostSelected = Boolean(ghostRootFromSelection(directionId));
 
   return (
     <aside className="sticky top-12 min-w-0 max-[1180px]:static max-[1180px]:col-span-full max-[820px]:order-1" aria-label="Contract inspector">
       <div className="mb-[18px] flex items-center justify-between gap-2.5 border-b border-line pb-3 font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
-        <span>Surface Inspector</span>
-        <span id="inspector-status" className="text-[11px] normal-case text-ink-muted">{playgroundMode ? 'playground' : currentSurfaceContractView ? 'contract' : currentEffectiveSurfacePlan ? 'effective' : 'pending'}</span>
+        <span>{playgroundMode ? 'Playground Options' : 'Surface Inspector'}</span>
+        <span id="inspector-status" className="text-[11px] normal-case text-ink-muted">{playgroundMode ? 'simple' : currentSurfaceContractView ? 'contract' : currentEffectiveSurfacePlan ? 'effective' : 'pending'}</span>
       </div>
-      <div className="mb-3.5 grid gap-0" id="contract-summary">
-        {contractRows.map((row) => (
-          <div
-            key={row.key}
-            className={cn(
-              'grid min-h-[42px] grid-cols-[94px_minmax(0,1fr)] items-start gap-2.5 border-b border-line py-3 last:border-b-0',
-              row.tone === 'good' && 'border-good/30 bg-good/10 px-2 text-good',
-              row.tone === 'warn' && 'border-danger/30 bg-danger/10 px-2 text-danger',
-              row.tone === 'pending' && 'text-ink-muted',
-            )}
-            data-contract-row={row.key}
-            title={row.value}
-          >
-            <span className="text-[11px] font-semibold text-ink-muted">{row.label}</span>
-            <strong className="min-w-0 font-mono text-[11px] font-medium text-ink [overflow-wrap:anywhere]">{row.value}</strong>
-          </div>
-        ))}
-      </div>
+      {!playgroundMode ? (
+        <div className="mb-3.5 grid gap-0" id="contract-summary">
+          {contractRows.map((row) => (
+            <div
+              key={row.key}
+              className={cn(
+                'grid min-h-[42px] grid-cols-[94px_minmax(0,1fr)] items-start gap-2.5 border-b border-line py-3 last:border-b-0',
+                row.tone === 'good' && 'border-good/30 bg-good/10 px-2 text-good',
+                row.tone === 'warn' && 'border-danger/30 bg-danger/10 px-2 text-danger',
+                row.tone === 'pending' && 'text-ink-muted',
+              )}
+              data-contract-row={row.key}
+              title={row.value}
+            >
+              <span className="text-[11px] font-semibold text-ink-muted">{row.label}</span>
+              <strong className="min-w-0 font-mono text-[11px] font-medium text-ink [overflow-wrap:anywhere]">{row.value}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
-      <section className="grid gap-3 border-t border-line pt-5" aria-label="Run settings">
+      <section className={cn('grid gap-3', !playgroundMode && 'border-t border-line pt-5')} aria-label="Run settings">
         <div className="rounded-card border border-good/30 bg-good/10 p-3 text-xs text-ink-soft" hidden={!playgroundMode}>
           <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-good">Playground mode</div>
           <p className="mt-1 leading-snug">Best-effort Ghost-steered Arrow rendering. Broker, shape inference, repair loops, and validation gates are off; diagnostics still stream.</p>
@@ -163,6 +170,10 @@ export function ContractInspector({
           <label className={toggleClassName} title="Render best-effort Arrow surfaces with validation as diagnostics only">
             <input id="playground-mode" type="checkbox" checked={playgroundMode} onChange={(event) => setPlaygroundMode(event.target.checked)} />
             <span>Playground mode</span>
+          </label>
+          <label className={toggleClassName} title="Allow the selected demo scenario tools in playground mode" hidden={!playgroundMode}>
+            <input id="playground-tools" type="checkbox" checked={playgroundToolsEnabled} disabled={!playgroundMode} onChange={(event) => setPlaygroundToolsEnabled(event.target.checked)} />
+            <span>Demo tools</span>
           </label>
           <ModeGroup title="Run profile">
             <label>
@@ -210,7 +221,7 @@ export function ContractInspector({
             <span className={fieldLabelClass}>Custom model</span>
             <input id="custom-model" className={inputClassName} type="text" placeholder="provider-model-id" title="Custom generation model id" value={customModel} onChange={(event) => setCustomModel(event.target.value)} />
           </label>
-          <label className="min-w-0">
+          <label className="min-w-0" hidden={playgroundMode}>
             <span className={fieldLabelClass}>Utility</span>
             <select id="utility-model" className={selectClassName} title="Utility model for shape and host demo calls" value={utilityModel} disabled={!selectedProvider} onChange={(event) => setUtilityModel(event.target.value)}>
               {utilityModels.map((model) => (
@@ -218,19 +229,19 @@ export function ContractInspector({
               ))}
             </select>
           </label>
-          <label className="min-w-0">
+          <label className="min-w-0" hidden={playgroundMode && runProfile !== 'custom'}>
             <span className={fieldLabelClass}>Max output</span>
             <select id="max-output-tokens" className={selectClassName} title="Generation output token cap" value={maxOutputTokens} onChange={(event) => setMaxOutputTokens(Number(event.target.value))}>
               {numberOptions(selectedProvider?.controls?.maxOutputTokens.presets, maxOutputTokens).map((value) => <option key={value} value={value}>{value.toLocaleString()}</option>)}
             </select>
           </label>
-          <label id="anthropic-thinking-field" className="min-w-0" hidden={selectedProvider?.id !== 'anthropic'}>
+          <label id="anthropic-thinking-field" className="min-w-0" hidden={selectedProvider?.id !== 'anthropic' || (playgroundMode && runProfile !== 'custom')}>
             <span className={fieldLabelClass}>Thinking</span>
             <select id="anthropic-thinking" className={selectClassName} title="Anthropic thinking mode" value={anthropicThinking} onChange={(event) => setAnthropicThinking(event.target.value as 'adaptive' | 'off')}>
               {(selectedProvider?.controls?.anthropicThinking?.options ?? ['adaptive', 'off']).map((value) => <option key={value} value={value}>{value === 'adaptive' ? 'Adaptive' : 'Off'}</option>)}
             </select>
           </label>
-          <label id="model-effort-field" className="min-w-0" hidden={selectedProvider?.id !== 'anthropic'}>
+          <label id="model-effort-field" className="min-w-0" hidden={selectedProvider?.id !== 'anthropic' || (playgroundMode && runProfile !== 'custom')}>
             <span className={fieldLabelClass}>Effort</span>
             <select id="model-effort" className={selectClassName} title="Anthropic effort" value={modelEffort} onChange={(event) => setModelEffort(event.target.value as 'low' | 'medium' | 'high')}>
               {(selectedProvider?.controls?.effort?.options ?? ['low', 'medium', 'high']).map((value) => <option key={value} value={value}>{value}</option>)}
@@ -249,26 +260,26 @@ export function ContractInspector({
               {ghostRoots.map((root) => <option key={root.id} value={ghostSelectionValue(root.id)}>Fingerprint · {root.id}</option>)}
             </select>
           </label>
-          <label className="min-w-0">
+          <label className="min-w-0" hidden={playgroundMode}>
             <span className={fieldLabelClass}>Layout</span>
             <select id="layout" className={selectClassName} title="Host layout" value={layoutId} onChange={(event) => setLayoutId(event.target.value)}>
               <option value="">Free layout</option>
               <option value="card-structured">Card: header/content/actions</option>
             </select>
           </label>
-          <label className="min-w-0">
+          <label className="min-w-0" hidden={playgroundMode}>
             <span className={fieldLabelClass}>Runtime</span>
             <select id="runtime-policy" className={selectClassName} title="Generated code runtime" value="arrow" disabled>
               <option value="arrow">Arrow sandbox</option>
             </select>
           </label>
-          <label className="min-w-0">
+          <label className="min-w-0" hidden={playgroundMode}>
             <span className={fieldLabelClass}>Network</span>
             <select id="network-policy" className={selectClassName} title="Host-owned network policy" value={surfacePlan.network ?? 'none'} disabled>
               <option value="none">No network</option>
             </select>
           </label>
-          <label className="min-w-0">
+          <label className="min-w-0" hidden={playgroundMode}>
             <span className={fieldLabelClass}>Tokens</span>
             <select id="token-preset" className={selectClassName} title="Token override preset" value={tokenPreset} disabled={Boolean(ghostRootFromSelection(directionId))} onChange={(event) => setTokenPreset(event.target.value)}>
               <option value="">Base tokens</option>
@@ -277,7 +288,7 @@ export function ContractInspector({
           </label>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" hidden={playgroundMode}>
           <ModeGroup title="Mode">
             <label><input type="radio" name="mode" value="static" checked={mode === 'static'} onChange={() => setMode('static')} /><span>Static</span></label>
             <label><input type="radio" name="mode" value="interactive" checked={mode === 'interactive'} onChange={() => setMode('interactive')} /><span>Interactive</span></label>
@@ -288,14 +299,14 @@ export function ContractInspector({
           </label>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 max-[820px]:grid-cols-1">
+        <div className="grid grid-cols-2 gap-3 max-[820px]:grid-cols-1" hidden={playgroundMode && !ghostSelected}>
           <label className="min-w-0">
             <span className={fieldLabelClass}>Fingerprint target</span>
-            <input id="ghost-target" className={inputClassName} type="text" value={ghostTarget} disabled={!ghostRootFromSelection(directionId)} placeholder="Target path" title="Fingerprint target path" onChange={(event) => setGhostTarget(event.target.value)} />
+            <input id="ghost-target" className={inputClassName} type="text" value={ghostTarget} disabled={!ghostSelected} placeholder="Target path" title="Fingerprint target path" onChange={(event) => setGhostTarget(event.target.value)} />
           </label>
           <label className="min-w-0">
             <span className={fieldLabelClass}>Token fallback</span>
-            <select id="ghost-base-direction" className={selectClassName} title="Optional token fallback direction" value={ghostBaseDirectionId ?? ''} disabled={!ghostRootFromSelection(directionId) || directions.length === 0} onChange={(event) => setGhostBaseDirectionId(event.target.value || null)}>
+            <select id="ghost-base-direction" className={selectClassName} title="Optional token fallback direction" value={ghostBaseDirectionId ?? ''} disabled={!ghostSelected || directions.length === 0} onChange={(event) => setGhostBaseDirectionId(event.target.value || null)}>
               <option value="">Fingerprint/default tokens</option>
               {directions.map((direction) => <option key={direction.id} value={direction.id}>{direction.name}</option>)}
             </select>
@@ -303,7 +314,7 @@ export function ContractInspector({
         </div>
       </section>
 
-      <section className="mt-3.5 border-t border-line pt-3.5">
+      <section className="mt-3.5 border-t border-line pt-3.5" hidden={playgroundMode}>
         <label className={toggleClassName}>
           <input id="custom-contract-enabled" type="checkbox" checked={customContractEnabled} onChange={(event) => {
             const enabled = event.target.checked;

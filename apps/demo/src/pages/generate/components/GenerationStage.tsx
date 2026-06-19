@@ -1,10 +1,11 @@
-import type { ReactNode, RefObject } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import {
   SummonSurface,
   type SummonSurfaceHandle,
   type SummonSurfaceProps,
 } from "@anarchitecture/summon-react";
 import { Button } from "../../../components/ui.js";
+import { cn } from "../../../lib/cn.js";
 import type { ChildSurfaceModel } from "../types.js";
 import { ChildSurface } from "./ChildSurface.js";
 
@@ -24,7 +25,11 @@ export function GenerationStage({
   appendDevEvent,
   onSurfaceGoalRejected,
   onSurfaceHandlerError,
+  onSurfaceRuntimeError,
   showWelcome,
+  hasRenderedArtifact,
+  playgroundMode,
+  surfaceInstanceKey,
   childSurfaces,
   onCloseChild,
 }: {
@@ -34,7 +39,11 @@ export function GenerationStage({
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
-  stageNotice: { tone: "pending" | "error"; title: string; detail?: string } | null;
+  stageNotice: {
+    tone: "pending" | "error";
+    title: string;
+    detail?: string;
+  } | null;
   onOpenDiagnostics: () => void;
   surfaceRef: RefObject<SummonSurfaceHandle>;
   surfaceTokensSource: string;
@@ -43,23 +52,57 @@ export function GenerationStage({
   appendDevEvent: SummonSurfaceProps["onEvent"];
   onSurfaceGoalRejected: SummonSurfaceProps["onToolRejected"];
   onSurfaceHandlerError: SummonSurfaceProps["onHandlerError"];
+  onSurfaceRuntimeError: SummonSurfaceProps["onRuntimeError"];
   showWelcome: boolean;
+  hasRenderedArtifact: boolean;
+  playgroundMode: boolean;
+  surfaceInstanceKey: number;
   childSurfaces: ChildSurfaceModel[];
   onCloseChild: (id: number) => void;
 }) {
+  const showSamplePills = showWelcome && !running;
+  const showPlaygroundLoading =
+    playgroundMode && running && !showWelcome && !hasRenderedArtifact;
+  const [welcomeLeaving, setWelcomeLeaving] = useState(false);
+  const [showWelcomeLayer, setShowWelcomeLayer] = useState(showWelcome);
+
+  useEffect(() => {
+    if (showWelcome) {
+      setWelcomeLeaving(false);
+      setShowWelcomeLayer(true);
+      return;
+    }
+
+    setWelcomeLeaving(true);
+    const timer = window.setTimeout(() => {
+      setShowWelcomeLayer(false);
+      setWelcomeLeaving(false);
+    }, 360);
+
+    return () => window.clearTimeout(timer);
+  }, [showWelcome]);
+
   return (
     <main>
       <section
-        className="absolute inset-x-6 bottom-32 top-20 overflow-hidden rounded-[28px] bg-surface-raised shadow-card max-[820px]:inset-x-4 max-[820px]:top-[72px] max-[700px]:bottom-44"
+        className="absolute inset-0 overflow-hidden bg-surface"
         aria-label="Generated surface"
       >
         <span id="surface-status" className="sr-only">
           {statusText}
         </span>
         <SummonSurface
+          key={surfaceInstanceKey}
           ref={surfaceRef}
           id="sandbox"
-          className="h-full min-h-0 w-full border-0 bg-surface-raised"
+          className={cn(
+            "h-full min-h-0 w-full border-0 bg-surface transition-[opacity,filter,transform] duration-700 ease-out",
+            showWelcome
+              ? "pointer-events-none translate-y-4 scale-[0.96] opacity-0 blur-lg"
+              : "translate-y-0 scale-100 opacity-100 blur-0",
+            hasRenderedArtifact &&
+              "motion-safe:animate-[summon-blur-fade-up_760ms_cubic-bezier(0.16,1,0.3,1)_both]",
+          )}
           title="Summon generate sandbox"
           tokensSource={surfaceTokensSource}
           toolRegistry={toolRegistry}
@@ -67,51 +110,50 @@ export function GenerationStage({
           onEvent={appendDevEvent}
           onToolRejected={onSurfaceGoalRejected}
           onHandlerError={onSurfaceHandlerError}
+          onRuntimeError={onSurfaceRuntimeError}
         />
-        {showWelcome ? (
+        {showWelcomeLayer ? (
           <div
-            className="pointer-events-none absolute inset-0 z-[1] overflow-hidden bg-[radial-gradient(circle_at_24%_18%,color-mix(in_srgb,var(--color-accent)_20%,transparent),transparent_28%),radial-gradient(circle_at_82%_4%,color-mix(in_srgb,var(--color-text)_10%,transparent),transparent_24%),linear-gradient(135deg,var(--color-bg),var(--color-surface))] transition-opacity duration-300"
+            className={cn(
+              "pointer-events-none absolute inset-0 z-[1] overflow-hidden bg-surface",
+              welcomeLeaving
+                ? "motion-safe:animate-[summon-title-fade-back_360ms_cubic-bezier(0.32,0,0.67,0)_both]"
+                : "motion-safe:animate-[summon-title-rise_680ms_cubic-bezier(0.22,1,0.36,1)_both]",
+            )}
             id="welcome"
           >
-            <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,color-mix(in_srgb,var(--color-text)_5%,transparent)_0_1px,transparent_1px_74px),repeating-linear-gradient(0deg,color-mix(in_srgb,var(--color-text)_4%,transparent)_0_1px,transparent_1px_74px)]" />
-            <div className="absolute -left-24 top-16 h-72 w-72 rounded-full bg-accent/20 blur-3xl" />
-            <div className="absolute -right-20 bottom-20 h-80 w-80 rounded-full bg-ink/10 blur-3xl" />
+            <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,color-mix(in_srgb,var(--color-ink)_4%,transparent)_0_1px,transparent_1px_96px)]" />
             <div
-              className="relative z-[1] grid h-full place-items-center px-8 text-center"
+              className="relative z-[1] flex h-full items-center px-[clamp(24px,7vw,96px)]"
               id="welcome-text"
             >
-              <div className="grid max-w-[min(760px,calc(100%-32px))] justify-items-center gap-7">
-                <div className="grid gap-3">
-                  <div className="mx-auto h-2 w-24 rounded-full bg-accent shadow-[0_0_42px_color-mix(in_srgb,var(--color-accent)_65%,transparent)]" />
-                  <p className="m-0 font-mono text-[11px] font-extrabold uppercase tracking-[0.18em] text-ink-muted">
-                    Structured Arrow runtime
-                  </p>
-                </div>
-                <h2 className="m-0 max-w-[11ch] text-[clamp(58px,11vw,132px)] font-bold leading-[0.82] tracking-[-0.075em] text-ink">
-                  Make the surface real.
+              <div className="grid w-full gap-5 justify-center">
+                <h2 className="m-0 max-w-[10ch] text-[clamp(56px,10vw,128px)] font-medium leading-[0.86] tracking-[-0.055em] text-ink mb-[100px]">
+                  just summon it.
                 </h2>
-                <p className="m-0 max-w-[58ch] text-[15px] leading-[1.6] tracking-normal text-ink-muted">
-                  Describe the product moment. Summon binds host policy, streams server-owned progress, validates the Arrow bundle, then mounts the accepted artifact in the sandbox.
-                </p>
-                <div className="grid w-full max-w-[620px] grid-cols-3 gap-2 text-left max-[680px]:grid-cols-1">
-                  {[
-                    ["01", "bind contract"],
-                    ["02", "compose bundle"],
-                    ["03", "render artifact"],
-                  ].map(([step, label]) => (
-                    <div key={step} className="rounded-[20px] border border-line bg-surface/60 p-4 shadow-card backdrop-blur">
-                      <div className="font-mono text-[10px] font-bold text-accent">{step}</div>
-                      <div className="mt-1 text-[13px] font-semibold lowercase text-ink">{label}</div>
-                    </div>
-                  ))}
-                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {showPlaygroundLoading ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-surface/80 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
+            id="playground-loading"
+            role="status"
+          >
+            <div className="grid justify-items-center gap-2">
+              <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
+                {statusText}
+              </div>
+              <div className="text-[18px] font-semibold leading-tight text-ink">
+                summoning...
               </div>
             </div>
           </div>
         ) : null}
         {stageNotice ? (
           <div
-            className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center"
+            className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
             id="stage-notice"
             role={stageNotice.tone === "error" ? "alert" : "status"}
           >
@@ -152,45 +194,56 @@ export function GenerationStage({
 
       <form
         id="form"
-        className="fixed inset-x-0 bottom-6 z-40 px-6 max-[820px]:bottom-4 max-[820px]:px-4"
+        className="fixed inset-x-0 bottom-0 z-40 px-4"
         onSubmit={(event) => {
           event.preventDefault();
           const value = prompt.trim();
           if (value) void onGenerate(value);
         }}
       >
-        <div className="mx-auto flex w-[min(1060px,100%)] items-end gap-3 max-[700px]:grid max-[700px]:grid-cols-1">
-          <div className="w-[min(240px,32vw)] shrink-0 max-[700px]:w-full">
+        <div className="mx-auto grid w-[min(880px,calc(100%-24px))] gap-2.5 transition-[opacity,transform] duration-700 ease-out motion-safe:animate-[summon-title-rise_720ms_cubic-bezier(0.22,1,0.36,1)_140ms_both]">
+          <div
+            className={cn(
+              "min-w-0 px-1 pb-1 transition-[opacity,filter,transform] duration-300 ease-out",
+              showSamplePills
+                ? "translate-y-0 scale-100 opacity-100 blur-0"
+                : "pointer-events-none -translate-y-1 scale-[0.98] opacity-0 blur-sm",
+            )}
+            aria-hidden={!showSamplePills}
+          >
             {scenarioPicker}
           </div>
-          <div className="min-w-0 flex-1 rounded-[30px] bg-surface-raised p-2 shadow-card">
-            <label className="sr-only" htmlFor="prompt">
-              Prompt
-            </label>
-            <div className="flex items-end gap-2">
-              <textarea
-                id="prompt"
-                className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-4 py-3 text-sm leading-[1.35] text-ink placeholder:text-ink-muted focus:outline-none"
-                placeholder="describe a surface..."
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                onKeyDown={(event) => {
-                  if (
-                    (event.metaKey || event.ctrlKey) &&
-                    event.key === "Enter"
-                  ) {
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-              <Button
-                id="go"
-                type="submit"
-                className="h-11 rounded-full px-5"
-                disabled={running || !prompt.trim()}
-              >
-                {running ? "Generating" : "Generate"}
-              </Button>
+          <div className="rounded-t-[32px] bg-surface-raised/92 p-2 shadow-elevated backdrop-blur-xl">
+            <div className="flex items-start gap-2 max-[760px]:grid">
+              <label className="min-w-0 flex-1" htmlFor="prompt">
+                <span className="sr-only">Prompt</span>
+                <textarea
+                  id="prompt"
+                  rows={1}
+                  className="max-h-32 min-h-18 w-full resize-none border-0 bg-transparent px-4 py-3 text-[15px] leading-[1.4] text-ink placeholder:text-ink-muted focus:outline-none"
+                  placeholder="Describe the surface you need..."
+                  value={prompt}
+                  onChange={(event) => setPrompt(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      (event.metaKey || event.ctrlKey) &&
+                      event.key === "Enter"
+                    ) {
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                />
+              </label>
+              <div className="flex items-center gap-3 pl-1 max-[760px]:justify-between max-[760px]:px-3 max-[760px]:pb-1">
+                <Button
+                  id="go"
+                  type="submit"
+                  className="h-20 w-24 !rounded-[22px] px-5"
+                  disabled={running || !prompt.trim()}
+                >
+                  {running ? "summoning" : "summon"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -198,7 +251,7 @@ export function GenerationStage({
 
       <div
         id="children"
-        className="fixed right-6 top-20 z-30 flex max-h-[calc(100vh-180px)] w-[min(520px,calc(100vw-48px))] flex-col gap-2.5 overflow-auto max-[820px]:left-4 max-[820px]:right-4 max-[820px]:top-[72px] max-[820px]:w-auto"
+        className="fixed right-6 top-20 z-30 flex max-h-[calc(100vh-180px)] w-[min(520px,calc(100vw-48px))] flex-col gap-2.5 overflow-auto max-[820px]:left-4 max-[820px]:right-4 max-[820px]:top-[72px] max-[820px]:w-auto [&>*]:transition-[opacity,filter,transform] [&>*]:duration-500 [&>*]:ease-out [&>*]:motion-safe:animate-[summon-blur-fade-up_520ms_cubic-bezier(0.22,1,0.36,1)_both]"
         aria-label="Summoned sibling sandboxes"
       >
         {childSurfaces.map((child) => (

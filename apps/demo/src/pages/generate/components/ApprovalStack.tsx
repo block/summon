@@ -17,7 +17,7 @@ export function ApprovalStack({
   return (
     <div className="fixed bottom-5 right-5 z-[80] grid w-[min(360px,calc(100vw-32px))] gap-2.5">
       {approvalCards.map(({ request }) => (
-        <section key={request.id} className="grid gap-2 rounded-card border border-line-strong bg-surface p-3.5 shadow-elevated" data-approval-id={request.id}>
+        <section key={request.id} className="grid gap-2 rounded-card border border-line-strong bg-surface p-3.5 shadow-elevated transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_520ms_cubic-bezier(0.22,1,0.36,1)_both]" data-approval-id={request.id}>
           <span className="font-mono text-[10px] font-bold uppercase tracking-normal text-ink-muted">{request.tool}</span>
           <strong className="text-[15px] leading-tight text-ink">{request.summary}</strong>
           <p className="m-0 text-xs text-ink-soft">Request {request.id}</p>

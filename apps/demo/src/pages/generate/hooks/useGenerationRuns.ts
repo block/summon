@@ -41,6 +41,7 @@ export function useGenerationRuns({
   setDevEvents,
   setTimingEntries,
   setSurfaceTokensSource,
+  setSurfaceInstanceKey,
   setShowWelcome,
   setRunning,
   setStatus,
@@ -81,6 +82,7 @@ export function useGenerationRuns({
   setDevEvents: Dispatch<SetStateAction<Array<DevtoolsEvent | ExtraDevtoolsEvent>>>;
   setTimingEntries: Dispatch<SetStateAction<TimingEntry[]>>;
   setSurfaceTokensSource: Dispatch<SetStateAction<string>>;
+  setSurfaceInstanceKey: Dispatch<SetStateAction<number>>;
   setShowWelcome: Dispatch<SetStateAction<boolean>>;
   setRunning: Dispatch<SetStateAction<boolean>>;
   setStatus: Dispatch<SetStateAction<string>>;
@@ -112,6 +114,7 @@ export function useGenerationRuns({
     setDevEvents([]);
     setTimingEntries([]);
     clearRuntimeState();
+    setSurfaceInstanceKey((key) => key + 1);
     setSurfaceTokensSource(runTokensSource);
     setShowWelcome(false);
     setRunning(true);
@@ -170,6 +173,7 @@ export function useGenerationRuns({
     setDevEvents,
     setTimingEntries,
     setLogs,
+    setSurfaceInstanceKey,
     setRunning,
     setRuntimeToolNames,
     setShowWelcome,

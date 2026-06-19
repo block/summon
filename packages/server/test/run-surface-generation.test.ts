@@ -87,6 +87,150 @@ test('runSurfaceGeneration repairs invalid structured bundle', async () => {
   assert.ok(lines.some((line) => line.op === 'artifact'));
 });
 
+test('runSurfaceGeneration repairs Arrow source syntax errors before runtime', async () => {
+  const lines: ProtocolLine[] = [];
+  let repaired = false;
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>${() => "broken}</p>`;',
+        },
+      };
+    },
+    async repairArrowBundle(request) {
+      repaired = true;
+      assert.equal(request.issues[0]?.code, 'invalid-arrow-source-syntax');
+      assert.ok(request.hints.some((hint) => hint.includes('syntax error')));
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>${() => "Fixed"}</p>`;',
+        },
+      };
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'repair syntax',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(repaired, true);
+  assert.equal(summary.blocked, false);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'invalid-arrow-source-syntax'));
+  assert.ok(lines.some((line) => line.op === 'artifact'));
+});
+
+test('runSurfaceGeneration blocks Arrow source syntax errors in observe mode without repair', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>${() => "broken}</p>`;',
+        },
+      };
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'observe syntax',
+    playground: true,
+    validationMode: 'observe',
+    maxRepairAttempts: 0,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, true);
+  const syntaxIssue = summary.validationIssues.find((issue) => issue.code === 'invalid-arrow-source-syntax');
+  assert.ok(syntaxIssue);
+  assert.match(syntaxIssue.message, /main\.ts:2:/);
+  assert.match(syntaxIssue.message, /Source excerpt:/);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-blocked'));
+  assert.equal(lines.some((line) => line.op === 'artifact'), false);
+});
+
+test('runSurfaceGeneration can restrict repair attempts to selected issue codes', async () => {
+  const lines: ProtocolLine[] = [];
+  let repaired = false;
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`;',
+        },
+      };
+    },
+    async repairArrowBundle() {
+      repaired = true;
+      return validProvider.generateArrowBundle({ prompt: '', promptBlocks: [], schema: {} });
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'observe subset blocker',
+    playground: true,
+    validationMode: 'observe',
+    maxRepairAttempts: 1,
+    repairIssueCodes: ['invalid-arrow-source-syntax'],
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(repaired, false);
+  assert.equal(summary.blocked, false);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'unsupported-arrow-open-tag-expression'));
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-observed'));
+  assert.ok(lines.some((line) => line.op === 'artifact'));
+});
+
+test('runSurfaceGeneration repairs invalid entry-file bundles', async () => {
+  const lines: ProtocolLine[] = [];
+  let repaired = false;
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'export {}',
+          'main.js': 'export {}',
+        },
+      };
+    },
+    async repairArrowBundle(request) {
+      repaired = true;
+      assert.equal(request.issues[0]?.code, 'invalid-arrow-bundle-entry');
+      assert.ok(request.hints.some((hint) => hint.includes('exactly one Arrow entry file')));
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Repaired</p>`;',
+        },
+      };
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'repair entry files',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(repaired, true);
+  assert.equal(summary.blocked, false);
+  assert.ok(lines.some((line) => line.op === 'artifact'));
+  const diagnostics = lines.filter((line) => line.op === 'meta' && line.path === '/arrow-bundle-diagnostic');
+  assert.equal(diagnostics.length, 2);
+  assert.deepEqual((diagnostics[0]?.value as { entryKeys?: unknown }).entryKeys, ['main.js', 'main.ts']);
+  assert.deepEqual((diagnostics[1]?.value as { entryKeys?: unknown }).entryKeys, ['main.ts']);
+});
+
 test('runSurfaceGeneration blocks invalid bundle when repair is unavailable', async () => {
   const lines: ProtocolLine[] = [];
   const provider: SurfaceModelProvider = {
@@ -159,6 +303,22 @@ test('runSurfaceGeneration emits fallback preview for artifact-only bundles', as
 
   assert.equal(summary.blocked, false);
   assert.ok(lines.some((line) => line.op === 'event' && line.path === '/surface' && (line.value as { text?: unknown }).text === 'Rendering accepted Arrow artifact'));
+});
+
+test('runSurfaceGeneration playground mode skips preview scaffold and preview bundle events', async () => {
+  const lines: ProtocolLine[] = [];
+  const summary = await runSurfaceGeneration({
+    prompt: 'playground artifact only',
+    playground: true,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: validProvider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, false);
+  assert.deepEqual(summary.acceptedLines.map((line) => line.op), ['artifact']);
+  assert.equal(lines.some((line) => line.op === 'event' && line.path === '/surface' && (line.value as { type?: unknown }).type === 'surface.start'), false);
+  assert.equal(lines.some((line) => line.op === 'event' && line.path === '/surface' && (line.value as { type?: unknown }).type === 'region.add'), false);
+  assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
 });
 
 test('runSurfaceGeneration observe mode accepts renderable artifacts with validation blockers', async () => {

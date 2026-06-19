@@ -42,9 +42,8 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@anarchitecture/summon": "^0.3.0"
-  },
-  "devDependencies": {
+    "@anarchitecture/summon": "^0.3.0",
     "typescript": "^5.4.0"
-  }
+  },
+  "devDependencies": {}
 }

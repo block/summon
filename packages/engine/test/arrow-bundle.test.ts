@@ -33,6 +33,61 @@ test('normalizeArrowBundle accepts a valid TypeScript bundle', () => {
   });
 });
 
+test('normalizeArrowBundle coerces common provider source shapes', () => {
+  const stringSource = normalizeArrowBundle({
+    schema: 'summon.arrow-bundle/v1',
+    source: 'import { html } from "@arrow-js/core";\nexport default html`<p>Hello</p>`;',
+  });
+  assert.equal(stringSource.bundle?.source['main.ts'], 'import { html } from "@arrow-js/core";\nexport default html`<p>Hello</p>`;');
+  assert.deepEqual(stringSource.issues.map((issue) => `${issue.severity}:${issue.code}`), ['warn:coerced-arrow-bundle-source']);
+
+  const topLevelEntry = normalizeArrowBundle({
+    schema: 'summon.arrow-bundle/v1',
+    'main.ts': 'export default html`<p>Hello</p>`;',
+    'main.css': 'p {}',
+  });
+  assert.equal(topLevelEntry.bundle?.source['main.ts'], 'export default html`<p>Hello</p>`;');
+  assert.equal(topLevelEntry.bundle?.source['main.css'], 'p {}');
+  assert.deepEqual(topLevelEntry.issues.map((issue) => `${issue.severity}:${issue.code}`), ['warn:coerced-arrow-bundle-source']);
+
+  const stringifiedSourceMap = normalizeArrowBundle({
+    schema: 'summon.arrow-bundle/v1',
+    source: JSON.stringify({ 'main.ts': 'export default html`<p>Mapped</p>`;' }),
+    'source.main.css': 'p { color: red; }',
+  });
+  assert.equal(stringifiedSourceMap.bundle?.source['main.ts'], 'export default html`<p>Mapped</p>`;');
+  assert.equal(stringifiedSourceMap.bundle?.source['main.css'], 'p { color: red; }');
+  assert.deepEqual(stringifiedSourceMap.issues.map((issue) => `${issue.severity}:${issue.code}`), ['warn:coerced-arrow-bundle-source']);
+
+  const stringifiedBundleSource = normalizeArrowBundle({
+    schema: 'summon.arrow-bundle/v1',
+    source: JSON.stringify({ source: { 'main.ts': 'export default html`<p>Nested</p>`;' } }),
+  });
+  assert.equal(stringifiedBundleSource.bundle?.source['main.ts'], 'export default html`<p>Nested</p>`;');
+  assert.deepEqual(stringifiedBundleSource.issues.map((issue) => `${issue.severity}:${issue.code}`), ['warn:coerced-arrow-bundle-source']);
+
+  const commonCodeFields = normalizeArrowBundle({
+    schema: 'summon.arrow-bundle/v1',
+    source: {
+      code: 'export default html`<p>Code field</p>`;',
+      styles: 'p { color: red; }',
+    },
+  });
+  assert.equal(commonCodeFields.bundle?.source['main.ts'], 'export default html`<p>Code field</p>`;');
+  assert.equal(commonCodeFields.bundle?.source['main.css'], 'p { color: red; }');
+  assert.deepEqual(commonCodeFields.issues.map((issue) => `${issue.severity}:${issue.code}`), ['warn:coerced-arrow-bundle-source']);
+
+  const escapedTemplateMarkers = normalizeArrowBundle({
+    schema: 'summon.arrow-bundle/v1',
+    source: JSON.stringify({ 'main.ts': 'export default html\\`<p>\\${name}</p>\\`;' }),
+  });
+  assert.equal(escapedTemplateMarkers.bundle?.source['main.ts'], 'export default html`<p>${name}</p>`;');
+  assert.deepEqual(escapedTemplateMarkers.issues.map((issue) => `${issue.severity}:${issue.code}`), [
+    'warn:coerced-arrow-bundle-source',
+    'warn:coerced-arrow-bundle-source-escapes',
+  ]);
+});
+
 test('normalizeArrowBundle requires exactly one entry file', () => {
   const none = normalizeArrowBundle({
     schema: 'summon.arrow-bundle/v1',

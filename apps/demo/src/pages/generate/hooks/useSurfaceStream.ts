@@ -152,8 +152,11 @@ export function useSurfaceStream({
       return;
     }
     if (line.op === 'meta' && line.path === '/playground-mode') {
-      const value = line.value as { validation?: unknown; broker?: unknown; shapeInference?: unknown; repairs?: unknown } | undefined;
-      logLine('op-meta', `playground -> validation=${String(value?.validation ?? 'observe')}; broker=${String(value?.broker ?? 'off')}; shape=${String(value?.shapeInference ?? 'off')}; repairs=${String(value?.repairs ?? 0)}`);
+      const value = line.value as { validation?: unknown; broker?: unknown; shapeInference?: unknown; repairs?: unknown; repairIssueCodes?: unknown } | undefined;
+      const repairCodes = Array.isArray(value?.repairIssueCodes)
+        ? value.repairIssueCodes.filter((code): code is string => typeof code === 'string')
+        : [];
+      logLine('op-meta', `playground -> validation=${String(value?.validation ?? 'observe')}; broker=${String(value?.broker ?? 'off')}; shape=${String(value?.shapeInference ?? 'off')}; repairs=${String(value?.repairs ?? 0)}${repairCodes.length ? `; repairCodes=${repairCodes.join(',')}` : ''}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/validation-observed') {
@@ -395,12 +398,14 @@ export function useSurfaceStream({
         surfaceRef.current?.renderArtifact(artifact);
       },
       onSurfaceEvent: (event) => {
-        surfaceRef.current?.applyPreviewEvent(event);
+        if (!opts.playgroundMode) {
+          surfaceRef.current?.applyPreviewEvent(event);
+        }
         if (event.type === 'surface.status') {
           setStatus(event.status);
-          logLine('op-meta', `preview -> ${event.status}${event.text ? `: ${event.text}` : ''}`);
+          logLine('op-meta', `${opts.playgroundMode ? 'status' : 'preview'} -> ${event.status}${event.text ? `: ${event.text}` : ''}`);
         } else {
-          logLine('op-meta', `preview -> ${event.type}`);
+          logLine('op-meta', `${opts.playgroundMode ? 'preview skipped' : 'preview'} -> ${event.type}`);
         }
       },
       onParseError: (raw) => {

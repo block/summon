@@ -11,7 +11,7 @@ import {
 import type { ApprovalDecision, ApprovalRequest } from '@anarchitecture/summon';
 import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
-import { Button, compactSelectClass } from '../../components/ui.js';
+import { Button } from '../../components/ui.js';
 import { cn } from '../../lib/cn.js';
 import {
   createGhostShowcaseScenario,
@@ -36,7 +36,6 @@ import {
   buildContractRows,
   generationPhaseLabel,
   ghostRootFromSelection,
-  groupScenarios,
   scenarioUsesFixedPolicy,
   surfacePolicyForPlan,
   tokenOverridesFor,
@@ -69,6 +68,7 @@ export function GeneratePage() {
   const [layoutId, setLayoutId] = useState('');
   const [tokenPreset, setTokenPreset] = useState('');
   const [playgroundMode, setPlaygroundMode] = useState(true);
+  const [playgroundToolsEnabled, setPlaygroundToolsEnabled] = useState(false);
   const [agentBrokerEnabled, setAgentBrokerEnabled] = useState(true);
   const [customContractEnabled, setCustomContractEnabled] = useState(false);
   const [directionId, setDirectionId] = useState<string | null>(null);
@@ -100,6 +100,7 @@ export function GeneratePage() {
   const [currentAgentGoalSummary, setCurrentAgentGoalSummary] = useState<string | null>(null);
   const [currentAgentPolicySummary, setCurrentAgentPolicySummary] = useState<string | null>(null);
   const [artifactRevision, setArtifactRevision] = useState(0);
+  const [surfaceInstanceKey, setSurfaceInstanceKey] = useState(0);
   const artifactRevisionRef = useRef(0);
   const [diagnosticsTab, setDiagnosticsTab] = useState<DiagnosticsTab>('stream');
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -209,6 +210,11 @@ export function GeneratePage() {
 
   const handleSurfaceHandlerError = useCallback((tool: string, error: Error) => {
     logLine('op-error', `host handler error (${tool}): ${error.message}`);
+  }, [logLine]);
+
+  const handleSurfaceRuntimeError = useCallback((reason: string) => {
+    logLine('op-error', `runtime error: ${reason}`);
+    setStatus('runtime error');
   }, [logLine]);
 
   const clearRuntimeState = useCallback(() => {
@@ -352,7 +358,9 @@ export function GeneratePage() {
       scenarioId: selectedScenario.id,
       prompt: prompt.trim() || selectedScenario.prompt,
       mode,
-      toolNames: runtimeToolNames ?? selectedScenario.toolNames,
+      toolNames: playgroundMode && !playgroundToolsEnabled
+        ? []
+        : runtimeToolNames ?? selectedScenario.toolNames,
       agentBroker,
       ...(!playgroundMode && !agentBroker ? { surfacePolicy } : {}),
       surfacePlan,
@@ -369,6 +377,7 @@ export function GeneratePage() {
     agentBrokerEnabled,
     customContractEnabled,
     playgroundMode,
+    playgroundToolsEnabled,
     directionId,
     layoutId,
     mode,
@@ -548,6 +557,7 @@ export function GeneratePage() {
     setDevEvents,
     setTimingEntries,
     setSurfaceTokensSource,
+    setSurfaceInstanceKey,
     setShowWelcome,
     setRunning,
     setStatus,
@@ -562,8 +572,6 @@ export function GeneratePage() {
     setCurrentShape,
     setCurrentSurfaceContractView,
   });
-
-  const groupedScenarios = useMemo(() => groupScenarios(showcaseScenarios), [showcaseScenarios]);
 
   const providerModels = selectedProvider?.models.length
     ? selectedProvider.models
@@ -589,8 +597,10 @@ export function GeneratePage() {
     if (!showWelcome && !hasRenderedArtifact && (status === 'error' || status.startsWith('error'))) {
       return {
         tone: 'error' as const,
-        title: 'Generation failed',
-        detail: latestStageError ?? 'No accepted artifact was produced.',
+        title: playgroundMode ? 'No renderable Arrow artifact was produced' : 'Generation failed',
+        detail: latestStageError ?? (playgroundMode
+          ? 'The model response could not be normalized into a main.ts/main.js Arrow bundle.'
+          : 'No accepted artifact was produced.'),
       };
     }
     if (!showWelcome && !hasRenderedArtifact && status === 'aborted') {
@@ -600,7 +610,7 @@ export function GeneratePage() {
       };
     }
     return null;
-  }, [artifactRevision, latestStageError, showWelcome, status]);
+  }, [artifactRevision, latestStageError, playgroundMode, showWelcome, status]);
   const contractRows = buildContractRows({
     active: activeContract,
     selectedScenario,
@@ -630,8 +640,8 @@ export function GeneratePage() {
         <p>Scenario-led generative UI generation</p>
       </div>
 
-      <div className="relative h-screen overflow-hidden bg-surface px-6 py-5 max-[820px]:px-4 max-[820px]:py-4">
-        <header className="relative z-40 flex min-w-0 items-center justify-between gap-3">
+      <div className="relative h-screen overflow-hidden bg-surface">
+        <header className="relative z-40 flex min-w-0 items-center justify-between gap-3 px-6 py-4 max-[820px]:px-4">
           <a
             className="shrink-0 text-[15px] font-bold text-ink no-underline transition-opacity hover:opacity-60"
             href="/"
@@ -653,24 +663,28 @@ export function GeneratePage() {
         <GenerationStage
           prompt={prompt}
           scenarioPicker={(
-            <>
-              <label className="sr-only" htmlFor="scenario">Sample</label>
-              <select
-                id="scenario"
-                className={cn(compactSelectClass, '!h-11 w-full rounded-full !bg-surface-muted px-4 text-[13px] text-ink')}
-                title="Sample"
-                value={selectedScenario.id}
-                onChange={(event) => applyScenario(event.target.value)}
-              >
-                {groupedScenarios.map((group) => (
-                  <optgroup key={group.category} label={group.category}>
-                    {group.scenarios.map((scenario) => (
-                      <option key={scenario.id} value={scenario.id}>{scenario.label}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            </>
+            <div className="flex flex-wrap items-center justify-start gap-1.5" aria-label="Sample prompts">
+              {showcaseScenarios.slice(0, 15).map((scenario) => {
+                const active = scenario.id === selectedScenario.id;
+                return (
+                  <button
+                    key={scenario.id}
+                    type="button"
+                    className={cn(
+                      'max-w-[150px] truncate rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none transition-colors',
+                      active
+                        ? 'border-ink bg-ink text-ink-inverse'
+                        : 'border-white/80 bg-white text-ink-soft hover:border-white hover:text-ink',
+                    )}
+                    aria-pressed={active}
+                    title={scenario.prompt}
+                    onClick={() => applyScenario(scenario.id)}
+                  >
+                    {scenario.label}
+                  </button>
+                );
+              })}
+            </div>
           )}
           setPrompt={setPrompt}
           running={running}
@@ -685,7 +699,11 @@ export function GeneratePage() {
           appendDevEvent={appendDevEvent}
           onSurfaceGoalRejected={handleSurfaceGoalRejected}
           onSurfaceHandlerError={handleSurfaceHandlerError}
+          onSurfaceRuntimeError={handleSurfaceRuntimeError}
           showWelcome={showWelcome}
+          hasRenderedArtifact={artifactRevision > 0}
+          playgroundMode={playgroundMode}
+          surfaceInstanceKey={surfaceInstanceKey}
           childSurfaces={children}
           onCloseChild={(id) => setChildren((items) => items.filter((item) => item.id !== id))}
         />
@@ -693,7 +711,7 @@ export function GeneratePage() {
 
       <div
         className={cn(
-          'fixed right-6 top-[76px] z-50 max-h-[calc(100vh-96px)] w-[min(440px,calc(100vw-48px))] overflow-auto rounded-card border border-line bg-surface-raised shadow-elevated max-[820px]:left-4 max-[820px]:right-4 max-[820px]:top-[68px] max-[820px]:w-auto',
+          'fixed right-6 top-[76px] z-50 max-h-[calc(100vh-96px)] w-[min(440px,calc(100vw-48px))] overflow-auto rounded-card border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both] max-[820px]:left-4 max-[820px]:right-4 max-[820px]:top-[68px] max-[820px]:w-auto',
           !advancedOpen && 'hidden',
         )}
       >
@@ -726,6 +744,8 @@ export function GeneratePage() {
           <ContractInspector
             playgroundMode={playgroundMode}
             setPlaygroundMode={setPlaygroundMode}
+            playgroundToolsEnabled={playgroundToolsEnabled}
+            setPlaygroundToolsEnabled={setPlaygroundToolsEnabled}
             contractRows={contractRows}
             currentSurfaceContractView={currentSurfaceContractView}
             currentEffectiveSurfacePlan={currentEffectiveSurfacePlan}
@@ -778,7 +798,7 @@ export function GeneratePage() {
 
       <div
         className={cn(
-          'fixed right-6 top-[76px] z-50 max-h-[calc(100vh-96px)] w-[min(720px,calc(100vw-48px))] overflow-hidden rounded-card border border-line bg-surface-raised shadow-elevated max-[820px]:left-4 max-[820px]:right-4 max-[820px]:top-[68px] max-[820px]:w-auto',
+          'fixed right-6 top-[76px] z-50 flex max-h-[calc(100vh-96px)] w-[min(720px,calc(100vw-48px))] flex-col overflow-hidden rounded-card border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both] max-[820px]:left-4 max-[820px]:right-4 max-[820px]:top-[68px] max-[820px]:w-auto',
           !diagnosticsOpen && 'hidden',
         )}
       >

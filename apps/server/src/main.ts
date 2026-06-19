@@ -9,6 +9,7 @@ import {
   type SummonLayout,
   type SurfacePlan,
   type SurfacePolicy,
+  type ContractPromptBlock,
   type TokenOverride,
 } from '@anarchitecture/summon/engine';
 import {
@@ -563,6 +564,8 @@ app.post('/api/generate', async (req, res) => {
 
     const preludeLines: ProtocolLine[] = [];
 
+    const playgroundRepairIssueCodes = ['invalid-arrow-source-syntax'];
+
     if (playgroundMode) {
       preludeLines.push({
         op: 'meta',
@@ -572,7 +575,8 @@ app.post('/api/generate', async (req, res) => {
           validation: 'observe',
           broker: 'off',
           shapeInference: 'off',
-          repairs: 0,
+          repairs: 1,
+          repairIssueCodes: playgroundRepairIssueCodes,
         },
       });
     }
@@ -656,10 +660,13 @@ app.post('/api/generate', async (req, res) => {
         preludeLines,
         seedLines,
         validationMode,
+        playground: playgroundMode,
+        experimentalPromptBlock: playgroundMode ? playgroundPromptBlock : null,
       };
       const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
         ...commonGenerationInput,
-        maxRepairAttempts: playgroundMode ? 0 : clampInt(req.body?.maxRepairAttempts, 0, 3, 1),
+        maxRepairAttempts: playgroundMode ? 1 : clampInt(req.body?.maxRepairAttempts, 0, 3, 1),
+        ...(playgroundMode ? { repairIssueCodes: playgroundRepairIssueCodes } : {}),
         modelProvider: {
           generateArrowBundle: (request) => modelProvider.generateArrowBundle(request, modelSelection),
           repairArrowBundle: (request) => modelProvider.repairArrowBundle(request, modelSelection),
@@ -720,6 +727,24 @@ app.post('/api/generate', async (req, res) => {
 function ghostLogId(context: ResolvedGhostSteer): string {
   return context.request.rootId;
 }
+
+const playgroundPromptBlock: ContractPromptBlock = {
+  id: 'playground-mode',
+  cache: 'none',
+  text: [
+    '## Playground mode',
+    '',
+    'This run is a best-effort local generative UI playground. Prioritize returning one renderable Arrow bundle over satisfying production policy posture.',
+    '',
+    'Hard requirement: return a structured bundle with exactly one entry file in the source object:',
+    '',
+    '```json',
+    '{ "schema": "summon.arrow-bundle/v1", "source": { "main.ts": "import { html } from \\"@arrow-js/core\\";\\nexport default html`<main>...</main>`;" } }',
+    '```',
+    '',
+    'Prefer self-contained static or local reactive Arrow UI. Use host tools only when a Tools block explicitly lists them. Do not return source as prose, markdown, or a bare string if you can return source.main.ts.',
+  ].join('\n'),
+};
 
 type GenerateTimingPhase = 'shape' | 'policy' | 'ghost-brief';
 

@@ -10,7 +10,6 @@ import type {
   SurfacePolicy,
   TokenOverride,
   ProtocolValidationMode,
-  SummonArrowBundle,
 } from '@summon-internal/engine';
 
 export type { GhostGenerationContext } from '@summon-internal/engine';
@@ -26,15 +25,15 @@ export interface ArrowBundleRequest extends SurfaceModelRequest {
 }
 
 export interface ArrowBundleRepairRequest extends ArrowBundleRequest {
-  previousBundle: SummonArrowBundle | null;
+  previousBundle: unknown;
   issues: ContractIssue[];
   hints: string[];
   attempt: number;
 }
 
 export interface SurfaceModelProvider {
-  generateArrowBundle(request: ArrowBundleRequest): Promise<SummonArrowBundle>;
-  repairArrowBundle?(request: ArrowBundleRepairRequest): Promise<SummonArrowBundle>;
+  generateArrowBundle(request: ArrowBundleRequest): Promise<unknown>;
+  repairArrowBundle?(request: ArrowBundleRepairRequest): Promise<unknown>;
 }
 
 export interface SurfaceGenerationInput {
@@ -51,7 +50,9 @@ export interface SurfaceGenerationInput {
   preludeLines?: ProtocolLine[];
   seedLines?: ProtocolLine[];
   validationMode?: ProtocolValidationMode;
+  playground?: boolean;
   maxRepairAttempts?: number;
+  repairIssueCodes?: string[];
   heartbeatIntervalMs?: number;
   signal?: AbortSignal;
 }

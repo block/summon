@@ -188,14 +188,14 @@ export function summarizeStreamGraphMeta(value: unknown): string {
 }
 
 export function missingArtifactMessage(protocolLines: ProtocolLine[]): string {
-  const serverError = findLastMetaValue(protocolLines, '/error');
-  if (serverError !== undefined) {
-    return `Generation server error: ${String(serverError)}`;
-  }
-
   const blocked = findLastMetaValue(protocolLines, '/validation-blocked');
   if (isIssueLike(blocked)) {
     return `Generation blocked before an Arrow artifact was accepted: ${blocked.code}: ${blocked.message}`;
+  }
+
+  const serverError = findLastMetaValue(protocolLines, '/error');
+  if (serverError !== undefined) {
+    return `Generation server error: ${String(serverError)}`;
   }
 
   const validation = findLastMetaValue(protocolLines, '/validation-summary');

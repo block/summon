@@ -31,8 +31,15 @@ Common fixes:
   artifact accepted by the runtime validator.
 - `invalid-arrow-entry` - the artifact source did not contain one valid Arrow
   entrypoint.
+- `invalid-arrow-source-syntax` - the generated Arrow entry file is not valid
+  TypeScript/JavaScript. The issue includes file, line, column, and a source
+  excerpt. Enforced runs can repair it; playground allows one syntax-only
+  repair attempt before blocking instead of mounting a guaranteed runtime
+  failure.
 - `unsupported-arrow-idl-binding` / `unsupported-arrow-open-tag-expression` -
-  rewrite the Arrow template to use supported bindings.
+  rewrite the Arrow template to use supported bindings. See
+  `docs/adoption/arrow-compatibility.md` before broadening these rules so Arrow
+  behavior and Summon sandbox policy stay separate.
 - `arrow-network-not-granted` - remove generated `fetch()` usage and route data
   through a host tool.
 - `surface-policy-*` - fix the host-selected surface config. The compiler

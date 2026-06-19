@@ -20,11 +20,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@summon-internal/engine": "workspace:*"
+    "@summon-internal/engine": "workspace:*",
+    "typescript": "^5.4.0"
   },
   "devDependencies": {
-    "tsx": "^4.7.0",
-    "typescript": "^5.4.0"
+    "tsx": "^4.7.0"
   },
   "private": true
 }

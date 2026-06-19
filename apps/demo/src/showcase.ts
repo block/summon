@@ -46,9 +46,9 @@ export interface ActiveContract {
 export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   {
     id: 'host-resource-search',
-    label: 'Host resource search',
+    label: 'Dinner finder',
     prompt:
-      'help me build a weeknight dinner finder where i can search for recipes and see loading, error, and real host data states clearly',
+      "i'm tired and have chicken, pasta, and spinach — help me search for weeknight dinner ideas i can compare",
     mode: 'interactive',
     toolNames: ['search'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search'] },
@@ -63,9 +63,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'host-ai-brainstorm',
-    label: 'Host AI brainstorm',
+    label: 'Gift ideas',
     prompt:
-      'build a brainstorm helper where i can ask host AI for birthday gift ideas and see loading, error, and response states clearly',
+      "brainstorm birthday gift ideas for my sister — she's 32, into pottery and hiking, and i want something thoughtful",
     mode: 'interactive',
     toolNames: ['ai'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['ai'] },
@@ -80,9 +80,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'github-profile-lookup',
-    label: 'GitHub profile lookup',
+    label: 'GitHub profile',
     prompt:
-      'build a GitHub profile lookup where i can enter a username and see loading, error, avatar, follower, and repo states from host data',
+      'look up a GitHub username and help me understand the profile, followers, and public repo signal from the returned data',
     mode: 'interactive',
     toolNames: ['github_lookup'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['github_lookup'] },
@@ -97,9 +97,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'arrow-fidelity',
-    label: 'Arrow launch dashboard',
+    label: 'Launch readiness',
     prompt:
-      'build a compact launch-readiness dashboard with metric cards, a trend sparkline, launch status treatments, and a choose control for the final launch recommendation, all rendered directly in Arrow',
+      'help me review whether our small product launch is ready, compare the main signals, and choose the final recommendation',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: {
@@ -118,8 +118,8 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'static-summary',
-    label: 'Static summary',
-    prompt: 'compare Roth vs traditional IRA for someone new to retirement saving',
+    label: 'IRA explainer',
+    prompt: 'explain Roth vs traditional IRA for someone new to retirement saving and show when each one makes sense',
     mode: 'static',
     toolNames: [],
     surfacePolicy: { tier: 'static', purpose: 'compare' },
@@ -134,9 +134,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'decision-picker',
-    label: 'Decision picker',
+    label: 'Announcement pick',
     prompt:
-      'help me choose between three launch announcement approaches for a small developer tool. Compare tradeoffs and let me save the best option.',
+      'help me choose between three launch announcement approaches for a small developer tool, compare tradeoffs, and save the best fit',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'compare', grants: ['choose'] },
@@ -151,9 +151,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'declarative-form',
-    label: 'Declarative form',
+    label: 'Lunch order',
     prompt:
-      'help me collect a team lunch order with required fields, submit validation, a success state, and field errors',
+      'collect a team lunch order for eight people, including dietary notes, and let me submit the final order',
     mode: 'interactive',
     toolNames: ['submit'],
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
@@ -168,9 +168,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'worker-analysis',
-    label: 'Worker analysis',
+    label: 'Blocker score',
     prompt:
-      'run host analysis for a product launch readiness topic, compute a score with a host-owned background worker, and show loading, error, and result states',
+      'analyze launch readiness for instant payouts, compute a score, and show me the biggest blockers to resolve',
     mode: 'interactive',
     toolNames: ['analysis', 'compute_score'],
     surfacePolicy: { tier: 'worker', purpose: 'review', grants: ['analysis', 'compute_score'] },
@@ -185,9 +185,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'approval-publish',
-    label: 'Approval publish',
+    label: 'Publish approval',
     prompt:
-      'build a publish approval panel where i can review a titled summary, request host approval, and show pending, approved, denied, and error states',
+      'prepare a release note i can review, then ask for approval before publishing it to the team update log',
     mode: 'interactive',
     toolNames: ['publish_summary'],
     surfacePolicy: { tier: 'approval', purpose: 'operate', grants: ['publish_summary'] },
@@ -202,9 +202,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'local-state-motion',
-    label: 'Local state + motion',
+    label: 'Weekend vote',
     prompt:
-      'build an Arrow behavior lab for ranking launch options: use reusable option rows, a keyed list, computed local summary, tabs or disclosure, state-driven styling, subtle motion, and host-backed choose and counter controls',
+      'help me and my partner vote on weekend activities, compare the options, track votes, and make the final pick less awkward',
     mode: 'interactive',
     toolNames: ['choose', 'counter'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },
@@ -219,9 +219,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'token-override',
-    label: 'Token override',
+    label: 'Offer picker',
     prompt:
-      'build a compact option picker where I can choose an option with a prominent accent action and status badge, using only direction tokens for color',
+      'compare three customer retention offers, make the preferred one easy to choose, and show the saved selection clearly',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose'] },
@@ -241,9 +241,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   },
   {
     id: 'layout-card',
-    label: 'Layout-constrained card',
+    label: 'Project intake',
     prompt:
-      'create a compact project intake card where I can submit validated details, with a crisp header, useful content, and one or two action controls',
+      'create a project intake card where i can submit owner, deadline, risk, and requested next step',
     mode: 'interactive',
     toolNames: ['submit'],
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
@@ -259,9 +259,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'sibling-summon',
-    label: 'Sibling summon',
+    label: 'Recipe prep',
     prompt:
-      'build a recipe explorer that can search for dinner ideas and includes a clear action to summon a separate prep guide for one result',
+      'help me search for dinner ideas and spin up a separate prep guide for the recipe i decide to cook',
     mode: 'interactive',
     toolNames: ['search', 'summon'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search', 'summon'] },

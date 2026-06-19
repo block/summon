@@ -290,6 +290,63 @@ test('generate page renders a mocked Arrow artifact through the inline sandbox',
   expect(captured?.surfacePlan).toBeUndefined();
 });
 
+test('generate page surfaces syntax validation blocks instead of mounting malformed Arrow source', async ({ page }) => {
+  const malformedIssue = {
+    source: 'protocol',
+    severity: 'block',
+    code: 'invalid-arrow-source-syntax',
+    path: '/artifact/main.ts',
+    message: 'Arrow source syntax error in main.ts:34:71: Unterminated string literal.\n\nSource excerpt:\n  31 | const title = "Draft";\n> 34 | export default html`<p>${() => "broken}</p>`;',
+  };
+
+  await page.route('**/api/generate', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/plain',
+      body: jsonl([
+        { op: 'meta', path: '/surface-plan', value: staticSummaryPlan },
+        { op: 'meta', path: '/validation-blocked', value: malformedIssue },
+        { op: 'meta', path: '/error', value: `generation blocked: ${malformedIssue.message}` },
+        {
+          op: 'meta',
+          path: '/validation-summary',
+          value: {
+            blocked: 1,
+            warnings: 0,
+            codes: { 'invalid-arrow-source-syntax': 1 },
+            examples: [malformedIssue],
+          },
+        },
+        {
+          op: 'meta',
+          path: '/stream-graph-summary',
+          value: {
+            health: {
+              complete: false,
+              blockedCount: 1,
+              warningCount: 0,
+            },
+            artifacts: [],
+          },
+        },
+      ]),
+    });
+  });
+
+  await page.goto('/generate');
+  await page.locator('#go').click();
+
+  await expect(page.locator('#stage-notice')).toBeVisible();
+  await expect(page.locator('#stage-notice')).toContainText('No renderable Arrow artifact was produced');
+  await expect(page.locator('#stage-notice')).toContainText('invalid-arrow-source-syntax');
+  await expect(page.locator('#stage-notice')).toContainText('Source excerpt');
+  await expect(page.locator('#sandbox arrow-sandbox')).toHaveCount(0);
+  await page.locator('#open-diagnostics').click();
+  await expect(page.locator('#diagnostics-stream')).toBeVisible();
+  await expect(page.locator('#log')).toContainText('invalid-arrow-source-syntax');
+  await expect(page.locator('#log')).toContainText('Source excerpt');
+});
+
 test('generate page surfaces streamed errors instead of leaving a blank stage', async ({ page }) => {
   await page.route('**/api/generate', async (route) => {
     await route.fulfill({

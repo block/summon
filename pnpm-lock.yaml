@@ -232,13 +232,13 @@ importers:
       '@summon-internal/engine':
         specifier: workspace:*
         version: link:../engine
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
     devDependencies:
       tsx:
         specifier: ^4.7.0
         version: 4.21.0
-      typescript:
-        specifier: ^5.4.0
-        version: 5.9.3
 
   packages/summon:
     dependencies:
@@ -289,7 +289,6 @@ importers:
       '@anarchitecture/summon':
         specifier: ^0.3.0
         version: link:../summon
-    devDependencies:
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
