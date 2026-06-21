@@ -1,29 +1,34 @@
 patterns:
   - id: staged-plan
     kind: structure
-    pattern: Planning surfaces show a staged path rather than a pile of cards.
+    pattern: Planning surfaces show a staged path through soft note panels rather than a pile of generic cards.
     applies_to:
       paths: [.]
       surface_types: [planner]
     guidance:
       - Separate now, next, and later when the task has sequence.
-      - Use checklists, prep notes, and compact detail panels.
-      - Keep the page airy but not empty; anchor content in a bounded shell.
+      - Use checklists, prep notes, compact detail panels, and gentle handwritten-notebook pacing.
+      - Keep the page airy but not empty; anchor content in a bounded rounded shell.
+      - Use large rounded cream panels, green accents, soft shadows, garden-bed groupings, and tactile note-card layers.
+      - "Make badges visibly gentle: time, effort, confidence, season, energy, or readiness chips."
     anti_patterns:
       - Dense dashboards for simple personal tasks.
+      - Stark editorial broadsheets, hairline matrices, black ink blocks, square newspaper panels, or table-first scorecards.
     check_refs: []
   - id: comparison-for-life-admin
     kind: structure
-    pattern: Personal comparisons prioritize fit, friction, and timing.
+    pattern: Personal comparisons prioritize fit, friction, and timing with a clearly kind good-enough choice.
     applies_to:
       paths: [.]
       surface_types: [comparison, planner]
     guidance:
-      - Compare options by practical criteria.
-      - Highlight the easiest good-enough choice when appropriate.
+      - Compare options by practical criteria such as ease, timing, materials, confidence, and emotional load.
+      - Highlight the easiest good-enough choice with a soft green panel, friendly badge, or rounded recommendation note.
       - Use gentle badges for time, effort, and confidence.
+      - Prefer stacked note panels, checklists, prep baskets, and rounded callouts over strict grids.
     anti_patterns:
       - Overly technical scorecards for low-stakes personal choices.
+      - Monochrome editorial spreads, dominant verdict headlines, dense ruled tables, or severe typography.
     check_refs: []
   - id: host-frame-safe-area
     kind: layout

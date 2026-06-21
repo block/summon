@@ -1,29 +1,34 @@
 patterns:
   - id: claim-first-brief
     kind: structure
-    pattern: A compact editorial brief starts with a strong claim, then uses short evidence bands and a clear next action.
+    pattern: A compact editorial brief starts with a dominant newspaper-like claim, then uses short evidence bands and a clear next action.
     applies_to:
       paths: [.]
       surface_types: [article, review]
     guidance:
-      - Use one centered or left-aligned shell with generous top padding.
-      - Put the main claim in large tight type.
-      - Follow with structured rows, a matrix, or a ranked list.
+      - Use one centered or left-aligned broadsheet shell with generous top padding and a strict column/grid system.
+      - Put the main claim in oversized serif display type with tight line-height; it should be the visual event.
+      - Follow with ruled evidence rows, a matrix, numbered findings, or a ranked list.
+      - Use black ink, cream paper, hairline rules, square corners, and typographic contrast before any decoration.
+      - Prefer labels, folios, decks, columns, dividers, pull quotes, and dense metadata over soft cards.
     anti_patterns:
       - Anonymous rounded cards that do not carry distinct evidence.
+      - Warm lifestyle note cards, floating pastel panels, checklist dashboards, or decorative badges.
     check_refs: []
   - id: comparison-spread
     kind: structure
-    pattern: Comparison layouts make tradeoffs visible across shared criteria.
+    pattern: Comparison layouts make tradeoffs visible across shared criteria, like a compact editorial spread.
     applies_to:
       paths: [.]
       surface_types: [comparison, review]
     guidance:
-      - Use columns or rows with aligned criteria.
-      - Mark the recommended option with border weight or accent fill, not decorative color.
-      - Keep supporting copy short enough to scan.
+      - Use columns or rows with aligned criteria and strong horizontal/vertical rules.
+      - Mark the recommended option with border weight, an ink block, or an editorial label; do not use decorative color.
+      - Keep supporting copy short enough to scan, with terse criteria labels and visible hierarchy.
+      - Use squared panels, table-like grids, numbered ranks, and small mono metadata.
     anti_patterns:
       - Staggered card stacks that make options hard to compare.
+      - Soft green accents, rounded note panels, shadowed cards, or now/next/later staging unless explicitly requested.
     check_refs: []
   - id: host-frame-safe-area
     kind: layout

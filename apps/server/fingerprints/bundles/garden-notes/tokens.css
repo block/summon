@@ -1,55 +1,87 @@
 :root {
   color-scheme: light;
-  --color-bg: #f3f0e7;
-  --color-surface: #fffaf0;
-  --color-surface-muted: #e8ead8;
-  --color-border: #d6d2b9;
-  --color-border-input: #bcb894;
-  --color-border-strong: #31402d;
-  --color-text: #283026;
-  --color-text-muted: #77745e;
-  --color-text-alt: #4d5947;
-  --color-accent: #3f6b43;
-  --color-accent-fg: #fffaf0;
-  --color-danger: #a54235;
-  --color-success: #3f6b43;
-  --color-info: #466c8c;
-  --color-warning: #9b6a22;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-8: 48px;
-  --space-10: 72px;
+
+  /* Garden Notes is visibly soft: warm cream, chlorophyll green, clay notes. */
+  --color-bg: #eaf1dc;
+  --color-surface: #fff8dc;
+  --color-surface-muted: #dce8c5;
+  --color-border: #c0d19b;
+  --color-border-input: #94ad73;
+  --color-border-strong: #42633a;
+  --color-text: #243821;
+  --color-text-muted: #71805d;
+  --color-text-alt: #506b45;
+  --color-accent: #4f8a3d;
+  --color-accent-fg: #fff8dc;
+  --color-danger: #b75142;
+  --color-success: #4f8a3d;
+  --color-info: #527da0;
+  --color-warning: #c48735;
+
+  /* Slower, airier planning rhythm. */
+  --space-1: 5px;
+  --space-2: 10px;
+  --space-3: 15px;
+  --space-4: 20px;
+  --space-5: 30px;
+  --space-6: 42px;
+  --space-7: 54px;
+  --space-8: 72px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  /* Soft note-card geometry. */
   --radius-pill: 999px;
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --radius-xl: 30px;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius-sm: 14px;
+  --radius-md: 22px;
+  --radius-lg: 34px;
+  --radius-xl: 48px;
+
+  --font-sans: "Avenir Next", "Nunito Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
   --font-serif: Georgia, "Times New Roman", serif;
-  --text-xs: 11px;
-  --text-sm: 13px;
-  --text-md: 15px;
-  --text-lg: 20px;
-  --text-xl: 28px;
-  --text-2xl: 40px;
-  --text-3xl: 56px;
-  --text-display: clamp(42px, 7vw, 76px);
-  --tracking-label: 0.06em;
-  --tracking-tight: -0.02em;
-  --tracking-display: -0.04em;
-  --leading-display: 0.95;
-  --leading-section: 1.08;
-  --leading-body: 1.5;
-  --leading-reading: 1.7;
-  --shadow-mini: 0 2px 8px rgba(49, 64, 45, 0.08);
-  --shadow-card: 0 10px 30px rgba(49, 64, 45, 0.10);
-  --shadow-elevated: 0 18px 50px rgba(49, 64, 45, 0.14);
-  --shadow-popover: 0 20px 70px rgba(49, 64, 45, 0.16);
-  --shadow-modal: 0 28px 90px rgba(49, 64, 45, 0.22);
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 22px;
+  --text-xl: 32px;
+  --text-2xl: 46px;
+  --text-3xl: 64px;
+  --text-display: clamp(48px, 8vw, 92px);
+  --tracking-label: 0.035em;
+  --tracking-tight: -0.015em;
+  --tracking-display: -0.035em;
+  --leading-display: 0.98;
+  --leading-section: 1.12;
+  --leading-body: 1.58;
+  --leading-reading: 1.76;
+
+  --shadow-mini: 0 3px 10px rgba(66, 99, 58, 0.12);
+  --shadow-card: 0 18px 45px rgba(66, 99, 58, 0.18);
+  --shadow-elevated: 0 28px 70px rgba(66, 99, 58, 0.22);
+  --shadow-popover: 0 30px 90px rgba(66, 99, 58, 0.24);
+  --shadow-modal: 0 40px 120px rgba(66, 99, 58, 0.30);
 }
-html, body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+
+html, body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 248, 220, 0.95) 0 13%, transparent 30%),
+    radial-gradient(circle at 86% 18%, rgba(192, 209, 155, 0.65) 0 10%, transparent 28%),
+    linear-gradient(135deg, rgba(79, 138, 61, 0.10), transparent 42%),
+    var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, textarea, select {
+  font-family: var(--font-sans);
+}
+
+strong, b {
+  color: var(--color-accent);
+  font-weight: 750;
+}

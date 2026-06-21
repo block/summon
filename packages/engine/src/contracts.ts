@@ -60,9 +60,7 @@ export type GhostGenerationSource = 'root' | 'catalog';
 
 export type GhostTokenSourceKind =
   | 'ghost-config'
-  | 'fingerprint-catalog'
-  | 'base-direction'
-  | 'summon-default';
+  | 'fingerprint-catalog';
 
 export interface GhostGenerationContext {
   source?: GhostGenerationSource;

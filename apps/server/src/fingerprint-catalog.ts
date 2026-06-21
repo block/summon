@@ -9,20 +9,6 @@ const CATALOG_SCHEMA = 'summon.fingerprint-catalog/v1';
 const BUNDLE_SCHEMA = 'summon.fingerprint-bundle/v1';
 const GHOST_MARKETPLACE_BUNDLE_SCHEMA = 'ghost.marketplace-bundle/v1';
 
-const DEFAULT_TOKENS_CSS = readFileSync(
-  resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    '..',
-    '..',
-    '..',
-    'packages',
-    'sandbox-runtime',
-    'src',
-    'tokens.css',
-  ),
-  'utf-8',
-);
-
 export interface FingerprintCatalogEntry {
   id: string;
   name: string;
@@ -166,36 +152,15 @@ export function resolveCatalogTokenSource(
     );
   }
   if (baseDirection) {
-    const validation = compileTokenContract({ css: baseDirection.tokensCss });
-    const blocking = validation.issues.filter((issue) => issue.severity === 'block');
-    if (blocking.length === 0) {
-      return {
-        kind: 'base-direction',
-        source: `direction:${baseDirection.id}/tokens.css`,
-        css: baseDirection.tokensCss,
-        baseDirectionId: baseDirection.id,
-        warnings: [
-          ...warnings,
-          'No contract-complete catalog fingerprint token CSS was found; using the fallback Summon direction tokens.',
-          ...validation.issues
-            .filter((issue) => issue.severity === 'warn')
-            .map((issue) => issue.message),
-        ],
-      };
-    }
     warnings.push(
-      `direction:${baseDirection.id}/tokens.css failed token contract: ${blocking.map((issue) => issue.message).join('; ')}`,
+      `Ignoring requested fallback direction "${baseDirection.id}" because Summon generation is Ghost-fingerprint-only.`,
     );
   }
-  return {
-    kind: 'summon-default',
-    source: '@anarchitecture/summon/tokens.css',
-    css: DEFAULT_TOKENS_CSS,
-    warnings: [
-      ...warnings,
-      'No contract-complete catalog fingerprint token CSS was found; using Summon default tokens.',
-    ],
-  };
+  throw new Error([
+    `Catalog fingerprint "${entry.id}" token CSS is required for Summon generation.`,
+    'No contract-complete catalog fingerprint token CSS was found.',
+    ...warnings,
+  ].join(' '));
 }
 
 function emptyCatalog(root: string): FingerprintCatalog {

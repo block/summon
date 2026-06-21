@@ -235,6 +235,7 @@ export class SurfaceGenerationSession {
         value: artifact,
       }, this.systemContracts.validationContext));
       issues.push(...validateArrowSourceSyntax(artifact.source));
+      issues.push(...validateGhostFidelity(artifact.source, this.input.ghost ?? null));
     }
 
     this.validationIssues.push(...issues);
@@ -638,6 +639,54 @@ function isAlwaysBlockingRuntimeIssue(issue: ContractIssue): boolean {
   return issue.code === 'invalid-arrow-source-syntax';
 }
 
+function validateGhostFidelity(
+  source: Record<string, string>,
+  ghost: SurfaceGenerationInput['ghost'] | null,
+): ContractIssue[] {
+  if (!ghost) return [];
+  const entry = source['main.ts'] ?? source['main.js'] ?? '';
+  const css = source['main.css'] ?? '';
+  const combined = `${entry}\n${css}`;
+  const issues: ContractIssue[] = [];
+
+  if (!/<main\b/i.test(entry)) {
+    issues.push(contractIssue({
+      source: 'system',
+      severity: 'block',
+      code: 'ghost-fidelity-missing-shell',
+      message: 'Ghost-driven Summon artifacts must use a composed root <main> shell from the fingerprint visual grammar.',
+      path: '/artifact/source/main',
+      hint: 'Recompose the artifact around a fingerprint-specific outer <main> shell before rendering sections or controls.',
+    }));
+  }
+
+  if (!source['main.css'] || css.trim().length < 240) {
+    issues.push(contractIssue({
+      source: 'system',
+      severity: 'block',
+      code: 'ghost-fidelity-visual-underfit',
+      message: 'Ghost-driven Summon artifacts must include substantial fingerprint-specific CSS; this artifact is visually underfit.',
+      path: '/artifact/source/main.css',
+      hint: 'Add composed CSS for the selected fingerprint shell, hierarchy, spacing rhythm, typography, surface treatment, and responsive layout.',
+    }));
+  }
+
+  const genericCardGrid = /\b(cards?|card-grid|grid-cards)\b/i.test(combined) &&
+    !/\b(evidence|criterion|criteria|ruled|folio|broadsheet|ledger|shell|spread|note|field)\b/i.test(combined);
+  if (genericCardGrid) {
+    issues.push(contractIssue({
+      source: 'system',
+      severity: 'block',
+      code: 'ghost-fidelity-generic-card-grid',
+      message: 'The artifact appears to use a generic card layout instead of a fingerprint-specific composition shell.',
+      path: '/artifact/source',
+      hint: 'Replace generic cards with the Ghost fingerprint composition pattern: ruled evidence, editorial spread, staged notes, ledger rows, or another named fingerprint shell as appropriate.',
+    }));
+  }
+
+  return issues;
+}
+
 function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[]): boolean {
   const repairable = new Set([
     'invalid-arrow-entry',
@@ -656,6 +705,9 @@ function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[])
     'invalid-arrow-bundle-entry',
     'arrow-bundle-extra-file',
     'invalid-arrow-bundle-source-file',
+    'ghost-fidelity-missing-shell',
+    'ghost-fidelity-visual-underfit',
+    'ghost-fidelity-generic-card-grid',
   ]);
   const allowed = allowedCodes && allowedCodes.length > 0 ? new Set(allowedCodes) : null;
   return issues.some((issue) => (

@@ -12,7 +12,6 @@ import {
 } from '@anarchitecture/ghost/relay';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import {
-  dirname,
   isAbsolute,
   relative,
   resolve,
@@ -23,23 +22,8 @@ import {
   type FingerprintCatalogEntry,
   type FingerprintRequest,
 } from './fingerprint-catalog.js';
-import { fileURLToPath } from 'node:url';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
-
-const DEFAULT_TOKENS_CSS = readFileSync(
-  resolve(
-    dirname(fileURLToPath(import.meta.url)),
-    '..',
-    '..',
-    '..',
-    'packages',
-    'sandbox-runtime',
-    'src',
-    'tokens.css',
-  ),
-  'utf-8',
-);
 
 type RelayStackSource = Extract<RelayGatherResult['source'], { kind: 'stack' }>;
 type RelayStackLayer = RelayStackSource['provenance']['layers'][number];
@@ -69,7 +53,7 @@ export interface GhostRoot {
 export type GhostRoots = Map<string, string>;
 
 export interface GhostTokenSource {
-  kind: 'ghost-config' | 'fingerprint-catalog' | 'base-direction' | 'summon-default';
+  kind: 'ghost-config' | 'fingerprint-catalog';
   source: string;
   css: string;
   warnings: string[];
@@ -446,8 +430,22 @@ function buildSummonFingerprintSurfaceBrief(
     '',
     '- Do not pause to inspect suggested files or ask the host for more Ghost context. Use the supplied Ghost Relay Brief as the complete fingerprint entrypoint for this run.',
     '- Return a structured Arrow sandbox bundle through the `create_summon_arrow_surface` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata.',
+    '',
+    'Primary success criterion:',
+    '',
+    '- This generation succeeds only if the final Arrow artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.',
+    '- A technically valid but generic surface is a failed generation.',
+    '- The Ghost fingerprint is the binding authority for composition, hierarchy, density, spacing rhythm, typography rhythm, surface grammar, motif vocabulary, tone, and anti-pattern boundaries.',
+    '- Summon safety restricts APIs, host authority, and runtime behavior. It does not require bland UI.',
+    '',
+    'Fingerprint composition rules:',
+    '',
     '- Compose from the fingerprint prose, inventory, and composition layers. Prose states tool; inventory supplies material and evidence; composition supplies reusable surface patterns.',
-    '- Do not imitate Ghost UI as a visual style. Use inventory examples only when they support the selected tool and composition pattern.',
+    '- Imitate the Ghost fingerprint’s visual grammar. Preserve its composition patterns, hierarchy, typography rhythm, density, surface treatment, motifs, and anti-pattern boundaries. Adapt content to the user request without genericizing the visual system.',
+    '- Choose a fingerprint composition shell before authoring the artifact. The root `<main>` must express that shell through layout, spacing, hierarchy, and surface treatment.',
+    '- The final artifact must include a composed outer shell, not unframed content. Avoid generic header-plus-card-grid layouts unless the fingerprint explicitly calls for that pattern.',
+    '- Use Ghost-provided tokens, aliases, renderable primitives, and fingerprint examples as the visual source of truth. You may define local CSS variables that alias or compose Ghost tokens and use advanced safe CSS layout, transitions, transforms, inline SVG, and typographic tuning when fingerprint-compatible.',
+    '- Do not invent unrelated colors, fonts, shadows, gradients, radii, or decorative motifs. Do not import external stylesheets, fonts, images, scripts, or URLs.',
     '- The agent broker controls host authority and tools. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
     '- Treat checks as validation constraints, not as content to render.',
   ].join('\n');
@@ -508,44 +506,11 @@ async function resolveGhostTokenSource(
       }
     }
   }
-  return resolveFallbackTokenSource(warnings, baseDirection);
-}
-
-function resolveFallbackTokenSource(
-  warnings: string[],
-  baseDirection: GhostBaseDirection | null,
-): GhostTokenSource {
-  if (baseDirection) {
-    const validation = compileTokenContract({ css: baseDirection.tokensCss });
-    const blocking = validation.issues.filter((issue) => issue.severity === 'block');
-    if (blocking.length === 0) {
-      return {
-        kind: 'base-direction',
-        source: `direction:${baseDirection.id}/tokens.css`,
-        css: baseDirection.tokensCss,
-        baseDirectionId: baseDirection.id,
-        warnings: [
-          ...warnings,
-          'No contract-complete Ghost fingerprint token CSS was found; using the fallback Summon direction tokens.',
-          ...validation.issues
-            .filter((issue) => issue.severity === 'warn')
-            .map((issue) => issue.message),
-        ],
-      };
-    }
-    warnings.push(
-      `direction:${baseDirection.id}/tokens.css failed token contract: ${blocking.map((issue) => issue.message).join('; ')}`,
-    );
-  }
-  return {
-    kind: 'summon-default',
-    source: '@anarchitecture/summon/tokens.css',
-    css: DEFAULT_TOKENS_CSS,
-    warnings: [
-      ...warnings,
-      'No contract-complete Ghost fingerprint token CSS was found; using Summon default tokens.',
-    ],
-  };
+  throw new Error([
+    'Ghost fingerprint token CSS is required for Summon generation.',
+    'No contract-complete Ghost fingerprint token CSS was found.',
+    ...warnings,
+  ].join(' '));
 }
 
 function resolveTokenPath(

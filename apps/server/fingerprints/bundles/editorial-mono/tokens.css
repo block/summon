@@ -1,55 +1,87 @@
 :root {
   color-scheme: light;
-  --color-bg: #f7f5ef;
-  --color-surface: #fffdf7;
-  --color-surface-muted: #ece8dc;
-  --color-border: #d8d1c1;
-  --color-border-input: #c8bfaa;
-  --color-border-strong: #1d1c19;
-  --color-text: #1d1c19;
-  --color-text-muted: #756f62;
-  --color-text-alt: #4c493f;
-  --color-accent: #1d1c19;
-  --color-accent-fg: #fffdf7;
-  --color-danger: #b42318;
-  --color-success: #26734d;
-  --color-info: #2f5f9f;
-  --color-warning: #9a5b00;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-8: 52px;
-  --space-10: 80px;
+
+  /* Editorial Mono is intentionally stark: paper, ink, hairlines, no color decoration. */
+  --color-bg: #f2efe7;
+  --color-surface: #fffdf6;
+  --color-surface-muted: #e5e0d4;
+  --color-border: #b8b0a0;
+  --color-border-input: #8f8677;
+  --color-border-strong: #11100e;
+  --color-text: #11100e;
+  --color-text-muted: #5f584d;
+  --color-text-alt: #38342d;
+  --color-accent: #11100e;
+  --color-accent-fg: #fffdf6;
+  --color-danger: #8f1d14;
+  --color-success: #315f38;
+  --color-info: #213f73;
+  --color-warning: #7a4600;
+
+  /* Editorial rhythm: tight internal spacing, large decisive breaks. */
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 10px;
+  --space-4: 14px;
+  --space-5: 22px;
+  --space-6: 34px;
+  --space-7: 44px;
+  --space-8: 64px;
+  --space-9: 88px;
+  --space-10: 118px;
+
+  /* Squared editorial furniture. */
   --radius-pill: 999px;
-  --radius-sm: 3px;
-  --radius-md: 6px;
-  --radius-lg: 12px;
-  --radius-xl: 18px;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  /* Make even generic generated code read editorial. */
+  --font-sans: Georgia, "Times New Roman", Times, serif;
   --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
-  --font-serif: Georgia, "Times New Roman", serif;
-  --text-xs: 11px;
-  --text-sm: 13px;
+  --font-serif: Georgia, "Times New Roman", Times, serif;
+  --text-xs: 10px;
+  --text-sm: 12px;
   --text-md: 15px;
-  --text-lg: 20px;
-  --text-xl: 30px;
-  --text-2xl: 44px;
-  --text-3xl: 64px;
-  --text-display: clamp(48px, 8vw, 88px);
-  --tracking-label: 0.11em;
-  --tracking-tight: -0.025em;
-  --tracking-display: -0.055em;
-  --leading-display: 0.88;
-  --leading-section: 1.02;
-  --leading-body: 1.48;
-  --leading-reading: 1.68;
+  --text-lg: 22px;
+  --text-xl: 34px;
+  --text-2xl: 52px;
+  --text-3xl: 76px;
+  --text-display: clamp(64px, 10vw, 126px);
+  --tracking-label: 0.18em;
+  --tracking-tight: -0.035em;
+  --tracking-display: -0.075em;
+  --leading-display: 0.82;
+  --leading-section: 0.95;
+  --leading-body: 1.42;
+  --leading-reading: 1.6;
+
+  /* Contract-complete shadow tokens, deliberately invisible. */
   --shadow-mini: none;
   --shadow-card: none;
-  --shadow-elevated: 0 16px 40px rgba(29, 28, 25, 0.12);
-  --shadow-popover: 0 20px 60px rgba(29, 28, 25, 0.18);
-  --shadow-modal: 0 28px 90px rgba(29, 28, 25, 0.24);
+  --shadow-elevated: none;
+  --shadow-popover: none;
+  --shadow-modal: none;
 }
-html, body { margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+
+html, body {
+  margin: 0;
+  background:
+    linear-gradient(90deg, rgba(17, 16, 14, 0.045) 1px, transparent 1px) 0 0 / 42px 42px,
+    linear-gradient(180deg, rgba(17, 16, 14, 0.035) 1px, transparent 1px) 0 0 / 42px 42px,
+    var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, textarea, select {
+  font-family: var(--font-mono);
+}
+
+strong, b {
+  font-weight: 800;
+}

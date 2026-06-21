@@ -2,38 +2,43 @@ summary:
   product: Garden Notes
   audience: [people planning personal tasks]
   goals: [make next steps feel manageable, preserve context]
-  tone: [warm, practical, unhurried]
+  tone: [warm, practical, unhurried, encouraging]
 situations:
   - id: personal-plan
     title: Personal plan
     user_intent: Turn a small life task into a clear plan or comparison.
-    product_obligation: Make the next small step obvious without adding pressure.
+    product_obligation: Make the next small step obvious without adding pressure and make the surface feel like a soft personal planning notebook.
     surface_type: planner
     principles: [prose.principle:humane-pacing]
     experience_contracts: [prose.experience_contract:next-small-step]
     patterns: [composition.pattern:staged-plan]
     refuses:
       - Dense dashboards for simple personal planning.
+      - Stark monochrome editorial spreads, severe verdict headlines, hard ruled matrices, or square broadsheet styling.
 principles:
   - id: humane-pacing
-    principle: Break tasks into steps that feel doable now, next, and later.
+    principle: Break tasks into steps that feel doable now, next, and later, with soft context preserved around each step.
     applies_to:
       paths: [.]
       surface_types: [planner, comparison]
     guidance:
       - Use concrete details from the request and avoid generic productivity language.
       - Keep the surface airy but bounded so it does not feel empty.
+      - Prefer warm language, soft green emphasis, round note panels, friendly badges, and checklist affordances.
+      - "Use copy that reduces pressure: name the easiest next step, what can wait, and what would make the task feel lighter."
     counterexamples:
       - Motivational slogans.
       - Excessive urgency.
+      - Black-and-white editorial judgment, dense ruled tables, or severe comparison scorecards.
     check_refs: []
 experience_contracts:
   - id: next-small-step
-    contract: Every planning surface should make the next small step obvious.
+    contract: Every planning surface should make the next small step obvious and emotionally easy to begin.
     applies_to:
       paths: [.]
       surface_types: [planner, comparison]
     obligations:
       - Show now, next, and later when sequence matters.
-      - Use gentle badges for time, effort, and confidence.
+      - Use gentle badges for time, effort, confidence, readiness, or seasonality.
+      - Highlight one kind good-enough choice or first action in a soft rounded callout.
     check_refs: []

@@ -20,11 +20,6 @@ import {
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  defaultDirectionId,
-  loadDirections,
-  type Direction,
-} from './directions-loader.js';
 import { registerDemoRoutes } from './demo-routes.js';
 import {
   buildGhostReviewPacket,
@@ -85,14 +80,11 @@ if (!defaultModelProvider.configured) {
   process.exit(1);
 }
 
-const directions = loadDirections();
-const directionsById = new Map<string, Direction>(directions.map((d) => [d.id, d]));
-const DEFAULT_DIRECTION_ID = defaultDirectionId(directions);
 const ghostRoots = parseGhostRoots(process.env.SUMMON_GHOST_ROOTS);
 const fingerprintCatalog = loadFingerprintCatalog();
 
 console.log(
-  `[summon-server] loaded ${directions.length} direction(s): ${directions.map((d) => d.id).join(', ') || '(none)'}`
+  '[summon-server] Ghost fingerprint mode enabled; directions are not used for generation'
 );
 console.log(
   `[summon-server] loaded ${fingerprintCatalog.entries.length} fingerprint(s): ${fingerprintCatalog.entries.map((entry) => entry.id).join(', ') || '(none)'}`
@@ -232,7 +224,7 @@ function writeGenerateTiming(
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
-    directions: directions.map((d) => d.id),
+    ghostFingerprintMode: true,
     defaultModelProvider: defaultModelProvider.id,
     modelProviders: modelProviders.info(),
     generationApi: true,
@@ -246,23 +238,6 @@ app.get('/api/model-providers', (_req, res) => {
     defaultProvider: defaultModelProvider.id,
     providers: modelProviders.info(),
   });
-});
-
-/**
- * Exposes the list of directions to the client. Tokens and exemplars are
- * included so the client can apply the right tokens.css when mounting its
- * inline Arrow surface. Prompt text is NOT included — stays server-side.
- */
-app.get('/api/directions', (_req, res) => {
-  res.json(
-    directions.map((d) => ({
-      id: d.id,
-      name: d.name,
-      description: d.description,
-      tokensCss: d.tokensCss,
-      sourceExpression: d.sourceExpression,
-    }))
-  );
 });
 
 app.get('/api/fingerprints', (_req, res) => {
@@ -319,34 +294,17 @@ app.post('/api/generate', async (req, res) => {
   }
   const fingerprintRequest = parsedFingerprint.request;
   const ghostRequest = parsedGhost.request;
-
-  const requestedGhostBaseDirectionId = fingerprintRequest
-    ? fingerprintRequest.baseDirectionId
-    : ghostRequest
-      ? ghostRequest.baseDirectionId
-      : null;
-  const ghostBaseDirection = requestedGhostBaseDirectionId
-    ? directionsById.get(requestedGhostBaseDirectionId)
-    : undefined;
-  if ((fingerprintRequest || ghostRequest) && requestedGhostBaseDirectionId && !ghostBaseDirection) {
-    res.status(400).json({ error: `unknown fingerprint token fallback direction "${requestedGhostBaseDirectionId}"` });
+  if (!fingerprintRequest && !ghostRequest) {
+    res.status(400).json({ error: 'Summon generation requires a Ghost fingerprint. Provide fingerprint or ghost.' });
     return;
   }
 
   let ghostContext: ResolvedGhostSteer | null = null;
   try {
     ghostContext = fingerprintRequest
-      ? await resolveCatalogGhostGenerationContext(
-          { ...fingerprintRequest, baseDirectionId: requestedGhostBaseDirectionId },
-          fingerprintCatalog,
-          ghostBaseDirection ?? null,
-        )
+      ? await resolveCatalogGhostGenerationContext(fingerprintRequest, fingerprintCatalog, null)
       : ghostRequest
-        ? await resolveGhostGenerationContext(
-            { ...ghostRequest, baseDirectionId: requestedGhostBaseDirectionId },
-            ghostRoots,
-            ghostBaseDirection ?? null,
-          )
+        ? await resolveGhostGenerationContext(ghostRequest, ghostRoots, null)
         : null;
   } catch (err) {
     res.status(400).json({
@@ -354,16 +312,6 @@ app.post('/api/generate', async (req, res) => {
     });
     return;
   }
-
-  const directionId = ghostContext
-    ? undefined
-    : ((typeof req.body?.directionId === 'string' ? req.body.directionId : undefined) ??
-      DEFAULT_DIRECTION_ID);
-  const direction = ghostContext
-    ? undefined
-    : directionId
-      ? directionsById.get(directionId)
-      : undefined;
 
   const parsedLayout = parseSummonLayout(req.body?.layout);
   if (parsedLayout.error) {
@@ -414,14 +362,12 @@ app.post('/api/generate', async (req, res) => {
     let agentPlan: AgentSurfacePlanResult | null = null;
     let generationSurfacePolicy: SurfacePolicy | null = null;
 
-    // Shape classification — picks ONE response shape so the per-direction
-    // block ships only the matching shape exemplar (atoms always ship). Falls
-    // through to null on timeout/ambiguity, in which case all shape exemplars
-    // ship (legacy behavior). Skipped when no direction is selected — there
-    // are no exemplars to filter. Also skipped when the host supplies a layout:
-    // the layout is the composition anchor, and exemplars become visual-only.
+    // Shape classification picks ONE response shape so the Ghost surface brief
+    // can name the likely composition. Ghost remains the visual authority.
+    // Skipped when the host supplies a layout because the layout is the
+    // composition anchor.
     let shape: ResponseShape | null = null;
-    if (!playgroundMode && !layout && (direction || ghostContext) && process.env.SUMMON_INFER_SHAPE !== '0') {
+    if (!playgroundMode && !layout && ghostContext && process.env.SUMMON_INFER_SHAPE !== '0') {
       writeGeneratePhase(res, seedLines, 'planning', 'Inferring response shape');
       const startedAt = performance.now();
       shape = await inferShape({
@@ -597,17 +543,7 @@ app.post('/api/generate', async (req, res) => {
       let usage: ProviderUsageSnapshot | null = null;
       const commonGenerationInput = {
         prompt,
-        direction: direction
-          ? {
-              id: direction.id,
-              tokensCss: direction.tokensCss,
-              prompt: direction.prompt,
-              exemplars: direction.exemplars,
-              opts: direction.opts,
-              shape,
-              layout,
-            }
-          : null,
+        direction: null,
         ghost: ghostContext ?? null,
         activeTokensCss: ghostContext?.tokenSource.css ?? null,
         layout,
@@ -657,7 +593,7 @@ app.post('/api/generate', async (req, res) => {
         cache_creation_input_tokens: 0,
       };
       console.log(
-        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} dir=${directionId ?? 'none'} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
+        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
           ` shape=${shape ?? 'all'}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +

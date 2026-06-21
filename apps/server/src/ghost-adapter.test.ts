@@ -173,22 +173,21 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /Preserve quiet density/);
   });
 
-  it('falls back to Summon default tokens when Ghost token CSS is missing or invalid', async () => {
+  it('requires contract-complete Ghost token CSS instead of falling back to Summon defaults', async () => {
     const root = await makeGhostFixture({ tokenCss: ':root { --color-bg: red; }' });
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+    const request = parsed.request;
 
-    const ctx = await resolveGhostContext(parsed.request, roots);
-
-    assert.equal(ctx.tokenSource.kind, 'summon-default');
-    assert.equal(ctx.tokenSource.source, '@anarchitecture/summon/tokens.css');
-    assert.match(ctx.tokenSource.css, /--color-bg:/);
-    assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('failed token contract')));
+    await assert.rejects(
+      () => resolveGhostContext(request, roots),
+      /Ghost fingerprint token CSS is required/,
+    );
   });
 
-  it('falls back to base direction tokens before Summon defaults', async () => {
+  it('ignores base direction fallback when Ghost token CSS is present', async () => {
     const baseTokens = await readDefaultTokensCss();
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
@@ -202,10 +201,9 @@ describe('Ghost adapter', () => {
     });
 
     assert.equal(ctx.baseDirectionId, 'ghost');
-    assert.equal(ctx.tokenSource.kind, 'base-direction');
-    assert.equal(ctx.tokenSource.source, 'direction:ghost/tokens.css');
+    assert.equal(ctx.tokenSource.kind, 'ghost-config');
+    assert.equal(ctx.tokenSource.source, 'tokens.css');
     assert.equal(ctx.tokenSource.css, baseTokens);
-    assert.ok(ctx.tokenSource.warnings.some((warning) => warning.includes('using the fallback Summon direction tokens')));
   });
 
   it('builds review packet metadata from relay context and accepted Arrow artifacts', async () => {
@@ -242,7 +240,7 @@ describe('Ghost adapter', () => {
     assert.equal(packet.rootId, 'checkout');
     assert.equal(packet.product, 'Test Product');
     assert.equal(packet.baseDirectionId, null);
-    assert.equal(packet.styleSource, 'summon-default');
+    assert.equal(packet.styleSource, 'ghost-config');
     assert.equal(packet.fingerprintProvenance.merge, 'child-wins-by-id');
     assert.ok(packet.taskContract.preserve.some((entry) => entry.includes('Preserve quiet density')));
     assert.ok(packet.suggestedReads.some((entry) => entry.path === 'fingerprint/prose.yml'));
@@ -252,12 +250,12 @@ describe('Ghost adapter', () => {
     );
     assert.equal(packet.artifactRuntime, 'arrow');
     assert.deepEqual(packet.artifactFiles, ['main.css', 'main.ts']);
-    assert.equal(packet.tokenSource.kind, 'summon-default');
+    assert.equal(packet.tokenSource.kind, 'ghost-config');
     assert.equal('css' in packet.tokenSource, false);
   });
 });
 
-async function makeGhostFixture(options: { tokenCss?: string; large?: boolean; memoryDir?: string } = {}): Promise<string> {
+async function makeGhostFixture(options: { tokenCss?: string | null; large?: boolean; memoryDir?: string } = {}): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-'));
   const memoryDir = options.memoryDir ?? '.ghost';
   fixtureRoots.push(root);
@@ -394,8 +392,8 @@ targets:
 libraries: []
 `,
   );
-  if (options.tokenCss !== undefined) {
-    await writeFile(join(root, 'tokens.css'), options.tokenCss);
+  if (options.tokenCss !== null) {
+    await writeFile(join(root, 'tokens.css'), options.tokenCss ?? await readDefaultTokensCss());
   }
   return root;
 }

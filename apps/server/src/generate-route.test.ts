@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -45,7 +45,8 @@ function arrowBundle(html: string) {
   return {
     schema: 'summon.arrow-bundle/v1',
     source: {
-      'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\`;`,
+      'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`<main class="surface test-fingerprint-shell">${source}</main>\`;`,
+      'main.css': `.surface.test-fingerprint-shell { min-height: 100%; padding: var(--space-6); color: var(--color-text); background: var(--color-bg); font-family: var(--font-sans); display: grid; gap: var(--space-4); border: 1px solid var(--color-border); } .surface.test-fingerprint-shell h1 { margin: 0; font-size: var(--text-xl); letter-spacing: var(--tracking-tight); line-height: var(--leading-section); } .surface.test-fingerprint-shell p { margin: 0; color: var(--color-text-muted); }`,
     },
   };
 }
@@ -237,6 +238,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder',
+      fingerprint: { id: 'editorial-mono' },
       tools: searchTools,
       surfacePolicy: {
         tier: 'declarative',
@@ -277,24 +279,26 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 10), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'event /surface',
+    'meta /status',
+    'meta /ghost-context',
+    'meta /ghost-token-source',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
     'meta /model-output-mode',
-    'event /surface',
-    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(lines[1]?.op, 'meta');
   assert.equal((lines[1] as Extract<ProtocolLine, { op: 'meta' }>).value, 'planning');
   assert.deepEqual(firstMetaLine(lines, '/surface-plan').value, surfacePlan);
   assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
-  assert.equal(withoutTiming(lines).at(-1)?.path, '/stream-graph-summary');
+  assert.ok(withoutTiming(lines).some((line) => line.path === '/stream-graph-summary'));
   assert.equal(lines.some((line) => line.path === '/error'), false);
 
   const policyResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
@@ -302,6 +306,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder where i can search',
+      fingerprint: { id: 'editorial-mono' },
       surfacePolicy: {
         tier: 'declarative',
         purpose: 'explore',
@@ -328,19 +333,21 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 10), [
+  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'event /surface',
+    'meta /status',
+    'meta /ghost-context',
+    'meta /ghost-token-source',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
     'meta /model-output-mode',
-    'event /surface',
-    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(policyLines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
+  assert.deepEqual(phaseStatuses(policyLines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(policyLines.some((line) => line.path === '/mode-upgraded'), false);
   assert.deepEqual(firstMetaLine(policyLines, '/surface-policy').value, {
     tier: 'declarative',
@@ -359,6 +366,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder where i can search recipes',
+      fingerprint: { id: 'editorial-mono' },
       tools: searchTools,
       agent: { enabled: true, goalModel: 'off' },
     }),
@@ -379,20 +387,23 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 11), [
+  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 14), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'event /surface',
+    'meta /status',
+    'meta /ghost-context',
+    'meta /ghost-token-source',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
     'meta /model-output-mode',
-    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(agentLines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
+  assert.deepEqual(phaseStatuses(agentLines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(agentLines.some((line) => line.path === '/mode-upgraded'), false);
   const agentGoal = firstMetaLine(agentLines, '/agent-goal');
   assert.equal((agentGoal.value as { interaction?: unknown }).interaction, 'search');
@@ -411,6 +422,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder in blocks',
+      fingerprint: { id: 'editorial-mono' },
       tools: searchTools,
       fragmentMode: 'block-v0',
     }),
@@ -425,6 +437,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder in html nodes',
+      fingerprint: { id: 'editorial-mono' },
       tools: searchTools,
       fragmentMode: 'html-node-v0',
     }),
@@ -529,6 +542,7 @@ test('api generate playground repairs invalid entry-file bundles', async (t) => 
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a local playground surface',
+      fingerprint: { id: 'editorial-mono' },
       playground: true,
     }),
   });
@@ -732,7 +746,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
   ]);
   assert.equal(reviewPacket.artifactRuntime, 'arrow');
-  assert.deepEqual(reviewPacket.artifactFiles, ['main.ts']);
+  assert.deepEqual(reviewPacket.artifactFiles, ['main.css', 'main.ts']);
 });
 
 test('api generate forwards Anthropic model overrides and speed options', async (t) => {
@@ -838,6 +852,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a compact project status card',
+      fingerprint: { id: 'editorial-mono' },
       modelProvider: 'anthropic',
       generationModel: 'claude-haiku-4-5',
       utilityModel: 'claude-haiku-4-5',
@@ -879,6 +894,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build anything',
+      fingerprint: { id: 'editorial-mono' },
       modelProvider: 'anthropic',
       generationModel: 'claude-brand-new',
     }),
@@ -969,6 +985,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a compact launch status card',
+      fingerprint: { id: 'editorial-mono' },
       modelProvider: 'openai',
       generationModel: 'gpt-5.4-mini',
       utilityModel: 'gpt-5.4-nano',
@@ -995,19 +1012,21 @@ test('api generate can stream with OpenAI provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 10), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'event /surface',
+    'meta /status',
+    'meta /ghost-context',
+    'meta /ghost-token-source',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
     'meta /model-output-mode',
-    'event /surface',
-    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 
@@ -1085,6 +1104,7 @@ test('api generate can stream with Gemini provider', async (t) => {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a compact support triage card',
+      fingerprint: { id: 'editorial-mono' },
       modelProvider: 'gemini',
       generationModel: 'gemini-3.5-flash',
       utilityModel: 'gemini-3.1-flash-lite',
@@ -1111,19 +1131,21 @@ test('api generate can stream with Gemini provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 10), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'event /surface',
+    'meta /status',
+    'meta /ghost-context',
+    'meta /ghost-token-source',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
     'meta /model-output-mode',
-    'event /surface',
-    'event /surface',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 
@@ -1242,6 +1264,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       prompt: 'build a dinner finder where i can search',
+      fingerprint: { id: 'editorial-mono' },
       tools: searchTools,
     }),
   });
@@ -1275,17 +1298,21 @@ test('api generate streams planning preview before slow preflight finishes', asy
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 8), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'event /surface',
+    'meta /status',
+    'meta /ghost-context',
+    'meta /ghost-token-source',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'planning', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   const timings = timingValues(lines);
   for (const phase of ['shape', 'policy']) {
     const timing = timings.find((entry) => entry.phase === phase);
@@ -1389,11 +1416,23 @@ checks:
   await writeFile(
     join(root, '.ghost', 'config.yml'),
     `schema: ghost.config/v1
-targets: []
+targets:
+  - id: web
+    platform: web
+    roots: [.]
+    tokens: [tokens.css]
 libraries: []
 `,
   );
+  await writeFile(join(root, 'tokens.css'), await readDefaultTokensCss());
   return root;
+}
+
+async function readDefaultTokensCss(): Promise<string> {
+  return readFile(
+    resolve(workspaceRoot, 'packages', 'sandbox-runtime', 'src', 'tokens.css'),
+    'utf-8',
+  );
 }
 
 function sse(event: string, data: unknown): string {

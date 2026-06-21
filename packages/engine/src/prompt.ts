@@ -134,7 +134,7 @@ Arrow entry rules:
 - Use plain semantic HTML inside Arrow templates.
 - Put visual styling in \`main.css\`; use class names, not generated inline style strings, for major layout.
 - No external URLs. No external images, no external fonts, no external stylesheets. Inline SVG is fine.
-- Use CSS custom properties for every color, space, radius, and type size. Do not hardcode hex colors, rgb(), pixel spacing, or specific font stacks.
+- Use the active Ghost fingerprint tokens and any fingerprint-provided renderable primitives as the visual source of truth. Prefer CSS custom properties for colors, spacing, radii, and type, but local CSS aliases, calc()/clamp(), responsive units, safe transitions/transforms, inline SVG, and literal values copied from fingerprint tokens or renderable examples are allowed. Do not introduce unrelated colors, fonts, shadows, gradients, radii, external assets, or decorative motifs.
 
 ## Token contract
 
@@ -186,7 +186,7 @@ Arrow bundle rules:
 - Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
 - Use plain semantic HTML inside Arrow templates.
 - Put visual styling in \`main.css\`; use class names, not generated inline style strings, for major layout.
-- Use CSS custom properties for every color, space, radius, and type size. Do not hardcode hex colors, rgb(), pixel spacing, or specific font stacks.
+- Use the active Ghost fingerprint tokens and any fingerprint-provided renderable primitives as the visual source of truth. Prefer CSS custom properties for colors, spacing, radii, and type, but local CSS aliases, calc()/clamp(), responsive units, safe transitions/transforms, inline SVG, and literal values copied from fingerprint tokens or renderable examples are allowed. Do not introduce unrelated colors, fonts, shadows, gradients, radii, external assets, or decorative motifs.
 
 Return a complete structured bundle. The run is incomplete until the bundle contains a valid Arrow entry file.`;
 

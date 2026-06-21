@@ -2,30 +2,34 @@ summary:
   product: Editorial Mono
   audience: [readers, decision-makers]
   goals: [make choices legible, keep explanation precise]
-  tone: [calm, exact, editorial]
+  tone: [calm, exact, editorial, austere]
 situations:
   - id: decision-brief
     title: Decision brief
     user_intent: Compare options or understand a recommendation.
-    product_obligation: Put the useful claim before supporting detail.
+    product_obligation: Put the useful claim before supporting detail and make the surface feel like a refined monochrome editorial spread.
     surface_type: comparison
     principles: [prose.principle:editorial-hierarchy]
     experience_contracts: [prose.experience_contract:scan-before-depth]
     patterns: [composition.pattern:comparison-spread]
     refuses:
       - Generic card grids where criteria are not aligned.
+      - Soft personal planning boards with green badges, rounded note cards, or cozy checklist styling.
 principles:
   - id: editorial-hierarchy
-    principle: Lead with a strong typographic claim, then support it with measured evidence and compact labels.
+    principle: Lead with a strong typographic claim, then support it with measured evidence, compact labels, and visible editorial rules.
     applies_to:
       paths: [.]
       surface_types: [comparison, article, review]
     guidance:
       - Use direct, concrete copy that helps the reader decide or understand without a preamble.
-      - Let type scale, alignment, and border weight create hierarchy before decoration.
+      - Let type scale, alignment, border weight, column structure, and whitespace create hierarchy before decoration.
+      - Prefer monochrome contrast, serif display type, mono metadata, square geometry, and ruled rows.
+      - Keep color nearly absent; when emphasis is needed use ink, border weight, or inverse black panels.
     counterexamples:
       - Filler headings that restate the prompt.
       - Decorative enthusiasm or vague labels.
+      - Rounded pastel cards, soft shadows, garden/lifestyle metaphors, or cozy productivity language.
     check_refs: []
 experience_contracts:
   - id: scan-before-depth
@@ -36,4 +40,5 @@ experience_contracts:
     obligations:
       - Show recommendation or primary claim early.
       - Keep criteria labels aligned and short.
+      - "Use an editorial shell: headline/deck, ruled evidence, compact metadata, and clear conclusion."
     check_refs: []
