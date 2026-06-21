@@ -146,7 +146,6 @@ test('system compiler returns deterministic prompt block order and validation co
     },
     layout,
     tools,
-    tokenOverrides: [{ token: 'color-accent', baseValue: 'blue', newValue: 'red' }],
   });
 
   assert.deepEqual(
@@ -157,7 +156,6 @@ test('system compiler returns deterministic prompt block order and validation co
       'ghost',
       'layout:two-slot',
       'tools',
-      'token-overrides',
       'output-contract',
     ],
   );

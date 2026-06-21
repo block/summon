@@ -1,0 +1,19 @@
+{
+  "schema": "summon.fingerprint-catalog/v1",
+  "bundles": [
+    {
+      "id": "editorial-mono",
+      "path": "bundles/editorial-mono",
+      "enabled": true,
+      "defaultTargetPath": ".",
+      "defaultTokenFallback": null
+    },
+    {
+      "id": "garden-notes",
+      "path": "bundles/garden-notes",
+      "enabled": true,
+      "defaultTargetPath": ".",
+      "defaultTokenFallback": null
+    }
+  ]
+}

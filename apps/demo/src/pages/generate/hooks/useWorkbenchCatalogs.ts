@@ -36,7 +36,7 @@ export function useWorkbenchCatalogs() {
         if (active) setDirections([]);
       }
       try {
-        const res = await fetch('/api/ghost-roots');
+        const res = await fetch('/api/fingerprints');
         const payload = res.ok ? await res.json() as GhostRootInfo[] : [];
         if (active) setGhostRoots(Array.isArray(payload) ? payload : []);
       } catch {

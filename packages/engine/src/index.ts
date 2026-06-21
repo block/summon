@@ -62,7 +62,6 @@ export {
   buildDirectionBlock,
   buildLayoutBlock,
   buildToolsBlock,
-  buildOverrideBlock,
   buildSurfaceContractBlock,
 } from './prompt.js';
 export type {
@@ -74,7 +73,6 @@ export type {
   DataResourceSpec,
   ToolPattern,
   ToolPack,
-  TokenOverride,
 } from './prompt.js';
 export {
   compileTokenContract,

@@ -1,0 +1,21 @@
+topology:
+  scopes:
+    - id: generated-surface
+      paths: [.]
+      surface_types: [planner, comparison]
+  surface_types: [planner, comparison]
+building_blocks:
+  tokens:
+    - --color-bg
+    - --color-surface
+    - --color-surface-muted
+    - --color-text
+    - --color-accent
+    - --space-4
+    - --space-6
+    - --radius-lg
+  components:
+    - note-panel
+    - staged-checklist
+    - gentle-badge
+  libraries: []

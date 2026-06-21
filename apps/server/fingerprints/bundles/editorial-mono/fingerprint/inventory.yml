@@ -1,0 +1,21 @@
+topology:
+  scopes:
+    - id: generated-surface
+      paths: [.]
+      surface_types: [comparison, article, review]
+  surface_types: [comparison, article, review]
+building_blocks:
+  tokens:
+    - --color-bg
+    - --color-surface
+    - --color-text
+    - --color-text-muted
+    - --color-accent
+    - --space-5
+    - --space-8
+    - --radius-lg
+  components:
+    - editorial-shell
+    - comparison-row
+    - compact-metadata
+  libraries: []

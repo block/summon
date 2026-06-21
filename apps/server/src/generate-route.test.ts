@@ -452,23 +452,104 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(ghostResponse.status, 400);
   assert.match(ghostBody, /resolved-context is no longer supported/);
   assert.equal(anthropicRequests.length, 3);
+});
 
-  const ghostOverrideResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+test('api generate playground repairs invalid entry-file bundles', async (t) => {
+  const anthropicRequests: unknown[] = [];
+  const anthropic = createServer(async (req, res) => {
+    if (req.method !== 'POST') {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    const request = JSON.parse(await readBody(req));
+    anthropicRequests.push(request);
+    if (Array.isArray(request.tools)) {
+      const input = anthropicRequests.length === 1
+        ? {
+            schema: 'summon.arrow-bundle/v1',
+            source: {
+              'main.ts': 'export {};',
+              'main.js': 'export {};',
+            },
+          }
+        : arrowBundle('<section><h1>Repaired playground bundle</h1></section>');
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({
+        id: `msg_playground_${anthropicRequests.length}`,
+        type: 'message',
+        role: 'assistant',
+        model: request.model,
+        content: [{
+          type: 'tool_use',
+          id: `msg_playground_${anthropicRequests.length}_tool`,
+          name: 'create_summon_arrow_surface',
+          input,
+        }],
+        stop_reason: 'tool_use',
+        stop_sequence: null,
+        usage: { input_tokens: 12, output_tokens: 24 },
+      }));
+      return;
+    }
+    res.writeHead(500);
+    res.end('unexpected request');
+  });
+  await listen(anthropic);
+  t.after(async () => {
+    await closeServer(anthropic);
+  });
+
+  const anthropicPort = addressPort(anthropic);
+  const appPort = await reservePort();
+  const app = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(appPort),
+      SUMMON_MODEL_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'test-key',
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${anthropicPort}`,
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_INFER_SHAPE: '0',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = captureOutput(app);
+  t.after(async () => {
+    await stopChild(app);
+  });
+  await waitForHealth(appPort, app, output);
+
+  const response = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      prompt: 'build checkout status',
-      ghost: {
-        source: 'resolved-context',
-        prompt: 'You are working inside the Checkout product experience.',
-      },
-      tokenOverrides: { 'color-accent': 'red' },
+      prompt: 'build a local playground surface',
+      playground: true,
     }),
   });
-  const ghostOverrideBody = await ghostOverrideResponse.text();
-  assert.equal(ghostOverrideResponse.status, 400);
-  assert.match(ghostOverrideBody, /resolved-context is no longer supported/);
-  assert.equal(anthropicRequests.length, 3);
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+
+  assert.equal(anthropicRequests.length, 2);
+  const repairRequest = anthropicRequests[1] as { messages?: Array<{ content?: string }> };
+  assert.match(repairRequest.messages?.[0]?.content ?? '', /invalid-arrow-bundle-entry/);
+
+  const lines = body
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  const playgroundMeta = firstMetaLine(lines, '/playground-mode').value as { repairIssueCodes?: unknown };
+  assert.ok(Array.isArray(playgroundMeta.repairIssueCodes));
+  assert.ok(playgroundMeta.repairIssueCodes.includes('invalid-arrow-bundle-entry'));
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/model-output-mode' && (line.value as { repairAttempts?: unknown }).repairAttempts === 1));
+  assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
+  assert.equal(lines.some((line) => line.op === 'meta' && line.path === '/validation-blocked'), false);
 });
 
 test('api generate emits Ghost fingerprint context for root contexts', async (t) => {
@@ -652,23 +733,6 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   ]);
   assert.equal(reviewPacket.artifactRuntime, 'arrow');
   assert.deepEqual(reviewPacket.artifactFiles, ['main.ts']);
-
-  const overrideResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      prompt: 'build checkout queue status',
-      ghost: {
-        rootId: 'checkout',
-        targetPath: '.',
-      },
-      tokenOverrides: { 'color-accent': 'red' },
-    }),
-  });
-  const overrideBody = await overrideResponse.text();
-  assert.equal(overrideResponse.status, 400);
-  assert.match(overrideBody, /tokenOverrides are not supported with Ghost fingerprints/);
-  assert.equal(anthropicRequests.length, 1);
 });
 
 test('api generate forwards Anthropic model overrides and speed options', async (t) => {

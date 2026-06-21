@@ -6,13 +6,16 @@ import {
 } from "@anarchitecture/summon-react";
 import { Button } from "../../../components/ui.js";
 import { cn } from "../../../lib/cn.js";
-import type { ChildSurfaceModel } from "../types.js";
+import type { ChildSurfaceModel, GhostRootInfo } from "../types.js";
 import { ChildSurface } from "./ChildSurface.js";
 
 export function GenerationStage({
   prompt,
   scenarioPicker,
   setPrompt,
+  selectedFingerprintId,
+  fingerprints,
+  onSelectFingerprint,
   running,
   onGenerate,
   statusText,
@@ -36,6 +39,9 @@ export function GenerationStage({
   prompt: string;
   scenarioPicker: ReactNode;
   setPrompt: (value: string) => void;
+  selectedFingerprintId: string | null;
+  fingerprints: GhostRootInfo[];
+  onSelectFingerprint: (id: string | null) => void;
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
@@ -61,8 +67,12 @@ export function GenerationStage({
   onCloseChild: (id: number) => void;
 }) {
   const showSamplePills = showWelcome && !running;
-  const showPlaygroundLoading =
-    playgroundMode && running && !showWelcome && !hasRenderedArtifact;
+  const selectedFingerprint =
+    fingerprints.find(
+      (fingerprint) => fingerprint.id === selectedFingerprintId,
+    ) ?? null;
+  const fingerprintLabel =
+    selectedFingerprint?.name ?? selectedFingerprintId ?? "Fingerprint";
   const [welcomeLeaving, setWelcomeLeaving] = useState(false);
   const [showWelcomeLayer, setShowWelcomeLayer] = useState(showWelcome);
 
@@ -83,114 +93,104 @@ export function GenerationStage({
   }, [showWelcome]);
 
   return (
-    <main>
+    <main className="absolute inset-0 min-h-0">
       <section
-        className="absolute inset-0 overflow-hidden bg-surface"
+        className="absolute inset-0 overflow-y-auto bg-surface px-4 pb-[184px] pt-[76px] max-[760px]:pb-[244px]"
         aria-label="Generated surface"
       >
-        <span id="surface-status" className="sr-only">
-          {statusText}
-        </span>
-        <SummonSurface
-          key={surfaceInstanceKey}
-          ref={surfaceRef}
-          id="sandbox"
-          className={cn(
-            "h-full min-h-0 w-full border-0 bg-surface transition-[opacity,filter,transform] duration-700 ease-out",
-            showWelcome
-              ? "pointer-events-none translate-y-4 scale-[0.96] opacity-0 blur-lg"
-              : "translate-y-0 scale-100 opacity-100 blur-0",
-            hasRenderedArtifact &&
-              "motion-safe:animate-[summon-blur-fade-up_760ms_cubic-bezier(0.16,1,0.3,1)_both]",
-          )}
-          title="Summon generate sandbox"
-          tokensSource={surfaceTokensSource}
-          toolRegistry={toolRegistry}
-          validationTools={validationTools}
-          onEvent={appendDevEvent}
-          onToolRejected={onSurfaceGoalRejected}
-          onHandlerError={onSurfaceHandlerError}
-          onRuntimeError={onSurfaceRuntimeError}
-        />
-        {showWelcomeLayer ? (
+        <div className="mx-auto w-[min(880px,calc(100%-24px))]">
           <div
+            id="sandbox-frame"
             className={cn(
-              "pointer-events-none absolute inset-0 z-[1] overflow-hidden bg-surface",
-              welcomeLeaving
-                ? "motion-safe:animate-[summon-title-fade-back_360ms_cubic-bezier(0.32,0,0.67,0)_both]"
-                : "motion-safe:animate-[summon-title-rise_680ms_cubic-bezier(0.22,1,0.36,1)_both]",
+              "relative z-0 min-h-[calc(100vh-260px)] overflow-hidden rounded-[32px] border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-700 ease-out",
+              showWelcome
+                ? "pointer-events-none translate-y-6 scale-[0.96] opacity-0 blur-lg"
+                : "translate-y-0 scale-100 opacity-100 blur-0 motion-safe:animate-[summon-sandbox-rise_960ms_cubic-bezier(0.16,1,0.3,1)_both]",
             )}
-            id="welcome"
           >
-            <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,color-mix(in_srgb,var(--color-ink)_4%,transparent)_0_1px,transparent_1px_96px)]" />
-            <div
-              className="relative z-[1] flex h-full items-center px-[clamp(24px,7vw,96px)]"
-              id="welcome-text"
-            >
-              <div className="grid w-full gap-5 justify-center">
-                <h2 className="m-0 max-w-[10ch] text-[clamp(56px,10vw,128px)] font-medium leading-[0.86] tracking-[-0.055em] text-ink mb-[100px]">
-                  just summon it.
-                </h2>
-              </div>
-            </div>
-          </div>
-        ) : null}
-        {showPlaygroundLoading ? (
-          <div
-            className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-surface/80 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
-            id="playground-loading"
-            role="status"
-          >
-            <div className="grid justify-items-center gap-2">
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
-                {statusText}
-              </div>
-              <div className="text-[18px] font-semibold leading-tight text-ink">
-                summoning...
-              </div>
-            </div>
-          </div>
-        ) : null}
-        {stageNotice ? (
-          <div
-            className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
-            id="stage-notice"
-            role={stageNotice.tone === "error" ? "alert" : "status"}
-          >
-            <div className="grid max-w-[min(520px,100%)] justify-items-center gap-3">
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
-                {statusText}
-              </div>
+            <span id="surface-status" className="sr-only">
+              {statusText}
+            </span>
+            <SummonSurface
+              key={surfaceInstanceKey}
+              ref={surfaceRef}
+              id="sandbox"
+              className="block max-h-[calc(100vh-220px)] min-h-[calc(100vh-260px)] w-full overflow-auto border-0 bg-surface"
+              title="Summon generate sandbox"
+              tokensSource={surfaceTokensSource}
+              toolRegistry={toolRegistry}
+              validationTools={validationTools}
+              onEvent={appendDevEvent}
+              onToolRejected={onSurfaceGoalRejected}
+              onHandlerError={onSurfaceHandlerError}
+              onRuntimeError={onSurfaceRuntimeError}
+            />
+            {stageNotice ? (
               <div
-                className={
-                  stageNotice.tone === "error"
-                    ? "text-[18px] font-semibold leading-tight text-danger"
-                    : "text-[18px] font-semibold leading-tight text-ink"
-                }
+                className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
+                id="stage-notice"
+                role={stageNotice.tone === "error" ? "alert" : "status"}
               >
-                {stageNotice.title}
+                <div className="grid max-w-[min(520px,100%)] justify-items-center gap-3">
+                  <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
+                    {statusText}
+                  </div>
+                  <div
+                    className={
+                      stageNotice.tone === "error"
+                        ? "text-[18px] font-semibold leading-tight text-danger"
+                        : "text-[18px] font-semibold leading-tight text-ink"
+                    }
+                  >
+                    {stageNotice.title}
+                  </div>
+                  {stageNotice.detail ? (
+                    <p className="m-0 max-w-[48ch] text-[13px] leading-normal tracking-normal text-ink-muted">
+                      {stageNotice.detail}
+                    </p>
+                  ) : null}
+                  {stageNotice.tone === "error" ? (
+                    <Button
+                      id="open-diagnostics"
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="mt-1"
+                      onClick={onOpenDiagnostics}
+                    >
+                      Diagnostics
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-              {stageNotice.detail ? (
-                <p className="m-0 max-w-[48ch] text-[13px] leading-normal tracking-normal text-ink-muted">
-                  {stageNotice.detail}
-                </p>
-              ) : null}
-              {stageNotice.tone === "error" ? (
-                <Button
-                  id="open-diagnostics"
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="mt-1"
-                  onClick={onOpenDiagnostics}
-                >
-                  Diagnostics
-                </Button>
-              ) : null}
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      {showWelcomeLayer ? (
+        <div
+          className={cn(
+            "pointer-events-none fixed inset-0 z-30 overflow-hidden bg-surface",
+            welcomeLeaving
+              ? "motion-safe:animate-[summon-title-fade-back_360ms_cubic-bezier(0.32,0,0.67,0)_both]"
+              : "motion-safe:animate-[summon-title-rise_680ms_cubic-bezier(0.22,1,0.36,1)_both]",
+          )}
+          id="welcome"
+        >
+          <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,color-mix(in_srgb,var(--color-ink)_4%,transparent)_0_1px,transparent_1px_96px)]" />
+          <div
+            className="relative z-[1] flex h-full items-center px-[clamp(24px,7vw,96px)]"
+            id="welcome-text"
+          >
+            <div className="grid w-full justify-center gap-5">
+              <h2 className="m-0 mb-[100px] max-w-[10ch] text-[clamp(56px,10vw,128px)] font-medium leading-[0.86] tracking-[-0.055em] text-ink">
+                just summon it.
+              </h2>
             </div>
           </div>
-        ) : null}
-      </section>
+        </div>
+      ) : null}
 
       <form
         id="form"
@@ -234,7 +234,35 @@ export function GenerationStage({
                   }}
                 />
               </label>
-              <div className="flex items-center gap-3 pl-1 max-[760px]:justify-between max-[760px]:px-3 max-[760px]:pb-1">
+              <div className="flex items-center gap-2 pl-1 max-[760px]:justify-between max-[760px]:px-3 max-[760px]:pb-1">
+                <label className="grid gap-1" htmlFor="fingerprint-picker">
+                  <select
+                    id="fingerprint-picker"
+                    className="h-20 max-w-[180px] rounded-[22px] bg-surface px-3 text-xs font-semibold text-ink outline-none transition-colors hover:text-ink focus:border-ink"
+                    title={
+                      selectedFingerprint?.summary ?? "Choose a fingerprint"
+                    }
+                    value={selectedFingerprintId ?? ""}
+                    disabled={running || fingerprints.length === 0}
+                    onChange={(event) =>
+                      onSelectFingerprint(event.target.value || null)
+                    }
+                  >
+                    <option value="">No fingerprint</option>
+                    {selectedFingerprintId && !selectedFingerprint ? (
+                      <option value={selectedFingerprintId}>{fingerprintLabel}</option>
+                    ) : null}
+                    {fingerprints.map((fingerprint) => (
+                      <option
+                        key={fingerprint.id}
+                        value={fingerprint.id}
+                        title={fingerprint.summary}
+                      >
+                        {fingerprint.name ?? fingerprint.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <Button
                   id="go"
                   type="submit"

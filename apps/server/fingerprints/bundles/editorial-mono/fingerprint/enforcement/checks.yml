@@ -1,0 +1,3 @@
+schema: ghost.checks/v1
+id: editorial-mono-checks
+checks: []

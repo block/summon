@@ -1,0 +1,39 @@
+summary:
+  product: Editorial Mono
+  audience: [readers, decision-makers]
+  goals: [make choices legible, keep explanation precise]
+  tone: [calm, exact, editorial]
+situations:
+  - id: decision-brief
+    title: Decision brief
+    user_intent: Compare options or understand a recommendation.
+    product_obligation: Put the useful claim before supporting detail.
+    surface_type: comparison
+    principles: [prose.principle:editorial-hierarchy]
+    experience_contracts: [prose.experience_contract:scan-before-depth]
+    patterns: [composition.pattern:comparison-spread]
+    refuses:
+      - Generic card grids where criteria are not aligned.
+principles:
+  - id: editorial-hierarchy
+    principle: Lead with a strong typographic claim, then support it with measured evidence and compact labels.
+    applies_to:
+      paths: [.]
+      surface_types: [comparison, article, review]
+    guidance:
+      - Use direct, concrete copy that helps the reader decide or understand without a preamble.
+      - Let type scale, alignment, and border weight create hierarchy before decoration.
+    counterexamples:
+      - Filler headings that restate the prompt.
+      - Decorative enthusiasm or vague labels.
+    check_refs: []
+experience_contracts:
+  - id: scan-before-depth
+    contract: A reader should understand the verdict, criteria, and next action before reading paragraph detail.
+    applies_to:
+      paths: [.]
+      surface_types: [comparison, review]
+    obligations:
+      - Show recommendation or primary claim early.
+      - Keep criteria labels aligned and short.
+    check_refs: []

@@ -16,10 +16,8 @@ import {
   agentBrokerRequestFor,
   agentGoalText,
   agentPolicyText,
-  applyTokenOverrideCss,
   ghostRootFromSelection,
   missingArtifactMessage,
-  parseAppliedTokenOverrides,
   parseSurfaceContractView,
   summarizeStreamGraphMeta,
   summarizeValidationMeta,
@@ -138,17 +136,6 @@ export function useSurfaceStream({
       const shape = typeof line.value === 'string' ? line.value : '';
       if (shape) setCurrentShape(shape);
       logLine('op-meta', `shape -> ${shape || JSON.stringify(line.value)}`);
-      return;
-    }
-    if (line.op === 'meta' && line.path === '/token-overrides') {
-      const applied = parseAppliedTokenOverrides(line.value);
-      const css = applyTokenOverrideCss(tokensFor(directionId), applied);
-      setActiveTokensSourceOverride(css);
-      setSurfaceTokensSource(css);
-      const rejected = Array.isArray((line.value as { rejected?: unknown } | undefined)?.rejected)
-        ? ((line.value as { rejected?: unknown[] }).rejected ?? []).length
-        : 0;
-      logLine('op-meta', `token overrides -> applied=${applied.length}; rejected=${rejected}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/playground-mode') {
@@ -321,8 +308,8 @@ export function useSurfaceStream({
     };
     const steeringPayload = ghostRootId
       ? {
-          ghost: {
-            rootId: ghostRootId,
+          fingerprint: {
+            id: ghostRootId,
             targetPath: opts.ghostTargetPath,
             ...(opts.ghostBaseDirectionId ? { baseDirectionId: opts.ghostBaseDirectionId } : {}),
           },
@@ -337,7 +324,6 @@ export function useSurfaceStream({
           ...modelSelectionPayload,
           ...steeringPayload,
           tools: toolPack,
-          ...(active.tokenOverrides ? { tokenOverrides: active.tokenOverrides } : {}),
         }
       : {
           prompt: opts.prompt,
@@ -347,7 +333,6 @@ export function useSurfaceStream({
           tools: toolPack,
           ...(agent ? { agent } : {}),
           ...surfaceRequest,
-          ...(active.tokenOverrides ? { tokenOverrides: active.tokenOverrides } : {}),
           ...(opts.layout ? { layout: opts.layout } : {}),
         };
 

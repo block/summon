@@ -1,0 +1,39 @@
+patterns:
+  - id: claim-first-brief
+    kind: structure
+    pattern: A compact editorial brief starts with a strong claim, then uses short evidence bands and a clear next action.
+    applies_to:
+      paths: [.]
+      surface_types: [article, review]
+    guidance:
+      - Use one centered or left-aligned shell with generous top padding.
+      - Put the main claim in large tight type.
+      - Follow with structured rows, a matrix, or a ranked list.
+    anti_patterns:
+      - Anonymous rounded cards that do not carry distinct evidence.
+    check_refs: []
+  - id: comparison-spread
+    kind: structure
+    pattern: Comparison layouts make tradeoffs visible across shared criteria.
+    applies_to:
+      paths: [.]
+      surface_types: [comparison, review]
+    guidance:
+      - Use columns or rows with aligned criteria.
+      - Mark the recommended option with border weight or accent fill, not decorative color.
+      - Keep supporting copy short enough to scan.
+    anti_patterns:
+      - Staggered card stacks that make options hard to compare.
+    check_refs: []
+  - id: host-frame-safe-area
+    kind: layout
+    pattern: Full-screen generated surfaces leave safe space for host chrome.
+    applies_to:
+      paths: [.]
+      surface_types: [comparison, article, review]
+    guidance:
+      - Leave at least 72px of top breathing room in full-screen workbench compositions.
+      - Avoid placing important headings at the extreme top-left edge.
+    anti_patterns:
+      - Page titles pinned under host navigation.
+    check_refs: []

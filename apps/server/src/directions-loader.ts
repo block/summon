@@ -31,10 +31,6 @@ export interface Direction {
   opts: DirectionOpts;
   /** Opportunistic spacing slots actually defined (e.g., `space-8`, `space-12`). */
   liveOpportunistic: string[];
-  /** Tokens a host may override at generate time (without the `--` prefix).
-   *  Empty array = no overrides allowed. The host's brand-shift API rejects
-   *  any token not on this list. Per-direction, declared in meta.json. */
-  overridable: string[];
   /** Optional provenance for expression-derived directions. Informational only. */
   sourceExpression?: DirectionSourceExpression;
 }
@@ -50,7 +46,6 @@ interface DirectionMeta {
   name?: string;
   description?: string;
   opts?: unknown;
-  overridable?: unknown;
   sourceExpression?: unknown;
 }
 
@@ -167,9 +162,6 @@ export function loadDirections(): Direction[] {
         `[directions] "${id}" warnings:\n  ${warnings.map((issue) => issue.message).join('\n  ')}`
       );
     }
-    const overridable = Array.isArray(meta.overridable)
-      ? meta.overridable.filter((x): x is string => typeof x === 'string')
-      : [];
     const sourceExpression = readSourceExpression(meta.sourceExpression);
     directions.push({
       id,
@@ -180,7 +172,6 @@ export function loadDirections(): Direction[] {
       exemplars,
       opts,
       liveOpportunistic: contract.tokenContract.liveOpportunistic,
-      overridable,
       sourceExpression,
     });
   }

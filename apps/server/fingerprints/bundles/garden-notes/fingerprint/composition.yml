@@ -1,0 +1,39 @@
+patterns:
+  - id: staged-plan
+    kind: structure
+    pattern: Planning surfaces show a staged path rather than a pile of cards.
+    applies_to:
+      paths: [.]
+      surface_types: [planner]
+    guidance:
+      - Separate now, next, and later when the task has sequence.
+      - Use checklists, prep notes, and compact detail panels.
+      - Keep the page airy but not empty; anchor content in a bounded shell.
+    anti_patterns:
+      - Dense dashboards for simple personal tasks.
+    check_refs: []
+  - id: comparison-for-life-admin
+    kind: structure
+    pattern: Personal comparisons prioritize fit, friction, and timing.
+    applies_to:
+      paths: [.]
+      surface_types: [comparison, planner]
+    guidance:
+      - Compare options by practical criteria.
+      - Highlight the easiest good-enough choice when appropriate.
+      - Use gentle badges for time, effort, and confidence.
+    anti_patterns:
+      - Overly technical scorecards for low-stakes personal choices.
+    check_refs: []
+  - id: host-frame-safe-area
+    kind: layout
+    pattern: Full-screen generated surfaces leave safe space for host chrome.
+    applies_to:
+      paths: [.]
+      surface_types: [planner, comparison]
+    guidance:
+      - Leave at least 72px of top breathing room in full-screen workbench compositions.
+      - Avoid placing important headings at the extreme top-left edge.
+    anti_patterns:
+      - Page titles pinned under host navigation.
+    check_refs: []

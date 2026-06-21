@@ -5,12 +5,10 @@ import {
   buildToolsBlock,
   buildDirectionBlock,
   buildLayoutBlock,
-  buildOverrideBlock,
   buildSurfaceContractBlock,
   type ToolPack,
   type DirectionInput,
   type SummonLayout,
-  type TokenOverride,
 } from './prompt.js';
 import {
   parseDefinedTokens,
@@ -58,10 +56,11 @@ export interface ContractPromptBlock {
   cache: 'ephemeral' | 'none';
 }
 
-export type GhostGenerationSource = 'root';
+export type GhostGenerationSource = 'root' | 'catalog';
 
 export type GhostTokenSourceKind =
   | 'ghost-config'
+  | 'fingerprint-catalog'
   | 'base-direction'
   | 'summon-default';
 
@@ -119,7 +118,6 @@ export interface SystemContractInput {
   editBlock?: string | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
   tools?: ToolPack | null;
-  tokenOverrides?: TokenOverride[];
   surfacePlan?: SurfacePlan | null;
   surfaceContract?: SurfaceContractView | null;
   activeTokensCss?: string | null;
@@ -378,13 +376,6 @@ export function compileSystemContracts(
   if (tool.promptBlock) promptBlocks.push(tool.promptBlock);
   issues.push(...tool.issues);
 
-  if (input.tokenOverrides?.length) {
-    promptBlocks.push({
-      id: 'token-overrides',
-      text: buildOverrideBlock(input.tokenOverrides),
-      cache: 'ephemeral',
-    });
-  }
 
   promptBlocks.push({
     id: 'output-contract',

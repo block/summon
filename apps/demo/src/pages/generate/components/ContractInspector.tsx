@@ -62,8 +62,6 @@ export function ContractInspector({
   setShowWelcome,
   layoutId,
   setLayoutId,
-  tokenPreset,
-  setTokenPreset,
   mode,
   setMode,
   agentBrokerEnabled,
@@ -113,8 +111,6 @@ export function ContractInspector({
   setShowWelcome: (value: boolean) => void;
   layoutId: string;
   setLayoutId: (value: string) => void;
-  tokenPreset: string;
-  setTokenPreset: (value: string) => void;
   mode: Mode;
   setMode: (value: Mode) => void;
   agentBrokerEnabled: boolean;
@@ -253,11 +249,31 @@ export function ContractInspector({
               const next = event.target.value || null;
               setDirectionId(next);
               setActiveTokensSourceOverride(null);
+              const selectedFingerprintId = ghostRootFromSelection(next);
+              const selectedFingerprint = selectedFingerprintId
+                ? ghostRoots.find((fingerprint) => fingerprint.id === selectedFingerprintId)
+                : null;
+              if (selectedFingerprint) {
+                setGhostTarget(selectedFingerprint.defaultTargetPath || '.');
+                setGhostBaseDirectionId(selectedFingerprint.defaultBaseDirectionId ?? selectedFingerprint.defaultTokenFallback ?? null);
+              }
               setShowWelcome(true);
             }}>
               {directions.length === 0 && ghostRoots.length === 0 ? <option value="">Default (no direction)</option> : null}
-              {directions.map((direction) => <option key={direction.id} value={direction.id} title={direction.description}>{direction.name}</option>)}
-              {ghostRoots.map((root) => <option key={root.id} value={ghostSelectionValue(root.id)}>Fingerprint · {root.id}</option>)}
+              {ghostRoots.length > 0 ? (
+                <optgroup label="Fingerprints">
+                  {ghostRoots.map((fingerprint) => (
+                    <option key={fingerprint.id} value={ghostSelectionValue(fingerprint.id)} title={fingerprint.summary}>
+                      {fingerprint.name ?? fingerprint.id}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null}
+              {directions.length > 0 ? (
+                <optgroup label="Directions">
+                  {directions.map((direction) => <option key={direction.id} value={direction.id} title={direction.description}>{direction.name}</option>)}
+                </optgroup>
+              ) : null}
             </select>
           </label>
           <label className="min-w-0" hidden={playgroundMode}>
@@ -277,13 +293,6 @@ export function ContractInspector({
             <span className={fieldLabelClass}>Network</span>
             <select id="network-policy" className={selectClassName} title="Host-owned network policy" value={surfacePlan.network ?? 'none'} disabled>
               <option value="none">No network</option>
-            </select>
-          </label>
-          <label className="min-w-0" hidden={playgroundMode}>
-            <span className={fieldLabelClass}>Tokens</span>
-            <select id="token-preset" className={selectClassName} title="Token override preset" value={tokenPreset} disabled={Boolean(ghostRootFromSelection(directionId))} onChange={(event) => setTokenPreset(event.target.value)}>
-              <option value="">Base tokens</option>
-              <option value="accent-blue">Accent override</option>
             </select>
           </label>
         </div>

@@ -12,8 +12,15 @@ export interface DirectionInfo {
 
 export interface GhostRootInfo {
   id: string;
+  name?: string;
+  summary?: string;
+  status?: string;
+  version?: string;
+  tags?: string[];
   defaultTargetPath?: string;
   defaultBaseDirectionId?: string | null;
+  defaultTokenFallback?: string | null;
+  source?: string;
 }
 
 export interface ModelProviderInfo {

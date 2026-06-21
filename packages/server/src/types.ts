@@ -8,7 +8,6 @@ import type {
   StreamGraphSnapshot,
   SummonLayout,
   SurfacePolicy,
-  TokenOverride,
   ProtocolValidationMode,
 } from '@summon-internal/engine';
 
@@ -45,7 +44,6 @@ export interface SurfaceGenerationInput {
   experimentalPromptBlock?: ContractPromptBlock | null;
   tools?: ToolPack | null;
   surfacePolicy?: SurfacePolicy | null;
-  tokenOverrides?: TokenOverride[];
   activeTokensCss?: string | null;
   preludeLines?: ProtocolLine[];
   seedLines?: ProtocolLine[];

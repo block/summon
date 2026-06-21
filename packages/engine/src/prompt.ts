@@ -282,48 +282,6 @@ function pickShapeExemplars(shapes: Exemplar[], shape: string | null): Exemplar[
   return shapes;
 }
 
-/**
- * Token overrides — when a host (embedder) brand-shifts a direction at spawn
- * time, this block tells the model what changed so the prose it writes
- * matches what's actually rendering. Without it, the direction's prompt may
- * still assert "accent is achromatic" while the runtime paints saturated
- * indigo, and the copy drifts from the visual.
- *
- * Pass as an additional cacheable system block when overrides are present.
- * Cache key naturally splits per unique override set — that's the cost of
- * doing per-tenant brand overrides; the first three blocks still cache.
- */
-export interface TokenOverride {
-  /** Token name without the leading `--`. */
-  token: string;
-  /** Value from the direction's own tokens.css before override. */
-  baseValue: string;
-  /** Host-supplied replacement value. */
-  newValue: string;
-}
-
-export function buildOverrideBlock(overrides: TokenOverride[]): string {
-  if (overrides.length === 0) return '';
-  const lines: string[] = [];
-  lines.push('## Token overrides — this generation');
-  lines.push('');
-  lines.push(
-    'For THIS specific generation, the host has overridden these tokens from the direction defaults. The direction prose above describes the *baseline* design language — these overrides are deliberate brand-shifts on top of it. Honor them when emitting copy and visual emphasis:',
-  );
-  lines.push('');
-  for (const o of overrides) {
-    if (o.baseValue === o.newValue) continue;
-    lines.push(
-      `- \`--${o.token}\`: was \`${o.baseValue}\`, now \`${o.newValue}\`. Treat surfaces using this token as deliberate brand moments. If the direction prose says "use this token sparingly", apply that rule to *frequency* (one accent surface per composition), not to the new value's visual weight.`,
-    );
-  }
-  lines.push('');
-  lines.push(
-    'All other rules from the direction (radii, type, shadows, spacing, voice) still apply unchanged.',
-  );
-  return lines.join('\n');
-}
-
 export function buildSurfaceContractBlock(contract: SurfaceContractView): string {
   const { surface } = contract;
   const toolLines = contract.tools.length

@@ -17,6 +17,12 @@ import {
   relative,
   resolve,
 } from 'node:path';
+import {
+  resolveCatalogTokenSource,
+  type FingerprintCatalog,
+  type FingerprintCatalogEntry,
+  type FingerprintRequest,
+} from './fingerprint-catalog.js';
 import { fileURLToPath } from 'node:url';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
@@ -46,7 +52,14 @@ export interface GhostRootRequest {
   baseDirectionId: string | null;
 }
 
-export type GhostRequest = GhostRootRequest;
+export interface GhostCatalogRequest {
+  source: 'catalog';
+  fingerprintId: string;
+  targetPath: string;
+  baseDirectionId: string | null;
+}
+
+export type GhostRequest = GhostRootRequest | GhostCatalogRequest;
 
 export interface GhostRoot {
   id: string;
@@ -56,7 +69,7 @@ export interface GhostRoot {
 export type GhostRoots = Map<string, string>;
 
 export interface GhostTokenSource {
-  kind: 'ghost-config' | 'base-direction' | 'summon-default';
+  kind: 'ghost-config' | 'fingerprint-catalog' | 'base-direction' | 'summon-default';
   source: string;
   css: string;
   warnings: string[];
@@ -79,7 +92,19 @@ export interface ResolvedRootGhostSteer extends GhostGenerationContext {
   product: string;
 }
 
-export type ResolvedGhostSteer = ResolvedRootGhostSteer;
+export interface ResolvedCatalogGhostSteer extends GhostGenerationContext {
+  source: 'catalog';
+  request: GhostCatalogRequest;
+  catalogEntry: FingerprintCatalogEntry;
+  root: string;
+  relay: RelayGatherResult;
+  prompt: string;
+  tokenSource: GhostTokenSource;
+  baseDirectionId: string | null;
+  product: string;
+}
+
+export type ResolvedGhostSteer = ResolvedRootGhostSteer | ResolvedCatalogGhostSteer;
 
 export type ResolvedGhostContext = ResolvedGhostSteer;
 
@@ -93,10 +118,12 @@ export interface GhostSurfacePromptOptions {
 
 export interface GhostReviewPacket {
   schema: 'summon.ghost-fingerprint-generation/v1';
-  source: 'root';
+  source: 'root' | 'catalog';
   prompt: string;
   rootId: string;
-  targetPath: string;
+  catalogId?: string;
+  catalogName?: string;
+  targetPath: string | null;
   memoryDir: string;
   product: string;
   layers: string[];
@@ -128,7 +155,7 @@ export interface GhostReviewPacket {
 }
 
 export type ParseGhostRequestResult =
-  | { ok: true; request: GhostRequest | null }
+  | { ok: true; request: GhostRootRequest | null }
   | { ok: false; error: string };
 
 export function parseGhostRoots(raw: string | undefined): GhostRoots {
@@ -222,25 +249,25 @@ export function parseGhostRequest(
 }
 
 export async function resolveGhostContext(
-  request: GhostRequest,
+  request: GhostRootRequest,
   roots: GhostRoots,
-): Promise<ResolvedGhostContext> {
+): Promise<ResolvedRootGhostSteer> {
   return resolveGhostGenerationContext(request, roots);
 }
 
 export async function resolveGhostSteer(
-  request: GhostRequest,
+  request: GhostRootRequest,
   roots: GhostRoots,
   baseDirection: GhostBaseDirection | null = null,
-): Promise<ResolvedGhostSteer> {
+): Promise<ResolvedRootGhostSteer> {
   return resolveGhostGenerationContext(request, roots, baseDirection);
 }
 
 export async function resolveGhostGenerationContext(
-  request: GhostRequest,
+  request: GhostRootRequest,
   roots: GhostRoots,
   baseDirection: GhostBaseDirection | null = null,
-): Promise<ResolvedGhostSteer> {
+): Promise<ResolvedRootGhostSteer> {
   const root = roots.get(request.rootId);
   if (!root) throw new Error(`unknown Ghost root "${request.rootId}"`);
   const targetAbs = resolve(root, request.targetPath);
@@ -274,6 +301,38 @@ export async function resolveGhostGenerationContext(
   };
 }
 
+export async function resolveCatalogGhostGenerationContext(
+  request: FingerprintRequest,
+  catalog: FingerprintCatalog,
+  baseDirection: GhostBaseDirection | null = null,
+): Promise<ResolvedCatalogGhostSteer> {
+  const entry = catalog.byId.get(request.id);
+  if (!entry) throw new Error(`unknown fingerprint "${request.id}"`);
+  const relay = await gatherRelayContext({
+    packageDir: entry.root,
+    target: request.targetPath,
+    name: entry.name,
+  });
+  const product = relay.entrypoint.identity.product || entry.name || request.id;
+  const tokenSource = resolveCatalogTokenSource(entry, baseDirection);
+  return {
+    source: 'catalog',
+    request: {
+      source: 'catalog',
+      fingerprintId: request.id,
+      targetPath: request.targetPath,
+      baseDirectionId: request.baseDirectionId,
+    },
+    catalogEntry: entry,
+    root: entry.root,
+    relay,
+    prompt: relay.brief,
+    product,
+    tokenSource,
+    baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
+  };
+}
+
 export function prepareGhostSurfacePrompt(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
@@ -290,16 +349,23 @@ export function prepareGhostSurfacePrompt(
 export function ghostContextMeta(ctx: ResolvedGhostContext) {
   return {
     source: ctx.source,
-    rootId: ctx.request.rootId,
-    targetPath: ctx.relay.source.targetPath,
-    memoryDir: ctx.relay.source.fingerprintDir,
-    layers: ctx.relay.source.provenance.layers.map((layer: RelayStackLayer) => layer.relative_root),
+    rootId: ctx.source === 'root' ? ctx.request.rootId : ctx.request.fingerprintId,
+    ...(ctx.source === 'catalog' ? {
+      catalogId: ctx.request.fingerprintId,
+      catalogName: ctx.catalogEntry.name,
+      catalogSummary: ctx.catalogEntry.summary,
+      catalogStatus: ctx.catalogEntry.status,
+      catalogTags: ctx.catalogEntry.tags,
+    } : {}),
+    targetPath: relayTargetPath(ctx),
+    memoryDir: relayFingerprintDir(ctx),
+    layers: relayLayerNames(ctx),
     product: ctx.product,
     baseDirectionId: ctx.baseDirectionId,
     styleSource: ctx.tokenSource.kind,
     taskContract: ctx.relay.entrypoint.actionContract,
     suggestedReads: ctx.relay.entrypoint.suggestedReads,
-    provenance: fingerprintProvenance(ctx.relay),
+    provenance: fingerprintProvenance(ctx),
   };
 }
 
@@ -326,12 +392,16 @@ export function buildGhostReviewPacket(input: {
     schema: 'summon.ghost-fingerprint-generation/v1',
     source: input.context.source,
     prompt: input.prompt,
-    rootId: input.context.request.rootId,
-    targetPath: input.context.relay.source.targetPath,
-    memoryDir: input.context.relay.source.fingerprintDir,
+    rootId: input.context.source === 'root' ? input.context.request.rootId : input.context.request.fingerprintId,
+    ...(input.context.source === 'catalog' ? {
+      catalogId: input.context.request.fingerprintId,
+      catalogName: input.context.catalogEntry.name,
+    } : {}),
+    targetPath: relayTargetPath(input.context),
+    memoryDir: relayFingerprintDir(input.context),
     product: input.context.product,
-    layers: input.context.relay.source.provenance.layers.map((layer: RelayStackLayer) => layer.relative_root),
-    fingerprintProvenance: fingerprintProvenance(input.context.relay),
+    layers: relayLayerNames(input.context),
+    fingerprintProvenance: fingerprintProvenance(input.context),
     taskContract: input.context.relay.entrypoint.actionContract,
     suggestedReads: input.context.relay.entrypoint.suggestedReads,
     tokenSource: {
@@ -357,7 +427,7 @@ function buildSummonFingerprintSurfaceBrief(
   const toolNames = options.tools?.tools.map((tool) => tool.name) ?? [];
   const details = [
     `Product: ${context.product}`,
-    `Target path: ${context.relay.source.targetPath}`,
+    `Target path: ${relayTargetPath(context)}`,
     `User request: ${oneLine(options.userPrompt, 600)}`,
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
     `Mode: ${options.mode}`,
@@ -368,7 +438,7 @@ function buildSummonFingerprintSurfaceBrief(
   return [
     '## Summon Surface Brief',
     '',
-    'Treat the Ghost fingerprint above as a product design direction package for this Summon surface.',
+    'Treat the fingerprint above as a product design direction package for this Summon surface.',
     '',
     ...details.map((line) => `- ${line}`),
     '',
@@ -508,15 +578,49 @@ function resolveTokenPath(
   return isWithinOrEqual(layer.root, resolved) ? resolved : null;
 }
 
-function fingerprintProvenance(relay: RelayGatherResult & { source: RelayStackSource }): GhostReviewPacket['fingerprintProvenance'] {
+function relayTargetPath(context: ResolvedGhostContext): string | null {
+  if (context.source === 'root') return context.relay.source.targetPath;
+  return context.relay.source.kind === 'package'
+    ? context.relay.source.targetPath ?? context.request.targetPath
+    : context.request.targetPath;
+}
+
+function relayFingerprintDir(context: ResolvedGhostContext): string {
+  if (context.source === 'root') return context.relay.source.fingerprintDir;
+  return 'fingerprint';
+}
+
+function relayLayerNames(context: ResolvedGhostContext): string[] {
+  if (context.source === 'root') {
+    return context.relay.source.provenance.layers.map((layer: RelayStackLayer) => layer.relative_root);
+  }
+  return ['.'];
+}
+
+function fingerprintProvenance(context: ResolvedGhostContext): GhostReviewPacket['fingerprintProvenance'] {
+  if (context.source === 'root') {
+    const relay = context.relay;
+    return {
+      merge: relay.source.provenance.merge,
+      layers: relay.source.provenance.layers.map((layer: RelayStackLayer) => ({
+        relativeRoot: layer.relative_root,
+        memoryDir: layer.fingerprint_dir,
+        dir: displayPath(relay.source, layer.dir),
+      })),
+      layerDirs: relay.layerDirs.map((dir: string) => displayPath(relay.source, dir)),
+      targetPaths: relay.targetPaths,
+      match: relay.entrypoint.match,
+    };
+  }
+  const relay = context.relay;
   return {
-    merge: relay.source.provenance.merge,
-    layers: relay.source.provenance.layers.map((layer: RelayStackLayer) => ({
-      relativeRoot: layer.relative_root,
-      memoryDir: layer.fingerprint_dir,
-      dir: displayPath(relay.source, layer.dir),
-    })),
-    layerDirs: relay.layerDirs.map((dir: string) => displayPath(relay.source, dir)),
+    merge: 'child-wins-by-id',
+    layers: [{
+      relativeRoot: '.',
+      memoryDir: 'fingerprint',
+      dir: displayPath(context.catalogEntry.root, context.catalogEntry.fingerprintDir),
+    }],
+    layerDirs: [displayPath(context.catalogEntry.root, context.catalogEntry.fingerprintDir)],
     targetPaths: relay.targetPaths,
     match: relay.entrypoint.match,
   };
@@ -598,7 +702,8 @@ function isWithinOrEqual(root: string, child: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-function displayPath(source: RelayStackSource, absPath: string): string {
-  const rel = relative(source.repoRoot, absPath);
+function displayPath(rootOrSource: RelayStackSource | string, absPath: string): string {
+  const root = typeof rootOrSource === 'string' ? rootOrSource : rootOrSource.repoRoot;
+  const rel = relative(root, absPath);
   return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : absPath;
 }

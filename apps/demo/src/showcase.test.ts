@@ -143,7 +143,6 @@ test('showcase menu groups use current Arrow-first labels', () => {
     'Worker',
     'Approval',
     'Arrow behavior',
-    'Design tokens',
     'Layout',
     'Composition',
   ]);
@@ -187,12 +186,6 @@ test('showcase scenarios reference bundled public directions', () => {
       `${scenario.id} references unknown public direction "${scenario.directionId}"`,
     );
   }
-});
-
-test('token override scenario uses the Pulse direction', () => {
-  const scenario = SHOWCASE_SCENARIOS.find((item) => item.id === 'token-override');
-
-  assert.equal(scenario?.directionId, 'pulse');
 });
 
 test('generate run profile fast picks fast catalog models and low-cost Anthropic options', () => {

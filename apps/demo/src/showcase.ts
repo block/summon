@@ -17,7 +17,6 @@ export interface ShowcaseScenario {
   surfacePolicy: SurfacePolicy;
   surfacePlan: SurfacePlan;
   layoutId?: string;
-  tokenOverrides?: Record<string, string>;
   directionId?: string | null;
 }
 
@@ -30,7 +29,6 @@ export interface ActiveContract {
   surfacePolicy?: SurfacePolicy;
   surfacePlan: SurfacePlan;
   layoutId?: string;
-  tokenOverrides?: Record<string, string>;
   directionId?: string | null;
   modelProvider?: string | null;
   generationModel?: string;
@@ -218,17 +216,13 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       },
     },
   {
-    id: 'token-override',
+    id: 'offer-picker',
     label: 'Offer picker',
     prompt:
       'compare three customer retention offers, make the preferred one easy to choose, and show the saved selection clearly',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose'] },
-    tokenOverrides: {
-      'color-accent': '#0f8cff',
-      'color-accent-fg': '#ffffff',
-    },
       surfacePlan: {
         purpose: 'explore',
         runtime: 'arrow',
@@ -237,7 +231,6 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
         persistence: 'replayable',
         network: 'none',
       },
-      directionId: 'pulse',
   },
   {
     id: 'layout-card',
@@ -281,7 +274,7 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
     id: `ghost-${rootId}`,
     label: `Fingerprint: ${rootId}`,
     prompt:
-      'generate a review surface that follows this Ghost fingerprint package and lets me choose an approved direction with host-allowed controls',
+      'compare three possible directions for a small project update, explain the tradeoffs, and let me save the best fit',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'review', grants: ['choose'] },
@@ -293,7 +286,7 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
         persistence: 'replayable',
         network: 'none',
       },
-    directionId: `ghost:${rootId}`,
+    directionId: `fingerprint:${rootId}`,
   };
 }
 

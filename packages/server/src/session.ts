@@ -58,7 +58,6 @@ export class SurfaceGenerationSession {
       tools: this.surfacePolicy?.tools ?? input.tools ?? null,
       surfacePlan: this.surfacePolicy?.surfacePlan ?? null,
       surfaceContract: this.surfaceContract,
-      tokenOverrides: input.tokenOverrides,
       activeTokensCss: input.activeTokensCss ?? null,
     });
 

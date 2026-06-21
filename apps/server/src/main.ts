@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import {
   compileSurfacePolicy,
-  parseTokenValues,
   type ToolPack,
   type ProtocolLine,
   type SurfaceStatus,
@@ -10,7 +9,6 @@ import {
   type SurfacePlan,
   type SurfacePolicy,
   type ContractPromptBlock,
-  type TokenOverride,
 } from '@anarchitecture/summon/engine';
 import {
   planAgentSurface,
@@ -36,9 +34,15 @@ import {
   parseGhostRoots,
   prepareGhostSurfacePrompt,
   publicGhostRoots,
+  resolveCatalogGhostGenerationContext,
   resolveGhostGenerationContext,
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
+import {
+  loadFingerprintCatalog,
+  parseFingerprintRequest,
+  publicFingerprints,
+} from './fingerprint-catalog.js';
 import { inferShape, type ResponseShape } from './infer-shape.js';
 import { parseToolPack } from './tool-pack.js';
 import {
@@ -85,9 +89,13 @@ const directions = loadDirections();
 const directionsById = new Map<string, Direction>(directions.map((d) => [d.id, d]));
 const DEFAULT_DIRECTION_ID = defaultDirectionId(directions);
 const ghostRoots = parseGhostRoots(process.env.SUMMON_GHOST_ROOTS);
+const fingerprintCatalog = loadFingerprintCatalog();
 
 console.log(
   `[summon-server] loaded ${directions.length} direction(s): ${directions.map((d) => d.id).join(', ') || '(none)'}`
+);
+console.log(
+  `[summon-server] loaded ${fingerprintCatalog.entries.length} fingerprint(s): ${fingerprintCatalog.entries.map((entry) => entry.id).join(', ') || '(none)'}`
 );
 console.log(
   `[summon-server] loaded ${ghostRoots.size} Ghost root(s): ${[...ghostRoots.keys()].join(', ') || '(none)'}`
@@ -99,63 +107,6 @@ console.log(
 const app = express();
 app.use(express.json({ limit: '512kb' }));
 app.use(cors({ origin: ALLOWED_ORIGIN }));
-
-/**
- * Validates a host's token-override payload against the direction's
- * `overridable` allow-list. Rejected entries are surfaced to the client so
- * an embedder can see when its override wasn't honored.
- *
- * Rules:
- *   - Token name (with or without `--` prefix; we strip if present).
- *   - Must appear in `direction.overridable` — no allow-list entry, no override.
- *   - Value is treated as a CSS string and capped at 200 chars to keep payloads
- *     bounded and to keep the prompt block from ballooning.
- *   - Empty string and non-strings are rejected.
- */
-interface ResolvedOverrides {
-  applied: TokenOverride[];
-  rejected: { token: string; reason: string }[];
-}
-
-function resolveTokenOverrides(
-  direction: Direction,
-  raw: unknown,
-): ResolvedOverrides {
-  const applied: TokenOverride[] = [];
-  const rejected: { token: string; reason: string }[] = [];
-  if (!raw || typeof raw !== 'object') return { applied, rejected };
-
-  const allow = new Set(direction.overridable);
-  if (allow.size === 0) {
-    // Direction does not opt into overrides at all — reject everything but
-    // still tell the host *why*, so they don't silently keep sending.
-    for (const k of Object.keys(raw as object)) {
-      rejected.push({ token: k, reason: 'direction declares no overridable tokens' });
-    }
-    return { applied, rejected };
-  }
-
-  const baseValues = parseTokenValues(direction.tokensCss);
-  const seen = new Set<string>();
-  for (const [rawKey, rawValue] of Object.entries(raw as Record<string, unknown>)) {
-    const token = rawKey.startsWith('--') ? rawKey.slice(2) : rawKey;
-    if (seen.has(token)) continue;
-    seen.add(token);
-    if (!allow.has(token)) {
-      rejected.push({ token, reason: 'not in direction.overridable' });
-      continue;
-    }
-    if (typeof rawValue !== 'string' || rawValue.trim().length === 0) {
-      rejected.push({ token, reason: 'value must be a non-empty string' });
-      continue;
-    }
-    const newValue = rawValue.slice(0, 200);
-    const baseValue = baseValues.get(token) ?? '(undefined)';
-    applied.push({ token, baseValue, newValue });
-    if (applied.length >= 16) break;
-  }
-  return { applied, rejected };
-}
 
 const LAYOUT_ID_RE = /^[a-z][a-z0-9-]{0,79}$/;
 const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
@@ -309,18 +260,27 @@ app.get('/api/directions', (_req, res) => {
       name: d.name,
       description: d.description,
       tokensCss: d.tokensCss,
-      overridable: d.overridable,
       sourceExpression: d.sourceExpression,
     }))
   );
+});
+
+app.get('/api/fingerprints', (_req, res) => {
+  res.json(publicFingerprints(fingerprintCatalog));
 });
 
 app.get('/api/ghost-roots', (_req, res) => {
   res.json(
     publicGhostRoots(ghostRoots).map(({ id }) => ({
       id,
+      name: id,
+      summary: 'External Ghost root',
+      status: 'external',
+      version: '',
+      tags: [],
       defaultTargetPath: '.',
       defaultBaseDirectionId: null,
+      source: 'external',
     })),
   );
 });
@@ -343,42 +303,51 @@ app.post('/api/generate', async (req, res) => {
   const modelProvider = resolvedProvider.provider;
   const modelSelection = resolvedProvider.selection;
 
+  if (req.body?.ghost !== undefined && req.body?.fingerprint !== undefined) {
+    res.status(400).json({ error: 'Use either fingerprint or ghost, not both' });
+    return;
+  }
+  const parsedFingerprint = parseFingerprintRequest(req.body?.fingerprint, fingerprintCatalog);
+  if (!parsedFingerprint.ok) {
+    res.status(400).json({ error: parsedFingerprint.error });
+    return;
+  }
   const parsedGhost = parseGhostRequest(req.body?.ghost, ghostRoots);
   if (!parsedGhost.ok) {
     res.status(400).json({ error: parsedGhost.error });
     return;
   }
+  const fingerprintRequest = parsedFingerprint.request;
   const ghostRequest = parsedGhost.request;
-  if (
-    ghostRequest &&
-    req.body?.tokenOverrides !== undefined &&
-    req.body.tokenOverrides !== null
-  ) {
-    res.status(400).json({ error: 'tokenOverrides are not supported with Ghost fingerprints' });
-    return;
-  }
 
-  const requestedGhostBaseDirectionId =
-    ghostRequest
+  const requestedGhostBaseDirectionId = fingerprintRequest
+    ? fingerprintRequest.baseDirectionId
+    : ghostRequest
       ? ghostRequest.baseDirectionId
       : null;
   const ghostBaseDirection = requestedGhostBaseDirectionId
     ? directionsById.get(requestedGhostBaseDirectionId)
     : undefined;
-  if (ghostRequest && requestedGhostBaseDirectionId && !ghostBaseDirection) {
+  if ((fingerprintRequest || ghostRequest) && requestedGhostBaseDirectionId && !ghostBaseDirection) {
     res.status(400).json({ error: `unknown fingerprint token fallback direction "${requestedGhostBaseDirectionId}"` });
     return;
   }
 
   let ghostContext: ResolvedGhostSteer | null = null;
   try {
-    ghostContext = ghostRequest
-      ? await resolveGhostGenerationContext(
-          { ...ghostRequest, baseDirectionId: requestedGhostBaseDirectionId },
-          ghostRoots,
+    ghostContext = fingerprintRequest
+      ? await resolveCatalogGhostGenerationContext(
+          { ...fingerprintRequest, baseDirectionId: requestedGhostBaseDirectionId },
+          fingerprintCatalog,
           ghostBaseDirection ?? null,
         )
-      : null;
+      : ghostRequest
+        ? await resolveGhostGenerationContext(
+            { ...ghostRequest, baseDirectionId: requestedGhostBaseDirectionId },
+            ghostRoots,
+            ghostBaseDirection ?? null,
+          )
+        : null;
   } catch (err) {
     res.status(400).json({
       error: err instanceof Error ? err.message : String(err),
@@ -396,9 +365,6 @@ app.post('/api/generate', async (req, res) => {
       ? directionsById.get(directionId)
       : undefined;
 
-  const overrides = !ghostContext && direction
-    ? resolveTokenOverrides(direction, req.body?.tokenOverrides)
-    : { applied: [], rejected: [] };
   const parsedLayout = parseSummonLayout(req.body?.layout);
   if (parsedLayout.error) {
     res.status(400).json({ error: parsedLayout.error });
@@ -564,7 +530,15 @@ app.post('/api/generate', async (req, res) => {
 
     const preludeLines: ProtocolLine[] = [];
 
-    const playgroundRepairIssueCodes = ['invalid-arrow-source-syntax'];
+    const playgroundRepairIssueCodes = [
+      'invalid-arrow-source-syntax',
+      'invalid-arrow-bundle',
+      'invalid-arrow-bundle-schema',
+      'missing-arrow-bundle-source',
+      'invalid-arrow-bundle-entry',
+      'arrow-bundle-extra-file',
+      'invalid-arrow-bundle-source-file',
+    ];
 
     if (playgroundMode) {
       preludeLines.push({
@@ -618,19 +592,6 @@ app.post('/api/generate', async (req, res) => {
     if (layout) {
       preludeLines.push({ op: 'meta', path: '/layout', value: layout.id });
     }
-    if (overrides.applied.length > 0) {
-      // Surface the resolved overrides so the client can paint them into the
-      // inline surface stylesheet. Rejected entries are surfaced too — a host that
-      // tried to override a non-allowlisted token gets a visible signal.
-      preludeLines.push({
-        op: 'meta',
-        path: '/token-overrides',
-        value: {
-          applied: overrides.applied.map((o) => ({ token: o.token, value: o.newValue })),
-          rejected: overrides.rejected,
-        },
-      });
-    }
 
     await withConcurrencyCap(async () => {
       let usage: ProviderUsageSnapshot | null = null;
@@ -656,7 +617,6 @@ app.post('/api/generate', async (req, res) => {
             ? toolCeiling
             : pack,
         surfacePolicy: generationSurfacePolicy,
-        tokenOverrides: overrides.applied,
         preludeLines,
         seedLines,
         validationMode,
@@ -702,14 +662,12 @@ app.post('/api/generate', async (req, res) => {
           ` layout=${layout?.id ?? 'none'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +
           ` tools=${pack?.tools.length ?? 0}/${toolCeiling?.tools.length ?? 0}` +
-          ` overrides=${overrides.applied.length}` +
           ` options=max:${modelSelection.options.maxOutputTokens}` +
           (modelSelection.options.anthropicThinking ? ` thinking=${modelSelection.options.anthropicThinking}` : '') +
           (modelSelection.options.effort ? ` effort=${modelSelection.options.effort}` : '') +
           (modelSelection.customModel ? ' customModel=yes' : '') +
           ` playground=${playgroundMode ? 'yes' : 'no'}` +
           ` validation=${summary.validationIssues.length}${summary.blocked ? '(blocked)' : ''}` +
-          (overrides.rejected.length > 0 ? `(rejected ${overrides.rejected.length})` : '') +
           ` usage in=${finalUsage.input_tokens} out=${finalUsage.output_tokens}` +
           ` cache_read=${finalUsage.cache_read_input_tokens ?? 0}` +
           ` cache_write=${finalUsage.cache_creation_input_tokens ?? 0}`
@@ -725,7 +683,7 @@ app.post('/api/generate', async (req, res) => {
 });
 
 function ghostLogId(context: ResolvedGhostSteer): string {
-  return context.request.rootId;
+  return context.source === 'root' ? context.request.rootId : context.request.fingerprintId;
 }
 
 const playgroundPromptBlock: ContractPromptBlock = {

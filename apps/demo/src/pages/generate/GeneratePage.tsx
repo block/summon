@@ -14,7 +14,6 @@ import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import { Button } from '../../components/ui.js';
 import { cn } from '../../lib/cn.js';
 import {
-  createGhostShowcaseScenario,
   createScopedDemoRegistry,
   SHOWCASE_SCENARIOS,
   type ActiveContract,
@@ -38,7 +37,6 @@ import {
   ghostRootFromSelection,
   scenarioUsesFixedPolicy,
   surfacePolicyForPlan,
-  tokenOverridesFor,
 } from './surfaceHelpers.js';
 import type {
   ApprovalCard,
@@ -51,6 +49,8 @@ import type {
   StreamResult,
   TimingEntry,
 } from './types.js';
+
+const DEFAULT_FINGERPRINT_ID = 'editorial-mono';
 
 export function GeneratePage() {
   const surfaceRef = useRef<SummonSurfaceHandle>(null);
@@ -66,12 +66,11 @@ export function GeneratePage() {
   const [mode, setMode] = useState<Mode>(SHOWCASE_SCENARIOS[0]?.mode ?? 'interactive');
   const [surfacePlan, setSurfacePlan] = useState<SurfacePlan>(SHOWCASE_SCENARIOS[0]!.surfacePlan);
   const [layoutId, setLayoutId] = useState('');
-  const [tokenPreset, setTokenPreset] = useState('');
   const [playgroundMode, setPlaygroundMode] = useState(true);
   const [playgroundToolsEnabled, setPlaygroundToolsEnabled] = useState(false);
   const [agentBrokerEnabled, setAgentBrokerEnabled] = useState(true);
   const [customContractEnabled, setCustomContractEnabled] = useState(false);
-  const [directionId, setDirectionId] = useState<string | null>(null);
+  const [directionId, setDirectionId] = useState<string | null>(`fingerprint:${DEFAULT_FINGERPRINT_ID}`);
   const [ghostTarget, setGhostTarget] = useState('.');
   const [ghostBaseDirectionId, setGhostBaseDirectionId] = useState<string | null>(null);
   const [modelProviderId, setModelProviderId] = useState('');
@@ -123,11 +122,8 @@ export function GeneratePage() {
   }, [activeTokensSourceOverride]);
 
   const showcaseScenarios = useMemo(
-    () => [
-      ...SHOWCASE_SCENARIOS,
-      ...ghostRoots.map((root) => createGhostShowcaseScenario(root.id)),
-    ],
-    [ghostRoots],
+    () => SHOWCASE_SCENARIOS,
+    [],
   );
   const selectedScenario = useMemo(
     () => showcaseScenarios.find((scenario) => scenario.id === selectedScenarioId) ?? showcaseScenarios[0]!,
@@ -350,7 +346,6 @@ export function GeneratePage() {
   const activeContract = useMemo<ActiveContract>(() => {
     const modelSelection = readModelSelection();
     const agentBroker = !playgroundMode && agentBrokerEnabled && !customContractEnabled && !scenarioUsesFixedPolicy(selectedScenario);
-    const overrides = tokenOverridesFor(tokenPreset);
     const surfacePolicy = customContractEnabled
       ? surfacePolicyForPlan(surfacePlan, selectedScenario.toolNames)
       : selectedScenario.surfacePolicy;
@@ -365,7 +360,6 @@ export function GeneratePage() {
       ...(!playgroundMode && !agentBroker ? { surfacePolicy } : {}),
       surfacePlan,
       ...(layoutId ? { layoutId } : {}),
-      ...(overrides ? { tokenOverrides: overrides } : {}),
       directionId,
       modelProvider: modelSelection.modelProvider ?? null,
       ...(modelSelection.generationModel ? { generationModel: modelSelection.generationModel } : {}),
@@ -386,7 +380,6 @@ export function GeneratePage() {
     runtimeToolNames,
     selectedScenario,
     surfacePlan,
-    tokenPreset,
   ]);
 
   const toolRegistry = useMemo(() => {
@@ -449,15 +442,14 @@ export function GeneratePage() {
     setMode(scenario.mode);
     setSurfacePlan(scenario.surfacePlan);
     setLayoutId(scenario.layoutId ?? '');
-    setTokenPreset(scenario.tokenOverrides ? 'accent-blue' : '');
-    const fallbackDirectionId = directions[0]?.id ?? null;
+    const fallbackDirectionId = `fingerprint:${DEFAULT_FINGERPRINT_ID}`;
     const desiredDirectionId = scenario.directionId ?? fallbackDirectionId;
     setDirectionId(desiredDirectionId ?? null);
     if (scenario.id.startsWith('ghost-')) {
       const rootId = scenario.id.slice('ghost-'.length);
       const root = ghostRoots.find((item) => item.id === rootId);
       setGhostTarget(root?.defaultTargetPath || '.');
-      setGhostBaseDirectionId(root?.defaultBaseDirectionId ?? null);
+      setGhostBaseDirectionId(root?.defaultBaseDirectionId ?? root?.defaultTokenFallback ?? null);
     }
     resetForScenarioChange();
     logLine('op-meta', `scenario -> ${scenario.label}`);
@@ -640,7 +632,7 @@ export function GeneratePage() {
         <p>Scenario-led generative UI generation</p>
       </div>
 
-      <div className="relative h-screen overflow-hidden bg-surface">
+      <div className="relative h-[100dvh] overflow-hidden bg-surface">
         <header className="relative z-40 flex min-w-0 items-center justify-between gap-3 px-6 py-4 max-[820px]:px-4">
           <a
             className="shrink-0 text-[15px] font-bold text-ink no-underline transition-opacity hover:opacity-60"
@@ -687,6 +679,16 @@ export function GeneratePage() {
             </div>
           )}
           setPrompt={setPrompt}
+          selectedFingerprintId={ghostRootFromSelection(directionId)}
+          fingerprints={ghostRoots}
+          onSelectFingerprint={(id) => {
+            const root = id ? ghostRoots.find((item) => item.id === id) : null;
+            setDirectionId(id ? `fingerprint:${id}` : directions[0]?.id ?? null);
+            setGhostTarget(root?.defaultTargetPath || '.');
+            setGhostBaseDirectionId(root?.defaultBaseDirectionId ?? root?.defaultTokenFallback ?? null);
+            setActiveTokensSourceOverride(null);
+            setShowWelcome(true);
+          }}
           running={running}
           onGenerate={generate}
           statusText={statusText}
@@ -777,8 +779,6 @@ export function GeneratePage() {
             setShowWelcome={setShowWelcome}
             layoutId={layoutId}
             setLayoutId={setLayoutId}
-            tokenPreset={tokenPreset}
-            setTokenPreset={setTokenPreset}
             mode={mode}
             setMode={setMode}
             agentBrokerEnabled={agentBrokerEnabled}

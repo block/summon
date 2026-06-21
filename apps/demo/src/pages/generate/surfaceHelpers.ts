@@ -1,5 +1,4 @@
 import {
-  parseTokenValues,
   type ProtocolLine,
   type ToolPack,
   type SurfaceContractView,
@@ -62,6 +61,7 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
       return { category: 'Static', description: 'Static generated UI with embedded data and no host actions.' };
     case 'declarative-form':
     case 'decision-picker':
+    case 'offer-picker':
       return { category: 'Host actions', description: 'Declarative controls routed through host-owned handlers.' };
     case 'worker-analysis':
       return { category: 'Worker', description: 'Background worker data plus host-action authority.' };
@@ -69,8 +69,6 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
       return { category: 'Approval', description: 'Publish workflow guarded by an approval-gated host action.' };
     case 'local-state-motion':
       return { category: 'Arrow behavior', description: 'Arrow components, keyed lists, computed local state, styling, and motion.' };
-    case 'token-override':
-      return { category: 'Design tokens', description: 'Token override request that repaints through host CSS.' };
     case 'layout-card':
       return { category: 'Layout', description: 'Host layout slots constrain the generated card shape.' };
     case 'sibling-summon':
@@ -154,20 +152,20 @@ export function surfacePolicyForPlan(
   };
 }
 
+export function fingerprintSelectionValue(fingerprintId: string): string {
+  return `fingerprint:${fingerprintId}`;
+}
+
+export function fingerprintFromSelection(selection: string | null): string | null {
+  return selection?.startsWith('fingerprint:') ? selection.slice('fingerprint:'.length) : null;
+}
+
 export function ghostSelectionValue(rootId: string): string {
-  return `ghost:${rootId}`;
+  return fingerprintSelectionValue(rootId);
 }
 
 export function ghostRootFromSelection(selection: string | null): string | null {
-  return selection?.startsWith('ghost:') ? selection.slice('ghost:'.length) : null;
-}
-
-export function tokenOverridesFor(preset: string): Record<string, string> | undefined {
-  if (preset !== 'accent-blue') return undefined;
-  return {
-    'color-accent': '#0f8cff',
-    'color-accent-fg': '#ffffff',
-  };
+  return fingerprintFromSelection(selection);
 }
 
 export function summarizeValidationMeta(value: unknown): string {
@@ -286,32 +284,6 @@ export function agentPolicyText(value: unknown): string {
   return `${sourceText} · ${tier}/${purpose}${fallback}${rejected ? ` · rejected=${rejected}` : ''}`;
 }
 
-export function applyTokenOverrideCss(baseCss: string, applied: Array<{ token: string; value: string }>): string {
-  if (applied.length === 0) return baseCss;
-  const replacements = new Map(applied.map((entry) => [entry.token, entry.value]));
-  const defined = parseTokenValues(baseCss);
-  let css = baseCss.replace(/(--([a-zA-Z0-9_-]+)\s*:\s*)([^;]+)(;)/g, (full, prefix, token, _value, suffix) => {
-    const next = replacements.get(token);
-    return next ? `${prefix}${next}${suffix}` : full;
-  });
-  const missing = applied.filter((entry) => !defined.has(entry.token));
-  if (missing.length > 0) {
-    css += `\n:root {\n${missing.map((entry) => `  --${entry.token}: ${entry.value};`).join('\n')}\n}\n`;
-  }
-  return css;
-}
-
-export function parseAppliedTokenOverrides(value: unknown): Array<{ token: string; value: string }> {
-  const raw = value as { applied?: unknown } | undefined;
-  if (!Array.isArray(raw?.applied)) return [];
-  return raw.applied.flatMap((entry) => {
-    if (!entry || typeof entry !== 'object') return [];
-    const obj = entry as Record<string, unknown>;
-    if (typeof obj.token !== 'string' || typeof obj.value !== 'string') return [];
-    return [{ token: obj.token, value: obj.value }];
-  });
-}
-
 export function buildContractRows({
   active,
   selectedScenario,
@@ -373,7 +345,7 @@ export function buildContractRows({
     ['runtime', 'Sandbox runtime', runtime, effectivePlan ? 'good' : 'pending'],
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
     ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
-    ['tokens', 'Tokens', active.tokenOverrides ? 'override' : 'base', active.tokenOverrides ? 'good' : 'pending'],
+    ['tokens', 'Tokens', active.directionId?.startsWith('fingerprint:') ? 'fingerprint' : 'direction', active.directionId ? 'good' : 'pending'],
     ['shape', 'Shape', currentShape ?? 'pending', currentShape ? 'neutral' : 'pending'],
   ].map(([key, label, value, tone]) => ({ key, label, value, tone })) as Array<{
     key: string;

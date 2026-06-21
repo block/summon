@@ -1,0 +1,3 @@
+schema: ghost.checks/v1
+id: garden-notes-checks
+checks: []

@@ -127,7 +127,6 @@ stays blank:
 | `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, optional layout, and compile issues. |
 | `/model-output-mode` | Structured model-output contract details, currently `arrow-bundle` with schema `summon.arrow-bundle/v1` and repair-attempt diagnostics. |
 | `/shape` | Optional server-inferred response shape used to narrow direction exemplars. |
-| `/token-overrides` | Resolved direction token overrides, including applied and rejected entries. |
 | `/validation-summary` | Final grouped `ContractIssue` counts and examples. |
 | `/validation-blocked` | A blocking issue stopped generation. |
 | `/validation-observed` | Workbench-only observe mode diagnostic for a production-blocking issue that was forwarded to the sandbox for inspection. |
