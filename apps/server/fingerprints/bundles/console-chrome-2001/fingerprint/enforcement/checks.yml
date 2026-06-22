@@ -1,0 +1,3 @@
+schema: ghost.checks/v1
+id: console-chrome-2001-checks
+checks: []

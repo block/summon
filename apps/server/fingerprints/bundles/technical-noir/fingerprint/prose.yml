@@ -1,0 +1,309 @@
+summary:
+  product: "Technical Noir"
+  audience:
+    - "developers and technical operators"
+    - "teams reviewing agentic or terminal-like workflows"
+    - "agents composing restrained dark-mode product surfaces"
+  goals:
+    - "Make technical work feel legible, calm, and operationally credible."
+    - "Use a warm near-charcoal canvas and off-white material system without adding a chromatic brand accent."
+    - "Frame commands, agent activity, code, logs, or workflow evidence as the primary visual material."
+    - "Preserve quiet confidence through light-weight display type, compact spacing, tight geometry, and hairline depth."
+    - "Help users understand what is happening, what is available, and what action comes next."
+  anti_goals:
+    - "Literal recreation of a specific developer-tool website, brand, product names, partner names, logos, screenshots, or customer quotes."
+    - "Recreating the researched source site's current light-page skin as the default Technical Noir expression."
+    - "Cinematic noir styling: spotlights, fog, film grain, smoked-glass panels, dramatic shadows, detective-board metaphors, or mood detached from task evidence."
+    - "Neon cyberpunk terminal aesthetics, gradient backdrops, glassmorphism, or colorful accent systems."
+    - "Generic SaaS card grids where every panel has equal weight."
+    - "Soft lifestyle warmth, oversized rounded cards, friendly pill CTAs, or pastel productivity styling."
+    - "Heavy billboard typography, excessive uppercase shouting, or hero layouts that overpower task content."
+    - "Decorative terminal mockups with fake or irrelevant text."
+  tradeoffs:
+    - "Prefer readable technical density over spacious marketing gloss."
+    - "Prefer off-white emphasis, alignment, and hairlines over color-coded hierarchy."
+    - "Prefer tight controls and rectangular chrome over rounded friendliness."
+    - "Use large type sparingly; when type is large, keep it light, tracked tight, and calm."
+    - "Let terminal or code panels carry evidence only when they clarify the task."
+  tone:
+    - "quiet"
+    - "technical"
+    - "precise"
+    - "warm-dark"
+    - "restrained"
+    - "operational"
+    - "confident"
+
+situations:
+  - id: agent-workspace-overview
+    title: "Agent workspace overview"
+    user_intent: "Understand multiple technical tasks, agents, or workflows at once."
+    product_obligation: "Show current state, available actions, and evidence panels without turning the workspace into a generic dashboard."
+    surface_type: "workspace"
+    principles:
+      - prose.principle:warm-dark-is-the-material
+      - prose.principle:terminal-evidence-not-decoration
+      - prose.principle:quiet-technical-hierarchy
+    experience_contracts:
+      - prose.experience_contract:next-action-is-visible
+      - prose.experience_contract:technical-material-stays-real
+    patterns:
+      - composition.pattern:workspace-uses-reading-mode-shell
+      - composition.pattern:terminal-panels-anchor-evidence
+      - composition.pattern:cta-geometry-stays-tight
+    refuses:
+      - "Equal-weight SaaS overview card grids."
+      - "Colorful status dashboards that abandon the warm neutral system."
+
+  - id: technical-product-landing
+    title: "Technical product landing"
+    user_intent: "Assess a technical product, feature set, or workflow from a high-level entry surface."
+    product_obligation: "Lead with a calm value statement and immediately ground it in terminal-like or operational examples."
+    surface_type: "landing"
+    principles:
+      - prose.principle:quiet-technical-hierarchy
+      - prose.principle:off-white-is-the-accent
+      - prose.principle:terminal-evidence-not-decoration
+    experience_contracts:
+      - prose.experience_contract:no-chromatic-brand-accent
+      - prose.experience_contract:technical-material-stays-real
+      - prose.experience_contract:source-inspiration-stays-agnostic
+    patterns:
+      - composition.pattern:hero-pairs-statement-with-mockup-evidence
+      - composition.pattern:source-proof-follows-claim
+      - composition.pattern:command-action-pairs-primary-cta
+      - composition.pattern:content-bands-keep-single-canvas
+    refuses:
+      - "Gradient-backed marketing hero treatments."
+      - "Heavy all-caps launch copy without evidence."
+      - "Source-site copy, logos, screenshots, navigation, partner strip, or customer proof."
+
+  - id: operational-comparison
+    title: "Operational comparison"
+    user_intent: "Compare tools, agents, plans, systems, or task paths in a technical context."
+    product_obligation: "Keep criteria aligned, readable, and calm while making the recommended action explicit."
+    surface_type: "comparison"
+    principles:
+      - prose.principle:readable-density-over-marketing-gloss
+      - prose.principle:off-white-is-the-accent
+    experience_contracts:
+      - prose.experience_contract:next-action-is-visible
+      - prose.experience_contract:no-chromatic-brand-accent
+    patterns:
+      - composition.pattern:comparison-uses-rows-or-tiles-with-shared-criteria
+      - composition.pattern:tab-rail-selects-evidence-frame
+      - composition.pattern:mono-labels-mark-operational-metadata
+      - composition.pattern:tiles-use-hairline-depth
+    refuses:
+      - "Decorative feature cards with no shared criteria."
+      - "False-precision colorful scoreboards."
+
+  - id: developer-onboarding-or-download
+    title: "Developer onboarding or download"
+    user_intent: "Choose an install path, configure an environment, or start a technical workflow."
+    product_obligation: "Present platform or setup choices as compact hairline-separated tiles with one clear primary action."
+    surface_type: "onboarding"
+    principles:
+      - prose.principle:quiet-technical-hierarchy
+      - prose.principle:readable-density-over-marketing-gloss
+    experience_contracts:
+      - prose.experience_contract:next-action-is-visible
+      - prose.experience_contract:controls-remain-developer-tight
+    patterns:
+      - composition.pattern:download-or-setup-tiles-stay-compact
+      - composition.pattern:command-action-pairs-primary-cta
+      - composition.pattern:cta-geometry-stays-tight
+      - composition.pattern:mono-labels-mark-operational-metadata
+    refuses:
+      - "Oversized celebratory onboarding cards."
+      - "Pill-heavy consumer app action styling."
+
+  - id: incident-or-agent-activity-summary
+    title: "Incident or agent activity summary"
+    user_intent: "Read what happened, what an agent did, and what should happen next."
+    product_obligation: "Separate narrative summary, evidence, logs, and next action using restrained hierarchy and real technical material."
+    surface_type: "brief"
+    principles:
+      - prose.principle:terminal-evidence-not-decoration
+      - prose.principle:readable-density-over-marketing-gloss
+    experience_contracts:
+      - prose.experience_contract:technical-material-stays-real
+      - prose.experience_contract:next-action-is-visible
+    patterns:
+      - composition.pattern:briefs-stack-summary-evidence-action
+      - composition.pattern:terminal-panels-anchor-evidence
+      - composition.pattern:rows-carry-progress-or-press-like-information
+    refuses:
+      - "Abstract status cards without log or evidence context."
+      - "Alarmist red-heavy incident styling unless the state truly requires it."
+
+principles:
+  - id: warm-dark-is-the-material
+    principle: "The defining material is a warm near-charcoal canvas with off-white text; warmth replaces chromatic branding."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    guidance:
+      - "Use a brown-warmed dark canvas rather than pure black or cool gray."
+      - "Keep cards only slightly lighter than the page canvas."
+      - "Let off-white text, off-white controls, and hairline borders carry emphasis."
+      - "When semantic state is necessary, keep it muted and secondary to the neutral system."
+    counterexamples:
+      - "Blue or purple gradients as the main brand expression."
+      - "Pure black terminal nostalgia with neon green text."
+      - "Light-mode beige lifestyle surfaces."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/technical-landing-proof.png
+
+  - id: off-white-is-the-accent
+    principle: "Off-white functions as both primary text and primary action color; no separate chromatic accent is required."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    guidance:
+      - "Use off-white filled buttons on warm dark for the highest-priority action."
+      - "Use muted warm beige text for secondary copy, captions, and metadata."
+      - "Use underline, border weight, mono labels, or layout position before introducing color."
+    counterexamples:
+      - "Bright brand-colored CTAs."
+      - "Rainbow feature badges."
+      - "Accent colors used to make bland cards feel designed."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/operational-comparison.png
+
+  - id: quiet-technical-hierarchy
+    principle: "Hierarchy is calm, technical, and readable: light-weight display type, negative tracking, sentence case, and controlled scale."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    guidance:
+      - "Use sans-serif display copy at weight 400 or 500, not heavy promotional weights."
+      - "Keep large headings concise and pair them with useful supporting structure."
+      - "Use monospace for commands, logs, code, technical labels, and terminal-like content only."
+      - "Reserve serif italic moments for rare editorial emphasis, never as the core UI voice."
+    counterexamples:
+      - "Hero type at heavy 700+ weight with loud marketing claims."
+      - "All-monospace pages that reduce readability."
+      - "Decorative serif headlines unrelated to a technical task."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/developer-setup-tiles.png
+
+  - id: terminal-evidence-not-decoration
+    principle: "Terminal, code, and agent panels are evidence surfaces; they should explain state, commands, output, or workflow."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "brief", "onboarding"]
+    guidance:
+      - "Use terminal panels to show command-shaped actions, agent steps, logs, diffs, task queues, or system status."
+      - "Keep panel chrome minimal: warm-dark fill, tight radius, 1px hairline, monospace content."
+      - "Prefer two strong mockup/evidence panels over many decorative screenshots."
+      - "Ensure terminal-like text is plausible and tied to the user request."
+    counterexamples:
+      - "Fake lorem ipsum code blocks."
+      - "Terminal panels used only as abstract decorative blocks."
+      - "Colorful syntax confetti unrelated to the task."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/agent-workspace-overview.png
+
+  - id: readable-density-over-marketing-gloss
+    principle: "The surface can be dense, but density should feel edited, aligned, and scannable rather than busy."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "comparison", "onboarding", "brief", "landing"]
+    guidance:
+      - "Use rows, tiles, and panels with shared alignment and consistent padding."
+      - "Keep secondary text legible at 14-16px with warm muted contrast."
+      - "Use hairline dividers for press-like lists, logs, job rows, feature rows, and setup steps."
+      - "Avoid empty hero posture when the task calls for operational detail."
+    counterexamples:
+      - "Sparse generic marketing sections with no task material."
+      - "Card piles where hierarchy depends only on size."
+      - "Dense tables with tiny unreadable text or arbitrary colors."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/operational-comparison.png
+
+  - id: noir-means-technical-restraint
+    principle: "Technical Noir uses noir as restraint, contrast, and operational focus, not cinematic mood or decorative darkness."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    guidance:
+      - "Use darkness to reduce noise and make technical evidence readable."
+      - "Create presence through hierarchy, alignment, silence, and proof instead of fog, glow, spotlight, grain, or dramatic shadow."
+      - "Keep every atmospheric choice tied to task clarity."
+    counterexamples:
+      - "Film-noir spotlights, smoky backgrounds, detective-board lines, or theatrical shadows."
+      - "Moody black pages with no operational evidence."
+    evidence:
+      - path: fingerprint/memory/intent.md
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+experience_contracts:
+  - id: no-chromatic-brand-accent
+    contract: "Generated surfaces should not introduce a dominant chromatic brand accent when neutral emphasis can solve hierarchy."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    obligations:
+      - "Use warm neutrals and off-white for primary hierarchy."
+      - "Keep semantic colors muted and tied to real status only."
+      - "Do not use gradients or colorful badges as default decoration."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: technical-material-stays-real
+    contract: "Every code, terminal, log, or agent panel must contain task-relevant technical material."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "onboarding", "brief"]
+    obligations:
+      - "Show plausible commands, states, outputs, diffs, steps, or agent actions."
+      - "Label evidence panels so users know what they are reading."
+      - "Avoid filler strings, decorative code, and brand-specific copied screenshots."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/agent-workspace-overview.png
+
+  - id: next-action-is-visible
+    contract: "Every surface makes the next action, recommendation, or setup choice visible without shouting."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    obligations:
+      - "Use one primary off-white action when an action is expected."
+      - "Place follow-up actions near the relevant terminal panel, comparison row, or setup tile."
+      - "Use calm button labels and supporting copy instead of urgency language."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/developer-setup-tiles.png
+
+  - id: controls-remain-developer-tight
+    contract: "Interactive chrome stays compact and nearly rectangular, with pills reserved for icons or compact state."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    obligations:
+      - "Use 2-6px radii for buttons, inputs, cards, mockups, and tiles."
+      - "Avoid generous pill CTAs unless the control is an icon or small state chip."
+      - "Keep button height compact on desktop while preserving accessible touch targets on mobile."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/developer-setup-tiles.png
+
+  - id: source-inspiration-stays-agnostic
+    contract: "Research-source composition may inform the fingerprint, but generated or exemplar surfaces must not reproduce source branding, copy, screenshots, or proprietary names."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    obligations:
+      - "Rewrite exemplar and generated copy into generic technical scenarios."
+      - "Use Technical Noir tokens and agnostic names rather than source logos, partner names, screenshots, or exact navigation."
+      - "Cite the curation source study, not copied source screenshots, as portable grounding."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/README.md

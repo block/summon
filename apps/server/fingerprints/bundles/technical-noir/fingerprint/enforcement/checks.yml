@@ -1,0 +1,50 @@
+schema: ghost.checks/v1
+id: technical-noir-checks
+checks:
+  - id: token-css-declares-dark-scheme
+    title: "Token CSS declares dark color scheme"
+    status: proposed
+    severity: serious
+    derivation:
+      prose:
+        - prose.principle:warm-dark-is-the-material
+      composition:
+        - composition.pattern:noir-avoids-cinematic-effects
+    applies_to:
+      paths:
+        - tokens.css
+      surface_types:
+        - material-system
+    detector:
+      type: required-regex
+      pattern: "color-scheme:\\s*dark"
+    evidence:
+      support: 0.9
+      observed_count: 1
+      examples:
+        - tokens.css
+    repair: "Keep Technical Noir token CSS in dark color-scheme mode."
+
+  - id: token-bg-is-not-pure-black
+    title: "Background token is not pure black"
+    status: proposed
+    severity: serious
+    derivation:
+      prose:
+        - prose.principle:warm-dark-is-the-material
+      composition:
+        - composition.pattern:noir-avoids-cinematic-effects
+    applies_to:
+      paths:
+        - tokens.css
+      surface_types:
+        - material-system
+    detector:
+      type: forbidden-regex
+      pattern: "--color-bg:\\s*#(?:000|000000)\\b"
+    evidence:
+      support: 0.9
+      observed_count: 0
+      examples:
+        - tokens.css
+    repair: "Use a warm near-charcoal background token instead of pure black."

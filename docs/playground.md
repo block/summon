@@ -11,7 +11,7 @@ Ghost fingerprint / direction -> prompt -> Arrow bundle -> render
 When **Playground mode** is enabled in the Generate workbench:
 
 - the agent broker is skipped
-- shape inference is skipped
+- generic response-shape inference does not exist; Ghost composition and host policy shape the run
 - repair attempts are skipped
 - validation runs in observe mode
 - preflight validation blockers are emitted as diagnostics instead of blocking generation
@@ -44,4 +44,4 @@ Then select `Fingerprint · <id>` in the Direction control. The workbench sends 
 
 ## Hardened mode
 
-Turn **Playground mode** off in the UI to restore the stricter adoption path: broker/policy selection, shape inference, repair attempts, and enforced validation gates.
+Turn **Playground mode** off in the UI to restore the stricter adoption path: broker/policy selection, repair attempts, and enforced Arrow/runtime validation gates.

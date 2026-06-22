@@ -1,0 +1,11 @@
+{
+  "schema": "summon.fingerprint-bundle/v1",
+  "id": "console-chrome-2001",
+  "name": "Console Chrome 2001",
+  "summary": "A retro Y2K game-console web language: periwinkle beveled plates, carbon command bars, amber/orange wayfinding, dense fixed-canvas modules, outlined box-art display type, and halftone hardware texture.",
+  "status": "published",
+  "version": "0.1.0",
+  "fingerprint": "fingerprint",
+  "tags": ["retro", "y2k", "console", "game", "beveled", "periwinkle", "fixed-canvas", "nintendo-inspired"],
+  "tokens": "tokens.css"
+}

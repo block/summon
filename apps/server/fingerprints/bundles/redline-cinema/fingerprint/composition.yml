@@ -1,0 +1,270 @@
+patterns:
+  - id: full-bleed-cinematic-hero
+    kind: "structure"
+    pattern: "A premium performance surface opens with a full-bleed cinematic image field, restrained display headline, compact deck, and at most two sharp actions."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial"]
+    guidance:
+      - "Use a viewport-scale dark image region or image placeholder with overlay for legibility."
+      - "Place the headline near the lower image edge or in a tight dark band immediately below."
+      - "Use one red primary CTA only when action is central; pair it with a white outline secondary action when needed."
+      - "Keep nav and utility chrome minimal so the image remains the event."
+      - "On mobile, crop the image vertically and reduce display size while preserving the cinematic frame."
+    anti_patterns:
+      - "Source logos, model names, proprietary car photos, or animal marks."
+      - "Generic centered SaaS hero with gradient blobs."
+      - "Text-heavy hero that explains every detail before atmosphere is established."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/cinematic-launch-hero.png
+
+  - id: scarce-red-cta-cluster
+    kind: "visual"
+    pattern: "Action clusters use sharp rectangular CTAs; red appears on the primary action only, with outline or text treatments for secondary actions."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification", "catalog"]
+    guidance:
+      - "Use 48px-class rectangular buttons with square corners."
+      - "Set labels uppercase with generous tracking."
+      - "Use red fill for the primary action on dark or light surfaces, but only once per region."
+      - "Use transparent outline, white, black, or text-only secondary actions."
+      - "Keep CTA copy short and commanding: Explore, Reserve, Configure, Compare, View details."
+    anti_patterns:
+      - "Pill-shaped primary buttons."
+      - "Multiple red buttons competing in one region."
+      - "Gradient or shadow-filled buttons."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/cinematic-launch-hero.png
+
+  - id: editorial-dark-to-body-pacing
+    kind: "layout"
+    pattern: "Long pages move from a dark cinematic opening into tighter editorial body sections, with large 96–128px breaks between major acts."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification"]
+    guidance:
+      - "Use near-black for hero, feature, proof, and footer frames."
+      - "Keep content max-width around a broad editorial container while allowing hero imagery to run full-bleed."
+      - "Use generous section padding at major transitions and tighter 24–48px spacing inside cards, rows, and copy groups."
+      - "Let body regions feel edited: image, claim, proof, next action—not endless modules."
+    anti_patterns:
+      - "Uniform card grid from top to bottom."
+      - "Ad-hoc spacing that ignores the 4/8px rhythm."
+      - "Crowding the hero with dense specs, forms, and filters."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/heritage-editorial-feature.png
+
+  - id: image-first-feature-card
+    kind: "structure"
+    pattern: "Feature cards are image-first plates: edge-to-edge media, sharp corners, tight title/body copy, and minimal chrome."
+    applies_to:
+      paths: ["."]
+      surface_types: ["editorial", "landing", "catalog"]
+    guidance:
+      - "Let the image occupy the top or majority of the card."
+      - "Use square corners and no card shadow."
+      - "Place title, metadata, and short copy beneath the image with disciplined spacing."
+      - "Use two-up or three-up grids for editorial features; avoid overcrowded masonry."
+    anti_patterns:
+      - "Icon-first feature cards."
+      - "Rounded lifestyle cards with large soft shadows."
+      - "Badges and chips stacked over every image."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/heritage-editorial-feature.png
+
+  - id: large-number-spec-grid
+    kind: "structure"
+    pattern: "Performance proof uses large numeral spec cells with uppercase labels, units, and hairline alignment."
+    applies_to:
+      paths: ["."]
+      surface_types: ["specification", "landing"]
+    guidance:
+      - "Use oversized numerals for speed, time, capacity, ranking, distance, availability, or other meaningful values."
+      - "Pair each number with a compact uppercase label and unit."
+      - "Align cells in a grid or row with hairline dividers."
+      - "Use red for only one decisive value, such as active position or primary highlight."
+    anti_patterns:
+      - "Decorative numbers without units or labels."
+      - "Color-coded KPI cards with multiple saturated hues."
+      - "Stats scattered across cards without shared alignment."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/performance-spec-grid.png
+
+  - id: race-or-event-row-system
+    kind: "structure"
+    pattern: "Event, schedule, result, or status content is shown as hairline-separated rows with date/context/status alignment and one decisive highlight."
+    applies_to:
+      paths: ["."]
+      surface_types: ["specification", "catalog", "landing"]
+    guidance:
+      - "Use rows instead of disconnected cards for schedules, results, inventory status, or event calendars."
+      - "Keep date or sequence at left, name/context in the middle, and status/result/action at right."
+      - "Use uppercase labels and muted secondary text for metadata."
+      - "Use the red accent only for active position, urgent status, or the primary row action."
+    anti_patterns:
+      - "Calendar cards with inconsistent internal layout."
+      - "Every status colored red."
+      - "Rows without enough contrast or spacing for scanning."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/event-row-system.png
+
+  - id: white-catalog-sheet
+    kind: "layout"
+    pattern: "Catalog, pricing, dealer, or booking regions switch to sharp white sheets for clarity while preserving the editorial grid."
+    applies_to:
+      paths: ["."]
+      surface_types: ["catalog", "specification"]
+    guidance:
+      - "Use white backgrounds for dense listings, tables, filters, and forms."
+      - "Set text in near-black, dividers in light hairlines, and CTAs as red or ink rectangles."
+      - "Use 24–32px internal padding and 64–96px band padding depending on density."
+      - "Frame the white region with dark sections before or after so it feels intentional."
+    anti_patterns:
+      - "A generic all-white ecommerce page detached from the cinematic language."
+      - "Rounded marketplace cards and sale badges."
+      - "Pale grey dashboard shells replacing editorial sheets."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/white-preowned-catalog-sheet.png
+
+  - id: image-first-listing-card
+    kind: "structure"
+    pattern: "Listings use image-first white cards with sharp edges, compact metadata, and decisive rectangular actions."
+    applies_to:
+      paths: ["."]
+      surface_types: ["catalog"]
+    guidance:
+      - "Place the image at the top edge-to-edge."
+      - "Use model/category title, year/spec/location metadata, and price/status in aligned text groups."
+      - "Keep cards square-cornered with hairline borders and no shadows."
+      - "Use four-up desktop, two-up tablet, and one-up mobile behavior when space allows."
+    anti_patterns:
+      - "Soft commerce cards with pill sale tags."
+      - "Listing cards that bury the image under badges or controls."
+      - "Different metadata layouts per listing."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/white-preowned-catalog-sheet.png
+
+  - id: rectangular-form-and-control-system
+    kind: "behavior"
+    pattern: "Forms and controls stay rectangular, dark or white by context, with uppercase labels, sharp buttons, and tiny-radius inputs only where needed."
+    applies_to:
+      paths: ["."]
+      surface_types: ["catalog", "specification"]
+    guidance:
+      - "Use 48px-class inputs and buttons."
+      - "Use 4px radius for inputs if required, but keep CTAs square."
+      - "Use hairline borders and high-contrast text."
+      - "Group filters and booking controls into disciplined rows that stack cleanly on mobile."
+    anti_patterns:
+      - "Rounded search pills as the main control language."
+      - "Low-contrast grey inputs on dark without clear borders."
+      - "Form controls decorated with icons instead of labels."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/white-preowned-catalog-sheet.png
+
+  - id: dark-elevated-plates
+    kind: "visual"
+    pattern: "Dark cards and panels use a single brightness step above the canvas, 1px hairlines, and no shadow tier."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification"]
+    guidance:
+      - "Use dark-grey elevated surfaces for profile, driver, spec, livery, or proof cards."
+      - "Separate panels with 1px hairlines rather than shadow."
+      - "Keep copy concise and labels uppercase."
+      - "Let images or large numerals provide the focal point inside the plate."
+    anti_patterns:
+      - "Floating cards with large shadows or glows."
+      - "Many grey levels that muddy the near-black canvas."
+      - "Rounded panels that feel like generic app cards."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/performance-spec-grid.png
+
+  - id: single-red-livery-band
+    kind: "visual"
+    pattern: "A long surface may include one full-width red accent band as a dramatic livery-like interruption."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial"]
+    guidance:
+      - "Use the red band for one major statement, event status, or transition—not routine content."
+      - "Set text white, large, and restrained; avoid adding many extra colors inside the band."
+      - "Keep surrounding sections dark or white so the red band feels rare."
+      - "Omit the band on compact task surfaces where it would overpower utility."
+    anti_patterns:
+      - "Repeating red sections throughout the page."
+      - "Using red as a generic alert background."
+      - "Adding source slogans or racing-team identifiers."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/single-red-livery-band.png
+
+  - id: premium-directory-sheet
+    kind: "structure"
+    pattern: "Premium service, dealer, concierge, or location directories use grouped sheets and compact hairline rows instead of generic map-app or link-list chrome."
+    applies_to:
+      paths: ["."]
+      surface_types: ["directory", "catalog", "specification"]
+    guidance:
+      - "Group rows by region, service type, availability, or membership tier with uppercase section labels."
+      - "Use white sheets when the directory is dense; use dark rows when the directory is part of an editorial or event recap."
+      - "Keep each row compact: region/date/sequence, provider or location, context, and one clear rectangular action."
+      - "Preserve the cinematic frame around the utilitarian list with a dark masthead, dark footer, or image-led transition."
+    anti_patterns:
+      - "A generic map app with floating rounded search pills and unrelated pins."
+      - "Long undifferentiated link lists with no region, service, or action hierarchy."
+      - "Directory cards with promotional badges, sale language, or soft marketplace styling."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/white-preowned-catalog-sheet.png
+
+  - id: lineup-category-browse
+    kind: "structure"
+    pattern: "Lineup or collection browsing begins as image-led editorial categories before it becomes dense filtering."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "catalog", "editorial"]
+    guidance:
+      - "Use large image-led category plates for product families, collections, sessions, or editorial chapters."
+      - "Keep category labels sparse, uppercase, and optionally numbered when order or hierarchy matters."
+      - "Delay dense filters until after the first image-led browse moment."
+      - "Use sharp cards and hairlines rather than soft marketplace tiles."
+    anti_patterns:
+      - "Opening with a generic ecommerce filter rail before atmosphere is established."
+      - "Category cards that rely on icons instead of image or material presence."
+      - "Many equal red tags competing with the category images."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/heritage-editorial-feature.png
+      - path: examples/core/white-preowned-catalog-sheet.png
+
+  - id: derived-image-placeholder-discipline
+    kind: "rule"
+    pattern: "When prompt-provided imagery is absent, use neutral cinematic placeholders or abstract engineered crops; do not invent source-branded vehicles, marks, or model photography."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification", "catalog", "directory"]
+    guidance:
+      - "Use dark gradients, cropped light streaks, abstract silhouettes, material detail, or generic performance photography descriptions."
+      - "Keep placeholders subordinate to the page hierarchy and free of logos, shields, animals, team names, or model names."
+      - "If the user supplies assets, compose around those assets without adding source-owned visual identity."
+      - "Prefer no image over a fake brand image when legal or provenance risk is unclear."
+    anti_patterns:
+      - "Invented source-like badges, shields, animals, racing liveries, or proprietary-looking car silhouettes."
+      - "AI-generated images that imply a real brand partnership."
+      - "Replacing the photographic role with generic SaaS gradients and icons."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/cinematic-launch-hero.png
+

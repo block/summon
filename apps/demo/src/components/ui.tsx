@@ -1,4 +1,13 @@
-import type { ComponentProps, ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react';
 import { cn } from '../lib/cn.js';
 
 export const pageWidthClass = 'mx-auto w-[min(100%,var(--dev-page-width))]';
@@ -122,4 +131,294 @@ export function DetailsShell({ className, children, ...props }: ComponentProps<'
       {children}
     </div>
   );
+}
+
+export interface DropdownSelectOption {
+  value: string;
+  label: string;
+  description?: string;
+  title?: string;
+  disabled?: boolean;
+}
+
+export interface DropdownSelectGroup {
+  label?: string;
+  options: DropdownSelectOption[];
+}
+
+export function DropdownSelect({
+  id,
+  value,
+  groups,
+  onValueChange,
+  placeholder = 'Select',
+  overline,
+  disabled,
+  title,
+  ariaLabel,
+  side = 'bottom',
+  align = 'start',
+  className,
+  triggerClassName,
+  contentClassName,
+}: {
+  id?: string;
+  value: string;
+  groups: DropdownSelectGroup[];
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  overline?: string;
+  disabled?: boolean;
+  title?: string;
+  ariaLabel?: string;
+  side?: 'top' | 'bottom';
+  align?: 'start' | 'end';
+  className?: string;
+  triggerClassName?: string;
+  contentClassName?: string;
+}) {
+  const generatedId = useId();
+  const triggerId = id ?? `dropdown-select-${generatedId}`;
+  const listboxId = `${triggerId}-listbox`;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [open, setOpen] = useState(false);
+
+  const options = useMemo(() => groups.flatMap((group) => group.options), [groups]);
+  const selectedOption = options.find((option) => option.value === value);
+  const selectedIndex = options.findIndex((option) => option.value === value);
+  const initialActiveIndex = selectedIndex >= 0 ? selectedIndex : firstEnabledIndex(options);
+  const [activeIndex, setActiveIndex] = useState(initialActiveIndex);
+
+  useEffect(() => {
+    if (open) setActiveIndex(initialActiveIndex);
+  }, [initialActiveIndex, open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || activeIndex < 0) return;
+    const frame = window.requestAnimationFrame(() => {
+      itemRefs.current[activeIndex]?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeIndex, open]);
+
+  const selectOption = (option: DropdownSelectOption) => {
+    if (option.disabled) return;
+    onValueChange(option.value);
+    setOpen(false);
+    window.requestAnimationFrame(() => triggerRef.current?.focus());
+  };
+
+  const moveActiveIndex = (direction: 1 | -1) => {
+    const nextIndex = nextEnabledIndex(options, activeIndex, direction);
+    if (nextIndex >= 0) setActiveIndex(nextIndex);
+  };
+
+  const handleTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      setOpen(true);
+      setActiveIndex(
+        event.key === 'ArrowUp'
+          ? lastEnabledIndex(options)
+          : initialActiveIndex,
+      );
+    }
+  };
+
+  const handleItemKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, option: DropdownSelectOption) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveActiveIndex(1);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveActiveIndex(-1);
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      setActiveIndex(firstEnabledIndex(options));
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      setActiveIndex(lastEnabledIndex(options));
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      selectOption(option);
+      return;
+    }
+    if (event.key === 'Tab') setOpen(false);
+  };
+
+  let optionIndex = 0;
+
+  return (
+    <div ref={rootRef} className={cn('relative inline-block min-w-0', className)}>
+      <button
+        id={triggerId}
+        ref={triggerRef}
+        type="button"
+        className={cn(
+          controlBaseClass,
+          'flex min-h-[30px] w-full min-w-0 items-center justify-between gap-2 px-3 text-left text-xs font-medium',
+          triggerClassName,
+        )}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        title={title ?? selectedOption?.title ?? selectedOption?.description}
+        data-state={open ? 'open' : 'closed'}
+        onClick={() => {
+          setOpen((current) => !current);
+          setActiveIndex(initialActiveIndex);
+        }}
+        onKeyDown={handleTriggerKeyDown}
+      >
+        <span className="grid min-w-0 gap-0.5 leading-none">
+          {overline ? (
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-normal text-current opacity-55">
+              {overline}
+            </span>
+          ) : null}
+          <span className="min-w-0 truncate leading-tight text-inherit">
+            {selectedOption?.label ?? placeholder}
+          </span>
+        </span>
+        <svg
+          viewBox="0 0 16 16"
+          aria-hidden="true"
+          className={cn('size-4 shrink-0 text-current opacity-55 transition-transform duration-150', open && 'rotate-180')}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </button>
+      {open ? (
+        <div
+          id={listboxId}
+          role="listbox"
+          aria-labelledby={triggerId}
+          className={cn(
+            'absolute z-[70] max-h-[min(360px,calc(100vh-220px))] min-w-full overflow-y-auto rounded-card border border-line bg-surface-raised p-1 text-ink shadow-elevated outline-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+            side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
+            align === 'end' ? 'right-0' : 'left-0',
+            contentClassName,
+          )}
+        >
+          {groups.map((group, groupIndex) => (
+            <div key={group.label ?? groupIndex} role="group" aria-label={group.label}>
+              {group.label ? (
+                <div className="px-2.5 pb-1 pt-2 font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted first:pt-1">
+                  {group.label}
+                </div>
+              ) : null}
+              {group.options.map((option) => {
+                const currentIndex = optionIndex++;
+                const selected = option.value === value;
+                return (
+                  <button
+                    key={`${option.value}-${currentIndex}`}
+                    ref={(element) => {
+                      itemRefs.current[currentIndex] = element;
+                    }}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    disabled={option.disabled}
+                    title={option.title ?? option.description}
+                    className={cn(
+                      'relative flex w-full min-w-0 items-start gap-2 rounded-control px-2.5 py-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-surface-muted focus:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-45',
+                      selected && 'bg-surface-muted text-ink',
+                    )}
+                    onClick={() => selectOption(option)}
+                    onFocus={() => setActiveIndex(currentIndex)}
+                    onMouseEnter={() => setActiveIndex(currentIndex)}
+                    onKeyDown={(event) => handleItemKeyDown(event, option)}
+                  >
+                    <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-ink">
+                      {selected ? (
+                        <svg
+                          viewBox="0 0 16 16"
+                          aria-hidden="true"
+                          className="size-3.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m3.5 8 3 3 6-6" />
+                        </svg>
+                      ) : null}
+                    </span>
+                    <span className="grid min-w-0 gap-0.5">
+                      <span className="truncate font-semibold leading-snug text-ink">{option.label}</span>
+                      {option.description ? (
+                        <span className="max-h-[2.5rem] overflow-hidden text-[11px] leading-snug text-ink-muted">
+                          {option.description}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function firstEnabledIndex(options: DropdownSelectOption[]): number {
+  return options.findIndex((option) => !option.disabled);
+}
+
+function lastEnabledIndex(options: DropdownSelectOption[]): number {
+  for (let index = options.length - 1; index >= 0; index--) {
+    if (!options[index]?.disabled) return index;
+  }
+  return -1;
+}
+
+function nextEnabledIndex(options: DropdownSelectOption[], currentIndex: number, direction: 1 | -1): number {
+  if (options.length === 0) return -1;
+  const startIndex = currentIndex >= 0 ? currentIndex : direction === 1 ? -1 : options.length;
+  for (let step = 1; step <= options.length; step++) {
+    const index = (startIndex + direction * step + options.length) % options.length;
+    if (!options[index]?.disabled) return index;
+  }
+  return -1;
 }

@@ -1,0 +1,112 @@
+schema: ghost.checks/v1
+id: technical-contrast-checks
+checks:
+  - id: no-local-absolute-paths
+    title: "Portable Technical Contrast evidence must not reference curator-local paths"
+    status: active
+    severity: serious
+    derivation:
+      prose:
+        - prose.experience_contract:source-agnostic-output
+      composition:
+        - composition.pattern:technical-plane-landing
+    applies_to:
+      paths:
+        - fingerprint/prose.yml
+        - fingerprint/inventory.yml
+        - fingerprint/composition.yml
+        - fingerprint/memory/intent.md
+        - examples/core/README.md
+        - examples/dogfood/prompts.md
+      surface_types: [landing, comparison, proof, workflow, proof-card, mobile-adaptation]
+    detector:
+      type: forbidden-regex
+      pattern: '(/Users/|file://|/tmp/)'
+    evidence:
+      support: 1
+      observed_count: 0
+      examples:
+        - fingerprint/prose.yml
+        - fingerprint/inventory.yml
+        - fingerprint/composition.yml
+    repair: "Use package-relative refs under fingerprint/ or examples/, or summarize local research in a bundle-local curation note."
+
+  - id: no-source-brand-copy
+    title: "Agnostic Technical Contrast guidance must not copy source technical-platform identity"
+    status: proposed
+    severity: serious
+    derivation:
+      prose:
+        - prose.experience_contract:source-agnostic-output
+      composition:
+        - composition.pattern:technical-update-card
+        - composition.pattern:mobile-technical-collapse
+    applies_to:
+      paths:
+        - fingerprint/prose.yml
+        - fingerprint/inventory.yml
+        - fingerprint/composition.yml
+        - fingerprint/memory/intent.md
+        - examples/core/README.md
+        - examples/dogfood/prompts.md
+      surface_types: [landing, comparison, proof, workflow, proof-card, mobile-adaptation]
+    detector:
+      type: forbidden-regex
+      pattern: '(Together AI|together\.ai|AI Native Cloud|Start building on Together|MiniMax|DeepSeek V4 Pro|Qwen|Gemma|Cursor|Vercept|Cohere|DeepMind|ICLR|ICML|MLSys)'
+    evidence:
+      support: 0.95
+      observed_count: 0
+      examples:
+        - fingerprint/sources/curation/together-ai-online-research-2026-06-22.md
+    repair: "Replace source-brand copy, customer names, conference marks, model names, exact pricing values, and exact headlines with fictional, user-supplied, or generic technical-platform content. Source names may remain in curation notes when used as provenance."
+
+  - id: shadows-remain-border-led
+    title: "Card shadow tokens preserve border-led depth"
+    status: active
+    severity: serious
+    derivation:
+      prose:
+        - prose.principle:hairlines-not-shadows
+      composition:
+        - composition.pattern:pricing-table-sheet
+        - composition.pattern:technical-update-card
+    applies_to:
+      paths:
+        - tokens.css
+      surface_types: [landing, comparison, proof, workflow, proof-card]
+    detector:
+      type: required-regex
+      pattern: '--shadow-card:\s*none;[\s\S]*--shadow-elevated:\s*none;'
+    evidence:
+      support: 0.9
+      observed_count: 1
+      examples:
+        - tokens.css
+    repair: "Keep persistent card and elevated depth border-led. Use hairlines, fills, surface polarity, and spacing instead of floating card shadows."
+
+  - id: core-exemplar-files-present
+    title: "Core Technical Contrast exemplars must remain portable files"
+    status: active
+    severity: serious
+    derivation:
+      prose:
+        - prose.experience_contract:source-agnostic-output
+      composition:
+        - composition.pattern:technical-plane-landing
+        - composition.pattern:technical-update-card
+        - composition.pattern:mobile-technical-collapse
+    applies_to:
+      paths:
+        - examples/core/README.md
+        - fingerprint/inventory.yml
+      surface_types: [landing, comparison, proof, workflow, proof-card, mobile-adaptation]
+    detector:
+      type: required-regex
+      pattern: '(technical-plane-landing\.png[\s\S]*white-technical-pricing-sheet\.png[\s\S]*midnight-research-proof-plane\.png[\s\S]*technical-config-workflow\.png[\s\S]*code-breakout-capability-panel\.png[\s\S]*mobile-technical-landing-stack\.png[\s\S]*technical-benchmark-update-card\.png)'
+    evidence:
+      support: 0.9
+      observed_count: 1
+      examples:
+        - examples/core/README.md
+        - fingerprint/inventory.yml
+    repair: "Restore missing exemplar references or update this check after a human-approved exemplar replacement."

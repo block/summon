@@ -1,0 +1,211 @@
+topology:
+  scopes:
+    - id: "generated-surface"
+      paths:
+        - "."
+      surface_types:
+        - "feed"
+        - "digest"
+        - "review"
+        - "brief"
+    - id: "stream-editorial"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "fingerprint/sources/curation/source-study-2026-06-22.md"
+        - "fingerprint/sources/curation/theverge-homepage-2026-06-22.md"
+        - "examples/core/signal-lead-stack-desktop.png"
+        - "examples/core/latest-signal-rail-desktop.png"
+        - "examples/core/mobile-top-story-stack.png"
+        - "examples/core/section-digest-module.png"
+      surface_types:
+        - "feed"
+        - "digest"
+    - id: "feature-brief"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "examples/core/saturated-interruption-tile.png"
+      surface_types:
+        - "review"
+        - "brief"
+    - id: "source-abstraction"
+      paths:
+        - "fingerprint/memory/intent.md"
+        - "fingerprint/sources/curation/theverge-homepage-2026-06-22.md"
+      surface_types:
+        - "feed"
+        - "digest"
+        - "review"
+        - "brief"
+  surface_types:
+    - "feed"
+    - "digest"
+    - "review"
+    - "brief"
+
+building_blocks:
+  tokens:
+    - "--color-bg: near-black editorial canvas; the dominant material."
+    - "--color-surface: dark card or tile body when no saturated fill is used."
+    - "--color-surface-muted: slate secondary surface for quieter modules."
+    - "--color-border: white or gray hairline rule on dark surfaces."
+    - "--color-border-strong: mint or violet hazard rule for active state, rail, or emphasis."
+    - "--color-text: white primary editorial text on the dark field."
+    - "--color-text-muted: gray metadata, bylines, captions, and secondary support."
+    - "--color-text-alt: black text used on bright mint, yellow, or white tiles."
+    - "--color-accent: acid mint for primary action and high-attention marks."
+    - "--color-accent-2: electric violet for rails, outlines, and alternate emphasis."
+    - "--color-accent-hot, --color-accent-warm, --color-accent-blue: saturated tile fills for editorial interruptions."
+    - "--color-link-hover: deep blue hover color used consistently across links and headlines."
+    - "--space-2 through --space-5: tight rail, label, and tile rhythm."
+    - "--space-6 through --space-8: section pacing and dark-field resets."
+    - "--radius-sm through --radius-lg: tiny input/image softening."
+    - "--radius-xl and --radius-2xl: stream tiles and feature cards."
+    - "--radius-pill: CTAs, segmented tabs, tags, chips, icon buttons, and round controls."
+    - "--font-display: condensed display shout for hero headlines only."
+    - "--font-sans: dense editorial workhorse for headlines, decks, and body copy."
+    - "--font-mono: uppercase metadata, timestamps, tags, mode tabs, and buttons."
+    - "--text-display, --text-3xl, --text-2xl: large editorial shout scale with tight leading."
+    - "--tracking-label: uppercase mono/sans labels."
+    - "--tracking-display: slight positive display tracking."
+    - "--leading-display: tight display rhythm; adjust if fallback fonts collide."
+    - "--shadow-* remain none or 1px rings; depth comes from rules and color."
+  components:
+    - "signal-shell"
+    - "display-shout"
+    - "whisper-kicker"
+    - "source-neutral-masthead-placeholder"
+    - "signal-rail"
+    - "stream-tile"
+    - "segmented-stream-tabs"
+    - "saturated-hazard-tile"
+    - "color-block-feature"
+    - "lead-image-headline-slab"
+    - "compact-supporting-story-grid"
+    - "mobile-top-story-stack"
+    - "section-digest-module"
+    - "mono-timestamp"
+    - "uppercase-kicker"
+    - "hazard-pill-cta"
+    - "outlined-hazard-pill"
+    - "active-inset-tab"
+    - "static-image-frame"
+    - "slate-secondary-card"
+    - "metadata-rail"
+    - "compact-deck"
+    - "signal-brief"
+    - "copy atom: Signal, Live, Update, Filed, Review, Verdict, Watch, Risk, Now, Stream, Brief, Latest, Status, Next."
+    - "state variant: current update, featured story, selected section, breaking item, loading stream, empty feed, error state, saved choice."
+    - "micro-pattern: rail entry with timestamp, kicker, headline, optional deck, and 20px rounded body."
+    - "micro-pattern: saturated interruption tile with contrast-safe text and no shadow."
+    - "micro-pattern: display shout plus tracked whisper kicker and compact deck."
+    - "micro-pattern: CTA pill in mint fill or transparent hazard outline."
+    - "micro-pattern: segmented tabs with one saturated active mode and muted inactive modes."
+  libraries: []
+  assets:
+    - "examples/core/signal-lead-stack-desktop.png"
+    - "examples/core/latest-signal-rail-desktop.png"
+    - "examples/core/mobile-top-story-stack.png"
+    - "examples/core/saturated-interruption-tile.png"
+    - "examples/core/section-digest-module.png"
+  files:
+    - "fingerprint/sources/curation/source-study-2026-06-22.md"
+    - "fingerprint/sources/curation/theverge-homepage-2026-06-22.md"
+    - "fingerprint/sources/curation/dogfood-review-rubric-2026-06-22.md"
+    - "fingerprint/memory/intent.md"
+    - "examples/dogfood/prompts.md"
+  notes:
+    - "This bundle is intentionally agnostic: do not include publisher logos, source-specific names, article titles, author names, or brand marks in generated surfaces."
+    - "The dark canvas and hazard accents are compositional material, not a reference to a particular site."
+    - "Saturated tile fills are strong medicine; use them for priority and pacing, not background ambience."
+    - "Mono uppercase metadata must orient the reader; decorative lowercase mono is out of voice."
+    - "The included PNG exemplars are neutral redraws, not raw source screenshots. They are weighted source-informed evidence pending dogfood scoring."
+
+exemplars:
+  - id: "signal-lead-stack-desktop"
+    path: "examples/core/signal-lead-stack-desktop.png"
+    title: "Signal lead stack desktop"
+    surface_type: "digest"
+    scope: "stream-editorial"
+    note: "Weighted source-informed neutral redraw; review-stage exemplar created 2026-06-22."
+    why: "Shows display shout, image lead, headline slab, compact supporting grid, hairline separators, and flat depth."
+    refs:
+      - composition.pattern:display-shout-with-whisper-kicker
+      - composition.pattern:lead-image-headline-slab
+      - composition.pattern:dense-editorial-grid
+      - prose.principle:display-shout-anchors-the-page
+      - prose.experience_contract:scan-before-detail
+
+  - id: "latest-signal-rail-desktop"
+    path: "examples/core/latest-signal-rail-desktop.png"
+    title: "Latest signal rail desktop"
+    surface_type: "feed"
+    scope: "stream-editorial"
+    note: "Weighted source-informed neutral redraw; review-stage exemplar created 2026-06-22."
+    why: "Shows active segmented pill, compact metadata, dense update stack, feed separators, short body copy, and restrained link treatment."
+    refs:
+      - composition.pattern:signal-rail-feed
+      - composition.pattern:segmented-stream-tabs
+      - composition.pattern:mono-uppercase-metadata
+      - composition.pattern:flat-hairline-depth
+      - prose.principle:metadata-is-navigation
+      - prose.experience_contract:stream-order-is-visible
+
+  - id: "mobile-top-story-stack"
+    path: "examples/core/mobile-top-story-stack.png"
+    title: "Mobile top story stack"
+    surface_type: "digest"
+    scope: "stream-editorial"
+    note: "Weighted source-informed neutral redraw; review-stage exemplar created 2026-06-22."
+    why: "Shows mobile collapse preserving huge display hierarchy, full-width tabs, image-first lead, metadata row, and saturated active control."
+    refs:
+      - composition.pattern:responsive-stream-collapse
+      - composition.pattern:mobile-tabs-preserve-mode
+      - composition.pattern:display-shout-with-whisper-kicker
+      - composition.pattern:hazard-pill-cta
+      - prose.experience_contract:display-type-must-fit
+      - prose.experience_contract:small-text-stays-legible
+
+  - id: "saturated-interruption-tile"
+    path: "examples/core/saturated-interruption-tile.png"
+    title: "Saturated interruption tile"
+    surface_type: "brief"
+    scope: "feature-brief"
+    note: "Supporting source-informed neutral redraw; review-stage exemplar created 2026-06-22."
+    why: "Shows when a bright fill is allowed: priority, state, editorial interruption, or CTA emphasis rather than decorative wash."
+    refs:
+      - composition.pattern:saturated-hazard-tile
+      - composition.pattern:hazard-pill-cta
+      - prose.principle:hazard-accents-earn-attention
+      - prose.experience_contract:accent-has-purpose
+
+  - id: "section-digest-module"
+    path: "examples/core/section-digest-module.png"
+    title: "Section digest module"
+    surface_type: "digest"
+    scope: "stream-editorial"
+    note: "Supporting source-informed neutral redraw; review-stage exemplar created 2026-06-22."
+    why: "Shows grouped digest hierarchy with one feature item and compact supporting rows without turning every item into a card."
+    refs:
+      - composition.pattern:dense-editorial-grid
+      - composition.pattern:compact-supporting-story-grid
+      - composition.pattern:pill-corner-stream-tile
+      - composition.pattern:mono-uppercase-metadata
+      - prose.experience_contract:scan-before-detail
+
+sources:
+  - id: "source-study"
+    kind: "file"
+    ref: "sources/curation/source-study-2026-06-22.md"
+    note: "Agnostic curation note synthesized from the supplied design study and live public homepage observations."
+
+  - id: "public-homepage-study"
+    kind: "file"
+    ref: "sources/curation/theverge-homepage-2026-06-22.md"
+    note: "Source classification and abstraction boundary for a public technology editorial homepage; promotes neutral redraws, excludes publisher identity."
+
+  - id: "dogfood-review-rubric"
+    kind: "file"
+    ref: "sources/curation/dogfood-review-rubric-2026-06-22.md"
+    note: "Scoring rubric for Signal Stream dogfood generations."

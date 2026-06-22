@@ -1,0 +1,20 @@
+{
+  "schema": "summon.fingerprint-bundle/v1",
+  "id": "technical-contrast",
+  "name": "Technical Contrast",
+  "summary": "A restrained technical-platform surface language: contrast planes, white data sheets, midnight proof sections, uppercase mono labels, tight geometric type, hairline structure, and optional large signal artwork.",
+  "status": "published",
+  "version": "0.1.0",
+  "fingerprint": "fingerprint",
+  "tags": [
+    "technical",
+    "infrastructure",
+    "contrast",
+    "data-table",
+    "dark-band",
+    "pricing",
+    "research",
+    "workflow"
+  ],
+  "tokens": "tokens.css"
+}

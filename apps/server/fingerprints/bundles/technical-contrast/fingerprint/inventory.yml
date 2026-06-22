@@ -1,0 +1,259 @@
+topology:
+  scopes:
+    - id: "generated-surface"
+      paths:
+        - "."
+      surface_types:
+        - "landing"
+        - "comparison"
+        - "proof"
+        - "workflow"
+        - "proof-card"
+        - "mobile-adaptation"
+    - id: "technical-marketing"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "fingerprint/sources/curation/source-study-2026-06-22.md"
+        - "fingerprint/sources/curation/together-ai-online-research-2026-06-22.md"
+        - "examples/core/technical-plane-landing.png"
+        - "examples/core/midnight-research-proof-plane.png"
+      surface_types:
+        - "landing"
+        - "proof"
+    - id: "technical-data"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "fingerprint/sources/curation/together-ai-online-research-2026-06-22.md"
+        - "examples/core/white-technical-pricing-sheet.png"
+        - "examples/core/code-breakout-capability-panel.png"
+      surface_types:
+        - "comparison"
+        - "proof"
+        - "workflow"
+    - id: "technical-workflow"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "examples/core/technical-config-workflow.png"
+      surface_types:
+        - "workflow"
+    - id: "technical-proof-card"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "fingerprint/sources/curation/together-ai-online-research-2026-06-22.md"
+        - "examples/core/technical-benchmark-update-card.png"
+      surface_types:
+        - "proof-card"
+        - "proof"
+    - id: "mobile-adaptation"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "fingerprint/sources/curation/together-ai-online-research-2026-06-22.md"
+        - "examples/core/mobile-technical-landing-stack.png"
+      surface_types:
+        - "landing"
+        - "comparison"
+        - "workflow"
+        - "mobile-adaptation"
+  surface_types:
+    - "landing"
+    - "comparison"
+    - "proof"
+    - "workflow"
+    - "proof-card"
+    - "mobile-adaptation"
+
+building_blocks:
+  tokens:
+    - "--color-bg: white or pale technical canvas."
+    - "--color-surface: primary card, form, and table surface."
+    - "--color-surface-muted: hairline-light rail, table header fill, and subtle footer stencil."
+    - "--color-surface-dark: midnight proof plane background."
+    - "--color-surface-dark-soft: dark card or badge fill inside midnight planes."
+    - "--color-border: light hairline dividers and card chrome."
+    - "--color-border-strong: ink rule or active tab/selected edge."
+    - "--color-text: black ink on light surfaces."
+    - "--color-text-muted: body secondary text, captions, and table subcopy."
+    - "--color-text-on-dark: white text on midnight surfaces."
+    - "--color-accent: primary black CTA and selected state."
+    - "--color-signal-a, --color-signal-b, --color-signal-c: optional warm-to-cool signal artwork stops, not a general UI palette."
+    - "--color-tint-mint and --color-tint-periwinkle: pastel proof/stat tile fills."
+    - "--space-3 through --space-8: compact control rhythm to generous plane rhythm."
+    - "--radius-sm: tighter control radius."
+    - "--radius-md: canonical 4px card/button radius."
+    - "--radius-lg: slightly larger tab rail or grouped-control radius."
+    - "--radius-pill: isolated circular or pill icon controls only."
+    - "--font-sans: geometric narrative face."
+    - "--font-mono: uppercase technical label face."
+    - "--text-display through --text-xs: tight display hierarchy and compact labels."
+    - "--tracking-label: positive mono label tracking."
+    - "--tracking-display: slight negative tracking for display sans."
+    - "--shadow-* are intentionally quiet; card depth is border-led."
+  components:
+    - "technical-plane-landing"
+    - "pale-technical-canvas"
+    - "midnight-proof-plane"
+    - "white-data-sheet"
+    - "left-sidebar-category-rail"
+    - "mobile-category-accordion"
+    - "muted-proof-rail"
+    - "muted-recognition-rail"
+    - "optional-signal-artwork"
+    - "mobile-cropped-signal-artwork"
+    - "mono-eyebrow"
+    - "mono-button"
+    - "black-primary-button"
+    - "mint-secondary-button"
+    - "white-secondary-button"
+    - "dark-soft-button"
+    - "small-radius-card"
+    - "dark-proof-card"
+    - "tinted-stat-tile"
+    - "technical-update-card"
+    - "product-ui-proof-mockup"
+    - "technical-table"
+    - "table-header-mono"
+    - "table-row-hairline"
+    - "segmented-tab-rail"
+    - "technical-form-sheet"
+    - "code-editor-breakout"
+    - "low-contrast-terminal-signoff"
+    - "copy atom: Claim, Capability, Throughput, Latency, Cost, Limit, Region, Model, Capacity, Research, Proof, Contact, Start, Compare, Recommendation, Benchmark, Security, Compliance, Routing."
+    - "state variant: featured tier, active tab, selected row, unavailable capacity, recommended path, empty data, loading table, validation error, mobile category collapsed, mobile category expanded, table row overflow."
+    - "micro-pattern: proof tile with large number, mono label, one-sentence implication."
+    - "micro-pattern: data row with model/capability name, compact secondary description, and aligned numeric cells."
+    - "micro-pattern: dark card with mono tag, display title, and short body proof."
+    - "micro-pattern: benchmark card with category badge, technical headline, and implication sentence."
+    - "micro-pattern: mobile cropped signal artwork below stacked hero CTAs."
+  libraries: []
+  assets:
+    - "examples/core/technical-plane-landing.png"
+    - "examples/core/white-technical-pricing-sheet.png"
+    - "examples/core/midnight-research-proof-plane.png"
+    - "examples/core/technical-config-workflow.png"
+    - "examples/core/code-breakout-capability-panel.png"
+    - "examples/core/mobile-technical-landing-stack.png"
+    - "examples/core/technical-benchmark-update-card.png"
+  files:
+    - "fingerprint/sources/curation/source-study-2026-06-22.md"
+    - "fingerprint/sources/curation/together-ai-online-research-2026-06-22.md"
+    - "fingerprint/sources/curation/dogfood-review-rubric-2026-06-22.md"
+    - "fingerprint/memory/intent.md"
+    - "examples/core/README.md"
+    - "examples/dogfood/prompts.md"
+  notes:
+    - "The catalog entry is agnostic: no source domains, product names, logos, literal wordmark text, customer logos, exact pricing values, source screenshots, or proprietary artwork should appear in generated surfaces unless the user's prompt supplies them."
+    - "The researched public technical-platform pages are composition evidence only; source marks, copy, screenshots, model names, customer names, conference logos, and pricing data are excluded from portable generation guidance."
+    - "Signal artwork is optional at large scale only; data and controls remain flat and readable."
+    - "The language is technical and compact, but not command-line brutalism."
+    - "White data sheets, hairline tables, and uppercase mono labels are as important as midnight proof planes."
+    - "Exemplars are derived neutral artifacts, not source screenshots. Current exemplar weights are curator recommendations pending dogfood scoring."
+
+exemplars:
+  - id: "technical-plane-landing"
+    path: "examples/core/technical-plane-landing.png"
+    title: "Technical plane landing"
+    surface_type: "landing"
+    scope: "technical-marketing"
+    note: "Weighted source-informed neutral exemplar; derived from public technical-platform home-page composition research without source branding."
+    why: "Shows pale technical canvas, compact mono CTAs, left-aligned claim, muted proof rail, and optional signal artwork without source branding."
+    refs:
+      - composition.pattern:technical-plane-landing
+      - composition.pattern:mono-eyebrow-system
+      - composition.pattern:rectangular-cta-system
+      - prose.principle:contrast-planes-carry-drama
+
+  - id: "white-technical-pricing-sheet"
+    path: "examples/core/white-technical-pricing-sheet.png"
+    title: "White technical pricing sheet"
+    surface_type: "comparison"
+    scope: "technical-data"
+    note: "Weighted source-informed neutral exemplar; abstracts public technical-platform pricing-table behavior with generic content."
+    why: "Shows left category rail, mono badge, segmented tabs, pale header row, dense model rows, and aligned numeric columns."
+    refs:
+      - composition.pattern:left-sidebar-pricing-navigation
+      - composition.pattern:pricing-table-sheet
+      - composition.pattern:segmented-technical-tabs
+      - prose.experience_contract:comparison-criteria-stay-visible
+
+  - id: "midnight-research-proof-plane"
+    path: "examples/core/midnight-research-proof-plane.png"
+    title: "Midnight research proof plane"
+    surface_type: "proof"
+    scope: "technical-marketing"
+    note: "Weighted source-informed neutral exemplar; abstracts public technical-platform research-page midnight proof behavior with generic recognition placeholders."
+    why: "Shows a midnight proof plane with mono eyebrow, display claim, muted recognition rail, and dark-on-dark proof cards."
+    refs:
+      - composition.pattern:midnight-proof-plane
+      - composition.pattern:dark-proof-card-grid
+      - prose.experience_contract:proof-supports-claim
+
+  - id: "technical-config-workflow"
+    path: "examples/core/technical-config-workflow.png"
+    title: "Technical configuration workflow"
+    surface_type: "workflow"
+    scope: "technical-workflow"
+    note: "Weighted source-informed neutral exemplar for request, setup, deployment, and filter workflows."
+    why: "Shows white form sheet, mono labels, hairline field groups, small-radius inputs, and one black primary action."
+    refs:
+      - composition.pattern:technical-form-sheet
+      - composition.pattern:rectangular-cta-system
+      - prose.experience_contract:actions-remain-rectangular-and-clear
+
+  - id: "code-breakout-capability-panel"
+    path: "examples/core/code-breakout-capability-panel.png"
+    title: "Code breakout capability panel"
+    surface_type: "proof"
+    scope: "technical-data"
+    note: "Supporting source-informed neutral exemplar for implementation proof inside a white technical plane."
+    why: "Shows a minimal dark code/configuration panel paired with capability claims, proof stats, and hairline facts."
+    refs:
+      - composition.pattern:code-editor-breakout
+      - composition.pattern:tinted-stat-tiles
+      - prose.experience_contract:proof-supports-claim
+
+  - id: "mobile-technical-landing-stack"
+    path: "examples/core/mobile-technical-landing-stack.png"
+    title: "Mobile technical landing stack"
+    surface_type: "mobile-adaptation"
+    scope: "mobile-adaptation"
+    note: "Supporting source-informed neutral exemplar; abstracts public mobile technical-platform landing behavior without source marks or copy."
+    why: "Shows stacked claim, compact rectangular CTAs, large cropped signal art, muted proof rail, and claim-first mobile rhythm."
+    refs:
+      - composition.pattern:mobile-technical-collapse
+      - composition.pattern:technical-plane-landing
+      - composition.pattern:rectangular-cta-system
+      - prose.experience_contract:primary-claim-before-detail
+
+  - id: "technical-benchmark-update-card"
+    path: "examples/core/technical-benchmark-update-card.png"
+    title: "Technical benchmark update card"
+    surface_type: "proof-card"
+    scope: "technical-proof-card"
+    note: "Supporting source-informed neutral exemplar; abstracts public technical blog/update-card behavior without source logos, headlines, or article copy."
+    why: "Shows mono category badges, bold technical headlines, neutral graphic planes, concise implication copy, flat cards, and rectangular follow-up actions."
+    refs:
+      - composition.pattern:technical-update-card
+      - composition.pattern:mono-eyebrow-system
+      - prose.experience_contract:proof-supports-claim
+      - prose.principle:type-contrast-is-technical-voice
+
+sources:
+  - id: "source-study"
+    kind: "file"
+    ref: "sources/curation/source-study-2026-06-22.md"
+    note: "Agnostic curation note distilled from online research into a public technical-cloud website and the attached design analysis."
+
+  - id: "together-ai-online-research"
+    kind: "file"
+    ref: "sources/curation/together-ai-online-research-2026-06-22.md"
+    note: "Bundle-local public-web research note for the researched technical-platform surfaces; promotes neutral composition evidence and excludes source identity, screenshots, exact copy, customer marks, model names, and pricing values."
+
+  - id: "dogfood-review-rubric"
+    kind: "file"
+    ref: "sources/curation/dogfood-review-rubric-2026-06-22.md"
+    note: "Scoring rubric for Technical Contrast dogfood generations."

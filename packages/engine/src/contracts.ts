@@ -62,38 +62,6 @@ export type GhostTokenSourceKind =
   | 'ghost-config'
   | 'fingerprint-catalog';
 
-export type GhostFidelitySignalKind =
-  | 'composition'
-  | 'prose'
-  | 'inventory'
-  | 'token'
-  | 'anti-pattern'
-  | 'check';
-
-export interface GhostFidelitySignal {
-  id: string;
-  kind: GhostFidelitySignalKind;
-  label: string;
-  terms: string[];
-  severity: ContractIssueSeverity;
-  sourceRef?: string;
-  message?: string;
-  hint?: string;
-}
-
-export interface GhostRuntimeCheck {
-  id: string;
-  title: string;
-  severity: ContractIssueSeverity;
-  detector: {
-    type: 'includes' | 'regex';
-    pattern: string;
-  };
-  expectation?: 'present' | 'absent';
-  sourceRef?: string;
-  repair?: string;
-}
-
 export interface GhostIngestionContract {
   schema: 'summon.ghost-ingestion/v1';
   product: string;
@@ -147,11 +115,6 @@ export interface GhostIngestionContract {
     warnings: string[];
   };
   promptBlocks: Array<{ id: string; text: string }>;
-  validation: {
-    requiredSignals: GhostFidelitySignal[];
-    forbiddenSignals: GhostFidelitySignal[];
-    activeChecks: GhostRuntimeCheck[];
-  };
 }
 
 export interface GhostGenerationContext {

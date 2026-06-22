@@ -1,0 +1,81 @@
+schema: ghost.checks/v1
+id: signal-stream-checks
+checks:
+  - id: no-local-absolute-paths
+    title: "Portable Signal Stream evidence must not reference curator-local paths"
+    status: active
+    severity: serious
+    derivation:
+      prose:
+        - prose.experience_contract:exemplar-abstraction-boundary
+      composition:
+        - composition.pattern:source-neutral-masthead-placeholder
+    applies_to:
+      paths:
+        - fingerprint/prose.yml
+        - fingerprint/inventory.yml
+        - fingerprint/composition.yml
+        - fingerprint/memory/intent.md
+      surface_types: [feed, digest, review, brief]
+    detector:
+      type: forbidden-regex
+      pattern: '(/Users/|file://|/tmp/)'
+    evidence:
+      support: 1
+      observed_count: 0
+      examples:
+        - fingerprint/prose.yml
+        - fingerprint/inventory.yml
+        - fingerprint/composition.yml
+    repair: "Use package-relative refs under fingerprint/ or examples/, or summarize local research in a bundle-local curation note."
+
+  - id: no-source-brand-copy
+    title: "Agnostic Signal Stream guidance must not copy source publisher identity"
+    status: proposed
+    severity: serious
+    derivation:
+      prose:
+        - prose.principle:source-informed-not-source-branded
+        - prose.experience_contract:exemplar-abstraction-boundary
+      composition:
+        - composition.pattern:source-neutral-masthead-placeholder
+    applies_to:
+      paths:
+        - fingerprint/prose.yml
+        - fingerprint/inventory.yml
+        - fingerprint/composition.yml
+        - fingerprint/memory/intent.md
+        - examples/dogfood/prompts.md
+      surface_types: [feed, digest, review, brief]
+    detector:
+      type: forbidden-regex
+      pattern: '(The Verge|theverge|Verge Score|Vox Media|Read this before you vibe-code another app|vibe-code another app|Yael|Dominic Preston|Emma Roth|Ring home security)'
+    evidence:
+      support: 0.95
+      observed_count: 0
+      examples:
+        - fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+    repair: "Replace source-brand copy with fictional, user-supplied, or abstract signal-stream content. Source names may remain in curation notes when used as provenance."
+
+  - id: shadows-remain-flat-tokens
+    title: "Shadow tokens preserve flat graphic depth"
+    status: active
+    severity: serious
+    derivation:
+      prose:
+        - prose.experience_contract:no-shadow-elevation
+      composition:
+        - composition.pattern:flat-hairline-depth
+    applies_to:
+      paths:
+        - tokens.css
+      surface_types: [feed, digest, review, brief]
+    detector:
+      type: required-regex
+      pattern: '--shadow-mini:\s*none;[\s\S]*--shadow-card:\s*none;[\s\S]*--shadow-elevated:\s*none;'
+    evidence:
+      support: 0.9
+      observed_count: 1
+      examples:
+        - tokens.css
+    repair: "Keep primary shadow tokens at none; use 1px rings, rules, borders, spacing, or saturated fills for hierarchy."

@@ -8,7 +8,6 @@ export {
   summarizeContractIssues,
   compileGhostIngestionContract,
   ghostIngestionContractMeta,
-  validateGhostFidelity,
 } from '@summon-internal/server';
 export type {
   AgentGoalProvider,
@@ -27,10 +26,6 @@ export type {
   GenerateSurfaceInput,
   GenerationSummary,
   GhostCompileInput,
-  GhostFidelityResult,
-  GhostFidelitySignalResult,
-  GhostFidelityValidation,
-  GhostRuntimeCheckResult,
   RawGhostFingerprintBundle,
   GhostGenerationContext,
   HostPolicyResolutionRequest,

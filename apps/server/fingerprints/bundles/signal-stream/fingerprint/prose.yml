@@ -1,0 +1,305 @@
+summary:
+  product: "Signal Stream"
+  audience:
+    - "readers scanning live updates, feature digests, and high-volume editorial feeds"
+    - "operators and reviewers who need fast hierarchy in dense technology briefings"
+    - "agents composing expressive generated surfaces that should feel urgent without becoming chaotic"
+  goals:
+    - "Make the page feel like a live signal: dark field, sharp metadata, loud editorial type, and saturated moments of emphasis."
+    - "Turn feeds, reviews, launch updates, and comparisons into a paced stream rather than a generic dashboard."
+    - "Use flat color, hairline rules, pill geometry, and mono labels to create hierarchy without shadows or gradients."
+    - "Let one or two hazard accents carry attention while the black canvas remains the dominant material."
+  anti_goals:
+    - "Light-mode news pages, beige editorial paper, generic SaaS dashboards, or soft note-card planning."
+    - "Decorative gradients, glow effects, drop-shadow elevation, glassmorphism, or atmospheric blur."
+    - "Square card grids where every story has equal weight and no stream rhythm."
+    - "Pastel accent washes or chromatic backgrounds that dilute the high-voltage signal."
+    - "Brand marks, source-specific names, proprietary logos, or literal imitation of any publisher."
+    - "Treating advertisements, sponsored modules, or source-site monetization units as canonical surface guidance."
+    - "Using raw source screenshots, copied article titles, author names, section labels, or publisher marks as portable exemplar content."
+    - "Overfitting to one homepage breakpoint instead of preserving the underlying stream, lead, and digest roles."
+  tradeoffs:
+    - "Prefer vivid hierarchy over calm neutrality when the surface is an active feed or editorial digest."
+    - "Prefer color-as-emphasis over shadow-as-elevation."
+    - "Prefer compact metadata and rail structure over verbose labels when time, status, sequence, or category matters."
+    - "Preserve legibility by using saturated fills sparingly and keeping small text on stable contrast pairs."
+  tone:
+    - "electric"
+    - "editorial"
+    - "urgent"
+    - "sharp"
+    - "dense"
+    - "confident"
+    - "technical"
+
+situations:
+  - id: live-signal-feed
+    title: "Live signal feed"
+    user_intent: "Scan recent updates, incidents, launches, or posts in sequence."
+    product_obligation: "Show time, status, and headline hierarchy immediately through a visible rail and stacked stream items."
+    surface_type: "feed"
+    principles:
+      - prose.principle:dark-canvas-is-the-material
+      - prose.principle:metadata-is-navigation
+    experience_contracts:
+      - prose.experience_contract:stream-order-is-visible
+      - prose.experience_contract:small-text-stays-legible
+    patterns:
+      - composition.pattern:signal-rail-feed
+      - composition.pattern:mono-uppercase-metadata
+      - composition.pattern:signal-rail-feed
+      - composition.pattern:segmented-stream-tabs
+      - composition.pattern:pill-corner-stream-tile
+    refuses:
+      - "Unsequenced card grids that hide time and order."
+      - "Timeline surfaces that use decorative dots but no useful metadata."
+
+  - id: high-voltage-digest
+    title: "High-voltage digest"
+    user_intent: "Understand the most important items across a dense topic quickly."
+    product_obligation: "Pace quiet dark stretches with a few saturated editorial blocks so the lead, secondary items, and scans are distinct."
+    surface_type: "digest"
+    principles:
+      - prose.principle:hazard-accents-earn-attention
+      - prose.principle:flat-depth-keeps-the-signal-clean
+    experience_contracts:
+      - prose.experience_contract:accent-has-purpose
+      - prose.experience_contract:no-shadow-elevation
+    patterns:
+      - composition.pattern:saturated-hazard-tile
+      - composition.pattern:flat-hairline-depth
+      - composition.pattern:dense-editorial-grid
+      - composition.pattern:compact-supporting-story-grid
+    refuses:
+      - "Every item receiving a bright fill."
+      - "Decorative color chips that do not clarify priority, section, or action."
+
+  - id: feature-or-review-lead
+    title: "Feature or review lead"
+    user_intent: "Read a strongly framed editorial take, review, or launch analysis."
+    product_obligation: "Use display-scale headline treatment and a tight deck before secondary evidence."
+    surface_type: "review"
+    principles:
+      - prose.principle:display-shout-anchors-the-page
+      - prose.principle:dark-canvas-is-the-material
+    experience_contracts:
+      - prose.experience_contract:display-type-must-fit
+      - prose.experience_contract:scan-before-detail
+    patterns:
+      - composition.pattern:display-shout-with-whisper-kicker
+      - composition.pattern:lead-image-headline-slab
+      - composition.pattern:static-image-frame
+      - composition.pattern:color-block-feature
+    refuses:
+      - "Small generic headers that make the surface feel templated."
+      - "Marketing hero gradients or image zoom effects."
+
+  - id: actionable-technology-brief
+    title: "Actionable technology brief"
+    user_intent: "Make a decision or understand a technical situation from a compact editorial surface."
+    product_obligation: "Expose the headline, evidence, risk, and next action with enough structure to act without losing the editorial voice."
+    surface_type: "brief"
+    principles:
+      - prose.principle:metadata-is-navigation
+      - prose.principle:hazard-accents-earn-attention
+    experience_contracts:
+      - prose.experience_contract:scan-before-detail
+      - prose.experience_contract:accent-has-purpose
+    patterns:
+      - composition.pattern:signal-brief-anatomy
+      - composition.pattern:mono-uppercase-metadata
+      - composition.pattern:hazard-pill-cta
+      - composition.pattern:source-neutral-masthead-placeholder
+    refuses:
+      - "Dashboard KPI cards with no editorial claim."
+      - "Multiple competing CTAs or state colors that erase priority."
+
+principles:
+  - id: dark-canvas-is-the-material
+    principle: "The near-black canvas is the primary material; bright surfaces are interruptions, not the default."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    guidance:
+      - "Use a warm near-black field as the page background and primary negative space."
+      - "Keep white text, muted gray metadata, and hairline borders crisp against the dark field."
+      - "Use white, mint, yellow, pink, orange, blue, or violet fills only for editorial emphasis, selected items, or calls to action."
+      - "Avoid light-mode shells unless a single bright tile is intentionally interrupting the dark rhythm."
+    counterexamples:
+      - "Cream paper pages, light cards on gray background, or white dashboards."
+      - "Large soft tinted backgrounds that reduce the black-field contrast."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: hazard-accents-earn-attention
+    principle: "Mint and violet accents behave like hazard markers: they identify the most important action, state, rail, or tile."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    guidance:
+      - "Reserve acid mint for primary CTAs, active underlines, key labels, focus-adjacent emphasis, and one high-attention tile."
+      - "Reserve electric violet for secondary emphasis, promotional outlines, timeline rails, and alternate highlight blocks."
+      - "Use additional saturated tile colors as solid editorial blocks, not as gradients or pastel washes."
+      - "Make the accent's job legible: priority, action, current state, section, or interruption."
+    counterexamples:
+      - "Mint used as small low-contrast body text."
+      - "Violet and mint applied everywhere as decorative theme color."
+      - "Gradients that fade hazard color into background ambience."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: display-shout-anchors-the-page
+    principle: "A Signal Stream surface earns its personality through one oversized display shout contrasted with compact metadata and quieter copy."
+    applies_to:
+      paths: ["."]
+      surface_types: ["digest", "review", "brief"]
+    guidance:
+      - "Use one extreme headline or masthead-scale title with tight line-height as the visual event."
+      - "Pair display type with compact uppercase metadata or a thin tracked kicker to create shout-versus-whisper contrast."
+      - "Keep display type out of routine UI controls, tables, and body copy."
+      - "Scale down responsively before allowing display words to clip, collide, or crowd the host frame."
+    counterexamples:
+      - "Every card using display type."
+      - "Small display fonts used as button labels."
+      - "Long unwrapped hero headlines that overlap content."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: metadata-is-navigation
+    principle: "Mono uppercase metadata is not decoration; it tells the reader time, order, category, confidence, state, or action."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    guidance:
+      - "Use uppercase mono or mono-like labels for timestamps, kickers, section tags, ranks, CTAs, and status chips."
+      - "Track labels generously, keep them short, and place them near the content they orient."
+      - "Let timestamps live on a rail or in a repeated metadata slot when sequence matters."
+      - "Avoid lowercase mono and decorative labels with no information value."
+    counterexamples:
+      - "Friendly badge copy that does not orient the stream."
+      - "Dense paragraphs before time, category, or status is visible."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: flat-depth-keeps-the-signal-clean
+    principle: "Depth stays flat: hierarchy comes from borders, inset rules, saturation, and contrast rather than elevation shadows."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    guidance:
+      - "Use 1px white, gray, mint, or violet rules for containers, images, rails, active tabs, and selected states."
+      - "Use saturated fills as the loudest elevation tier."
+      - "Keep hover effects to text or border color changes unless the action requires stronger state feedback."
+      - "Remove soft shadows, glows, blur, glass, and card lift from primary editorial surfaces."
+    counterexamples:
+      - "Material-style card stacks with drop shadows."
+      - "Hover zoom, image scaling, or glow effects on feed tiles."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: source-informed-not-source-branded
+    principle: "Source evidence may shape composition, but generated surfaces must remain neutral, fictionalized, and agnostic."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    guidance:
+      - "Abstract source observations into generic roles such as lead stack, latest rail, segmented stream tabs, mobile story stack, section digest, and saturated interruption tile."
+      - "Use fictional names, titles, labels, imagery, and marks in portable exemplars and generated surfaces."
+      - "Do not copy publisher names, wordmarks, article titles, author names, section labels, ad creative, or proprietary marks."
+      - "Keep source references in curation notes; core generation guidance should cite bundle-local neutral exemplars and abstract pattern names."
+    counterexamples:
+      - "A generated page that recreates a publisher masthead or homepage with renamed story text."
+      - "A portable exemplar that contains raw ad creative or a real article title."
+      - "Using a public source screenshot as if it were an approved product asset."
+    evidence:
+      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+
+experience_contracts:
+  - id: stream-order-is-visible
+    contract: "Feed and update surfaces must make order, recency, or sequence visible without requiring paragraph reading."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest"]
+    obligations:
+      - "Use a rail, repeated timestamp slot, numbered sequence, or compact status line for ordered items."
+      - "Keep stream gaps tight enough to read as a sequence, with larger dark breaks only between sections."
+      - "Do not hide timestamps or state labels at the bottom of complex cards."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: accent-has-purpose
+    contract: "Every saturated accent block or hazard-colored element must communicate priority, action, state, or editorial interruption."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    obligations:
+      - "Use no more than a few saturated blocks in a single viewport unless the prompt asks for a deliberately loud digest."
+      - "Pair bright fills with black or white text according to contrast."
+      - "Avoid accent backgrounds for neutral supporting detail."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: no-shadow-elevation
+    contract: "Primary hierarchy must not depend on drop-shadow elevation."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    obligations:
+      - "Use hairline borders, inset underlines, saturated fills, spacing, or type scale instead of shadows."
+      - "If a ring is needed, keep it to a 1px outline or inset rule."
+      - "Do not use card lift, glow, blur, or large soft shadows for hover."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: small-text-stays-legible
+    contract: "Mono labels and metadata stay short, uppercase, tracked, and large enough to read on the dark canvas."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    obligations:
+      - "Keep metadata near 10-12px minimum with generous tracking and strong contrast."
+      - "Avoid small mint text on black when it vibrates or fails contrast."
+      - "Do not shrink labels further on mobile; collapse layout instead."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: display-type-must-fit
+    contract: "Display-scale headlines must wrap cleanly and remain inside the host frame."
+    applies_to:
+      paths: ["."]
+      surface_types: ["digest", "review", "brief"]
+    obligations:
+      - "Use clamp-based sizing for hero/display text."
+      - "Keep tight line-height but increase it when fallback fonts collide."
+      - "Scale headline size down before clipping or overlapping adjacent content."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: scan-before-detail
+    contract: "A reader should grasp the lead item, the current state, and the next action before reading body detail."
+    applies_to:
+      paths: ["."]
+      surface_types: ["digest", "review", "brief", "feed"]
+    obligations:
+      - "Show the headline or verdict first, then metadata, deck, and evidence."
+      - "Use rail labels, kickers, or tags to make scan paths visible."
+      - "Keep decks and supporting copy compact in feed contexts."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: exemplar-abstraction-boundary
+    contract: "Portable exemplars teach composition and hierarchy without carrying source brand identity."
+    applies_to:
+      paths: ["."]
+      surface_types: ["feed", "digest", "review", "brief"]
+    obligations:
+      - "Use neutral redraws or accepted generated outputs for canonical exemplar images."
+      - "Keep raw source screenshots and source-site observations in curation notes unless rights are explicitly approved."
+      - "Exclude publisher names, mastheads, article titles, author names, source labels, and ad creative from portable exemplar content."
+      - "Cite exemplar refs by package-relative paths under examples/ or fingerprint/sources/."
+    evidence:
+      - path: examples/core/signal-lead-stack-desktop.png
+      - path: examples/core/latest-signal-rail-desktop.png
+      - path: examples/core/mobile-top-story-stack.png
+      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+

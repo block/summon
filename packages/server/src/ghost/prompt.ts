@@ -1,4 +1,4 @@
-import type { GhostFidelitySignal, GhostIngestionContract, GhostRuntimeCheck } from '@summon-internal/engine';
+import type { GhostIngestionContract } from '@summon-internal/engine';
 import type { GhostNodeSummary } from './signals.js';
 import type { GhostRelayEntrypointLike } from './types.js';
 import { uniqueStrings } from './util.js';
@@ -36,27 +36,6 @@ export function buildGhostContractPrompt(input: {
     '',
     '### Active token vocabulary',
     formatBullets(input.tokenNames.slice(0, 80), 'No token names detected.'),
-  ].join('\n');
-}
-
-export function buildGhostValidationPrompt(input: {
-  requiredSignals: GhostFidelitySignal[];
-  forbiddenSignals: GhostFidelitySignal[];
-  activeChecks: GhostRuntimeCheck[];
-}): string {
-  return [
-    '## Ghost Fidelity Gate',
-    '',
-    'The server validates Ghost fidelity after Arrow validation. A generic but valid Arrow artifact can be rejected.',
-    '',
-    'Required evidence signals:',
-    formatBullets(input.requiredSignals.map((signal) => `${signal.sourceRef ?? signal.id}: ${signal.terms.join(', ')}`), 'None.'),
-    '',
-    'Forbidden anti-pattern signals:',
-    formatBullets(input.forbiddenSignals.map((signal) => `${signal.label}: ${signal.terms.join(', ')}`), 'None.'),
-    '',
-    'Active checks:',
-    formatBullets(input.activeChecks.map((check) => `${check.id}: ${check.expectation ?? 'present'} ${check.detector.pattern}`), 'None.'),
   ].join('\n');
 }
 

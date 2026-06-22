@@ -1,13 +1,25 @@
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   SummonSurface,
   type SummonSurfaceHandle,
   type SummonSurfaceProps,
 } from "@anarchitecture/summon-react";
-import { Button } from "../../../components/ui.js";
+import {
+  Button,
+  DropdownSelect,
+  type DropdownSelectGroup,
+} from "../../../components/ui.js";
 import { cn } from "../../../lib/cn.js";
 import type { ChildSurfaceModel, GhostRootInfo } from "../types.js";
 import { ChildSurface } from "./ChildSurface.js";
+
+const promptActionRadiusClass = "!rounded-[22px]";
 
 export function GenerationStage({
   prompt,
@@ -73,6 +85,39 @@ export function GenerationStage({
     ) ?? null;
   const fingerprintLabel =
     selectedFingerprint?.name ?? selectedFingerprintId ?? "Fingerprint";
+  const fingerprintGroups = useMemo<DropdownSelectGroup[]>(() => {
+    const options: DropdownSelectGroup["options"] = [
+      {
+        value: "",
+        label: "No fingerprint",
+        description: "Use the default Summon direction.",
+      },
+    ];
+
+    if (selectedFingerprintId && !selectedFingerprint) {
+      options.push({
+        value: selectedFingerprintId,
+        label: fingerprintLabel,
+        description: "Selected fingerprint is not in the current catalog.",
+      });
+    }
+
+    options.push(
+      ...fingerprints.map((fingerprint) => ({
+        value: fingerprint.id,
+        label: fingerprint.name ?? fingerprint.id,
+        description: fingerprint.summary,
+        title: fingerprint.summary,
+      })),
+    );
+
+    return [{ options }];
+  }, [
+    fingerprintLabel,
+    fingerprints,
+    selectedFingerprint,
+    selectedFingerprintId,
+  ]);
   const [welcomeLeaving, setWelcomeLeaving] = useState(false);
   const [showWelcomeLayer, setShowWelcomeLayer] = useState(showWelcome);
 
@@ -235,38 +280,30 @@ export function GenerationStage({
                 />
               </label>
               <div className="flex items-center gap-2 pl-1 max-[760px]:justify-between max-[760px]:px-3 max-[760px]:pb-1">
-                <label className="grid gap-1" htmlFor="fingerprint-picker">
-                  <select
-                    id="fingerprint-picker"
-                    className="h-20 max-w-[180px] rounded-[22px] bg-surface px-3 text-xs font-semibold text-ink outline-none transition-colors hover:text-ink focus:border-ink"
-                    title={
-                      selectedFingerprint?.summary ?? "Choose a fingerprint"
-                    }
-                    value={selectedFingerprintId ?? ""}
-                    disabled={running || fingerprints.length === 0}
-                    onChange={(event) =>
-                      onSelectFingerprint(event.target.value || null)
-                    }
-                  >
-                    <option value="">No fingerprint</option>
-                    {selectedFingerprintId && !selectedFingerprint ? (
-                      <option value={selectedFingerprintId}>{fingerprintLabel}</option>
-                    ) : null}
-                    {fingerprints.map((fingerprint) => (
-                      <option
-                        key={fingerprint.id}
-                        value={fingerprint.id}
-                        title={fingerprint.summary}
-                      >
-                        {fingerprint.name ?? fingerprint.id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <DropdownSelect
+                  id="fingerprint-picker"
+                  value={selectedFingerprintId ?? ""}
+                  groups={fingerprintGroups}
+                  overline="Fingerprint"
+                  placeholder="No fingerprint"
+                  title={selectedFingerprint?.summary ?? "Choose a fingerprint"}
+                  side="top"
+                  align="end"
+                  disabled={running || fingerprints.length === 0}
+                  className="w-[180px] max-w-[46vw]"
+                  triggerClassName={cn(
+                    "h-20 !border-0 !bg-ink px-3 py-0 text-xs font-semibold !text-ink-inverse shadow-none hover:opacity-85 focus:border-transparent",
+                    promptActionRadiusClass,
+                  )}
+                  contentClassName="w-[min(320px,calc(100vw-32px))] !rounded-[32px] max-[760px]:left-0 max-[760px]:right-auto"
+                  onValueChange={(nextValue) =>
+                    onSelectFingerprint(nextValue || null)
+                  }
+                />
                 <Button
                   id="go"
                   type="submit"
-                  className="h-20 w-24 !rounded-[22px] px-5"
+                  className={cn("h-20 w-24 px-5", promptActionRadiusClass)}
                   disabled={running || !prompt.trim()}
                 >
                   {running ? "summoning" : "summon"}

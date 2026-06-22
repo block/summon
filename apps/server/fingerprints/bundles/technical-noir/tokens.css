@@ -1,0 +1,88 @@
+:root {
+  color-scheme: dark;
+
+  /* Technical Noir: near-charcoal with a brown-beige temperature, never pure black. */
+  --color-bg: #2b2622;
+  --color-surface: #383330;
+  --color-surface-muted: #302b28;
+  --color-border: #3f3a36;
+  --color-border-input: #57504a;
+  --color-border-strong: #f7f5f0;
+  --color-text: #f7f5f0;
+  --color-text-muted: #c9c0ad;
+  --color-text-alt: #dad2c1;
+  --color-accent: #f7f5f0;
+  --color-accent-fg: #2b2622;
+  --color-danger: #e08b7d;
+  --color-success: #a8c890;
+  --color-info: #9fb7d7;
+  --color-warning: #d6b16a;
+
+  /* Compact 4px-ish rhythm with deliberate 10px button/control steps. */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --space-9: 64px;
+  --space-10: 96px;
+
+  /* Tight developer-tool geometry. Pills are exceptional, not default CTA shape. */
+  --radius-pill: 999px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "DM Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 48px;
+  --text-display: clamp(48px, 7vw, 64px);
+  --tracking-label: 0.02em;
+  --tracking-tight: -0.025em;
+  --tracking-display: -0.025em;
+  --leading-display: 1.1;
+  --leading-section: 1.25;
+  --leading-body: 1.5;
+  --leading-reading: 1.6;
+
+  /* Depth is hairline/surface contrast; shadow tokens remain inert for contract completeness. */
+  --shadow-mini: none;
+  --shadow-card: none;
+  --shadow-elevated: none;
+  --shadow-popover: none;
+  --shadow-modal: none;
+}
+
+html, body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, textarea, select {
+  font-family: var(--font-sans);
+}
+
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+}
+
+strong, b {
+  color: var(--color-text);
+  font-weight: 500;
+}

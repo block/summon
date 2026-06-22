@@ -1,0 +1,352 @@
+patterns:
+  - id: technical-plane-landing
+    kind: "structure"
+    pattern: "A technical landing surface opens as a contrast plane: pale or midnight canvas, sentence-case claim, mono eyebrow, compact CTA cluster, proof rail, and optional large signal artwork."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing"]
+    guidance:
+      - "Use a pale technical canvas when the surface should feel open, approachable, and product-led."
+      - "Use a midnight canvas when the surface should feel research-led, high-gravity, or proof-led."
+      - "Place the primary claim left-aligned or strongly centered; keep the headline sentence-case and tight."
+      - "Keep CTAs rectangular with small radius and uppercase mono labels."
+      - "If signal artwork appears, make it one large abstract object and keep it secondary to the claim."
+      - "On narrow screens, crop the large signal artwork below the CTAs or omit it; do not reduce it to repeated icons."
+      - "Use a muted proof rail for customer logos, recognitions, metrics, or trusted-by context."
+    anti_patterns:
+      - "Literal source logo, source wordmark, source slogan, or copied hero asset."
+      - "Generic centered SaaS hero with soft floating cards."
+      - "Artwork that obscures or outshouts the technical claim."
+      - "Repeated small decorative marks used as brand texture."
+    evidence:
+      - path: examples/core/technical-plane-landing.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Home landing page"
+      - path: fingerprint/sources/curation/together-ai-online-research-2026-06-22.md
+        locator: "Home page"
+
+  - id: banded-technical-narrative
+    kind: "layout"
+    pattern: "Long surfaces move between pale landing planes, white technical sheets, and midnight proof planes so each band has a clear job."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "proof", "comparison", "workflow"]
+    guidance:
+      - "Use pale or white planes for entry, product detail, forms, testimonials, and implementation content."
+      - "Use midnight planes for research, proof, and high-gravity technical claims."
+      - "Use white data sheets for tables, pricing, capacity, and configuration."
+      - "Keep section padding generous at plane boundaries and tighter inside rows or control groups."
+      - "Do not introduce many tinted background bands; use tint as proof/stat support only."
+    anti_patterns:
+      - "All content in uniform cards with no plane rhythm."
+      - "Grey section after grey section with no polarity change."
+      - "Decorative banding that does not correspond to a change in content job."
+    evidence:
+      - path: examples/core/technical-plane-landing.png
+      - path: examples/core/white-technical-pricing-sheet.png
+      - path: examples/core/midnight-research-proof-plane.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Promoted durable signals"
+
+  - id: mono-eyebrow-system
+    kind: "content"
+    pattern: "Uppercase monospace labels form the technical navigation system: eyebrows, buttons, tabs, table headers, badges, and compact metadata."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "comparison", "proof", "workflow"]
+    guidance:
+      - "Use mono caps for section labels, CTA text, tabs, table headings, metric labels, and small technical metadata."
+      - "Use positive tracking and compact sizes; keep labels short and parallel."
+      - "Keep headlines and paragraphs in the geometric sans, sentence-case."
+      - "Use mono labels to orient, not to decorate empty chips."
+    anti_patterns:
+      - "Body paragraphs or long explanations set in mono."
+      - "All-caps sans headlines."
+      - "Badge clutter with labels that add no information."
+    evidence:
+      - path: examples/core/technical-plane-landing.png
+      - path: examples/core/white-technical-pricing-sheet.png
+      - path: examples/core/technical-config-workflow.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Promoted durable signals"
+
+  - id: left-sidebar-pricing-navigation
+    kind: "structure"
+    pattern: "Dense pricing and capacity pages pair a quiet left category rail with a main white data sheet."
+    applies_to:
+      paths: ["."]
+      surface_types: ["comparison"]
+    guidance:
+      - "Use the left rail for product families, deployment modes, or capability categories when the table has many sections."
+      - "Keep the active category bold or darker; keep inactive categories muted."
+      - "Separate category groups with hairline dividers."
+      - "Keep help or contact cards visually secondary to the data sheet."
+      - "On mobile, collapse category groups into large plain accordions before the table rather than squeezing the rail beside content."
+      - "Do not let the sidebar become a decorative card stack."
+    anti_patterns:
+      - "Top-only navigation that makes a large comparison page feel unmoored."
+      - "Equal visual weight between help cards and primary pricing data."
+      - "Sidebar items styled as colorful category pills."
+    evidence:
+      - path: examples/core/white-technical-pricing-sheet.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Pricing page"
+      - path: fingerprint/sources/curation/together-ai-online-research-2026-06-22.md
+        locator: "Pricing page"
+
+  - id: pricing-table-sheet
+    kind: "structure"
+    pattern: "Pricing, model, capacity, and capability comparisons read as crisp white sheets with mono headers and hairline rows."
+    applies_to:
+      paths: ["."]
+      surface_types: ["comparison", "workflow"]
+    guidance:
+      - "Use a table, matrix, or aligned row system when values share criteria."
+      - "Set header cells in uppercase mono and muted text on a pale rail."
+      - "Keep body cells in geometric sans with aligned numeric columns and short secondary descriptions."
+      - "Use 1px hairline separators; avoid shadows and decorative card elevation."
+      - "On small screens, stack row details, use row labels, use horizontal scrolling, or group rows under category accordions while preserving shared labels."
+    anti_patterns:
+      - "Separate pricing cards with inconsistent internal structures."
+      - "Large colorful KPI cards replacing comparable rows."
+      - "Winner badges or confetti-like highlights."
+      - "Decorative artwork inside the comparison sheet."
+    evidence:
+      - path: examples/core/white-technical-pricing-sheet.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Pricing page"
+
+  - id: segmented-technical-tabs
+    kind: "behavior"
+    pattern: "Technical categories use compact segmented tabs on a hairline rail or white sheet, with small-radius active pills and mono labels."
+    applies_to:
+      paths: ["."]
+      surface_types: ["comparison", "workflow", "landing"]
+    guidance:
+      - "Use tabs for model families, pricing modes, capability groups, or scenario filters."
+      - "Place tabs on a pale rail or white-on-white outlined row."
+      - "Use black fill or stronger border for active state on light surfaces."
+      - "Keep tab labels short, uppercase, and horizontally scannable."
+      - "Preserve the comparison context when a tab changes the visible rows."
+    anti_patterns:
+      - "Oversized full-pill tabs with playful rounded geometry."
+      - "Different colors per tab category."
+      - "Tabs that change layout without preserving comparison context."
+    evidence:
+      - path: examples/core/white-technical-pricing-sheet.png
+      - path: examples/core/technical-config-workflow.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Pricing page"
+
+  - id: midnight-proof-plane
+    kind: "structure"
+    pattern: "Research or proof sections use a midnight plane with a strong display claim, mono eyebrow, muted recognition rail, and dark-on-dark proof cards."
+    applies_to:
+      paths: ["."]
+      surface_types: ["proof", "landing"]
+    guidance:
+      - "Use midnight as a full-plane context for research, credibility, or production proof."
+      - "Let the display claim carry the section; use periwinkle or muted light text for one emphasized phrase when needed."
+      - "Place recognition logos, awards, benchmarks, or institutional proof as a muted rail below the claim; genericize marks in agnostic output."
+      - "Follow with proof cards or research areas that stay dark-on-dark and hairline-bounded."
+    anti_patterns:
+      - "Bright white cards floating aggressively on the midnight plane."
+      - "Loose proof logos with no claim."
+      - "Over-bright neon AI effects, glows, or chart halos."
+    evidence:
+      - path: examples/core/midnight-research-proof-plane.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Research page"
+      - path: fingerprint/sources/curation/together-ai-online-research-2026-06-22.md
+        locator: "Research page"
+
+  - id: dark-proof-card-grid
+    kind: "structure"
+    pattern: "Research or proof content in a midnight plane uses dark-on-dark cards with hairline borders, mono tags, display titles, and short implications."
+    applies_to:
+      paths: ["."]
+      surface_types: ["proof", "landing"]
+    guidance:
+      - "Use a two-, three-, or four-up grid depending on viewport, collapsing to one column on mobile."
+      - "Keep card backgrounds close to the plane color and separate them with dark-soft borders."
+      - "Start each card with a mono tag, then a sentence-case title and concise body."
+      - "Pair each proof point with an operational implication, not just a citation or metric."
+    anti_patterns:
+      - "Bright cards floating on the dark plane."
+      - "Decorative research thumbnails that replace the claim."
+      - "Long paragraphs that make the proof grid hard to scan."
+    evidence:
+      - path: examples/core/midnight-research-proof-plane.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Research page"
+
+  - id: tinted-stat-tiles
+    kind: "visual"
+    pattern: "Pastel stat tiles provide rare relief on white planes, using large numbers, mono labels, and restrained mint or periwinkle fills."
+    applies_to:
+      paths: ["."]
+      surface_types: ["proof", "landing", "comparison"]
+    guidance:
+      - "Use tinted tiles sparingly for proof stats or summary metrics."
+      - "Use mint, periwinkle, or a very pale warm tint; avoid building a broad categorical palette."
+      - "Place the number or short result in display type and the label in mono caps."
+      - "Keep corners small and shadows absent."
+    anti_patterns:
+      - "Rainbow metric cards."
+      - "Pastel tiles used for every section."
+      - "Stats with no implication or relation to the primary claim."
+    evidence:
+      - path: examples/core/code-breakout-capability-panel.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Promoted durable signals"
+
+  - id: rectangular-cta-system
+    kind: "visual"
+    pattern: "Actions are small-radius rectangular buttons with uppercase mono labels; color depends on surface polarity."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "comparison", "workflow", "proof"]
+    guidance:
+      - "Use black filled buttons as the primary action on light surfaces."
+      - "Use white, mint, or dark-soft filled buttons in midnight planes."
+      - "Use outline buttons for secondary actions inside technical sheets."
+      - "Keep radius near 4px and avoid full-pill primary CTAs."
+    anti_patterns:
+      - "Decorative color-filled CTA buttons."
+      - "Fully rounded pill CTAs as the default shape."
+      - "Multiple equal primary buttons competing in one region."
+    evidence:
+      - path: examples/core/technical-plane-landing.png
+      - path: examples/core/technical-config-workflow.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Promoted durable signals"
+
+  - id: small-radius-rectangles
+    kind: "rule"
+    pattern: "Cards, forms, buttons, tables, badges, and tabs share a lightly rounded rectangular geometry."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "comparison", "proof", "workflow"]
+    guidance:
+      - "Use 4px as the default radius for cards, buttons, inputs, and table furniture."
+      - "Use 8px only for larger tab rails or grouped controls."
+      - "Reserve circular geometry for isolated icon buttons or host controls."
+      - "Keep image corners aligned with card corners when images are embedded."
+    anti_patterns:
+      - "Large soft 16–24px card radii."
+      - "Mixed radius scales without hierarchy."
+      - "Avatar-like circular crops unless the content specifically requires people."
+    evidence:
+      - path: examples/core/white-technical-pricing-sheet.png
+      - path: examples/core/technical-config-workflow.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Promoted durable signals"
+
+  - id: technical-form-sheet
+    kind: "structure"
+    pattern: "Technical workflows use white form sheets with mono labels, hairline field groups, small-radius inputs, and one black primary action."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workflow"]
+    guidance:
+      - "Use white sheet surfaces for configuration, contact, request, filter, and setup workflows."
+      - "Group fields with hairline dividers or compact section labels rather than heavy card shadows."
+      - "Keep labels short and technical; use body text only for necessary explanatory help."
+      - "Use one black primary action and quiet secondary actions."
+      - "Show technical state, selected options, or constraints near the controls they affect."
+      - "When using a product UI mockup as proof, simplify it into neutral configuration state rather than copying source screenshots."
+    anti_patterns:
+      - "Friendly onboarding form cards with big illustrations."
+      - "Multiple competing submit buttons."
+      - "Hidden technical constraints that only appear after failure."
+    evidence:
+      - path: examples/core/technical-config-workflow.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Contact and workflow pages"
+      - path: fingerprint/sources/curation/together-ai-online-research-2026-06-22.md
+        locator: "Product capability pages"
+
+  - id: code-editor-breakout
+    kind: "structure"
+    pattern: "A compact dark code or configuration mockup can break up a white technical plane, but it stays minimal and text-led."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "proof", "workflow"]
+    guidance:
+      - "Use a midnight panel with mono-caption code, small radius, and no elaborate window chrome."
+      - "Pair the mockup with a nearby claim or capability explanation."
+      - "Keep syntax accents limited; do not turn code into a rainbow illustration."
+      - "Use this as a proof or implementation break, not as the landing plane's main decorative object."
+    anti_patterns:
+      - "Terminal panels filled with irrelevant code."
+      - "Traffic-light chrome, heavy shadows, or glass effects."
+      - "Code mockups that reduce the readability of adjacent content."
+    evidence:
+      - path: examples/core/code-breakout-capability-panel.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Product and implementation pages"
+
+  - id: low-contrast-terminal-signoff
+    kind: "content"
+    pattern: "Long surfaces may close with an oversized, low-contrast terminal phrase that acts as a quiet sign-off rather than a literal brand wordmark."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "proof", "comparison"]
+    guidance:
+      - "Use a generic phrase derived from the user's prompt, such as the product category, system name, or final action."
+      - "Tint the phrase close to the hairline surface color so it reads as a stencil."
+      - "Keep it edge-to-edge or container-wide with square geometry."
+      - "Omit the sign-off when the generated surface is short or task-like."
+    anti_patterns:
+      - "Source wordmark, source domain, or source slogan reuse."
+      - "A heavy footer headline that competes with final navigation or action."
+      - "Decorative sign-off on compact workflows where it wastes space."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+        locator: "Rejected source-specific material"
+
+
+  - id: mobile-technical-collapse
+    kind: "behavior"
+    pattern: "Technical Contrast collapses to mobile by preserving claim-first order, rectangular actions, cropped large signal art, and visible comparison criteria."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "comparison", "proof", "workflow", "proof-card"]
+    guidance:
+      - "Stack or center the primary claim only when width demands it; the claim still appears before decorative or proof material."
+      - "Keep primary and secondary CTAs compact, rectangular, and visible."
+      - "Crop large signal artwork below the hero or omit it; do not miniaturize it into repeated badges or icons."
+      - "Convert dense left rails into plain category accordions or stacked category rows."
+      - "Preserve table criteria through row labels, sticky labels, horizontal scroll, or grouped accordions."
+      - "Keep mono labels short and contrast-safe at mobile sizes."
+    anti_patterns:
+      - "Desktop table squeezed until criteria disappear."
+      - "Signal artwork repeated as small decorative mobile stickers."
+      - "Full-pill mobile CTAs replacing the rectangular action system."
+      - "Hero crop that hides the primary claim or primary action."
+    evidence:
+      - path: examples/core/mobile-technical-landing-stack.png
+      - path: fingerprint/sources/curation/together-ai-online-research-2026-06-22.md
+        locator: "Mobile home and pricing breakpoints"
+
+  - id: technical-update-card
+    kind: "content"
+    pattern: "Benchmark, certification, model-serving, and research updates appear as compact proof cards with mono category badges, bold technical headlines, concise implications, and optional neutral graphic planes."
+    applies_to:
+      paths: ["."]
+      surface_types: ["proof-card", "landing", "proof"]
+    guidance:
+      - "Start with a short uppercase mono category badge such as BENCHMARK, SECURITY, RESEARCH, or CAPABILITY."
+      - "Use a bold sentence-case technical headline and one short implication sentence."
+      - "Use optional neutral gradient or type artwork only when it supports the update; omit source logos and wordmarks."
+      - "Keep the card flat with hairline boundaries, small-radius corners, and no heavy shadow."
+      - "Include a quiet read-more or next-step action when the update invites deeper inspection."
+    anti_patterns:
+      - "Logo-in-card source mimicry."
+      - "Blog cards with decorative art but no operational implication."
+      - "Copied source headlines, model names, benchmark values, or pricing values."
+      - "Carousel controls or card art treated as required brand language."
+    evidence:
+      - path: examples/core/technical-benchmark-update-card.png
+      - path: fingerprint/sources/curation/together-ai-online-research-2026-06-22.md
+        locator: "Blog page"

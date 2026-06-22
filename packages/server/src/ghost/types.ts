@@ -1,20 +1,9 @@
 import type {
-  ContractIssue,
-  ContractIssueSeverity,
-  GhostFidelitySignal,
-  GhostFidelitySignalKind,
-  GhostGenerationContext,
   GhostIngestionContract,
-  GhostRuntimeCheck,
   GhostTokenSourceKind,
 } from '@summon-internal/engine';
 
-export type {
-  GhostFidelitySignal,
-  GhostFidelitySignalKind,
-  GhostIngestionContract,
-  GhostRuntimeCheck,
-};
+export type { GhostIngestionContract };
 
 export interface RawGhostFingerprintBundle {
   manifest?: Record<string, unknown>;
@@ -70,47 +59,4 @@ export interface GhostCompileInput {
     warnings: string[];
   };
   raw: RawGhostFingerprintBundle;
-}
-
-export interface GhostFidelitySignalResult {
-  id: string;
-  kind: GhostFidelitySignalKind;
-  sourceRef?: string;
-  label: string;
-  status: 'pass' | 'warn' | 'block';
-  severity: ContractIssueSeverity;
-  matchedTerms: string[];
-  missingTerms: string[];
-}
-
-export interface GhostRuntimeCheckResult {
-  id: string;
-  title: string;
-  status: 'pass' | 'warn' | 'block';
-  severity: ContractIssueSeverity;
-  matched?: string;
-  message?: string;
-}
-
-export interface GhostFidelityResult {
-  schema: 'summon.ghost-fidelity/v1';
-  status: 'pass' | 'warn' | 'block';
-  requiredSignals: GhostFidelitySignalResult[];
-  forbiddenSignals: GhostFidelitySignalResult[];
-  activeChecks: GhostRuntimeCheckResult[];
-  aggregates: {
-    compositionSignals: { total: number; matched: number; blocked: boolean };
-    tokenSignals: { total: number; matched: number };
-    inventorySignals: { total: number; matched: number };
-  };
-}
-
-export interface GhostFidelityValidation {
-  issues: ContractIssue[];
-  summary: GhostFidelityResult | null;
-}
-
-export interface GhostFidelityValidationInput {
-  source: Record<string, string>;
-  ghost: GhostGenerationContext | null;
 }

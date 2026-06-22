@@ -1,0 +1,210 @@
+topology:
+  scopes:
+    - id: "generated-surface"
+      paths:
+        - "."
+      surface_types:
+        - "landing"
+        - "editorial"
+        - "specification"
+        - "catalog"
+        - "directory"
+    - id: "cinematic-launch"
+      paths:
+        - "examples/core/cinematic-launch-hero.png"
+        - "examples/core/single-red-livery-band.png"
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "fingerprint/sources/curation/source-study-2026-06-22.md"
+      surface_types:
+        - "landing"
+        - "editorial"
+    - id: "performance-spec"
+      paths:
+        - "examples/core/performance-spec-grid.png"
+        - "examples/core/event-row-system.png"
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+      surface_types:
+        - "specification"
+        - "landing"
+    - id: "transactional-catalog"
+      paths:
+        - "examples/core/white-preowned-catalog-sheet.png"
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+      surface_types:
+        - "catalog"
+        - "directory"
+    - id: "editorial-heritage"
+      paths:
+        - "examples/core/heritage-editorial-feature.png"
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+      surface_types:
+        - "editorial"
+  surface_types:
+    - "landing"
+    - "editorial"
+    - "specification"
+    - "catalog"
+    - "directory"
+
+building_blocks:
+  tokens:
+    - "--color-bg: warm near-black cinematic canvas; never pure black."
+    - "--color-surface: dark editorial section and hero underlay."
+    - "--color-surface-muted: dark elevated plate for driver/spec/feature panels."
+    - "--color-surface-light: white sheet for listings, forms, tables, directories, and transactional bands."
+    - "--color-surface-light-muted: pale rail or listing background on white sheets."
+    - "--color-border: dark hairline divider and plate boundary."
+    - "--color-border-on-light: hairline divider on white sheets."
+    - "--color-text: white ink on dark surfaces."
+    - "--color-text-muted: grey body, captions, and secondary metadata on dark."
+    - "--color-text-on-light: near-black copy on white bands."
+    - "--color-accent: scarce race-red voltage for primary CTA or decisive value."
+    - "--color-accent-hover: darker red press/active state; do not multiply red accents."
+    - "--color-accent-yellow: exceptional focus or specialty accent only; not part of the main palette."
+    - "--space-1 through --space-9: explicit 4/8px-rooted rhythm from hairline gaps to 128px editorial sections."
+    - "--radius-sm and --radius-md: canonical square 0px geometry for CTAs, cards, and plates."
+    - "--radius-xl: tiny utility/input radius only."
+    - "--radius-pill: badges only, not primary CTAs."
+    - "--font-sans: restrained sans substitute for all narrative and UI text."
+    - "--text-display through --text-xs: restrained display hierarchy, modest body, compact captions."
+    - "--tracking-label: uppercase nav, CTA, badge, and section label tracking."
+    - "--tracking-display: slight negative tracking on display type only."
+    - "--shadow-* are deliberately none for surfaces; depth is photographic and hairline-led."
+  components:
+    - "cinematic-hero"
+    - "image-led-masthead"
+    - "dark-top-navigation"
+    - "light-top-navigation"
+    - "red-primary-button"
+    - "dark-outline-button"
+    - "light-outline-button"
+    - "uppercase-tertiary-link"
+    - "full-bleed-photo-band"
+    - "editorial-dark-section"
+    - "single-red-accent-band"
+    - "image-first-feature-card"
+    - "dark-elevated-driver-or-profile-card"
+    - "large-number-spec-cell"
+    - "race-or-event-position-cell"
+    - "hairline-event-row"
+    - "premium-directory-sheet"
+    - "white-catalog-sheet"
+    - "image-first-listing-card"
+    - "rectangular-form-control"
+    - "badge-pill"
+    - "dark-cta-band"
+    - "dark-footer"
+    - "copy atom: Performance, Craft, Motion, Specification, Availability, Configuration, Event, Position, Detail, Reserve, Explore, Compare, Next session, Directory, Region, Service."
+    - "state variant: selected model, active event, featured specification, available listing, reserved item, form validation error, empty catalog, loading results, active directory region."
+    - "micro-pattern: cinematic hero with eyebrow, display headline, short deck, red primary CTA, outline secondary CTA."
+    - "micro-pattern: spec cell with oversized value, unit, uppercase label, and optional muted implication."
+    - "micro-pattern: listing card with edge-to-edge image, model/category name, short metadata row, and price or status."
+    - "micro-pattern: event row with date, venue/context, result/status, and one red decisive value."
+    - "micro-pattern: directory row grouped by region with location/context and one rectangular action."
+  libraries: []
+  assets:
+    - "examples/core/cinematic-launch-hero.png"
+    - "examples/core/performance-spec-grid.png"
+    - "examples/core/white-preowned-catalog-sheet.png"
+    - "examples/core/event-row-system.png"
+    - "examples/core/heritage-editorial-feature.png"
+    - "examples/core/single-red-livery-band.png"
+  files:
+    - "fingerprint/sources/curation/source-study-2026-06-22.md"
+    - "fingerprint/sources/curation/dogfood-prompts-2026-06-22.md"
+    - "fingerprint/memory/intent.md"
+    - "examples/core/README.md"
+  notes:
+    - "This catalog entry is intentionally agnostic: no actual automotive brand names, logos, animal marks, source model names, racing team names, slogans, or proprietary photography should appear in generated surfaces unless the user's prompt supplies them."
+    - "The exemplars are derived, source-agnostic visual evidence created for this bundle; they are not screenshots or copied source assets."
+    - "Use image slots and photographic descriptions as composition material; do not require external images."
+    - "The red accent should feel rare. If the surface already has a red CTA, use white/grey/hairline treatments for secondary emphasis."
+    - "White bands are allowed but should feel like transactional editorial relief framed by the dark cinematic language."
+
+exemplars:
+  - id: "cinematic-launch-hero"
+    path: "examples/core/cinematic-launch-hero.png"
+    title: "Cinematic launch hero"
+    surface_type: "landing"
+    scope: "cinematic-launch"
+    note: "Derived agnostic exemplar informed by public luxury-performance editorial research; not a copied source screenshot."
+    why: "Shows near-black full-bleed hero composition, restrained navigation, one red primary CTA, one outline CTA, and source-agnostic product naming."
+    refs:
+      - composition.pattern:full-bleed-cinematic-hero
+      - composition.pattern:scarce-red-cta-cluster
+      - prose.principle:cinema-is-the-chrome
+      - prose.experience_contract:source-agnostic-performance-language
+
+  - id: "performance-spec-grid"
+    path: "examples/core/performance-spec-grid.png"
+    title: "Performance spec grid"
+    surface_type: "specification"
+    scope: "performance-spec"
+    note: "Derived agnostic exemplar for large-number specification behavior."
+    why: "Shows oversized meaningful numerals, units, uppercase labels, hairline grid alignment, and one decisive red value."
+    refs:
+      - composition.pattern:large-number-spec-grid
+      - composition.pattern:dark-elevated-plates
+      - prose.principle:data-reads-as-specification
+      - prose.experience_contract:metrics-earn-their-scale
+
+  - id: "white-preowned-catalog-sheet"
+    path: "examples/core/white-preowned-catalog-sheet.png"
+    title: "White catalog sheet"
+    surface_type: "catalog"
+    scope: "transactional-catalog"
+    note: "Derived agnostic exemplar informed by public preowned/listing research; not a copied source screenshot."
+    why: "Shows a dark editorial frame transitioning into a sharp white listing sheet with image-first cards, compact metadata, hairlines, and rectangular controls."
+    refs:
+      - composition.pattern:white-catalog-sheet
+      - composition.pattern:image-first-listing-card
+      - composition.pattern:rectangular-form-and-control-system
+      - prose.principle:white-is-transactional-relief
+      - prose.experience_contract:transactional-density-stays-editorial
+
+  - id: "event-row-system"
+    path: "examples/core/event-row-system.png"
+    title: "Event row system"
+    surface_type: "specification"
+    scope: "performance-spec"
+    note: "Derived agnostic exemplar for race, event, session, or status rows."
+    why: "Shows hairline-separated rows with date, context, status/result alignment, and one red decisive position."
+    refs:
+      - composition.pattern:race-or-event-row-system
+      - prose.principle:data-reads-as-specification
+      - prose.experience_contract:red-highlights-only-the-decisive-value
+
+  - id: "heritage-editorial-feature"
+    path: "examples/core/heritage-editorial-feature.png"
+    title: "Heritage editorial feature"
+    surface_type: "editorial"
+    scope: "editorial-heritage"
+    note: "Derived agnostic exemplar informed by public heritage/editorial research."
+    why: "Shows image-led editorial pacing, restrained headline/deck treatment, feature cards, and a non-transactional premium narrative frame."
+    refs:
+      - composition.pattern:editorial-dark-to-body-pacing
+      - composition.pattern:image-first-feature-card
+      - prose.principle:cinema-is-the-chrome
+      - prose.principle:restrained-sans-does-not-shout
+
+  - id: "single-red-livery-band"
+    path: "examples/core/single-red-livery-band.png"
+    title: "Single red accent band"
+    surface_type: "landing"
+    scope: "cinematic-launch"
+    note: "Derived agnostic exemplar for rare full-width red interruption."
+    why: "Shows red used once as a major editorial signal, with surrounding content returning to near-black restraint."
+    refs:
+      - composition.pattern:single-red-livery-band
+      - prose.principle:red-is-voltage-not-palette
+      - prose.experience_contract:red-highlights-only-the-decisive-value
+
+sources:
+  - id: "source-study"
+    kind: "file"
+    ref: "sources/curation/source-study-2026-06-22.md"
+    note: "Agnostic curation note distilled from the attached design analysis, public luxury-performance web research, and derived exemplar production."

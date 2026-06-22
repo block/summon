@@ -10,7 +10,6 @@ export { summarizeContractIssues } from './summary.js';
 export {
   compileGhostIngestionContract,
   ghostIngestionContractMeta,
-  validateGhostFidelity,
 } from './ghost/index.js';
 
 export type {
@@ -35,10 +34,6 @@ export type {
 
 export type {
   GhostCompileInput,
-  GhostFidelityResult,
-  GhostFidelitySignalResult,
-  GhostFidelityValidation,
-  GhostRuntimeCheckResult,
   RawGhostFingerprintBundle,
 } from './ghost/index.js';
 

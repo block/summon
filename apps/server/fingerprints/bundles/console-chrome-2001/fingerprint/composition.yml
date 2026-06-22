@@ -1,0 +1,326 @@
+patterns:
+  - id: fixed-console-shell
+    kind: "structure"
+    pattern: "A generated surface sits inside a central fixed-canvas console chassis: grey browser field outside, periwinkle molded body inside, chamfered outer corners, and dense modules bolted into the faceplate."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief"]
+    guidance:
+      - "Use a framed central chassis around 780-900px when viewport allows, or an explicitly bounded max-width shell on modern screens."
+      - "Let the outer shell have a periwinkle body, hard indigo lower edge, and optional 45-degree chamfer or clipped corners."
+      - "Place content inside the chassis rather than floating independent cards on the page background."
+      - "On narrow screens, stack rails and modules but keep the single-machine frame and bevel seams."
+    anti_patterns:
+      - "Full-bleed modern SaaS sections with no central hardware frame."
+      - "A responsive masonry grid that loses the fixed application feel."
+      - "Loose cards over a plain pastel background."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: dual-command-navigation
+    kind: "structure"
+    pattern: "Navigation is layered as a carbon primary command bar over a pale secondary strip, with small uppercase labels and amber utility chips."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow"]
+    guidance:
+      - "Use carbon/navy for the primary command layer with subtle halftone dot texture."
+      - "Set primary nav words in nav-gold uppercase Arial Bold and separate them with hard dividers or tab-like cuts."
+      - "Place secondary links on a pale-sky strip beneath the command bar, smaller and quieter than the primary bar."
+      - "Use amber tool chips inside or adjacent to the command layer for search, finder, code, filter, or go utilities."
+    anti_patterns:
+      - "One clean modern top nav with large spacing and no texture."
+      - "Warm colors used for inactive section backgrounds."
+      - "Icon-only navigation with no silkscreen label voice."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: box-art-hero-plate
+    kind: "visual"
+    pattern: "Hero regions are beveled photographic or textured plates with an outlined box-art wordmark, compact tagline, and signal-orange advance control."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "brief"]
+    guidance:
+      - "Use a full-width plate clipped inside the chassis with pale lavender, teal circuitry, red racing, ice, or prompt-derived textured fields."
+      - "Render the main hero title in heavy display type with white fill, dark stroke, and hard offset shadow."
+      - "Pair the title with a short bold tagline and one orange circular arrow or chevron."
+      - "Use abstract product silhouettes, pixel patterns, circuitry, motion stripes, or original mascot art; do not reuse protected source imagery."
+    anti_patterns:
+      - "Flat text over a gradient hero."
+      - "Multiple hero panels competing in one viewport."
+      - "Soft blurred shadows, glass overlays, or photorealistic assets copied from historical screenshots."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: beveled-plate-system
+    kind: "visual"
+    pattern: "Every module reads as a hard beveled plate or inset field, with bright top/left highlights and chrome-indigo bottom/right shadow lines."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief"]
+    guidance:
+      - "Use inset box-shadow, border pairs, pseudo-elements, or layered backgrounds to create hard bevels."
+      - "Use periwinkle and pale-sky fills for raised plates; use platinum and white for inset content."
+      - "Make large module corners sharp or chamfered; use 2-6px radius only for smaller inset panels."
+      - "Use dotted dividers and pixel-like edge textures to reinforce early-web materiality."
+    anti_patterns:
+      - "Blurred elevation shadows as the primary depth cue."
+      - "Uniform flat card borders with no top/bottom light logic."
+      - "Large 16-24px soft card radii."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: halftone-carbon-command-layer
+    kind: "visual"
+    pattern: "Carbon command slabs use dot-matrix or grille texture to feel like hardware controls distinct from light content plates."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief"]
+    guidance:
+      - "Apply subtle repeating radial dots, pixel noise, or grille lines to nav bars, rail buttons, left tabs, and footer slabs."
+      - "Use white or pale-sky text on carbon slabs, with nav-gold reserved for primary nav words."
+      - "Keep slabs sharp, clipped, or tabbed; do not make them soft friendly cards."
+      - "Use carbon for controls and system framing, not for every content panel."
+    anti_patterns:
+      - "Plain black sections that read as modern dark mode."
+      - "Neon glow, CRT scanline overload, or cyberpunk styling."
+      - "Carbon used as generic body background with no command role."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: right-action-rail
+    kind: "layout"
+    pattern: "A narrow right rail stacks carbon action buttons above utility boxes, poll/forms, or promo plates, making secondary actions feel like console-side controls."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow"]
+    guidance:
+      - "Use a two-column split on desktop: wider content column and one-third or narrower action rail."
+      - "Stack rail commands as dark slabs with small icons or glyph prefixes."
+      - "Follow commands with a white explainer box, amber tab, poll, promo plate, calendar, or compact form."
+      - "When stacking on mobile, move the rail below primary content but preserve the command-slab styling."
+    anti_patterns:
+      - "Equal card grid where actions have no rail hierarchy."
+      - "Primary actions scattered randomly across modules."
+      - "Rail buttons styled as modern pill CTAs."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: side-mounted-vertical-tabs
+    kind: "layout"
+    pattern: "Optional left-edge vertical tabs clip into the chassis as rotated or stacked carbon labels for rankings, archives, categories, or ratings."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "brief"]
+    guidance:
+      - "Use a thin vertical carbon strip attached to the chassis edge when extra categories or ranking rails matter."
+      - "Set labels in tiny uppercase or pixel-like text, rotated or stacked, with pale text."
+      - "Use the rail as secondary navigation or status, not primary reading content."
+      - "Replace with a horizontal chip strip on narrow screens if rotation would harm legibility."
+    anti_patterns:
+      - "Decorative vertical text with no navigation or status job."
+      - "Oversized sidebar navigation that dominates the chrome shell."
+      - "Soft tab pills detached from the chassis."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: stacked-news-or-list-rows
+    kind: "content"
+    pattern: "Updates, results, and ranked items appear as compact platinum rows with small icons, bold blue headlines, and trailing orange chevron chips."
+    applies_to:
+      paths: ["."]
+      surface_types: ["directory", "brief", "landing"]
+    guidance:
+      - "Use stacked rows rather than large cards when the task is scanning several updates or options."
+      - "Put a tiny icon or category stamp at the leading edge, headline in chrome-indigo or carbon, and a signal-orange arrow at the trailing edge."
+      - "Separate rows with hard 1px bevels and keep padding compact."
+      - "Use short row text; detail belongs in an adjacent module, popover, or selected state."
+    anti_patterns:
+      - "Loose bullet lists with no clickable affordance."
+      - "Card grids that make every list item feel over-important."
+      - "Rows with no visible target to advance or open."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: thumbnail-tile-grid
+    kind: "layout"
+    pattern: "Featured items use tiny framed thumbnail tiles in tight two-up or three-up grids, with captions and hard carbon/periwinkle frames."
+    applies_to:
+      paths: ["."]
+      surface_types: ["directory", "landing", "brief"]
+    guidance:
+      - "Use small fixed-ratio image or illustration cells clipped into dark or periwinkle frames."
+      - "Arrange tiles tightly, commonly 2x2 or 2x3 inside a larger plate."
+      - "Use tiny captions below or overlaid, with orange arrows only for actionable tile moves."
+      - "Use generated abstract art, icons, product silhouettes, or screenshots from the user's own task; do not borrow historical assets."
+    anti_patterns:
+      - "Large modern feature cards with generous copy and soft shadows."
+      - "Image-only galleries with no chrome frame or caption system."
+      - "Full-bleed masonry imagery unrelated to the console shell."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: tool-chip-search-cluster
+    kind: "structure"
+    pattern: "Search and filter controls cluster like hardware utilities: white input, compact select, amber Go chip, and small tips/link text inside or near the command layer."
+    applies_to:
+      paths: ["."]
+      surface_types: ["directory", "workflow", "landing"]
+    guidance:
+      - "Group inputs tightly in the masthead, command area, or plate header."
+      - "Use white inset fields with hard borders and native-select-like geometry."
+      - "Use amber for Go, Finder, Search, Code, Filter, and Tool chips; reserve orange for advancing or submitting."
+      - "Label controls directly; do not rely on placeholder text alone."
+    anti_patterns:
+      - "Large floating search bars styled like modern app launchers."
+      - "Pill filters with pastel category colors."
+      - "Search isolated from the command/navigation hierarchy."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: chrome-form-panels
+    kind: "structure"
+    pattern: "Forms live in platinum or white inset panels capped by periwinkle section-label bars, with compact labels, native controls, and dotted dividers."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workflow", "directory"]
+    guidance:
+      - "Use form panels with a visible header label and small glyph."
+      - "Keep inputs compact, white, and hard-bordered; use native-select styling for dropdowns."
+      - "Use dotted dividers for notes, recovery links, and sub-sections."
+      - "Place submit/commit as signal orange and support actions as amber or carbon."
+    anti_patterns:
+      - "Minimal borderless form fields on a plain white card."
+      - "Oversized rounded input fields and pill submit buttons."
+      - "Hidden labels or placeholder-only forms."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: amber-tool-and-submit-buttons
+    kind: "visual"
+    pattern: "Buttons distinguish utility from commitment: amber beveled chips for tools, orange chips or discs for submit/forward, carbon slabs for rail actions."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief"]
+    guidance:
+      - "Use amber rectangular chips for everyday tools, utilities, badges, and secondary machine functions."
+      - "Use signal-orange fill for submit, go-forward, continue, launch, or open affordances, often with a white chevron."
+      - "Use carbon slab buttons in side rails or command stacks."
+      - "Make pressed/active states hard and darker, not soft or lifted."
+    anti_patterns:
+      - "Gradient-filled CTAs."
+      - "Multiple warm button colors with no semantic difference."
+      - "Default modern blue buttons or large rounded SaaS CTAs."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: section-label-bars
+    kind: "content"
+    pattern: "Every dense module earns a small uppercase section-label bar, often with a tiny glyph, so the user can scan the faceplate's jobs."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief"]
+    guidance:
+      - "Start modules with short labels such as Official, Featured, Poll, Finder, Archive, Login, Register, Status, or Help."
+      - "Use Arial Bold uppercase at 10-12px with slight tracking and strong carbon or chrome-indigo contrast."
+      - "Include small grille/list/glyph marks where helpful; keep them simple and pixel-like."
+      - "Do not create unlabeled content islands in a dense layout."
+    anti_patterns:
+      - "Long conversational section headings."
+      - "Decorative badges that do not label a module's purpose."
+      - "Large marketing headings repeated above every card."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: mascot-bubble-masthead
+    kind: "content"
+    pattern: "A small original mascot, helper icon, or speech bubble may break the masthead grid and add playful brand-neutral character."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "brief"]
+    guidance:
+      - "Use the mascot moment sparingly near the top edge or masthead, not inside every module."
+      - "Keep copy short and useful: welcome, tip, hint, current status, or playful instruction."
+      - "Make the art original, abstract, or prompt-specific; avoid protected game characters and exact source poses."
+      - "Let the bubble overlap the chrome slightly to contrast with the rigid plate grid."
+    anti_patterns:
+      - "Literal Nintendo-era characters or source mascot art."
+      - "Large illustration hero that replaces the console UI composition."
+      - "Cute mascot chatter that distracts from actions and scanning."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: badge-and-rating-stamps
+    kind: "visual"
+    pattern: "Small trust, rating, status, and category marks read as stamped amber or white squares inside the chrome, not as modern pill badges."
+    applies_to:
+      paths: ["."]
+      surface_types: ["directory", "brief", "workflow"]
+    guidance:
+      - "Use amber rectangles for trust/certification/tool marks and white squares for ratings or categorical stamps."
+      - "Keep badge text micro-scale and uppercase, with hard borders."
+      - "Use badges to clarify state, category, compliance, recommendation, or availability."
+      - "Make all rating/trust language generic unless user-provided; do not reuse ESRB marks."
+    anti_patterns:
+      - "Friendly rounded status pills."
+      - "Large decorative badges with no information value."
+      - "Using historical or regulated marks as generic decoration."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: dotted-technical-dividers
+    kind: "visual"
+    pattern: "Dotted hairlines, halftone seams, and pixel perforations provide Y2K chrome detail between compact modules."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief"]
+    guidance:
+      - "Use 1px dotted indigo rules for form notes, row groups, nav cuts, and panel seams."
+      - "Use halftone dots on carbon slabs and hero borders in low contrast."
+      - "Use dotted details as machine texture, not as noisy page-wide wallpaper."
+      - "Keep text readable over any texture by using solid plates or high-contrast labels."
+    anti_patterns:
+      - "CRT scanline filters over all content."
+      - "Decorative noise that makes 10-12px labels hard to read."
+      - "Smooth modern dividers only, with no period texture."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: chrome-footer-slab
+    kind: "structure"
+    pattern: "The page closes with a carbon or indigo footer slab nested inside the chassis, carrying micro copy, status marks, and hard chamfered edges."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief"]
+    guidance:
+      - "Use a dark footer bar rather than a spacious modern footer."
+      - "Keep copy tiny, practical, and machine-like: status, copyright-like placeholder, helper text, links, or cert-style marks."
+      - "Use amber or white stamps sparingly if trust/status marks are needed."
+      - "Fit the footer into the chassis with hard bevels and seams."
+    anti_patterns:
+      - "Large multi-column marketing footer."
+      - "Footer detached from the central chrome shell."
+      - "Tiny legal imitation that copies a historical source."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: stacked-faceplate-adaptation
+    kind: "layout"
+    pattern: "Narrow or mobile Console Chrome surfaces stack command bars, hero plates, rows, forms, and rail modules inside one bounded machine frame rather than forcing a desktop clone."
+    applies_to:
+      paths: ["."]
+      surface_types: ["mobile-adaptation", "workflow", "directory", "landing"]
+    guidance:
+      - "Use a bounded periwinkle shell with visible bevels or clipped corners even when the layout is one column."
+      - "Compress the dual navigation into a carbon command header plus a pale secondary row, disclosure strip, or chip row."
+      - "Move right-rail modules below primary content while preserving carbon slab styling and section-label bars."
+      - "Keep orange forward/submit cues and amber utility chips visible after stacking."
+      - "Increase actual hit areas and line-height as needed while keeping the visual chrome compact."
+    anti_patterns:
+      - "Horizontal-scroll desktop reproduction on a narrow viewport."
+      - "Generic mobile cards that lose the faceplate frame and command hierarchy."
+      - "Touch targets made unusably small in pursuit of period accuracy."
+    evidence:
+      - path: examples/generated/mobile-stacked-faceplate.png
+      - path: fingerprint/sources/curation/generated-exemplars-2026-06-22.md

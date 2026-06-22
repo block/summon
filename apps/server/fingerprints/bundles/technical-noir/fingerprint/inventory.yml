@@ -1,0 +1,173 @@
+topology:
+  scopes:
+    - id: "generated-surface"
+      paths:
+        - "."
+      surface_types:
+        - "workspace"
+        - "landing"
+        - "comparison"
+        - "onboarding"
+        - "brief"
+    - id: "developer-workspace"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "fingerprint/sources/curation/source-study-2026-06-22.md"
+        - "examples/core/agent-workspace-overview.png"
+      surface_types:
+        - "workspace"
+        - "brief"
+    - id: "technical-marketing-or-onboarding"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "fingerprint/sources/curation/source-study-2026-06-22.md"
+        - "examples/core/technical-landing-proof.png"
+        - "examples/core/developer-setup-tiles.png"
+      surface_types:
+        - "landing"
+        - "onboarding"
+        - "comparison"
+    - id: "operational-comparison"
+      paths:
+        - "fingerprint/prose.yml"
+        - "fingerprint/composition.yml"
+        - "examples/core/operational-comparison.png"
+      surface_types:
+        - "comparison"
+        - "workspace"
+  surface_types:
+    - "workspace"
+    - "landing"
+    - "comparison"
+    - "onboarding"
+    - "brief"
+    - "material-system"
+
+building_blocks:
+  tokens:
+    - "--color-bg: warm near-charcoal page canvas, browner than pure black."
+    - "--color-surface: slightly lifted warm-dark card, tile, mockup, or input surface."
+    - "--color-surface-muted: inset or secondary warm-dark region."
+    - "--color-border: low-contrast warm hairline divider."
+    - "--color-border-strong: off-white high-emphasis border used sparingly."
+    - "--color-text: off-white primary text and brand material."
+    - "--color-text-muted: warm beige secondary body, captions, and row details."
+    - "--color-text-alt: stronger warm beige supporting copy."
+    - "--color-accent: off-white primary action fill or emphasis; not a chromatic accent."
+    - "--color-danger, --color-success, --color-info, --color-warning: muted semantic state only."
+    - "--space-1 through --space-10: compact 4px-ish rhythm with 10px control steps and 96px major bands."
+    - "--radius-sm through --radius-xl: tight 2-6px developer-tool geometry."
+    - "--radius-pill: reserved for icon buttons and compact state chips."
+    - "--font-sans: Inter-like interface and display face."
+    - "--font-mono: DM-Mono-like technical face for commands, logs, labels, and code."
+    - "--font-serif: optional rare editorial italic, not primary UI voice."
+    - "--text-display through --text-xs: quiet scale; display tops out around 64px and remains weight-light."
+    - "--shadow-mini through --shadow-modal: intentionally none; depth comes from hairlines and surface contrast."
+  components:
+    - "warm-canvas-shell"
+    - "reading-mode-header"
+    - "terminal-evidence-panel"
+    - "agent-activity-panel"
+    - "command-output-block"
+    - "hairline-content-card"
+    - "partner-or-integration-tile"
+    - "download-or-setup-tile"
+    - "press-like-information-row"
+    - "job-or-task-row"
+    - "compact-primary-button"
+    - "ghost-secondary-button"
+    - "dark-text-input"
+    - "mono-metadata-label"
+    - "muted-beige-caption"
+    - "brief-summary-evidence-action-stack"
+    - "two-panel-terminal-hero"
+    - "shared-criteria-comparison-row"
+    - "tab-rail-evidence-frame"
+    - "command-action-pair"
+    - "copy atom: Primary action, Contact, Download, Learn more, Run, Review, Agent, Terminal, Output, Status, Model, Harness, Self-hosted, Connected, Own your data."
+    - "state variant: running agent, queued task, completed step, blocked command, selected setup path, muted semantic warning, empty terminal state."
+    - "micro-pattern: terminal panels show plausible command or agent traces rather than decorative filler."
+    - "micro-pattern: off-white filled action against warm-dark canvas with 3-4px radius."
+    - "micro-pattern: hairline rows for press-like updates, task lists, setup steps, and operational timelines."
+    - "micro-pattern: monochrome integration tiles with compact icon or label placement."
+  libraries: []
+  assets:
+    - "examples/core/technical-landing-proof.png"
+    - "examples/core/agent-workspace-overview.png"
+    - "examples/core/operational-comparison.png"
+    - "examples/core/developer-setup-tiles.png"
+    - "examples/core/source.html"
+  files:
+    - "fingerprint/sources/curation/source-study-2026-06-22.md"
+    - "fingerprint/memory/intent.md"
+    - "examples/core/README.md"
+  notes:
+    - "This bundle is intentionally agnostic: avoid the source website's exact names, logos, partner strip, testimonials, screenshots, and proprietary claims."
+    - "Warmth is carried by neutral temperature, not by beige lifestyle surfaces."
+    - "Off-white is the primary material; do not add a blue/purple/green brand accent by default."
+    - "Terminal mockups and code panels are the primary decorative vocabulary but must be task-relevant."
+    - "The strong contrast against Editorial Mono and Garden Notes is intentional: dark technical calm, not newspaper severity or soft personal planning."
+    - "Current exemplars are draft portable evidence created from agnostic source.html, not copied screenshots. Human review should accept, replace, or reweight them before Tier 4 claims."
+
+exemplars:
+  - id: "technical-landing-proof"
+    path: "examples/core/technical-landing-proof.png"
+    title: "Technical landing with proof panel"
+    surface_type: "landing"
+    scope: "technical-marketing-or-onboarding"
+    note: "Draft agnostic exemplar based on researched composition patterns, rendered in Technical Noir materials. Evidence strength: supporting."
+    why: "Shows quiet headline, command action, and terminal evidence panel without copying source branding."
+    refs:
+      - composition.pattern:hero-pairs-statement-with-mockup-evidence
+      - composition.pattern:source-proof-follows-claim
+      - composition.pattern:command-action-pairs-primary-cta
+      - composition.pattern:terminal-panels-anchor-evidence
+      - prose.experience_contract:technical-material-stays-real
+
+  - id: "agent-workspace-overview"
+    path: "examples/core/agent-workspace-overview.png"
+    title: "Agent workspace overview"
+    surface_type: "workspace"
+    scope: "developer-workspace"
+    note: "Draft agnostic product UI exemplar. Evidence strength: weighted candidate."
+    why: "Shows task rail, active agent task, execution plan, technical evidence, and clear next action inside one warm-dark shell."
+    refs:
+      - composition.pattern:workspace-uses-reading-mode-shell
+      - composition.pattern:briefs-stack-summary-evidence-action
+      - composition.pattern:terminal-panels-anchor-evidence
+      - prose.experience_contract:next-action-is-visible
+      - prose.experience_contract:technical-material-stays-real
+
+  - id: "operational-comparison"
+    path: "examples/core/operational-comparison.png"
+    title: "Operational setup comparison"
+    surface_type: "comparison"
+    scope: "operational-comparison"
+    note: "Draft agnostic comparison exemplar. Evidence strength: weighted candidate."
+    why: "Shows shared criteria, technical evidence, and off-white recommendation treatment without colorful scoring."
+    refs:
+      - composition.pattern:comparison-uses-rows-or-tiles-with-shared-criteria
+      - composition.pattern:tab-rail-selects-evidence-frame
+      - composition.pattern:mono-labels-mark-operational-metadata
+      - prose.experience_contract:no-chromatic-brand-accent
+
+  - id: "developer-setup-tiles"
+    path: "examples/core/developer-setup-tiles.png"
+    title: "Developer setup tiles"
+    surface_type: "onboarding"
+    scope: "technical-marketing-or-onboarding"
+    note: "Draft agnostic setup/download exemplar. Evidence strength: supporting."
+    why: "Shows compact platform tiles, mono commands, architecture chips, and one primary setup path."
+    refs:
+      - composition.pattern:download-or-setup-tiles-stay-compact
+      - composition.pattern:command-action-pairs-primary-cta
+      - composition.pattern:cta-geometry-stays-tight
+      - prose.experience_contract:controls-remain-developer-tight
+
+sources:
+  - id: "source-study"
+    kind: "file"
+    ref: "sources/curation/source-study-2026-06-22.md"
+    note: "Curation note summarizing agnostic reusable signals from supplied design analysis and public developer-tool composition research."

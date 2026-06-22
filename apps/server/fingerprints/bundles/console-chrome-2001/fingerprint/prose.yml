@@ -1,0 +1,294 @@
+summary:
+  product: "Console Chrome 2001"
+  audience:
+    - "people asking for retro game-console dashboards, launch pages, directories, or playful utility surfaces"
+    - "users who want early-2000s web density, tactile chrome, and game-box energy without copying a protected brand"
+    - "agents composing generated Summon surfaces that should feel like a compact machine faceplate rather than modern SaaS"
+  goals:
+    - "Make the page feel physically assembled from cool periwinkle console plates, command slabs, inset content modules, and hard bevel seams."
+    - "Use warm amber and signal orange only for navigation, tools, and forward motion so action is visible in a dense interface."
+    - "Blend practical modules, search, lists, polls, promos, and rails into a packed fixed-canvas composition."
+    - "Use web-safe Arial, small uppercase labels, halftone texture, and outlined display type to evoke Y2K game hardware and box art."
+    - "Translate the retro Nintendo-era aesthetic into generic generated products without reusing Nintendo names, characters, logos, screenshots, or slogans."
+  anti_goals:
+    - "Literal Nintendo reproduction: no Nintendo wordmark, Mario/Pikachu/Game Boy imagery, console product names, ESRB marks, exact nav labels, copied screenshots, or source copy unless supplied by the user as content to transform."
+    - "Modern airy SaaS pages, glassmorphism, soft gradient dashboards, material shadows, or uniformly rounded card grids."
+    - "Pastel nostalgia without hardware structure; the signature is machined chrome, not soft retro color alone."
+    - "Warm accent color used decoratively; amber and orange must mean tool, nav, badge, commit, or forward motion."
+    - "Responsive-first spacious layouts that erase the desktop-era fixed-canvas density."
+    - "Pixel-art-only retro styling without molded console chrome, command slabs, dense modules, or warm action semantics."
+  tradeoffs:
+    - "Prefer dense useful modules over luxurious whitespace, while preserving enough seams and labels to scan."
+    - "Prefer hard bevels, chamfered corners, texture, and pictorial hero fields over blurred shadows for depth."
+    - "Prefer one brand-neutral mascot/speech-bubble or playful signoff moment over pervasive character decoration."
+    - "Modern ports may stack columns on narrow screens, but should preserve the faceplate metaphor and command hierarchy."
+  tone:
+    - "playful"
+    - "hardware-like"
+    - "compact"
+    - "arcade"
+    - "directional"
+    - "early-web"
+    - "toyetic"
+
+situations:
+  - id: console-homepage
+    title: "Console homepage"
+    user_intent: "Introduce a playful product, event, game-like workspace, or themed destination with many places to go."
+    product_obligation: "Frame the surface as one assembled faceplate: mascot masthead, dual command bars, hero plate, dense content modules, and a right action rail."
+    surface_type: "landing"
+    principles:
+      - prose.principle:assembled-console-faceplate
+      - prose.principle:warmth-means-direction
+      - prose.principle:density-is-control-panel-texture
+    experience_contracts:
+      - prose.experience_contract:source-agnostic-retro
+      - prose.experience_contract:faceplate-before-content
+    patterns:
+      - composition.pattern:fixed-console-shell
+      - composition.pattern:dual-command-navigation
+      - composition.pattern:box-art-hero-plate
+      - composition.pattern:right-action-rail
+    refuses:
+      - "Generic centered hero plus card grid."
+      - "Modern nav/header treatment with no bevel, texture, or command hierarchy."
+
+  - id: game-directory-or-catalog
+    title: "Game directory or catalog"
+    user_intent: "Browse, search, filter, or compare a set of items in a playful retro catalog."
+    product_obligation: "Use compact rows, framed thumbnail tiles, search chips, and orange forward controls so browsing feels immediate and tactile."
+    surface_type: "directory"
+    principles:
+      - prose.principle:warmth-means-direction
+      - prose.principle:small-labels-carry-structure
+    experience_contracts:
+      - prose.experience_contract:scan-targets-stay-obvious
+      - prose.experience_contract:source-agnostic-retro
+    patterns:
+      - composition.pattern:stacked-news-or-list-rows
+      - composition.pattern:thumbnail-tile-grid
+      - composition.pattern:tool-chip-search-cluster
+    refuses:
+      - "Large anonymous cards that make all items feel detached."
+      - "Decorative category colors competing with orange forward cues."
+
+  - id: playful-control-panel
+    title: "Playful control panel"
+    user_intent: "Configure, vote, subscribe, log in, launch, or take a next action from a themed utility surface."
+    product_obligation: "Separate command slabs, content plates, and forms with clear bevel tiers and uppercase chrome labels."
+    surface_type: "workflow"
+    principles:
+      - prose.principle:bevels-are-depth
+      - prose.principle:small-labels-carry-structure
+    experience_contracts:
+      - prose.experience_contract:forward-actions-are-orange
+      - prose.experience_contract:controls-remain-compact-but-legible
+    patterns:
+      - composition.pattern:chrome-form-panels
+      - composition.pattern:amber-tool-and-submit-buttons
+      - composition.pattern:dotted-technical-dividers
+    refuses:
+      - "Minimal forms on plain white cards."
+      - "Oversized pill CTAs or touch-native softness as the default."
+
+  - id: retro-brief-or-scoreboard
+    title: "Retro brief or scoreboard"
+    user_intent: "Summarize status, rankings, updates, or recommendations with game-console personality."
+    product_obligation: "Use scoreboard-like labels, list rows, badges, and compact panels while keeping the surface useful, not just decorative."
+    surface_type: "brief"
+    principles:
+      - prose.principle:density-is-control-panel-texture
+      - prose.principle:source-agnostic-playfulness
+    experience_contracts:
+      - prose.experience_contract:scan-targets-stay-obvious
+    patterns:
+      - composition.pattern:side-mounted-vertical-tabs
+      - composition.pattern:stacked-news-or-list-rows
+      - composition.pattern:badge-and-rating-stamps
+      - composition.pattern:chrome-footer-slab
+    refuses:
+      - "Modern KPI dashboard cards with soft shadows."
+      - "Brand-specific game references not supplied by the user."
+
+  - id: mobile-console-stack
+    title: "Mobile console stack"
+    user_intent: "Use the retro console aesthetic in a narrow or mobile Summon surface without horizontal scrolling."
+    product_obligation: "Stack command bars, hero, rows, forms, and rail modules while preserving the single machine-shell metaphor and usable controls."
+    surface_type: "mobile-adaptation"
+    principles:
+      - prose.principle:assembled-console-faceplate
+      - prose.principle:density-is-control-panel-texture
+      - prose.principle:small-labels-carry-structure
+    experience_contracts:
+      - prose.experience_contract:controls-remain-compact-but-legible
+      - prose.experience_contract:faceplate-before-content
+    patterns:
+      - composition.pattern:fixed-console-shell
+      - composition.pattern:dual-command-navigation
+      - composition.pattern:right-action-rail
+      - composition.pattern:stacked-faceplate-adaptation
+    refuses:
+      - "Horizontal-scroll desktop clone on a narrow viewport."
+      - "Generic mobile cards that lose the command layer and faceplate frame."
+
+principles:
+  - id: assembled-console-faceplate
+    principle: "A Console Chrome surface is assembled like game hardware: cool periwinkle plates, command slabs, inset modules, hard seams, and a visible chassis."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]
+    guidance:
+      - "Treat the root shell as a molded plastic console faceplate, not a neutral webpage background."
+      - "Build major regions from periwinkle, pale-sky, platinum, and white plates with hard indigo bevel edges."
+      - "Use chamfered or sharp outer geometry for large modules; reserve true roundness for controls and brand-neutral pills."
+      - "Use panel headers, rails, and seams to make content feel bolted into the chassis."
+    counterexamples:
+      - "Floating white cards over a flat gradient background."
+      - "Uniformly soft rounded cards with no hard chrome or indigo edge."
+      - "A plain content page with only retro colors applied."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: warmth-means-direction
+    principle: "Warm color is rationed wayfinding: nav gold labels, amber utility chips, and signal-orange forward or submit cues."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]
+    guidance:
+      - "Use orange for forward arrows, submit buttons, advance chips, and commit actions."
+      - "Use amber for tools, badges, tabs, search go buttons, and small utility affordances."
+      - "Keep steady-state surfaces in cool periwinkle, pale sky, platinum, white, and carbon."
+      - "Use brand red only as a sparse identity/error accent when needed; do not make it the page fill."
+    counterexamples:
+      - "Orange section backgrounds with no action role."
+      - "Many decorative warm badges that do not point, submit, select, or certify."
+      - "Rainbow category systems that weaken the chrome-and-command palette."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: bevels-are-depth
+    principle: "Depth comes from hard bevel simulation, halftone command texture, inset fields, and pictorial hero layers, not blurred elevation."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]
+    guidance:
+      - "Give plates a bright top/left edge and a chrome-indigo bottom/right shadow line."
+      - "Use carbon command slabs with subtle dot-matrix texture for nav, rails, and footers."
+      - "Use inset white or platinum fields for rows, inputs, calendars, and forms."
+      - "Use hard offset text shadows for display wordmarks; avoid soft ambient glows."
+    counterexamples:
+      - "Material card shadows or frosted glass."
+      - "Flat rectangles with no bevel distinction."
+      - "Neon cyberpunk glow replacing early-web hardware texture."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: small-labels-carry-structure
+    principle: "Small uppercase Arial labels act like silkscreened controller legends and carry the interface structure."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]
+    guidance:
+      - "Set section titles, buttons, tabs, nav, labels, metadata, and row actions in bold Arial-like uppercase with slight tracking."
+      - "Keep body copy small, plain, and subordinate to panel chrome."
+      - "Use pixel-like micro text only for captions, folios, copyright, and playful machine details."
+      - "Use outlined heavy display type for hero names and scoreboard titles, never for routine controls."
+    counterexamples:
+      - "Large modern sans labels and roomy body typography."
+      - "Every heading in a pixel font."
+      - "Flat unoutlined display text over hero imagery."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: density-is-control-panel-texture
+    principle: "The compact fixed-canvas density is part of the aesthetic: modules should feel like controls packed onto a faceplate."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]
+    guidance:
+      - "Use a narrow desktop-era max width or an explicitly framed central chassis even on wide screens."
+      - "Combine hero, lists, thumbnail grids, search, forms, polls, badges, and rails when the request supports multiple affordances."
+      - "Use 2-16px internal rhythms for chrome details and 16-24px seams between modules."
+      - "Let labels and bevels prevent clutter; do not create luxury whitespace to solve hierarchy."
+    counterexamples:
+      - "Airy landing pages with one module per viewport."
+      - "Dashboard grids whose cards float apart without shared chassis."
+      - "Dense content with no visible labels, seams, or action affordances."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: source-agnostic-playfulness
+    principle: "The surface can be character-led and game-like, but generated output must remain source-agnostic unless the user's task supplies specific IP."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]
+    guidance:
+      - "Use generic mascots, speech bubbles, hardware metaphors, cartridges, controllers, stars, arrows, or circuitry as abstract motifs."
+      - "Rename nav, badges, product panels, and hero copy to match the user's prompt rather than the historical site."
+      - "Use public research as inspiration for composition, not as permission to reuse protected characters or wordmarks."
+    counterexamples:
+      - "Nintendo, Mario, Pikachu, Game Boy, Pokémon, ESRB, or exact 2001 screenshot elements in generated surfaces without explicit user-provided content."
+      - "Parody so literal that it reads as a clone."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+experience_contracts:
+  - id: source-agnostic-retro
+    contract: "Generated surfaces preserve the retro console composition language without reusing Nintendo names, characters, logos, screenshots, slogans, exact navigation, or proprietary marks unless the user explicitly supplies them as content to handle."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]
+    obligations:
+      - "Use generic product/topic naming from the user's prompt."
+      - "Translate mascot and hardware motifs into original or abstract art."
+      - "Avoid historical screenshot tracing; generate new layouts from the fingerprint patterns."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: faceplate-before-content
+    contract: "The first visible impression is a composed console faceplate, not loose content on a page."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]
+    obligations:
+      - "Use an outer chassis, bevels, command layer, and plate seams in the root shell."
+      - "Include at least one signature hardware motif: halftone command slab, chamfered panel, outlined box-art title, side rail, or orange arrow controls."
+      - "Avoid unframed generic header-card layouts."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: forward-actions-are-orange
+    contract: "Forward, submit, continue, open, and launch actions are visually orange; amber is reserved for utility and badge-like tools."
+    applies_to:
+      paths: ["."]
+      surface_types: ["directory", "workflow", "landing"]
+    obligations:
+      - "Use signal orange for primary commit or advance affordances."
+      - "Use arrow discs or chevron chips where a row or hero advances."
+      - "Do not assign orange to passive decoration."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: scan-targets-stay-obvious
+    contract: "Dense modules must still reveal what can be clicked, searched, read, or advanced at a glance."
+    applies_to:
+      paths: ["."]
+      surface_types: ["directory", "brief", "landing", "mobile-adaptation"]
+    obligations:
+      - "Pair rows with compact labels, icons, or trailing arrow chips."
+      - "Use section-label bars so lists, polls, forms, and promos have visible jobs."
+      - "Keep hit targets legible even when their period styling is compact."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: controls-remain-compact-but-legible
+    contract: "Controls may feel desktop-era compact, but generated modern surfaces must not make text or actions unusable."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workflow", "directory", "mobile-adaptation"]
+    obligations:
+      - "Keep text at 10px minimum only for micro captions; routine controls should be at least 11-12px."
+      - "Use focus outlines or dotted rings with adequate contrast."
+      - "If touch use is likely, enlarge invisible padding while preserving compact chrome."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md

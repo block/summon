@@ -53,7 +53,8 @@ The Surface Gallery and Generate workbench both add Ghost-backed sandbox presets
 when trusted roots are configured. A configured Ghost root is treated as a
 fingerprint package, not as a bundled visual direction. Ghost resolves the
 product design context; Summon still owns host policy, tools, runtime
-contracts, and token fallback.
+contracts, and sandbox validation. Fingerprint token/style CSS is treated as an
+opaque design-source vocabulary; Summon does not require Summon-named tokens.
 
 Add one or more trusted Ghost roots to `apps/server/.env`:
 
@@ -92,14 +93,17 @@ Open `http://localhost:5174` for the adopter-facing gallery preset, or
 `http://localhost:5173/generate` for the diagnostic fingerprint scenario and
 `Fingerprint · <id>` option. **Fingerprint target** is a relative path inside
 the configured repo root; use `.` for the root package or a nested surface path.
-**Token fallback** is optional and only supplies CSS tokens when the fingerprint
-package does not provide contract-complete tokens.
+**Token fallback** is legacy UI language for base-direction CSS; Ghost-first
+generation expects token/style CSS from the selected fingerprint package or
+catalog bundle, and does not require contract-complete Summon token names.
 
 When the run starts, the Stream drawer should show `/ghost-context`,
-`/ghost-token-source`, and `/ghost-review-packet` metadata. Those lines confirm
-Ghost relay resolved the fingerprint stack and Task Contract, Summon chose token
-CSS, generated a surface, and emitted the review packet needed to inspect the
-output against the same Ghost fingerprint.
+`/ghost-token-source`, `/ghost-ingestion-contract`, and `/ghost-review-packet`
+metadata. Those lines confirm Ghost relay resolved the fingerprint stack and
+Task Contract, Summon compiled the selected fingerprint material for prompting,
+selected token/style CSS, generated an Arrow surface, and emitted the review
+packet for inspection. Runtime generation does not run a separate Ghost-fidelity
+visual judge; use Ghost package validation and review packets to inspect drift.
 
 Useful checks for a configured root:
 

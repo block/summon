@@ -1,9 +1,6 @@
 import type { GhostIngestionContract } from '@summon-internal/engine';
-import { buildRuntimeChecks } from './checks.js';
-import { buildGhostContractPrompt, buildGhostValidationPrompt } from './prompt.js';
+import { buildGhostContractPrompt } from './prompt.js';
 import {
-  buildForbiddenSignals,
-  buildRequiredSignals,
   customTokenNames,
   definedTokenNames,
   extractInventoryContract,
@@ -27,10 +24,6 @@ export function compileGhostIngestionContract(input: GhostCompileInput): GhostIn
     ...extractRawAntiPatterns(input.raw),
   ]).slice(0, 24);
   const tokenNames = definedTokenNames(input.tokenSource.css);
-  const requiredSignals = buildRequiredSignals({ prose, composition, inventory, tokenNames });
-  const forbiddenSignals = buildForbiddenSignals(antiPatterns);
-  const activeChecks = buildRuntimeChecks(input.raw.checks);
-
   return {
     schema: 'summon.ghost-ingestion/v1',
     product: input.product,
@@ -68,12 +61,6 @@ export function compileGhostIngestionContract(input: GhostCompileInput): GhostIn
     },
     promptBlocks: [
       { id: 'contract', text: buildGhostContractPrompt({ prose, composition, inventory, checks, antiPatterns, tokenNames, entrypoint }) },
-      { id: 'validation', text: buildGhostValidationPrompt({ requiredSignals, forbiddenSignals, activeChecks }) },
     ],
-    validation: {
-      requiredSignals,
-      forbiddenSignals,
-      activeChecks,
-    },
   };
 }

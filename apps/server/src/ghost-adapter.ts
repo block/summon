@@ -392,13 +392,6 @@ export function ghostIngestionContractMeta(contract: GhostIngestionContract) {
   return summarizeGhostIngestionContract(contract);
 }
 
-function summarizeGhostIngestionWithFidelity(contract: GhostIngestionContract, fidelity: unknown) {
-  return {
-    ...summarizeGhostIngestionContract(contract),
-    ...(fidelity ? { fidelity } : {}),
-  };
-}
-
 export function buildGhostReviewPacket(input: {
   context: ResolvedGhostContext;
   mode: 'static' | 'interactive';
@@ -408,9 +401,6 @@ export function buildGhostReviewPacket(input: {
   prompt: string;
 }): GhostReviewPacket {
   const artifactFiles = artifactFilesFromLines(input.acceptedLines);
-  const fidelityLine = [...input.acceptedLines]
-    .reverse()
-    .find((line) => line.op === 'meta' && line.path === '/ghost-fidelity-summary') as Extract<ProtocolLine, { op: 'meta' }> | undefined;
   return {
     schema: 'summon.ghost-fingerprint-generation/v1',
     source: input.context.source,
@@ -440,7 +430,7 @@ export function buildGhostReviewPacket(input: {
     validation: input.validation,
     artifactRuntime: artifactFiles.length > 0 ? 'arrow' : null,
     artifactFiles,
-    ...(input.context.ingestion ? { ingestion: summarizeGhostIngestionWithFidelity(input.context.ingestion, fidelityLine?.value) } : {}),
+    ...(input.context.ingestion ? { ingestion: summarizeGhostIngestionContract(input.context.ingestion) } : {}),
   };
 }
 

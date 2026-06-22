@@ -1,0 +1,317 @@
+summary:
+  product: "Redline Cinema"
+  audience:
+    - "people exploring premium products, launches, events, or high-performance comparisons"
+    - "readers who expect cinematic editorial storytelling before transactional detail"
+    - "agents composing polished generated surfaces from luxury-performance briefs"
+  goals:
+    - "Make the surface feel cinematic, precise, and performance-led without copying any real-world brand identity."
+    - "Use near-black canvas, full-bleed imagery, sparse race-red accent, sharp geometry, and uppercase tracked labels as the durable surface language."
+    - "Let photography or image placeholders carry drama; let tables, specs, and rows carry proof."
+    - "Balance luxury restraint with enough structured information for comparison, booking, configuration, directory, or event status."
+  anti_goals:
+    - "Literal source mimicry: actual brand names, logos, animal marks, shield shapes, model names, slogans, licensed fonts, racing teams, or proprietary photography."
+    - "Generic SaaS dashboards, bubbly lifestyle cards, pastel palettes, glassmorphism, neon cyberpunk, or soft rounded commerce grids."
+    - "Overusing red as a background, border, icon, chart, or category color until it loses voltage."
+    - "Bold bombastic display type competing with the image."
+    - "Drop-shadow elevation systems, pill CTAs, confetti badges, or decorative icon sets replacing cinematic composition."
+  tradeoffs:
+    - "Prefer one cinematic image moment over many decorative cards."
+    - "Prefer scarce red emphasis over multi-color categorization."
+    - "Prefer sharp rectangular precision over soft friendliness."
+    - "Prefer spec rows, hairlines, and large numerals over dashboard widgets when communicating performance."
+    - "Use white bands for dense transactional clarity, not as the default mood."
+  tone:
+    - "cinematic"
+    - "precise"
+    - "luxury"
+    - "restrained"
+    - "performance-led"
+    - "editorial"
+
+situations:
+  - id: cinematic-launch
+    title: "Cinematic launch"
+    user_intent: "Introduce a premium product, model, collection, event, or capability with high emotional impact."
+    product_obligation: "Open with full-bleed cinema, restrained display copy, and one clear red or outline action without brand imitation."
+    surface_type: "landing"
+    principles:
+      - prose.principle:cinema-is-the-chrome
+      - prose.principle:red-is-voltage-not-palette
+      - prose.principle:sharp-precision-signals-luxury
+    experience_contracts:
+      - prose.experience_contract:source-agnostic-performance-language
+      - prose.experience_contract:hero-establishes-atmosphere-before-detail
+    patterns:
+      - composition.pattern:full-bleed-cinematic-hero
+      - composition.pattern:scarce-red-cta-cluster
+      - composition.pattern:editorial-dark-to-body-pacing
+    refuses:
+      - "Logo-led imitation or actual source brand references."
+      - "A generic centered hero with gradient blobs and rounded cards."
+
+  - id: performance-spec-story
+    title: "Performance spec story"
+    user_intent: "Explain specs, technical attributes, rankings, race/event results, or performance proof."
+    product_obligation: "Convert proof into large numerals, uppercase labels, disciplined spec cells, and hairline-separated rows."
+    surface_type: "specification"
+    principles:
+      - prose.principle:data-reads-as-specification
+      - prose.principle:hairlines-and-brightness-create-depth
+    experience_contracts:
+      - prose.experience_contract:metrics-earn-their-scale
+      - prose.experience_contract:red-highlights-only-the-decisive-value
+    patterns:
+      - composition.pattern:large-number-spec-grid
+      - composition.pattern:race-or-event-row-system
+      - composition.pattern:dark-elevated-plates
+    refuses:
+      - "KPI dashboard tiles with many colors."
+      - "Large stats without labels, units, or implications."
+
+  - id: luxury-catalog-or-booking
+    title: "Luxury catalog or booking"
+    user_intent: "Browse inventory, book an experience, compare options, or complete a premium transactional step."
+    product_obligation: "Switch to disciplined white sheets only where density, forms, listings, or price comparison need clarity."
+    surface_type: "catalog"
+    principles:
+      - prose.principle:white-is-transactional-relief
+      - prose.principle:sharp-precision-signals-luxury
+      - prose.principle:data-reads-as-specification
+    experience_contracts:
+      - prose.experience_contract:transactional-density-stays-editorial
+      - prose.experience_contract:source-agnostic-performance-language
+    patterns:
+      - composition.pattern:white-catalog-sheet
+      - composition.pattern:image-first-listing-card
+      - composition.pattern:rectangular-form-and-control-system
+    refuses:
+      - "Soft marketplace cards with rounded product tiles and promotional badges."
+      - "White page takeover that loses the cinematic dark frame."
+
+  - id: premium-service-directory
+    title: "Premium service directory"
+    user_intent: "Find a location, service center, concierge partner, authorized provider, or regional contact without losing the premium brand frame."
+    product_obligation: "Organize dense regional information into disciplined groups, compact rows, and one clear rectangular action path."
+    surface_type: "directory"
+    principles:
+      - prose.principle:white-is-transactional-relief
+      - prose.principle:data-reads-as-specification
+      - prose.principle:sharp-precision-signals-luxury
+    experience_contracts:
+      - prose.experience_contract:transactional-density-stays-editorial
+      - prose.experience_contract:source-agnostic-performance-language
+    patterns:
+      - composition.pattern:premium-directory-sheet
+      - composition.pattern:race-or-event-row-system
+      - composition.pattern:rectangular-form-and-control-system
+    refuses:
+      - "Generic map-app chrome that overwhelms the editorial frame."
+      - "Long undifferentiated link lists without region, service, or action hierarchy."
+
+  - id: editorial-feature
+    title: "Editorial feature"
+    user_intent: "Tell a premium story about craft, design, engineering, people, place, or an event."
+    product_obligation: "Pace the narrative like a luxury magazine: image-led sections, tight copy, sparse labels, and deliberate dark/light transitions."
+    surface_type: "editorial"
+    principles:
+      - prose.principle:cinema-is-the-chrome
+      - prose.principle:restrained-sans-does-not-shout
+      - prose.principle:hairlines-and-brightness-create-depth
+    experience_contracts:
+      - prose.experience_contract:hero-establishes-atmosphere-before-detail
+      - prose.experience_contract:source-agnostic-performance-language
+    patterns:
+      - composition.pattern:editorial-dark-to-body-pacing
+      - composition.pattern:image-first-feature-card
+      - composition.pattern:single-red-livery-band
+    refuses:
+      - "Blog-card clutter, emoji tone, or decorative illustrations that replace photographic atmosphere."
+      - "Repeating the same image-card module until the page feels like a feed."
+
+principles:
+  - id: cinema-is-the-chrome
+    principle: "Full-bleed cinematic imagery or image placeholders carry the drama; interface chrome stays quiet."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification", "catalog", "directory"]
+    guidance:
+      - "Use edge-to-edge hero imagery, dramatic crops, low-angle details, motion blur, studio darkness, or abstract engineered texture when images are available."
+      - "When no real imagery is available, reserve a large cinematic image slot with gradient/dark overlay rather than inventing logos or proprietary artwork."
+      - "Keep navigation, headings, and CTAs from competing with the image."
+      - "Let body sections tighten after the hero so the page feels edited, not empty."
+    counterexamples:
+      - "Gradient blob hero with no image role."
+      - "Many icon cards attempting to replace one strong visual moment."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/cinematic-launch-hero.png
+
+  - id: red-is-voltage-not-palette
+    principle: "A single saturated race-red accent is used sparingly for primary action, decisive status, or one dramatic band."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification", "catalog", "directory"]
+    guidance:
+      - "Use red for the main CTA, one highlighted metric, active race/event position, or a single full-width accent band."
+      - "Keep surrounding surfaces near-black, white, and grey so red remains high-voltage."
+      - "Use semantic colors only for actual states such as success, info, or warning."
+      - "Avoid using red for every border, icon, badge, link, and heading."
+    counterexamples:
+      - "Red-tinted cards across the whole page."
+      - "Multiple saturated accent colors competing with red."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/single-red-livery-band.png
+
+  - id: sharp-precision-signals-luxury
+    principle: "Rectangular, sharp-edged furniture gives the surface machined precision."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification", "catalog", "directory"]
+    guidance:
+      - "Use square corners for CTAs, cards, image plates, spec cells, and major bands."
+      - "Allow a tiny 4px radius for inputs, modals, and utility controls only when usability requires it."
+      - "Reserve pill geometry for compact badges or tags, never for primary CTA shape."
+      - "Keep image corners aligned with their containing plate."
+    counterexamples:
+      - "Rounded pill CTAs."
+      - "Soft 16–24px ecommerce cards."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/white-preowned-catalog-sheet.png
+
+  - id: restrained-sans-does-not-shout
+    principle: "The typographic voice is restrained sans: large display can be dramatic, but weight stays modest and labels carry uppercase tracking."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification", "catalog", "directory"]
+    guidance:
+      - "Use large display type with tight line-height and slight negative tracking, but avoid heavy black weights."
+      - "Set nav items, CTAs, badges, and section labels in uppercase with generous tracking."
+      - "Keep body copy small, calm, and editorial."
+      - "Use substitute sans fonts; do not claim or require a licensed source font."
+    counterexamples:
+      - "Ultra-bold display headlines shouting over the image."
+      - "Casual rounded sans or handwritten luxury cues."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/heritage-editorial-feature.png
+
+  - id: data-reads-as-specification
+    principle: "Performance, racing, event, or product data reads as specification: large numerals, labels, units, and aligned hairline rows."
+    applies_to:
+      paths: ["."]
+      surface_types: ["specification", "catalog", "directory", "landing"]
+    guidance:
+      - "Use large numerals only for values that have labels, units, or immediate meaning."
+      - "Use compact uppercase labels below or above values."
+      - "Use row or grid alignment for comparable specs, event entries, availability, and pricing."
+      - "Use red for only the decisive value or active position, not every number."
+    counterexamples:
+      - "Unlabeled numbers used as decoration."
+      - "Misaligned cards that make specs hard to compare."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/performance-spec-grid.png
+
+  - id: white-is-transactional-relief
+    principle: "White surfaces are deliberate relief for dense catalog, price, dealer, and form contexts; they do not replace the dark cinematic identity."
+    applies_to:
+      paths: ["."]
+      surface_types: ["catalog", "specification", "directory"]
+    guidance:
+      - "Use white sheets for listings, tables, form groups, and transactional decision points."
+      - "Keep typography, spacing, and sharp geometry continuous with dark sections."
+      - "Return to near-black for framing sections, footers, and cinematic breaks."
+      - "Avoid pale-grey SaaS backgrounds unless used as a tight table rail or subtle listing divider."
+    counterexamples:
+      - "A fully white generic marketplace page."
+      - "Grey card stacks with no dark frame."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/white-preowned-catalog-sheet.png
+
+  - id: hairlines-and-brightness-create-depth
+    principle: "Depth comes from photographic atmosphere, 1px hairlines, dark-grey brightness steps, and occasional dark gradients rather than shadow stacks."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification", "catalog", "directory"]
+    guidance:
+      - "Use dark elevated plates close to the base canvas for cards and driver/spec panels."
+      - "Use 1px dividers between rows, cards, and footer groups."
+      - "Use overlays to make image text legible, not as decorative glass."
+      - "Reserve shadows for transient overlays only."
+    counterexamples:
+      - "Layered card shadows as the primary depth cue."
+      - "Glassmorphism, blur panels, and glow-heavy cyber aesthetics."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/performance-spec-grid.png
+
+experience_contracts:
+  - id: source-agnostic-performance-language
+    contract: "Generated surfaces preserve the luxury-performance composition language without reusing actual source names, logos, marks, model names, slogans, proprietary images, or licensed font names."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial", "specification", "catalog", "directory"]
+    obligations:
+      - "Name the generated product, event, category, or task from the user's prompt, not from the source inspiration."
+      - "Use generic image placeholders, abstract performance photography descriptions, or user-provided assets; never invent source-branded imagery."
+      - "Use prompt-derived names or generic labels such as performance marque, private collection, track session, studio archive, or service directory rather than source-specific names."
+      - "Translate racing/luxury cues into composition, spacing, color discipline, and type hierarchy rather than literal marks."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/cinematic-launch-hero.png
+
+  - id: hero-establishes-atmosphere-before-detail
+    contract: "The first major region establishes cinematic atmosphere and a concise editorial claim before dense details."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "editorial"]
+    obligations:
+      - "Use an image-led hero or image-like dark composition."
+      - "Keep copy short: eyebrow, headline, one deck, and at most two actions."
+      - "Move dense specs, listings, or forms below the hero."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/cinematic-launch-hero.png
+
+  - id: metrics-earn-their-scale
+    contract: "Oversized numerals must carry meaningful performance, ranking, event, availability, or comparison information."
+    applies_to:
+      paths: ["."]
+      surface_types: ["specification", "landing", "catalog"]
+    obligations:
+      - "Pair every large number with a label and unit or interpretation."
+      - "Align comparable metrics in a grid or row system."
+      - "Use muted labels so the value remains primary."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/performance-spec-grid.png
+
+  - id: red-highlights-only-the-decisive-value
+    contract: "Red highlights are limited to the primary action or the one value/state the user must notice first."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "specification", "catalog", "directory", "editorial"]
+    obligations:
+      - "Choose one red focal role per region."
+      - "Prefer white, grey, border weight, or position for secondary emphasis."
+      - "Do not color every active or important item red by default."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/event-row-system.png
+
+  - id: transactional-density-stays-editorial
+    contract: "Listings, forms, and tables stay dense enough to act, but remain visually connected to the cinematic editorial frame."
+    applies_to:
+      paths: ["."]
+      surface_types: ["catalog", "specification", "directory"]
+    obligations:
+      - "Use white sheets only for the transactional region and preserve sharp geometry."
+      - "Keep labels uppercase and rows hairline-separated."
+      - "Return to dark framing for section transitions, CTA bands, or footers."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+      - path: examples/core/white-preowned-catalog-sheet.png

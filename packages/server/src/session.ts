@@ -19,7 +19,6 @@ import {
   type SurfacePlan,
   type SummonArrowBundle,
 } from '@summon-internal/engine';
-import { validateGhostFidelity as validateGhostFidelityContract } from './ghost/index.js';
 import { writeFinalSummaries } from './summary.js';
 import type {
   SurfaceGenerationInput,
@@ -236,18 +235,6 @@ export class SurfaceGenerationSession {
         value: artifact,
       }, this.systemContracts.validationContext));
       issues.push(...validateArrowSourceSyntax(artifact.source));
-      const ghostFidelity = validateGhostFidelityContract({
-        source: artifact.source,
-        ghost: this.input.ghost ?? null,
-      });
-      issues.push(...ghostFidelity.issues);
-      if (ghostFidelity.summary) {
-        await this.writeProtocolLine({
-          op: 'meta',
-          path: '/ghost-fidelity-summary',
-          value: ghostFidelity.summary,
-        });
-      }
     }
 
     this.validationIssues.push(...issues);
@@ -669,9 +656,6 @@ function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[])
     'invalid-arrow-bundle-entry',
     'arrow-bundle-extra-file',
     'invalid-arrow-bundle-source-file',
-    'ghost-fidelity-missing-shell',
-    'ghost-fidelity-visual-underfit',
-    'ghost-fidelity-generic-card-grid',
   ]);
   const allowed = allowedCodes && allowedCodes.length > 0 ? new Set(allowedCodes) : null;
   return issues.some((issue) => (

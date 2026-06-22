@@ -1,0 +1,306 @@
+patterns:
+  - id: workspace-uses-reading-mode-shell
+    kind: "structure"
+    pattern: "Developer workspaces use a single warm-dark reading-mode shell with clear zones for summary, active work, evidence, and next action."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "brief"]
+    guidance:
+      - "Use the warm near-charcoal canvas as the continuous page material."
+      - "Frame content inside a bounded shell or wide content band rather than floating unrelated cards."
+      - "Give the first read a calm technical summary, then expose agent activity, terminal evidence, rows, or setup choices."
+      - "Keep major regions aligned to a shared content width and compact spacing rhythm."
+    anti_patterns:
+      - "Generic dashboard grids where every card has equal hierarchy."
+      - "Light-mode productivity shells or pastel planning layouts."
+      - "Decorative sidebars that do not help understand the workflow."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: hero-pairs-statement-with-mockup-evidence
+    kind: "layout"
+    pattern: "Technical landing surfaces pair a quiet value statement with one or two terminal-like evidence panels."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "workspace"]
+    guidance:
+      - "Set the main statement in light-weight sans display type with tight tracking and restrained scale."
+      - "Place terminal, code, or agent panels close enough to prove the claim visually."
+      - "Use two-panel splits when contrasting modes, inputs/outputs, local/cloud, before/after, or human/agent handoff."
+      - "Keep the hero background flat warm-dark; use surface contrast and hairlines instead of gradients."
+    anti_patterns:
+      - "Billboard-only heroes with no technical evidence."
+      - "Atmospheric gradients or abstract blobs behind the headline."
+      - "Heavy 700+ display type that makes the page feel loud."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: terminal-panels-anchor-evidence
+    kind: "visual"
+    pattern: "Terminal and code panels anchor visual interest and must contain plausible operational evidence."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "brief", "onboarding"]
+    guidance:
+      - "Render panels on a slightly lifted warm-dark fill with a 1px warm hairline and 3-6px radius."
+      - "Use monospace for commands, logs, code, agent steps, outputs, model names, permissions, or task traces."
+      - "Use restrained syntax or status color only when it clarifies real state."
+      - "Label panels with small muted or mono metadata so the user knows what the evidence represents."
+    anti_patterns:
+      - "Lorem ipsum code, random shell commands, or decorative ASCII filler."
+      - "Neon terminal themes, green-on-black nostalgia, or rainbow syntax confetti."
+      - "Screenshots or product labels copied from a specific source brand."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: content-bands-keep-single-canvas
+    kind: "layout"
+    pattern: "Sections remain on one continuous warm-dark canvas, separated by spacing, typography, rows, and hairlines rather than background changes."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "workspace", "brief"]
+    guidance:
+      - "Use 64-96px major section padding on desktop and compact proportional spacing on smaller screens."
+      - "Keep section headers sentence-like and quiet; avoid loud promotional banners."
+      - "Use canvas-soft only for tiles, mockups, forms, or content cards that need containment."
+      - "Let hairline dividers create rhythm for lists, press-like updates, setup steps, and task rows."
+    anti_patterns:
+      - "Alternating colorful section backgrounds."
+      - "Large rounded pastel bands."
+      - "Stacked full-bleed gradients used to fake depth."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: cta-geometry-stays-tight
+    kind: "visual"
+    pattern: "Primary and secondary controls use compact, almost-rectangular geometry."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    guidance:
+      - "Use 3-4px button radii as the default desktop CTA shape."
+      - "Use off-white fill with warm-dark text for one primary action."
+      - "Use transparent or canvas-matching secondary actions with off-white text."
+      - "Reserve circular or pill geometry for icon containers, compact status chips, or minimum mobile touch accommodations."
+    anti_patterns:
+      - "Large pill CTAs as the default visual signature."
+      - "High-saturation colored buttons."
+      - "Overly soft consumer-app button styling."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: tiles-use-hairline-depth
+    kind: "visual"
+    pattern: "Cards, tiles, inputs, and mockups use warm surface contrast plus 1px hairlines for depth, not shadows."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    guidance:
+      - "Use a slightly lighter warm-dark fill for contained panels."
+      - "Add a subtle warm hairline border for separation."
+      - "Keep radii tight: 3-6px for most cards and panels."
+      - "Do not add drop shadows unless a host runtime requires a minimal affordance for a modal or popover."
+    anti_patterns:
+      - "Soft floating card shadows."
+      - "Glass panels with blur and glow."
+      - "Large rounded cards that feel friendly rather than technical."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: mono-labels-mark-operational-metadata
+    kind: "content"
+    pattern: "Monospace labels identify operational metadata while body copy remains in a readable sans face."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "comparison", "onboarding", "brief", "landing"]
+    guidance:
+      - "Use mono for commands, paths, model names, statuses, permission labels, timestamps, platform names, or short technical chips."
+      - "Use sans-serif for explanatory paragraphs, headings, navigation, and button labels."
+      - "Keep mono text compact and purposeful; do not switch the entire page into monospace."
+      - "Use muted beige for metadata unless the value is selected or primary."
+    anti_patterns:
+      - "All-monospace marketing copy that becomes hard to read."
+      - "Decorative uppercase labels with no operational meaning."
+      - "Serif body text as the main developer UI voice."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: comparison-uses-rows-or-tiles-with-shared-criteria
+    kind: "structure"
+    pattern: "Technical comparisons use rows or compact tiles with shared criteria and a calm recommendation."
+    applies_to:
+      paths: ["."]
+      surface_types: ["comparison", "workspace", "brief"]
+    guidance:
+      - "Compare options by shared operational criteria such as control, setup effort, data boundary, model support, runtime, cost, risk, or speed."
+      - "Align criteria visibly through rows, columns, or repeated tile structure."
+      - "Use off-white border, fill, or button placement to mark the recommended path rather than saturated color."
+      - "Keep the recommendation direct but not bombastic."
+    anti_patterns:
+      - "Marketing feature cards with inconsistent criteria."
+      - "Colorful scoreboards that imply false precision."
+      - "Strict editorial newspaper scorecards unless the prompt explicitly asks for critique."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: download-or-setup-tiles-stay-compact
+    kind: "structure"
+    pattern: "Download, platform, or setup choices appear as compact warm-dark tiles with clear action affordances."
+    applies_to:
+      paths: ["."]
+      surface_types: ["onboarding", "landing", "workspace"]
+    guidance:
+      - "Use 2-up or 3-up tiles on desktop and stack on mobile."
+      - "Each tile should include a platform, environment, or setup label, a short compatibility/detail line, and an action."
+      - "Use tight card radius, hairline border, and muted captions."
+      - "Keep icons monochrome or off-white; avoid colorful platform-logo emphasis unless required by the host."
+    anti_patterns:
+      - "Oversized download cards with large empty areas."
+      - "Consumer-app install celebration visuals."
+      - "Ambiguous setup tiles with no next action."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: rows-carry-progress-or-press-like-information
+    kind: "layout"
+    pattern: "Rows carry chronological, progress, press-like, or task-list information with warm hairline separation."
+    applies_to:
+      paths: ["."]
+      surface_types: ["brief", "workspace", "landing", "comparison"]
+    guidance:
+      - "Use full-width or panel-contained rows for updates, tasks, open roles, command history, incident steps, or release notes."
+      - "Separate rows with 1px warm hairlines and 16px-ish vertical padding."
+      - "Keep each row scan-friendly: label, short title, muted detail, optional compact action."
+      - "Use rows when comparison or chronology is more important than card individuality."
+    anti_patterns:
+      - "Turning every update into an equal rounded card."
+      - "Rows with no hierarchy between label, content, and action."
+      - "Dense row tables with cool-gray borders on pure black."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: briefs-stack-summary-evidence-action
+    kind: "structure"
+    pattern: "Technical briefs stack a concise summary, evidence panels or rows, and one calm next action."
+    applies_to:
+      paths: ["."]
+      surface_types: ["brief", "workspace"]
+    guidance:
+      - "Open with the current state or recommendation in quiet sans type."
+      - "Place logs, agent steps, diffs, or findings immediately after the summary."
+      - "End with a clear next action or decision, using one off-white primary control when needed."
+      - "Keep failure, warning, or blocked states muted unless severity truly requires stronger semantic color."
+    anti_patterns:
+      - "Incident summaries that are all prose and no evidence."
+      - "Alarmist red-heavy visual systems for routine technical review."
+      - "CTA clusters where no next step is primary."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: host-frame-safe-area
+    kind: "layout"
+    pattern: "Full-screen generated surfaces leave safe space for host chrome."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    guidance:
+      - "Leave at least 72px of top breathing room in full-screen workbench compositions."
+      - "Avoid placing important headings, terminal panel controls, or primary actions at the extreme top-left edge."
+      - "Use centered max-width shells or internal padding so dark surfaces do not collide with host UI."
+    anti_patterns:
+      - "Page titles pinned under host navigation."
+      - "Terminal mockup controls hidden behind host chrome."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: source-proof-follows-claim
+    kind: "structure"
+    pattern: "Technical product claims are followed by proof: terminal state, agent activity, command output, setup trace, or operational rows."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "workspace", "brief", "onboarding"]
+    guidance:
+      - "Pair high-level claims with nearby product, terminal, code, or agent evidence."
+      - "Use evidence that is specific to the generated scenario, not decorative filler."
+      - "Let the proof panel or operational row structure appear before long explanatory sections."
+      - "Keep evidence agnostic: do not reproduce source-site screenshots, logos, copy, or product names."
+    anti_patterns:
+      - "Marketing claims with no visible technical proof."
+      - "Fake terminal material that does not support the claim."
+      - "Copied public-source screenshots used as portable exemplars."
+    evidence:
+      - path: examples/core/technical-landing-proof.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: noir-avoids-cinematic-effects
+    kind: "rule"
+    pattern: "Technical Noir creates atmosphere through warm-dark material, silence, and evidence density, not cinematic effects."
+    applies_to:
+      paths: ["."]
+      surface_types: ["workspace", "landing", "comparison", "onboarding", "brief"]
+    guidance:
+      - "Use warm dark canvas, off-white emphasis, hairlines, and technical proof to create presence."
+      - "Avoid fog, spotlights, film grain, smoked glass, dramatic shadows, neon glow, and detective-board visual metaphors."
+      - "If an effect does not improve task clarity or evidence readability, remove it."
+    anti_patterns:
+      - "Cinematic poster styling."
+      - "Moody darkness without operational content."
+      - "Cyberpunk terminal nostalgia."
+    evidence:
+      - path: fingerprint/memory/intent.md
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: command-action-pairs-primary-cta
+    kind: "layout"
+    pattern: "Primary setup or launch actions can pair with a monospace command snippet."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "onboarding", "workspace"]
+    guidance:
+      - "Place the primary action and command snippet close together when setup, launch, install, or handoff is the task."
+      - "Use an off-white primary button and a warm-dark command strip with plausible command text."
+      - "Make the command copyable-looking without requiring decorative icon clutter."
+      - "Do not place command snippets in surfaces where the next action is not command-shaped."
+    anti_patterns:
+      - "Random command snippets used as decoration."
+      - "Multiple competing primary commands."
+      - "Large rounded command pills that break the tight developer geometry."
+    evidence:
+      - path: examples/core/technical-landing-proof.png
+      - path: examples/core/developer-setup-tiles.png
+
+  - id: tab-rail-selects-evidence-frame
+    kind: "structure"
+    pattern: "Product, workflow, or setup alternatives use a compact selector rail that gives most space to the active evidence frame."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "comparison", "workspace"]
+    guidance:
+      - "Keep selector labels compact and muted, with one high-contrast active option."
+      - "Let the selected evidence frame be materially larger than the selector."
+      - "Use the evidence frame to show state, command output, screenshots-as-rewritten-mockups, rows, or technical criteria."
+      - "Use this structure when comparing modes or products; avoid it for simple one-path tasks."
+    anti_patterns:
+      - "Tabs where every option expands into equal cards."
+      - "Selector labels that compete with the evidence panel."
+      - "Source-site product names copied as tab labels."
+    evidence:
+      - path: examples/core/operational-comparison.png
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: trust-signals-stay-muted
+    kind: "visual"
+    pattern: "Trust, ecosystem, and integration signals stay monochrome, secondary, and subordinate to technical proof."
+    applies_to:
+      paths: ["."]
+      surface_types: ["landing", "onboarding", "workspace"]
+    guidance:
+      - "Use small monochrome marks, labels, or tiles when integrations or trust signals are relevant."
+      - "Keep logo-like material muted and below the main claim/proof area."
+      - "Prefer generic integration categories unless an approved host asset catalog is available."
+    anti_patterns:
+      - "Partner-logo strips copied from source research."
+      - "Colorful ecosystem badges as decoration."
+      - "Trust signals that overpower the product evidence."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md

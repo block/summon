@@ -1,0 +1,155 @@
+:root {
+  color-scheme: light;
+
+  /* Console Chrome 2001: cool molded-plastic chassis with rationed warm directional signal. */
+  --color-bg: #d7d7d7;
+  --color-surface: #ffffff;
+  --color-surface-muted: #dedede;
+  --color-surface-soft: #9fbee7;
+  --color-canvas: #7a8aba;
+  --color-canvas-raised: #8ba1d4;
+  --color-canvas-lavender: #acace7;
+  --color-canvas-ice: #c0d5e6;
+  --color-command: #21242e;
+  --color-command-soft: #303645;
+  --color-border: #5a5f8c;
+  --color-border-strong: #3d4f97;
+  --color-highlight: #c7d6f5;
+  --color-text: #21242e;
+  --color-text-muted: #3d4f97;
+  --color-text-alt: #ffffff;
+  --color-accent: #f68d1f;
+  --color-accent-fg: #ffffff;
+  --color-accent-utility: #ecab37;
+  --color-accent-nav: #e48600;
+  --color-brand-red: #e60012;
+  --color-systems-teal: #206479;
+  --color-games-red: #a7282b;
+  --color-danger: #e60012;
+  --color-success: #206479;
+  --color-info: #3d4f97;
+  --color-warning: #ecab37;
+
+  /* Compact desktop-era rhythm: whitespace is a seam between plates, not luxury air. */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --space-9: 64px;
+  --space-10: 88px;
+
+  /* Sharp/chamfered by default; full roundness is reserved for physical controls. */
+  --radius-pill: 9999px;
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  /* Web-safe early-2000s type. Display imitates box-art wordmarks through weight, stroke, and hard shadow. */
+  --font-sans: Arial, Helvetica, ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Arial Black", Impact, "Archivo Black", Arial, Helvetica, sans-serif;
+  --font-mono: "Silkscreen", "VT323", "Courier New", ui-monospace, monospace;
+  --font-serif: Arial, Helvetica, ui-sans-serif, system-ui, sans-serif;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-md: 12px;
+  --text-lg: 15px;
+  --text-xl: 22px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --text-display: clamp(38px, 6.2vw, 58px);
+  --tracking-label: 0.045em;
+  --tracking-tight: 0em;
+  --tracking-display: -0.015em;
+  --leading-display: 0.95;
+  --leading-section: 1.1;
+  --leading-body: 1.4;
+  --leading-reading: 1.5;
+
+  /* Hard Y2K depth: bevels, rings, and offset shadows instead of blurred material elevation. */
+  --shadow-mini: inset 0 1px 0 rgba(255,255,255,0.65), inset 0 -1px 0 #3d4f97;
+  --shadow-card: inset 0 1px 0 rgba(255,255,255,0.75), inset 0 -2px 0 #3d4f97, 0 1px 0 rgba(33,36,46,0.45);
+  --shadow-elevated: inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -3px 0 #3d4f97, 0 2px 0 rgba(33,36,46,0.45);
+  --shadow-popover: 4px 4px 0 rgba(33,36,46,0.45), inset 0 1px 0 rgba(255,255,255,0.72);
+  --shadow-modal: 6px 6px 0 rgba(33,36,46,0.50), inset 0 1px 0 rgba(255,255,255,0.72);
+}
+
+html, body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: none;
+  text-rendering: optimizeSpeed;
+}
+
+body {
+  background:
+    radial-gradient(circle at 14px 14px, rgba(33,36,46,0.12) 1px, transparent 1.5px) 0 0 / 12px 12px,
+    var(--color-bg);
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+}
+
+button {
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--color-accent-utility);
+  color: var(--color-command);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding: 6px 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.70), inset 0 -2px 0 rgba(33,36,46,0.45);
+}
+
+button:hover,
+button:focus-visible {
+  background: var(--color-accent);
+  color: var(--color-accent-fg);
+  outline: 1px dotted var(--color-command);
+  outline-offset: 2px;
+}
+
+input,
+textarea,
+select {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  color: var(--color-text);
+  padding: 4px 6px;
+  box-shadow: inset 1px 1px 0 rgba(33,36,46,0.22);
+}
+
+strong,
+b {
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+a {
+  color: var(--color-text-muted);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+hr {
+  border: 0;
+  border-top: 1px dotted var(--color-border);
+}

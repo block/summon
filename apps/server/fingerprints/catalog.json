@@ -2,6 +2,13 @@
   "schema": "summon.fingerprint-catalog/v1",
   "bundles": [
     {
+      "id": "console-chrome-2001",
+      "path": "bundles/console-chrome-2001",
+      "enabled": true,
+      "defaultTargetPath": ".",
+      "defaultTokenFallback": null
+    },
+    {
       "id": "editorial-mono",
       "path": "bundles/editorial-mono",
       "enabled": true,
@@ -11,6 +18,34 @@
     {
       "id": "garden-notes",
       "path": "bundles/garden-notes",
+      "enabled": true,
+      "defaultTargetPath": ".",
+      "defaultTokenFallback": null
+    },
+    {
+      "id": "technical-contrast",
+      "path": "bundles/technical-contrast",
+      "enabled": true,
+      "defaultTargetPath": ".",
+      "defaultTokenFallback": null
+    },
+    {
+      "id": "technical-noir",
+      "path": "bundles/technical-noir",
+      "enabled": true,
+      "defaultTargetPath": ".",
+      "defaultTokenFallback": null
+    },
+    {
+      "id": "signal-stream",
+      "path": "bundles/signal-stream",
+      "enabled": true,
+      "defaultTargetPath": ".",
+      "defaultTokenFallback": null
+    },
+    {
+      "id": "redline-cinema",
+      "path": "bundles/redline-cinema",
       "enabled": true,
       "defaultTargetPath": ".",
       "defaultTokenFallback": null
