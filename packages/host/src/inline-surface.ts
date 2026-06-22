@@ -180,7 +180,6 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
   root.dataset.summonInlineSurface = surfaceId;
   root.classList.add('summon-inline-surface');
   installTokenStyle(root, surfaceId, options.tokensSource);
-  renderPreview(root, preview.snapshot());
 
   const notifyState = () => {
     const snapshot = cloneState(currentState);

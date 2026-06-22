@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type SummonSurfaceHandle } from "@anarchitecture/summon-react";
+import type { SurfacePreviewSnapshot } from "@anarchitecture/summon/browser";
 import { createSurfaceEnvelope } from "@anarchitecture/summon/envelope";
 import {
   isArrowSurfaceArtifact,
@@ -25,6 +26,7 @@ import { DiagnosticsDock } from "./components/DiagnosticsDock.js";
 import { GenerationStage } from "./components/GenerationStage.js";
 import { layoutPresets } from "./constants.js";
 import { displayEventKind, type ExtraDevtoolsEvent } from "./devtools.js";
+import { buildGenerationPreview } from "./generationPreview.js";
 import { useGenerationRuns } from "./hooks/useGenerationRuns.js";
 import { useSavedSurfaces } from "./hooks/useSavedSurfaces.js";
 import { useSurfaceStream } from "./hooks/useSurfaceStream.js";
@@ -125,6 +127,8 @@ export function GeneratePage() {
   );
   const [currentSurfaceContractView, setCurrentSurfaceContractView] =
     useState<SurfaceContractView | null>(null);
+  const [surfacePreviewSnapshot, setSurfacePreviewSnapshot] =
+    useState<SurfacePreviewSnapshot | null>(null);
   const [currentAgentGoalSummary, setCurrentAgentGoalSummary] = useState<
     string | null
   >(null);
@@ -133,6 +137,7 @@ export function GeneratePage() {
   >(null);
   const [artifactRevision, setArtifactRevision] = useState(0);
   const [surfaceInstanceKey, setSurfaceInstanceKey] = useState(0);
+  const [surfaceReady, setSurfaceReady] = useState(false);
   const artifactRevisionRef = useRef(0);
   const [diagnosticsTab, setDiagnosticsTab] =
     useState<DiagnosticsTab>("stream");
@@ -237,6 +242,14 @@ export function GeneratePage() {
 
   const appendDevEvent = useCallback(
     (event: DevtoolsEvent | ExtraDevtoolsEvent) => {
+      if (event.kind === "render" || event.kind === "surface-disposed") {
+        setSurfaceReady(false);
+      } else if (
+        event.kind === "rendered" ||
+        event.kind === "surface-runtime-error"
+      ) {
+        setSurfaceReady(true);
+      }
       setDevEvents((items) => [...items.slice(-799), event]);
     },
     [],
@@ -288,8 +301,10 @@ export function GeneratePage() {
     setCurrentValidationSummary(null);
     setCurrentStreamHealth(null);
     setCurrentSurfaceContractView(null);
+    setSurfacePreviewSnapshot(null);
     setCurrentAgentGoalSummary(null);
     setCurrentAgentPolicySummary(null);
+    setSurfaceReady(false);
   }, []);
 
   const markCustomRunProfile = useCallback(() => {
@@ -545,6 +560,22 @@ export function GeneratePage() {
     [toolRegistry],
   );
 
+  const currentLayout = useMemo<SummonLayout | null>(() => {
+    const layout = layoutPresets.get(layoutId);
+    return layout
+      ? { id: layout.id, slots: layout.slots.map((slot) => ({ ...slot })) }
+      : null;
+  }, [layoutId]);
+
+  const readLayout = useCallback((): SummonLayout | null => {
+    return currentLayout
+      ? {
+          id: currentLayout.id,
+          slots: currentLayout.slots.map((slot) => ({ ...slot })),
+        }
+      : null;
+  }, [currentLayout]);
+
   function resetForScenarioChange() {
     abortRef.current?.abort();
     clearApprovals("Approval request was replaced");
@@ -602,16 +633,10 @@ export function GeneratePage() {
     setCurrentValidationSummary,
     setCurrentStreamHealth,
     setStatus,
+    setPreviewSnapshot: setSurfacePreviewSnapshot,
     setArtifactRevision,
     appendTimingEntry,
   });
-
-  const readLayout = useCallback((): SummonLayout | null => {
-    const layout = layoutPresets.get(layoutId);
-    return layout
-      ? { id: layout.id, slots: layout.slots.map((slot) => ({ ...slot })) }
-      : null;
-  }, [layoutId]);
 
   const saveSurfaceEnvelope = useCallback(
     (runPrompt: string, result: StreamResult) => {
@@ -712,6 +737,36 @@ export function GeneratePage() {
   const statusText = bytes
     ? `${statusLabel} · ${bytes.toLocaleString()} B`
     : statusLabel;
+  const generationPreview = useMemo(
+    () =>
+      buildGenerationPreview({
+        prompt: activeContract.prompt,
+        status,
+        statusText,
+        bytes,
+        artifactRevision,
+        rendered: surfaceReady,
+        surfacePlan: currentEffectiveSurfacePlan ?? activeContract.surfacePlan,
+        contractView: currentSurfaceContractView,
+        layout: currentLayout,
+        previewSnapshot: surfacePreviewSnapshot,
+        toolNames: activeContract.toolNames,
+      }),
+    [
+      activeContract.prompt,
+      activeContract.surfacePlan,
+      activeContract.toolNames,
+      artifactRevision,
+      bytes,
+      currentEffectiveSurfacePlan,
+      currentLayout,
+      currentSurfaceContractView,
+      status,
+      statusText,
+      surfacePreviewSnapshot,
+      surfaceReady,
+    ],
+  );
   const latestStageError = useMemo(() => {
     for (let i = logs.length - 1; i >= 0; i -= 1) {
       const entry = logs[i];
@@ -844,6 +899,7 @@ export function GeneratePage() {
           running={running}
           onGenerate={generate}
           statusText={statusText}
+          generationPreview={generationPreview}
           stageNotice={stageNotice}
           onOpenDiagnostics={() => setDiagnosticsOpen(true)}
           surfaceRef={surfaceRef}
@@ -856,6 +912,7 @@ export function GeneratePage() {
           onSurfaceRuntimeError={handleSurfaceRuntimeError}
           showWelcome={showWelcome}
           hasRenderedArtifact={artifactRevision > 0}
+          surfaceReady={surfaceReady}
           playgroundMode={playgroundMode}
           surfaceInstanceKey={surfaceInstanceKey}
           childSurfaces={children}

@@ -16,8 +16,10 @@ import {
   type DropdownSelectGroup,
 } from "../../../components/ui.js";
 import { cn } from "../../../lib/cn.js";
+import type { GenerationPreviewModel } from "../generationPreview.js";
 import type { ChildSurfaceModel, GhostRootInfo } from "../types.js";
 import { ChildSurface } from "./ChildSurface.js";
+import { SurfaceLoadingOverlay } from "./SurfaceLoadingOverlay.js";
 
 const promptActionRadiusClass = "!rounded-[22px]";
 
@@ -31,6 +33,7 @@ export function GenerationStage({
   running,
   onGenerate,
   statusText,
+  generationPreview,
   stageNotice,
   onOpenDiagnostics,
   surfaceRef,
@@ -43,6 +46,7 @@ export function GenerationStage({
   onSurfaceRuntimeError,
   showWelcome,
   hasRenderedArtifact,
+  surfaceReady,
   playgroundMode,
   surfaceInstanceKey,
   childSurfaces,
@@ -57,6 +61,7 @@ export function GenerationStage({
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
+  generationPreview: GenerationPreviewModel;
   stageNotice: {
     tone: "pending" | "error";
     title: string;
@@ -73,12 +78,18 @@ export function GenerationStage({
   onSurfaceRuntimeError: SummonSurfaceProps["onRuntimeError"];
   showWelcome: boolean;
   hasRenderedArtifact: boolean;
+  surfaceReady: boolean;
   playgroundMode: boolean;
   surfaceInstanceKey: number;
   childSurfaces: ChildSurfaceModel[];
   onCloseChild: (id: number) => void;
 }) {
   const showSamplePills = showWelcome && !running;
+  const showHostLoader =
+    !showWelcome &&
+    !stageNotice &&
+    !surfaceReady &&
+    (running || hasRenderedArtifact);
   const selectedFingerprint =
     fingerprints.find(
       (fingerprint) => fingerprint.id === selectedFingerprintId,
@@ -170,6 +181,12 @@ export function GenerationStage({
               onHandlerError={onSurfaceHandlerError}
               onRuntimeError={onSurfaceRuntimeError}
             />
+            {showHostLoader ? (
+              <SurfaceLoadingOverlay
+                statusText={statusText}
+                preview={generationPreview}
+              />
+            ) : null}
             {stageNotice ? (
               <div
                 className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"

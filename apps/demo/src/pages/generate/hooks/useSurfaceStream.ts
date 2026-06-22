@@ -1,5 +1,14 @@
-import { useCallback, type MutableRefObject } from 'react';
-import { consumeSurfaceStream, type SurfaceStreamContext } from '@anarchitecture/summon/browser';
+import {
+  useCallback,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from 'react';
+import {
+  consumeSurfaceStream,
+  type SurfacePreviewSnapshot,
+  type SurfaceStreamContext,
+} from '@anarchitecture/summon/browser';
 import {
   normalizeSurfacePlan,
   type ArrowSurfaceArtifact,
@@ -12,6 +21,7 @@ import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import type { SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import type { Mode } from '../../../showcase.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
+import { reduceSurfacePreviewSnapshot } from '../generationPreview.js';
 import {
   agentBrokerRequestFor,
   agentGoalText,
@@ -63,6 +73,7 @@ export function useSurfaceStream({
   setCurrentValidationSummary,
   setCurrentStreamHealth,
   setStatus,
+  setPreviewSnapshot,
   setArtifactRevision,
   appendTimingEntry,
 }: {
@@ -84,6 +95,7 @@ export function useSurfaceStream({
   setCurrentValidationSummary: (value: string | null) => void;
   setCurrentStreamHealth: (value: string | null) => void;
   setStatus: (value: string) => void;
+  setPreviewSnapshot: Dispatch<SetStateAction<SurfacePreviewSnapshot | null>>;
   setArtifactRevision: (value: number) => void;
   appendTimingEntry: (entry: Omit<TimingEntry, 'id' | 'at'> & { at?: number }) => void;
 }) {
@@ -372,14 +384,20 @@ export function useSurfaceStream({
         surfaceRef.current?.renderArtifact(artifact);
       },
       onSurfaceEvent: (event) => {
-        if (!opts.playgroundMode) {
-          surfaceRef.current?.applyPreviewEvent(event);
-        }
+        setPreviewSnapshot((snapshot) =>
+          reduceSurfacePreviewSnapshot(snapshot, event),
+        );
+        appendDevEvent({
+          kind: 'surface-preview-event',
+          at: Date.now(),
+          surfaceId: surfaceRef.current?.surfaceId ?? 'pending',
+          event,
+        });
         if (event.type === 'surface.status') {
           setStatus(event.status);
-          logLine('op-meta', `${opts.playgroundMode ? 'status' : 'preview'} -> ${event.status}${event.text ? `: ${event.text}` : ''}`);
+          logLine('op-meta', `preview -> ${event.status}${event.text ? `: ${event.text}` : ''}`);
         } else {
-          logLine('op-meta', `${opts.playgroundMode ? 'preview skipped' : 'preview'} -> ${event.type}`);
+          logLine('op-meta', `preview -> ${event.type}`);
         }
       },
       onParseError: (raw) => {
@@ -423,6 +441,7 @@ export function useSurfaceStream({
     logLine,
     modeRef,
     setBytes,
+    setPreviewSnapshot,
     surfaceRef,
   ]);
 }

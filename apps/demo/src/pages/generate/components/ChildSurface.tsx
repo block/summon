@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
-import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
+import { consumeSurfaceStream, type SurfacePreviewSnapshot } from '@anarchitecture/summon/browser';
+import { normalizeSurfacePlan, type SurfacePlan } from '@anarchitecture/summon/engine';
 import { Button, panelClass } from '../../../components/ui.js';
 import { cn } from '../../../lib/cn.js';
 import { createScopedDemoRegistry } from '../../../showcase.js';
 import { childToolNames } from '../constants.js';
+import {
+  buildGenerationPreview,
+  reduceSurfacePreviewSnapshot,
+} from '../generationPreview.js';
 import type { ChildSurfaceModel } from '../types.js';
+import { SurfaceLoadingOverlay } from './SurfaceLoadingOverlay.js';
 
 export function ChildSurface({
   child,
@@ -16,6 +22,10 @@ export function ChildSurface({
 }) {
   const surfaceRef = useRef<SummonSurfaceHandle>(null);
   const [status, setStatus] = useState('streaming');
+  const [surfaceReady, setSurfaceReady] = useState(false);
+  const [artifactSeen, setArtifactSeen] = useState(false);
+  const [currentSurfacePlan, setCurrentSurfacePlan] = useState<SurfacePlan | null>(null);
+  const [previewSnapshot, setPreviewSnapshot] = useState<SurfacePreviewSnapshot | null>(null);
   const registry = useMemo(
     () => createScopedDemoRegistry({
       modelProvider: () => child.modelSelection.modelProvider ?? null,
@@ -28,6 +38,10 @@ export function ChildSurface({
 
   useEffect(() => {
     const abort = new AbortController();
+    setSurfaceReady(false);
+    setArtifactSeen(false);
+    setCurrentSurfacePlan(null);
+    setPreviewSnapshot(null);
     async function runChild() {
       try {
         const response = await fetch('/api/generate', {
@@ -52,8 +66,21 @@ export function ChildSurface({
           validationMode: 'observe',
           onMeta: (line) => {
             if (line.path === '/status') setStatus(String(line.value));
+            if (line.path === '/surface-plan') {
+              setCurrentSurfacePlan(normalizeSurfacePlan(line.value));
+            }
           },
-          onArtifact: (artifact) => surfaceRef.current?.renderArtifact(artifact),
+          onArtifact: (artifact) => {
+            setSurfaceReady(false);
+            setArtifactSeen(true);
+            surfaceRef.current?.renderArtifact(artifact);
+          },
+          onSurfaceEvent: (event) => {
+            setPreviewSnapshot((snapshot) =>
+              reduceSurfacePreviewSnapshot(snapshot, event),
+            );
+            if (event.type === 'surface.status') setStatus(event.status);
+          },
         });
         setStatus('done');
       } catch (err) {
@@ -66,6 +93,32 @@ export function ChildSurface({
     return () => abort.abort();
   }, [child, contract.pack]);
 
+  const showHostLoader = !surfaceReady && !status.startsWith('error');
+  const childPreview = useMemo(
+    () =>
+      buildGenerationPreview({
+        prompt: child.prompt,
+        status,
+        statusText: statusLabel(status),
+        bytes: 0,
+        artifactRevision: artifactSeen ? 1 : 0,
+        rendered: surfaceReady,
+        surfacePlan: currentSurfacePlan,
+        contractView: null,
+        layout: null,
+        previewSnapshot,
+        toolNames: childToolNames,
+      }),
+    [
+      artifactSeen,
+      child.prompt,
+      currentSurfacePlan,
+      previewSnapshot,
+      status,
+      surfaceReady,
+    ],
+  );
+
   return (
     <section className={cn(panelClass, 'overflow-hidden')}>
       <header className="flex items-center gap-3 border-b border-line px-3.5 py-2.5 text-[13px] text-ink-soft">
@@ -74,14 +127,40 @@ export function ChildSurface({
         <span className="font-mono text-[11px] text-ink-muted">{status}</span>
         <Button type="button" variant="ghost" size="icon-xs" aria-label="Close summoned UI" onClick={onClose}>x</Button>
       </header>
-      <SummonSurface
-        ref={surfaceRef}
-        title={`Summoned: ${child.title ?? child.prompt.slice(0, 40)}`}
-        className="block h-[480px] w-full border-0 bg-surface-raised"
-        tokensSource={child.tokensSource}
-        toolRegistry={registry}
-        validationTools={contract.validationTools}
-      />
+      <div className="relative">
+        <SummonSurface
+          ref={surfaceRef}
+          title={`Summoned: ${child.title ?? child.prompt.slice(0, 40)}`}
+          className="block h-[480px] w-full border-0 bg-surface-raised"
+          tokensSource={child.tokensSource}
+          toolRegistry={registry}
+          validationTools={contract.validationTools}
+          onEvent={(event) => {
+            if (event.kind === 'render' || event.kind === 'surface-disposed') {
+              setSurfaceReady(false);
+            } else if (
+              event.kind === 'rendered' ||
+              event.kind === 'surface-runtime-error'
+            ) {
+              setSurfaceReady(true);
+            }
+          }}
+        />
+        {showHostLoader ? (
+          <SurfaceLoadingOverlay
+            compact
+            statusText={statusLabel(status)}
+            preview={childPreview}
+            className="bg-surface-raised/92"
+          />
+        ) : null}
+      </div>
     </section>
   );
+}
+
+function statusLabel(status: string): string {
+  if (status === 'streaming') return 'Streaming surface';
+  if (status === 'done') return 'Mounting surface';
+  return status;
 }
