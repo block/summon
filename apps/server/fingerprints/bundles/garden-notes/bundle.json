@@ -2,10 +2,10 @@
   "schema": "summon.fingerprint-bundle/v1",
   "id": "garden-notes",
   "name": "Garden Notes",
-  "summary": "A soft planning language for personal tools: layered notes, gentle contrast, practical steps, and humane pacing.",
+  "summary": "A soft planning language for personal tasks, low-pressure comparisons, concrete next steps, and humane pacing.",
   "status": "published",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "fingerprint": "fingerprint",
-  "tags": ["planning", "personal", "soft", "notes"],
+  "tags": ["planning", "personal", "soft", "notes", "life-admin", "checklist", "low-pressure"],
   "tokens": "tokens.css"
 }

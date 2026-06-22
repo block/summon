@@ -369,3 +369,99 @@ test('runSurfaceGeneration observe mode does not preflight-block policy issues',
   assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-observed'));
   assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
 });
+
+test('runSurfaceGeneration blocks Ghost artifacts with no selected composition evidence', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<main class="generic-shell"><section><h1>Hello</h1><p>Safe but generic.</p></section></main>`;',
+          'main.css': '.generic-shell { min-height: 100%; padding: var(--space-6); color: var(--color-text); background: var(--color-bg); display: grid; gap: var(--space-4); border: 1px solid var(--color-border); } .generic-shell section { display: grid; gap: var(--space-3); } .generic-shell h1 { font-size: var(--text-xl); }',
+        },
+      };
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'ghost generic',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+    maxRepairAttempts: 0,
+    ghost: ghostFixtureContext(),
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, true);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'ghost-fidelity-no-composition-evidence'));
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-blocked'));
+  assert.equal(lines.some((line) => line.op === 'artifact'), false);
+});
+
+test('runSurfaceGeneration accepts Ghost artifacts with selected composition evidence', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<main class="ledger-shell"><section class="ledger-rows"><h1>Ledger rows</h1><p>Evidence rail with compact metadata.</p></section></main>`;',
+          'main.css': '.ledger-shell { min-height: 100%; padding: var(--space-6); color: var(--color-text); background: var(--color-bg); display: grid; gap: var(--space-4); border: 1px solid var(--color-border); } .ledger-rows { display: grid; gap: var(--space-3); border-top: 1px solid var(--color-border-strong); } .ledger-rows h1 { font-size: var(--text-xl); }',
+        },
+      };
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'ghost ledger',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+    maxRepairAttempts: 0,
+    ghost: ghostFixtureContext(),
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, false);
+  assert.equal(summary.validationIssues.some((issue) => issue.code === 'ghost-fidelity-no-composition-evidence'), false);
+  assert.ok(lines.some((line) => line.op === 'artifact'));
+});
+
+function ghostFixtureContext() {
+  return {
+    source: 'catalog' as const,
+    prompt: 'Ghost relay brief.',
+    product: 'Ledger Ghost',
+    ingestion: {
+      schema: 'summon.ghost-ingestion/v1' as const,
+      product: 'Ledger Ghost',
+      source: { kind: 'catalog' as const, id: 'ledger-ghost', targetPath: '.' },
+      relay: {
+        taskContract: { preserve: [], inspect: [], avoid: [], validate: [] },
+        selectedRefs: { prose: [], composition: ['composition.pattern:ledger-shell'], inventory: [], checks: [] },
+        suggestedReads: [],
+        omissions: [],
+      },
+      fingerprint: {
+        identity: { audience: [], goals: [], tone: [], antiGoals: [], tradeoffs: [] },
+        prose: [],
+        composition: [{ ref: 'composition.pattern:ledger-shell', summary: 'Ledger rows use an evidence rail.', details: [] }],
+        inventory: { refs: [], buildingBlocks: [], tokens: [], components: [], libraries: [] },
+        checks: [],
+        antiPatterns: [],
+      },
+      style: { tokenSource: 'fingerprint-catalog' as const, source: 'tokens.css', definedTokens: [], customTokens: [], warnings: [] },
+      promptBlocks: [],
+      validation: {
+        requiredSignals: [{
+          id: 'composition:ledger-shell',
+          kind: 'composition' as const,
+          label: 'Ledger rows use an evidence rail.',
+          terms: ['ledger rows', 'evidence rail'],
+          severity: 'block' as const,
+          sourceRef: 'composition.pattern:ledger-shell',
+        }],
+        forbiddenSignals: [],
+        activeChecks: [],
+      },
+    },
+  };
+}

@@ -291,7 +291,6 @@ export function buildContractRows({
   currentAgentGoalSummary,
   currentAgentPolicySummary,
   currentEffectiveSurfacePlan,
-  currentShape,
   currentStreamHealth,
   currentSurfaceContractView,
   currentValidationSummary,
@@ -302,7 +301,6 @@ export function buildContractRows({
   currentAgentGoalSummary: string | null;
   currentAgentPolicySummary: string | null;
   currentEffectiveSurfacePlan: SurfacePlan | null;
-  currentShape: string | null;
   currentStreamHealth: string | null;
   currentSurfaceContractView: SurfaceContractView | null;
   currentValidationSummary: string | null;
@@ -346,7 +344,6 @@ export function buildContractRows({
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
     ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
     ['tokens', 'Tokens', active.directionId?.startsWith('fingerprint:') ? 'fingerprint' : 'direction', active.directionId ? 'good' : 'pending'],
-    ['shape', 'Shape', currentShape ?? 'pending', currentShape ? 'neutral' : 'pending'],
   ].map(([key, label, value, tone]) => ({ key, label, value, tone })) as Array<{
     key: string;
     label: string;

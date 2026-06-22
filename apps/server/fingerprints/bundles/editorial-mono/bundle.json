@@ -2,10 +2,10 @@
   "schema": "summon.fingerprint-bundle/v1",
   "id": "editorial-mono",
   "name": "Editorial Mono",
-  "summary": "A monochrome editorial surface language with tight typography, restrained panels, and clear comparison structure.",
+  "summary": "A monochrome editorial surface language for decisive briefs, aligned comparisons, and evidence-led recommendations.",
   "status": "published",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "fingerprint": "fingerprint",
-  "tags": ["editorial", "monochrome", "comparison", "minimal"],
+  "tags": ["editorial", "monochrome", "comparison", "decision-brief", "scorecard", "austere"],
   "tokens": "tokens.css"
 }

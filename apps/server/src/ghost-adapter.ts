@@ -1,10 +1,15 @@
 import {
-  compileTokenContract,
   type ToolPack,
   type ProtocolLine,
   type SurfacePlan,
 } from '@anarchitecture/summon/engine';
-import type { GhostGenerationContext } from '@anarchitecture/summon-server';
+import {
+  compileGhostIngestionContract,
+  ghostIngestionContractMeta as summarizeGhostIngestionContract,
+  type GhostGenerationContext,
+  type GhostIngestionContract,
+  type RawGhostFingerprintBundle,
+} from '@anarchitecture/summon-server';
 import { readOptionalPackageConfig } from '@anarchitecture/ghost/fingerprint';
 import {
   gatherRelayContext,
@@ -13,9 +18,11 @@ import {
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import {
   isAbsolute,
+  join,
   relative,
   resolve,
 } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 import {
   resolveCatalogTokenSource,
   type FingerprintCatalog,
@@ -96,7 +103,6 @@ export interface GhostSurfacePromptOptions {
   userPrompt: string;
   mode: 'static' | 'interactive';
   surfacePlan: SurfacePlan;
-  shape?: string | null;
   tools?: ToolPack | null;
 }
 
@@ -273,8 +279,8 @@ export async function resolveGhostGenerationContext(
   const stackRelay = relay as RelayGatherResult & { source: RelayStackSource };
   const product = relay.entrypoint.identity.product || relay.name || request.rootId;
   const tokenSource = await resolveGhostTokenSource(stackRelay, baseDirection);
-  return {
-    source: 'root',
+  const baseContext = {
+    source: 'root' as const,
     request,
     root,
     relay: stackRelay,
@@ -282,6 +288,10 @@ export async function resolveGhostGenerationContext(
     product,
     tokenSource,
     baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
+  };
+  return {
+    ...baseContext,
+    ingestion: buildGhostIngestionContract(baseContext),
   };
 }
 
@@ -299,10 +309,10 @@ export async function resolveCatalogGhostGenerationContext(
   });
   const product = relay.entrypoint.identity.product || entry.name || request.id;
   const tokenSource = resolveCatalogTokenSource(entry, baseDirection);
-  return {
-    source: 'catalog',
+  const baseContext = {
+    source: 'catalog' as const,
     request: {
-      source: 'catalog',
+      source: 'catalog' as const,
       fingerprintId: request.id,
       targetPath: request.targetPath,
       baseDirectionId: request.baseDirectionId,
@@ -315,24 +325,39 @@ export async function resolveCatalogGhostGenerationContext(
     tokenSource,
     baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
   };
+  return {
+    ...baseContext,
+    ingestion: buildGhostIngestionContract(baseContext),
+  };
 }
 
 export function prepareGhostSurfacePrompt(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): ResolvedGhostSteer {
+  const surfaceBrief = buildSummonFingerprintSurfaceBrief(context, options);
   return {
     ...context,
     prompt: [
       context.prompt.trim(),
-      buildSummonFingerprintSurfaceBrief(context, options),
+      surfaceBrief,
     ].filter(Boolean).join('\n\n'),
+    ingestion: context.ingestion
+      ? {
+          ...context.ingestion,
+          promptBlocks: [
+            ...context.ingestion.promptBlocks.filter((block) => block.id !== 'surface-brief'),
+            { id: 'surface-brief', text: surfaceBrief },
+          ],
+        }
+      : null,
   };
 }
 
 export function ghostContextMeta(ctx: ResolvedGhostContext) {
   return {
     source: ctx.source,
+    ingestion: ctx.ingestion ? summarizeGhostIngestionContract(ctx.ingestion) : null,
     rootId: ctx.source === 'root' ? ctx.request.rootId : ctx.request.fingerprintId,
     ...(ctx.source === 'catalog' ? {
       catalogId: ctx.request.fingerprintId,
@@ -363,6 +388,17 @@ export function ghostTokenSourceMeta(tokenSource: GhostTokenSource) {
   };
 }
 
+export function ghostIngestionContractMeta(contract: GhostIngestionContract) {
+  return summarizeGhostIngestionContract(contract);
+}
+
+function summarizeGhostIngestionWithFidelity(contract: GhostIngestionContract, fidelity: unknown) {
+  return {
+    ...summarizeGhostIngestionContract(contract),
+    ...(fidelity ? { fidelity } : {}),
+  };
+}
+
 export function buildGhostReviewPacket(input: {
   context: ResolvedGhostContext;
   mode: 'static' | 'interactive';
@@ -372,6 +408,9 @@ export function buildGhostReviewPacket(input: {
   prompt: string;
 }): GhostReviewPacket {
   const artifactFiles = artifactFilesFromLines(input.acceptedLines);
+  const fidelityLine = [...input.acceptedLines]
+    .reverse()
+    .find((line) => line.op === 'meta' && line.path === '/ghost-fidelity-summary') as Extract<ProtocolLine, { op: 'meta' }> | undefined;
   return {
     schema: 'summon.ghost-fingerprint-generation/v1',
     source: input.context.source,
@@ -401,6 +440,7 @@ export function buildGhostReviewPacket(input: {
     validation: input.validation,
     artifactRuntime: artifactFiles.length > 0 ? 'arrow' : null,
     artifactFiles,
+    ...(input.context.ingestion ? { ingestion: summarizeGhostIngestionWithFidelity(input.context.ingestion, fidelityLine?.value) } : {}),
   };
 }
 
@@ -415,7 +455,9 @@ function buildSummonFingerprintSurfaceBrief(
     `User request: ${oneLine(options.userPrompt, 600)}`,
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
     `Mode: ${options.mode}`,
-    options.shape ? `Response shape hint: ${options.shape}` : null,
+    context.ingestion?.relay.selectedRefs.composition.length
+      ? `Selected Ghost composition refs: ${context.ingestion.relay.selectedRefs.composition.join(', ')}`
+      : null,
     toolNames.length > 0 ? `Granted host tools: ${toolNames.join(', ')}` : 'Granted host tools: none',
   ].filter((line): line is string => Boolean(line));
 
@@ -484,31 +526,18 @@ async function resolveGhostTokenSource(
           continue;
         }
         const css = readFileSync(tokenPath, 'utf-8');
-        const validation = compileTokenContract({ css });
-        const blocking = validation.issues.filter((issue) => issue.severity === 'block');
-        if (blocking.length > 0) {
-          warnings.push(
-            `${displayPath(relay.source, tokenPath)} failed token contract: ${blocking.map((issue) => issue.message).join('; ')}`,
-          );
-          continue;
-        }
         return {
           kind: 'ghost-config',
           source: displayPath(relay.source, tokenPath),
           css,
-          warnings: [
-            ...warnings,
-            ...validation.issues
-              .filter((issue) => issue.severity === 'warn')
-              .map((issue) => issue.message),
-          ],
+          warnings,
         };
       }
     }
   }
   throw new Error([
     'Ghost fingerprint token CSS is required for Summon generation.',
-    'No contract-complete Ghost fingerprint token CSS was found.',
+    'No Ghost fingerprint token/style CSS was found.',
     ...warnings,
   ].join(' '));
 }
@@ -671,4 +700,43 @@ function displayPath(rootOrSource: RelayStackSource | string, absPath: string): 
   const root = typeof rootOrSource === 'string' ? rootOrSource : rootOrSource.repoRoot;
   const rel = relative(root, absPath);
   return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : absPath;
+}
+
+
+function buildGhostIngestionContract(context: ResolvedGhostContext) {
+  return compileGhostIngestionContract({
+    source: context.source,
+    sourceId: context.source === 'root' ? context.request.rootId : context.request.fingerprintId,
+    product: context.product,
+    targetPath: relayTargetPath(context),
+    memoryDir: relayFingerprintDir(context),
+    entrypoint: context.relay.entrypoint,
+    tokenSource: {
+      kind: context.tokenSource.kind,
+      source: context.tokenSource.source,
+      css: context.tokenSource.css,
+      warnings: context.tokenSource.warnings,
+    },
+    raw: readFingerprintBundle(context),
+  });
+}
+
+function readFingerprintBundle(context: ResolvedGhostContext): RawGhostFingerprintBundle {
+  const fingerprintDir = context.source === 'catalog'
+    ? context.catalogEntry.fingerprintDir
+    : resolve(context.root, relayFingerprintDir(context), 'fingerprint');
+  return {
+    prose: readYamlIfPresent(join(fingerprintDir, 'prose.yml')),
+    inventory: readYamlIfPresent(join(fingerprintDir, 'inventory.yml')),
+    composition: readYamlIfPresent(join(fingerprintDir, 'composition.yml')),
+    checks: readYamlIfPresent(join(fingerprintDir, 'enforcement', 'checks.yml')),
+  };
+}
+
+function readYamlIfPresent(path: string): Record<string, unknown> | undefined {
+  if (!existsSync(path) || !statSync(path).isFile()) return undefined;
+  const parsed = parseYaml(readFileSync(path, 'utf-8')) as unknown;
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+    ? parsed as Record<string, unknown>
+    : undefined;
 }

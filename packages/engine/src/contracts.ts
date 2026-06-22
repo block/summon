@@ -62,6 +62,98 @@ export type GhostTokenSourceKind =
   | 'ghost-config'
   | 'fingerprint-catalog';
 
+export type GhostFidelitySignalKind =
+  | 'composition'
+  | 'prose'
+  | 'inventory'
+  | 'token'
+  | 'anti-pattern'
+  | 'check';
+
+export interface GhostFidelitySignal {
+  id: string;
+  kind: GhostFidelitySignalKind;
+  label: string;
+  terms: string[];
+  severity: ContractIssueSeverity;
+  sourceRef?: string;
+  message?: string;
+  hint?: string;
+}
+
+export interface GhostRuntimeCheck {
+  id: string;
+  title: string;
+  severity: ContractIssueSeverity;
+  detector: {
+    type: 'includes' | 'regex';
+    pattern: string;
+  };
+  expectation?: 'present' | 'absent';
+  sourceRef?: string;
+  repair?: string;
+}
+
+export interface GhostIngestionContract {
+  schema: 'summon.ghost-ingestion/v1';
+  product: string;
+  source: {
+    kind: GhostGenerationSource;
+    id: string;
+    targetPath: string | null;
+    memoryDir?: string | null;
+  };
+  relay: {
+    taskContract: {
+      preserve: string[];
+      inspect: Array<{ path: string; reason: string }>;
+      avoid: string[];
+      validate: string[];
+    };
+    selectedRefs: {
+      prose: string[];
+      composition: string[];
+      inventory: string[];
+      checks: string[];
+    };
+    suggestedReads: Array<{ path: string; reason: string }>;
+    omissions: Array<{ label: string; omitted: number; source: string }>;
+  };
+  fingerprint: {
+    identity: {
+      audience: string[];
+      goals: string[];
+      tone: string[];
+      antiGoals: string[];
+      tradeoffs: string[];
+    };
+    prose: Array<{ ref: string; summary: string; details: string[] }>;
+    composition: Array<{ ref: string; summary: string; details: string[] }>;
+    inventory: {
+      refs: string[];
+      buildingBlocks: string[];
+      tokens: string[];
+      components: string[];
+      libraries: string[];
+    };
+    checks: Array<{ ref: string; summary: string; details: string[] }>;
+    antiPatterns: string[];
+  };
+  style: {
+    tokenSource: GhostTokenSourceKind;
+    source: string;
+    definedTokens: string[];
+    customTokens: string[];
+    warnings: string[];
+  };
+  promptBlocks: Array<{ id: string; text: string }>;
+  validation: {
+    requiredSignals: GhostFidelitySignal[];
+    forbiddenSignals: GhostFidelitySignal[];
+    activeChecks: GhostRuntimeCheck[];
+  };
+}
+
 export interface GhostGenerationContext {
   source?: GhostGenerationSource;
   prompt: string;
@@ -74,6 +166,7 @@ export interface GhostGenerationContext {
     warnings: string[];
   };
   provenance?: unknown;
+  ingestion?: GhostIngestionContract | null;
 }
 
 export interface CompiledTokenContract {
@@ -256,7 +349,6 @@ export function compileDirectionContract(
         exemplars: input.exemplars,
         opts: input.opts,
         liveOpportunistic: tokenContract.liveOpportunistic,
-        shape: input.shape,
         layout: input.layout,
       }),
       cache: 'ephemeral',
@@ -340,6 +432,14 @@ export function compileSystemContracts(
     promptBlocks.push({
       id: 'ghost',
       text: ghostBlockText,
+      cache: 'ephemeral',
+    });
+  }
+  for (const block of input.ghost?.ingestion?.promptBlocks ?? []) {
+    if (!block.text.trim()) continue;
+    promptBlocks.push({
+      id: `ghost:${block.id}`,
+      text: block.text,
       cache: 'ephemeral',
     });
   }

@@ -1,44 +1,174 @@
 patterns:
+  - id: masthead-deck-folio-shell
+    kind: "structure"
+    pattern: "A composed editorial surface opens with a masthead-like frame: metadata, verdict headline, deck, strong rule, body grid, and a restrained close."
+    applies_to:
+      paths: ["."]
+      surface_types: ["article", "review", "comparison", "report"]
+    guidance:
+      - "Use one centered or left-aligned broadsheet shell with generous top padding and a strict grid."
+      - "Put the primary claim in oversized serif display type with tight line-height; it should be the visual event."
+      - "Use a deck for interpretation, not filler."
+      - "Use folios, issue labels, timestamps, or compact mono metadata when they clarify the frame."
+      - "Close with a concise recommendation, risk, or next action."
+    anti_patterns:
+      - "Generic header plus card grid."
+      - "Marketing hero with decorative image or gradient."
+      - "Large title that simply repeats the prompt."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
   - id: claim-first-brief
-    kind: structure
-    pattern: A compact editorial brief starts with a dominant newspaper-like claim, then uses short evidence bands and a clear next action.
+    kind: "structure"
+    pattern: "A compact editorial brief starts with a dominant newspaper-like claim, then uses short evidence bands and a clear next action."
     applies_to:
-      paths: [.]
-      surface_types: [article, review]
+      paths: ["."]
+      surface_types: ["article", "review", "report"]
     guidance:
-      - Use one centered or left-aligned broadsheet shell with generous top padding and a strict column/grid system.
-      - Put the main claim in oversized serif display type with tight line-height; it should be the visual event.
-      - Follow with ruled evidence rows, a matrix, numbered findings, or a ranked list.
-      - Use black ink, cream paper, hairline rules, square corners, and typographic contrast before any decoration.
-      - Prefer labels, folios, decks, columns, dividers, pull quotes, and dense metadata over soft cards.
+      - "Put the main claim in oversized serif display type with tight line-height."
+      - "Follow with ruled evidence rows, a matrix, numbered findings, or a ranked list."
+      - "Use black ink, cream paper, hairline rules, square corners, and typographic contrast before decoration."
+      - "Prefer labels, folios, decks, columns, dividers, pull quotes, and dense metadata over soft cards."
     anti_patterns:
-      - Anonymous rounded cards that do not carry distinct evidence.
-      - Warm lifestyle note cards, floating pastel panels, checklist dashboards, or decorative badges.
-    check_refs: []
+      - "Anonymous rounded cards that do not carry distinct evidence."
+      - "Warm lifestyle note cards, floating pastel panels, checklist dashboards, or decorative badges."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
   - id: comparison-spread
-    kind: structure
-    pattern: Comparison layouts make tradeoffs visible across shared criteria, like a compact editorial spread.
+    kind: "structure"
+    pattern: "Comparison layouts make tradeoffs visible across shared criteria, like a compact editorial spread."
     applies_to:
-      paths: [.]
-      surface_types: [comparison, review]
+      paths: ["."]
+      surface_types: ["comparison", "review"]
     guidance:
-      - Use columns or rows with aligned criteria and strong horizontal/vertical rules.
-      - Mark the recommended option with border weight, an ink block, or an editorial label; do not use decorative color.
-      - Keep supporting copy short enough to scan, with terse criteria labels and visible hierarchy.
-      - Use squared panels, table-like grids, numbered ranks, and small mono metadata.
+      - "Use columns or rows with aligned criteria and strong horizontal or vertical rules."
+      - "Mark the recommended option with border weight, an ink block, or an editorial label; do not use decorative color."
+      - "Keep supporting copy short enough to scan, with terse criteria labels and visible hierarchy."
+      - "Use squared panels, table-like grids, numbered ranks, and small mono metadata."
     anti_patterns:
-      - Staggered card stacks that make options hard to compare.
-      - Soft green accents, rounded note panels, shadowed cards, or now/next/later staging unless explicitly requested.
-    check_refs: []
+      - "Staggered card stacks that make options hard to compare."
+      - "Soft green accents, rounded note panels, shadowed cards, or now/next/later staging unless explicitly requested."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: criteria-matrix-over-cards
+    kind: "layout"
+    pattern: "Shared criteria belong in a visible matrix, not inside separate cards."
+    applies_to:
+      paths: ["."]
+      surface_types: ["comparison"]
+    guidance:
+      - "Use the same rows or columns for every option."
+      - "Keep the winning path visibly anchored with position, border weight, or an inverse label."
+      - "Use short parallel labels such as Cost, Risk, Timing, Fit, Evidence, and Caveat."
+      - "Let empty or weak cells remain visible; gaps are part of the comparison."
+    anti_patterns:
+      - "Different card interiors for each option."
+      - "Ranking badges without visible criteria."
+      - "Charts or icons that obscure the tradeoff."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: ruled-evidence-bands
+    kind: "content"
+    pattern: "Evidence reads as tight horizontal bands: label, fact, interpretation, implication."
+    applies_to:
+      paths: ["."]
+      surface_types: ["article", "review", "comparison", "report"]
+    guidance:
+      - "Use hairline rules to separate findings."
+      - "Keep labels in mono uppercase or compact small type."
+      - "Give each band a fact and a so-what; avoid orphaned statistics."
+      - "Use enough density to feel edited, but maintain line-height for reading."
+    anti_patterns:
+      - "Loose bullet piles with no hierarchy."
+      - "Standalone stats that do not support the verdict."
+      - "Decorative icon rows."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: single-inverse-ink-panel
+    kind: "visual"
+    pattern: "Use at most one inverse black panel for the recommendation, verdict, or strongest contrast moment."
+    applies_to:
+      paths: ["."]
+      surface_types: ["comparison", "review", "report"]
+    guidance:
+      - "Reserve the inverse panel for the strongest claim or chosen option."
+      - "Keep the rest of the surface on paper neutrals with ruled structure."
+      - "Use crisp square or near-square corners; avoid soft shadowed elevation."
+    anti_patterns:
+      - "Multiple black panels competing for attention."
+      - "Inverse panels used as decoration."
+      - "Colored panels used to imitate editorial emphasis."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: mono-metadata-system
+    kind: "content"
+    pattern: "Metadata appears as a disciplined mono system: folios, issue labels, timestamps, ranks, criteria labels, and compact captions."
+    applies_to:
+      paths: ["."]
+      surface_types: ["article", "review", "comparison", "report"]
+    guidance:
+      - "Use uppercase labels with measured tracking for structural metadata."
+      - "Use mono for labels, ranks, timestamps, captions, and compact criteria."
+      - "Keep metadata useful; it should orient the reader or frame evidence."
+    anti_patterns:
+      - "Decorative labels with no information value."
+      - "Over-tracked headings that become hard to read."
+      - "Metadata chips styled like friendly badges."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: data-verdict-report
+    kind: "structure"
+    pattern: "Metric-heavy surfaces turn data into a verdict through one large number or ranking, then ruled context."
+    applies_to:
+      paths: ["."]
+      surface_types: ["report", "review"]
+    guidance:
+      - "Let one number, rank, delta, or outcome dominate."
+      - "Follow with aligned facts, deltas, caveats, or criteria bands."
+      - "Use restrained tables or simple charts only when they clarify the claim."
+      - "Avoid colored KPI card grids."
+    anti_patterns:
+      - "Four equal metric cards with no claim."
+      - "Decorative chart fills, shadows, glows, or rainbow status colors."
+      - "A dashboard that asks the user to infer the verdict."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
+  - id: editorial-close
+    kind: "content"
+    pattern: "The closing region is short, decisive, and framed as recommendation, risk, or next action."
+    applies_to:
+      paths: ["."]
+      surface_types: ["article", "review", "comparison", "report"]
+    guidance:
+      - "End with a compact conclusion block, not a passive recap."
+      - "Name the chosen path, the accepted tradeoff, or the next move."
+      - "Use border weight, rule placement, or a small inverse label to make the close visible."
+    anti_patterns:
+      - "Ending with generic summary language."
+      - "Multiple competing CTA buttons."
+      - "Soft encouragement in place of an editorial conclusion."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md
+
   - id: host-frame-safe-area
-    kind: layout
-    pattern: Full-screen generated surfaces leave safe space for host chrome.
+    kind: "layout"
+    pattern: "Full-screen generated surfaces leave safe space for host chrome."
     applies_to:
-      paths: [.]
-      surface_types: [comparison, article, review]
+      paths: ["."]
+      surface_types: ["comparison", "article", "review", "report"]
     guidance:
-      - Leave at least 72px of top breathing room in full-screen workbench compositions.
-      - Avoid placing important headings at the extreme top-left edge.
+      - "Leave at least 72px of top breathing room in full-screen workbench compositions."
+      - "Avoid placing important headings at the extreme top-left edge."
+      - "Scale display type down before it crowds the host frame."
     anti_patterns:
-      - Page titles pinned under host navigation.
-    check_refs: []
+      - "Page titles pinned under host navigation."
+      - "Display headlines clipped by the viewport."
+    evidence:
+      - path: fingerprint/sources/curation/source-study-2026-06-22.md

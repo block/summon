@@ -32,7 +32,6 @@ export interface SurfaceEnvelope {
   metadata: {
     directionId?: string | null;
     layoutId?: string | null;
-    shape?: string | null;
     mode?: 'static' | 'interactive';
     validationMode?: 'observe';
   };
@@ -215,7 +214,6 @@ function isMetadata(value: unknown): value is SurfaceEnvelope['metadata'] {
   return (
     (metadata.directionId === undefined || metadata.directionId === null || typeof metadata.directionId === 'string') &&
     (metadata.layoutId === undefined || metadata.layoutId === null || typeof metadata.layoutId === 'string') &&
-    (metadata.shape === undefined || metadata.shape === null || typeof metadata.shape === 'string') &&
     (metadata.mode === undefined || metadata.mode === 'static' || metadata.mode === 'interactive') &&
     (metadata.validationMode === undefined || metadata.validationMode === 'observe')
   );

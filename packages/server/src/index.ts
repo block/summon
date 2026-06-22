@@ -7,6 +7,11 @@ export {
 } from './agent-broker.js';
 export { runSurfaceGeneration } from './runner.js';
 export { summarizeContractIssues } from './summary.js';
+export {
+  compileGhostIngestionContract,
+  ghostIngestionContractMeta,
+  validateGhostFidelity,
+} from './ghost/index.js';
 
 export type {
   AgentGoalProvider,
@@ -29,6 +34,15 @@ export type {
 } from './agent-broker.js';
 
 export type {
+  GhostCompileInput,
+  GhostFidelityResult,
+  GhostFidelitySignalResult,
+  GhostFidelityValidation,
+  GhostRuntimeCheckResult,
+  RawGhostFingerprintBundle,
+} from './ghost/index.js';
+
+export type {
   GenerateSurfaceInput,
   GenerationSummary,
   GhostGenerationContext,
@@ -43,6 +57,7 @@ export type {
 export type {
   ContractIssue,
   ContractPromptBlock,
+  GhostIngestionContract,
   ProtocolLine,
   ProtocolSkipMetaValue,
 } from '@summon-internal/engine';

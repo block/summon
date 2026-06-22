@@ -92,7 +92,6 @@ export function GeneratePage() {
   const [devEvents, setDevEvents] = useState<Array<DevtoolsEvent | ExtraDevtoolsEvent>>([]);
   const [timingEntries, setTimingEntries] = useState<TimingEntry[]>([]);
   const [currentEffectiveSurfacePlan, setCurrentEffectiveSurfacePlan] = useState<SurfacePlan | null>(null);
-  const [currentShape, setCurrentShape] = useState<string | null>(null);
   const [currentValidationSummary, setCurrentValidationSummary] = useState<string | null>(null);
   const [currentStreamHealth, setCurrentStreamHealth] = useState<string | null>(null);
   const [currentSurfaceContractView, setCurrentSurfaceContractView] = useState<SurfaceContractView | null>(null);
@@ -220,7 +219,6 @@ export function GeneratePage() {
     setActiveTokensSourceOverride(null);
     setTimingEntries([]);
     setCurrentEffectiveSurfacePlan(null);
-    setCurrentShape(null);
     setCurrentValidationSummary(null);
     setCurrentStreamHealth(null);
     setCurrentSurfaceContractView(null);
@@ -469,7 +467,6 @@ export function GeneratePage() {
     setCurrentAgentPolicySummary,
     setCurrentEffectiveSurfacePlan,
     setCurrentSurfaceContractView,
-    setCurrentShape,
     setActiveTokensSourceOverride,
     setSurfaceTokensSource,
     setCurrentValidationSummary,
@@ -501,7 +498,6 @@ export function GeneratePage() {
       metadata: {
         directionId,
         layoutId: readLayout()?.id ?? null,
-        shape: result.shape,
         mode,
         validationMode: 'observe',
       },
@@ -561,7 +557,6 @@ export function GeneratePage() {
     setMode,
     setSurfacePlan,
     setCurrentEffectiveSurfacePlan,
-    setCurrentShape,
     setCurrentSurfaceContractView,
   });
 
@@ -610,7 +605,6 @@ export function GeneratePage() {
     currentAgentGoalSummary,
     currentAgentPolicySummary,
     currentEffectiveSurfacePlan,
-    currentShape,
     currentStreamHealth,
     currentSurfaceContractView,
     currentValidationSummary,

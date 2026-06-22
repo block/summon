@@ -100,7 +100,6 @@ export interface StreamOptions {
 
 export interface StreamResult extends SurfaceStreamResult {
   surfacePlan: SurfacePlan | null;
-  shape: string | null;
 }
 
 export interface StreamOptionsPayload {

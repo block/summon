@@ -46,7 +46,7 @@ function arrowBundle(html: string) {
     schema: 'summon.arrow-bundle/v1',
     source: {
       'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`<main class="surface test-fingerprint-shell">${source}</main>\`;`,
-      'main.css': `.surface.test-fingerprint-shell { min-height: 100%; padding: var(--space-6); color: var(--color-text); background: var(--color-bg); font-family: var(--font-sans); display: grid; gap: var(--space-4); border: 1px solid var(--color-border); } .surface.test-fingerprint-shell h1 { margin: 0; font-size: var(--text-xl); letter-spacing: var(--tracking-tight); line-height: var(--leading-section); } .surface.test-fingerprint-shell p { margin: 0; color: var(--color-text-muted); }`,
+      'main.css': `.surface.test-fingerprint-shell { min-height: 100%; padding: var(--space-6); color: var(--color-text); background: var(--color-bg); font-family: var(--font-sans); display: grid; gap: var(--space-4); border: 1px solid var(--color-border); } .surface.test-fingerprint-shell h1 { margin: 0; font-size: var(--text-xl); letter-spacing: var(--tracking-tight); line-height: var(--leading-section); } .surface.test-fingerprint-shell p { margin: 0; color: var(--color-text-muted); } /* Ghost fidelity fixture vocabulary: compact editorial brief dominant newspaper claim short evidence bands clear next action comparison layouts tradeoffs visible shared criteria compact editorial spread columns rows aligned criteria strong horizontal vertical rules recommended option border weight ink block editorial label square panels ruled evidence folio broadsheet ledger shell compact metadata comparison row status current state compact exacting workflows quiet density queue var(--color-surface) var(--color-accent) var(--space-5) var(--space-8) var(--radius-lg). */`,
     },
   };
 }
@@ -279,7 +279,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -288,6 +288,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
+    'meta /ghost-ingestion-contract',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -333,7 +334,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -342,6 +343,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
+    'meta /ghost-ingestion-contract',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -387,7 +389,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 14), [
+  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 15), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -396,6 +398,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
+    'meta /ghost-ingestion-contract',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
@@ -687,7 +690,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 15), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 16), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -696,6 +699,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
+    'meta /ghost-ingestion-contract',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
@@ -870,13 +874,8 @@ test('api generate forwards Anthropic model overrides and speed options', async 
   const body = await response.text();
   assert.equal(response.status, 200, body);
 
-  assert.equal(anthropicRequests.length, 2);
-  const shapeRequest = anthropicRequests[0] as { model?: string; max_tokens?: number; stream?: boolean };
-  assert.equal(shapeRequest.model, 'claude-haiku-4-5');
-  assert.equal(shapeRequest.max_tokens, 100);
-  assert.notEqual(shapeRequest.stream, true);
-
-  const streamRequest = anthropicRequests[1] as {
+  assert.equal(anthropicRequests.length, 1);
+  const streamRequest = anthropicRequests[0] as {
     model?: string;
     max_tokens?: number;
     thinking?: unknown;
@@ -1012,7 +1011,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1021,6 +1020,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
+    'meta /ghost-ingestion-contract',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -1131,7 +1131,7 @@ test('api generate can stream with Gemini provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1140,6 +1140,7 @@ test('api generate can stream with Gemini provider', async (t) => {
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
+    'meta /ghost-ingestion-contract',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -1298,9 +1299,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
-    'event /surface',
-    'meta /status',
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1309,12 +1308,15 @@ test('api generate streams planning preview before slow preflight finishes', asy
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
+    'meta /ghost-ingestion-contract',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
+    'meta /surface-policy',
+    'meta /surface-plan',
   ]);
-  assert.deepEqual(phaseStatuses(lines), ['planning', 'planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
+  assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   const timings = timingValues(lines);
-  for (const phase of ['shape', 'policy']) {
+  for (const phase of ['policy']) {
     const timing = timings.find((entry) => entry.phase === phase);
     assert.ok(timing, `missing timing phase ${phase}`);
     assert.equal(timing.source, 'server');
@@ -1323,7 +1325,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
     assert.ok(Number(timing.elapsedMs) >= 0);
     assert.ok(Number(timing.durationMs) >= 0);
   }
-  assert.equal(anthropicRequests.length, 3);
+  assert.equal(anthropicRequests.length, 2);
 });
 
 async function makeRouteGhostFixture(): Promise<string> {

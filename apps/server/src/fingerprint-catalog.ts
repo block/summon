@@ -1,4 +1,3 @@
-import { compileTokenContract } from '@anarchitecture/summon/engine';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -134,22 +133,13 @@ export function resolveCatalogTokenSource(
   const warnings: string[] = [];
   if (entry.tokenCssPath) {
     const css = readFileSync(entry.tokenCssPath, 'utf-8');
-    const validation = compileTokenContract({ css });
-    const blocking = validation.issues.filter((issue) => issue.severity === 'block');
-    if (blocking.length === 0) {
-      return {
-        kind: 'fingerprint-catalog',
-        source: displayPath(entry.root, entry.tokenCssPath),
-        css,
-        baseDirectionId: baseDirection?.id ?? null,
-        warnings: validation.issues
-          .filter((issue) => issue.severity === 'warn')
-          .map((issue) => issue.message),
-      };
-    }
-    warnings.push(
-      `${displayPath(entry.root, entry.tokenCssPath)} failed token contract: ${blocking.map((issue) => issue.message).join('; ')}`,
-    );
+    return {
+      kind: 'fingerprint-catalog',
+      source: displayPath(entry.root, entry.tokenCssPath),
+      css,
+      baseDirectionId: baseDirection?.id ?? null,
+      warnings,
+    };
   }
   if (baseDirection) {
     warnings.push(
@@ -158,7 +148,7 @@ export function resolveCatalogTokenSource(
   }
   throw new Error([
     `Catalog fingerprint "${entry.id}" token CSS is required for Summon generation.`,
-    'No contract-complete catalog fingerprint token CSS was found.',
+    'No catalog fingerprint token/style CSS was found.',
     ...warnings,
   ].join(' '));
 }

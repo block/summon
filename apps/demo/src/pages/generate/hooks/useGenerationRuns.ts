@@ -52,7 +52,6 @@ export function useGenerationRuns({
   setMode,
   setSurfacePlan,
   setCurrentEffectiveSurfacePlan,
-  setCurrentShape,
   setCurrentSurfaceContractView,
 }: {
   surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
@@ -93,7 +92,6 @@ export function useGenerationRuns({
   setMode: Dispatch<SetStateAction<Mode>>;
   setSurfacePlan: Dispatch<SetStateAction<SurfacePlan>>;
   setCurrentEffectiveSurfacePlan: Dispatch<SetStateAction<SurfacePlan | null>>;
-  setCurrentShape: Dispatch<SetStateAction<string | null>>;
   setCurrentSurfaceContractView: Dispatch<SetStateAction<SurfaceContractView | null>>;
 }) {
   const generate = useCallback(async (runPrompt: string) => {
@@ -200,7 +198,6 @@ export function useGenerationRuns({
     modeRef.current = replayMode;
     setSurfacePlan(envelope.surfacePlan);
     setCurrentEffectiveSurfacePlan(envelope.surfacePlan);
-    setCurrentShape(envelope.metadata.shape ?? null);
     setCurrentValidationSummary(`${envelope.validationIssues.filter((issue) => issue.severity === 'block').length}/${envelope.validationIssues.filter((issue) => issue.severity === 'warn').length}`);
     setCurrentStreamHealth(envelope.streamGraph
       ? `${envelope.streamGraph.health.complete ? 'complete' : 'blocked'} · artifacts=${envelope.streamGraph.artifacts.length} blocked=${envelope.streamGraph.health.blockedCount}`
@@ -226,8 +223,7 @@ export function useGenerationRuns({
     setArtifactRevision,
     setBytes,
     setCurrentEffectiveSurfacePlan,
-    setCurrentShape,
-    setCurrentStreamHealth,
+      setCurrentStreamHealth,
     setCurrentSurfaceContractView,
     setCurrentValidationSummary,
     setDevEvents,

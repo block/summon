@@ -7,7 +7,7 @@
  * Pass both to the SDK as separate `system` text blocks with `cache_control`.
  */
 
-import { formatTokenContract, OPT_OUT_GROUPS } from './token-contract.js';
+import { formatTokenContract } from './token-contract.js';
 import type { DirectionOpts } from './direction-validator.js';
 import {
   type ActionStateKeys,
@@ -24,39 +24,20 @@ export interface Exemplar {
   name: string;
   content: string;
   /** atom = vocabulary primitive (button, badge, list-row), ship verbatim.
-   *  shape = composition template (article, card, comparison, tracker) — the
-   *  visual layout anchor the design direction targets.
-   *  Defaults to 'shape' for backwards compatibility with untagged exemplars.
-   *
-   *  Distinct from posture: `shape` describes the visual template (driven by
-   *  an upstream classifier, anchors exemplar selection); posture describes
-   *  the behavioral act the host wants the generation to perform
-   *  (tap/brief/detailed/canvas), declared by the LLM on a `/posture`
-   *  meta-line, enforced by the host. The LLM picks a posture within a shape
-   *  the same way it picks a tool within a tool pack. */
-  kind?: 'atom' | 'shape';
-  /** For shape exemplars — the response shape this exemplar represents. The
-   *  classifier emits a shape per generation; only the matching exemplar(s)
-   *  ship in the per-direction prompt. */
-  shape?: string;
+   *  reference = larger composition/material sample from the design source. */
+  kind?: 'atom' | 'reference';
 }
 
 export interface DirectionInput {
   /** Markdown contents of the direction's prompt.md — Character/Signature/Decisions. */
   prompt: string;
-  /** Hand-translated HTML exemplars. Atoms always ship; shape exemplars are
-   *  filtered by `shape` when provided. */
+  /** Hand-translated HTML exemplars. Atoms and references all ship; Summon no
+   *  longer filters examples through generic response shapes. */
   exemplars: Exemplar[];
   /** Per-family opt-outs from meta.json (e.g., shadows: 'none'). */
   opts?: DirectionOpts;
-  /** Opportunistic spacing slots actually defined by this direction
-   *  (`space-7`..`space-12`). Listed so the model knows which to use. */
+  /** Legacy compatibility field; no Summon-owned opportunistic token slots exist. */
   liveOpportunistic?: string[];
-  /** Inferred response shape for THIS generation. When set, only shape
-   *  exemplars matching this name ship — atoms always ship regardless.
-   *  Untagged exemplars (kind=shape, shape=undefined) ship as fallback when
-   *  no specific match is found, so legacy direction folders still work. */
-  shape?: string | null;
   /** Host-supplied slot contract for this generation. When present, style
    *  exemplars are visual references only; the host layout owns structure. */
   layout?: SummonLayout | null;
@@ -77,12 +58,12 @@ export interface SummonLayout {
 }
 
 /**
- * The stable, cacheable prefix. Output format, Arrow/CSS rules, token contract.
+ * The stable, cacheable prefix. Output format, Arrow/CSS rules, token vocabulary policy.
  * No design direction — that lives in the per-direction block below so changing
  * directions doesn't invalidate this cache entry.
  *
- * The token-contract paragraph is generated from `token-contract.ts` so the
- * prompt can never drift from the schema directions are validated against.
+ * The token-vocabulary paragraph intentionally contains no Summon-owned token
+ * names. Concrete active tokens are listed by Ghost/direction prompt blocks.
  */
 export const SUMMON_FIXED_INSTRUCTIONS = `You generate self-contained Arrow web UIs for the Summon rendering engine.
 
@@ -90,7 +71,7 @@ export const SUMMON_FIXED_INSTRUCTIONS = `You generate self-contained Arrow web 
 
 The user types a request in natural language: "help me plan...", "I want to...", "can you compare...", "explain how...". Your job is to settle on a rich composition that actually helps, then render it as an Arrow artifact.
 
-Pick the composition that fits the request. Cards are only one option, not the default. Examples:
+Pick the composition that fits the request. Do not default to one visual pattern. Examples of possible structural approaches:
 
 - **Plan / itinerary** — staged narrative, timeline, route, calendar, or numbered walkthrough.
 - **Comparison / decision** — table, matrix, split view, scorecard, annotated verdict, or pros/cons only when useful.
@@ -102,7 +83,7 @@ Pick the composition that fits the request. Cards are only one option, not the d
 
 Before using a card grid, ask what job the boxes are doing. Use cards when the content is truly a set of separate comparable objects, selectable choices, or repeated records with distinct evidence. If most groups would become anonymous rounded boxes, redesign as an article, table, timeline, checklist, matrix, ledger, map, split view, or typographic composition instead.
 
-**Resist the default "big header + cards + footer".** That is one shape among many. Pick what the specific tool actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
+**Resist the default "big header + cards + footer".** That is one pattern among many. Pick what the specific tool actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
 
 ## Structured Arrow sandbox bundle
 
@@ -195,8 +176,7 @@ Return a complete structured bundle. The run is incomplete until the bundle cont
  *
  *   1. The direction's `prompt.md` (Character/Signature/Decisions prose).
  *   2. A "## This direction" addendum that surfaces structured facts the
- *      generic token contract can't express on its own — opt-outs from
- *      shadow vocabulary, which opportunistic spacing slots are live, etc.
+ *      active design-source details.
  *   3. The "## Style Reference" exemplar block.
  */
 export function buildDirectionBlock(input: DirectionInput): string {
@@ -206,8 +186,7 @@ export function buildDirectionBlock(input: DirectionInput): string {
   if (addendum) parts.push(`\n\n${addendum}`);
 
   const atoms = input.exemplars.filter((e) => e.kind === 'atom');
-  const shapes = input.exemplars.filter((e) => e.kind !== 'atom');
-  const shapeExemplars = pickShapeExemplars(shapes, input.shape ?? null);
+  const references = input.exemplars.filter((e) => e.kind !== 'atom');
 
   if (atoms.length > 0) {
     parts.push('\n\n## Vocabulary');
@@ -219,22 +198,18 @@ export function buildDirectionBlock(input: DirectionInput): string {
     }
   }
 
-  if (shapeExemplars.length > 0) {
+  if (references.length > 0) {
     parts.push('\n\n## Style Reference');
     if (input.layout) {
       parts.push(
-        `The host has supplied the **${input.layout.id}** layout for this generation. Use these examples only for visual language — spacing rhythm, radii, typography, color usage, borders, and emphasis. Do NOT copy their section structure; the host layout block owns the allowed slots.`
-      );
-    } else if (input.shape && shapeExemplars.length === 1 && shapeExemplars[0]!.shape === input.shape) {
-      parts.push(
-        `The user's request reads as a **${input.shape}** response. Use this composition as a visual starting point — replace the content (titles, copy, numbers, bullet text) with the user's data, and preserve the relevant visual moves: borders, typography rhythm, spacing between groups, and emphasis patterns. Host-supplied contracts, layouts, allowed tools, and surface constraints override exemplar structure. The point is to land on this design language fast, not to reinvent it.`
+        `The host has supplied the **${input.layout.id}** layout for this generation. Use these examples only for visual language — spacing rhythm, typography, color usage, borders, and emphasis. Do NOT copy their section structure; the host layout block owns the allowed slots.`
       );
     } else {
       parts.push(
-        'These are hand-crafted HTML snippets demonstrating the design language across response shapes. Study their spacing rhythm, radii, typography, and color usage — match the same patterns when emitting your own HTML. They are not templates to copy; they show how the design language *feels* across articles, comparisons, trackers, focused recommendations, and other compositions.'
+        'These are hand-crafted snippets demonstrating the design language. Study their spacing rhythm, typography, color usage, borders, hierarchy, and emphasis. They are not generic templates; let the selected design source, user request, host policy, and any Ghost composition refs determine the final structure.'
       );
     }
-    for (const ex of shapeExemplars) {
+    for (const ex of references) {
       parts.push(`\n\n### ${ex.name}\n\n\`\`\`html\n${ex.content.trim()}\n\`\`\``);
     }
   }
@@ -263,23 +238,6 @@ Rules:
 - Do not invent page chrome or alternate slot names that obscure the layout.
 - Do not emit transport records or stream lines such as \`set /screen\`, \`add /section/*\`, \`/surface-plan\`, or \`/artifact\`; the server owns the stream.
 - The host layout controls semantic order; the direction controls visual language.`;
-}
-
-/**
- * Picks the shape exemplars to ship for this generation.
- *
- *   - shape provided AND a matching exemplar exists → just that exemplar
- *   - shape provided BUT no match → all shape exemplars (better than nothing)
- *   - shape null/undefined → all shape exemplars (legacy behavior)
- *
- * Untagged exemplars (kind=shape, shape=undefined) fall through into the
- * "all shapes" path and ship as anchors.
- */
-function pickShapeExemplars(shapes: Exemplar[], shape: string | null): Exemplar[] {
-  if (!shape) return shapes;
-  const match = shapes.find((e) => e.shape === shape);
-  if (match) return [match];
-  return shapes;
 }
 
 export function buildSurfaceContractBlock(contract: SurfaceContractView): string {
@@ -332,30 +290,10 @@ ${issueLine}`;
 }
 
 function buildDirectionAddendum(
-  opts: DirectionOpts | undefined,
-  liveOpportunistic: string[] | undefined
+  _opts: DirectionOpts | undefined,
+  _liveOpportunistic: string[] | undefined
 ): string {
-  const lines: string[] = [];
-
-  for (const group of OPT_OUT_GROUPS) {
-    if (opts?.[group.key] === 'none') {
-      lines.push(`- ${group.whenNone}`);
-    }
-  }
-
-  if (liveOpportunistic && liveOpportunistic.length > 0) {
-    const slots = liveOpportunistic.map((n) => `\`--${n}\``).join(', ');
-    lines.push(
-      `- Opportunistic spacing slots live in this direction: ${slots}. Other slots in 1..12 outside the always-on baseline (1–6) are NOT defined; do not reference them.`
-    );
-  } else if (liveOpportunistic) {
-    lines.push(
-      `- This direction defines no opportunistic spacing slots beyond the 1–6 baseline. Stay within \`--space-1\` … \`--space-6\`.`
-    );
-  }
-
-  if (lines.length === 0) return '';
-  return `## This direction\n\n${lines.join('\n')}`;
+  return '';
 }
 
 /**

@@ -158,7 +158,6 @@ describe('Ghost adapter', () => {
         authority: 'none',
         persistence: 'replayable',
       },
-      shape: 'card',
     });
 
     assert.equal(prepared.source, 'root');
@@ -173,18 +172,21 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /Preserve quiet density/);
   });
 
-  it('requires contract-complete Ghost token CSS instead of falling back to Summon defaults', async () => {
-    const root = await makeGhostFixture({ tokenCss: ':root { --color-bg: red; }' });
+  it('accepts arbitrary Ghost token CSS instead of requiring Summon token names', async () => {
+    const tokenCss = ':root { --paper: #faf7ed; --ink: #16130f; --moss: #718c5a; --breathing-room: 28px; --soft-corner: 18px; }';
+    const root = await makeGhostFixture({ tokenCss });
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
-    const request = parsed.request;
 
-    await assert.rejects(
-      () => resolveGhostContext(request, roots),
-      /Ghost fingerprint token CSS is required/,
-    );
+    const ctx = await resolveGhostContext(parsed.request, roots);
+
+    assert.equal(ctx.tokenSource.kind, 'ghost-config');
+    assert.equal(ctx.tokenSource.css, tokenCss);
+    assert.ok(ctx.ingestion?.style.definedTokens.includes('--paper'));
+    assert.ok(ctx.ingestion?.style.definedTokens.includes('--soft-corner'));
+    assert.ok(ctx.ingestion?.style.customTokens.includes('--moss'));
   });
 
   it('ignores base direction fallback when Ghost token CSS is present', async () => {

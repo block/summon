@@ -12,13 +12,8 @@ export const PREFERRED_DEFAULT_DIRECTION_ID = 'workbench';
 export interface DirectionExemplar {
   name: string;
   content: string;
-  /** atom = vocabulary primitive, ship verbatim ("use this exact markup, swap content only").
-   *  shape = composition, ship as a per-shape anchor. */
-  kind: 'atom' | 'shape';
-  /** Set on shape exemplars — the response shape this exemplar represents
-   *  (`article`, `card`, `comparison`, `tracker`, …). Used to ship only the
-   *  matching exemplar when the classifier picks a shape. */
-  shape?: string;
+  /** atom = vocabulary primitive, ship verbatim; reference = larger design-source sample. */
+  kind: 'atom' | 'reference';
 }
 
 export interface Direction {
@@ -75,7 +70,6 @@ function readExemplars(dir: string): DirectionExemplar[] {
         name: f.replace(/\.html$/, ''),
         content,
         kind: meta.kind,
-        shape: meta.shape,
       } satisfies DirectionExemplar;
     });
 }
@@ -94,22 +88,21 @@ function readSourceExpression(raw: unknown): DirectionSourceExpression | undefin
 }
 
 /**
- * Parses the optional `<!-- summon: kind=...; shape=... -->` pragma comment.
- * Untagged exemplars default to `kind: 'shape'` with no specific shape — they
- * ship as catch-all anchors (the legacy behavior).
+ * Parses the optional `<!-- summon: kind=... -->` pragma comment.
+ * Untagged exemplars default to `reference`; legacy `kind=shape` is also
+ * treated as `reference`.
  */
-function parseExemplarMeta(content: string): { kind: 'atom' | 'shape'; shape?: string } {
+function parseExemplarMeta(content: string): { kind: 'atom' | 'reference' } {
   const head = content.slice(0, 400);
   const m = /<!--\s*summon:\s*([^>]+?)\s*-->/.exec(head);
-  if (!m) return { kind: 'shape' };
+  if (!m) return { kind: 'reference' };
   const fields = new Map<string, string>();
   for (const part of m[1]!.split(';')) {
     const [k, v] = part.split('=').map((s) => s.trim());
     if (k && v !== undefined) fields.set(k, v);
   }
-  const kind = fields.get('kind') === 'atom' ? 'atom' : 'shape';
-  const shape = fields.get('shape');
-  return { kind, shape };
+  const kind = fields.get('kind') === 'atom' ? 'atom' : 'reference';
+  return { kind };
 }
 
 /**
@@ -153,7 +146,7 @@ export function loadDirections(): Direction[] {
     const warnings = contract.issues.filter((issue) => issue.severity === 'warn');
     if (blocking.length > 0) {
       console.warn(
-        `[directions] skipping "${id}" — token contract violations:\n  ${blocking.map((issue) => issue.message).join('\n  ')}`
+        `[directions] skipping "${id}" — token vocabulary warnings:\n  ${blocking.map((issue) => issue.message).join('\n  ')}`
       );
       continue;
     }

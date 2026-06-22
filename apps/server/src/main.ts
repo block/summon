@@ -24,6 +24,7 @@ import { registerDemoRoutes } from './demo-routes.js';
 import {
   buildGhostReviewPacket,
   ghostContextMeta,
+  ghostIngestionContractMeta,
   ghostTokenSourceMeta,
   parseGhostRequest,
   parseGhostRoots,
@@ -38,7 +39,6 @@ import {
   parseFingerprintRequest,
   publicFingerprints,
 } from './fingerprint-catalog.js';
-import { inferShape, type ResponseShape } from './infer-shape.js';
 import { parseToolPack } from './tool-pack.js';
 import {
   createModelProviderRegistry,
@@ -362,27 +362,6 @@ app.post('/api/generate', async (req, res) => {
     let agentPlan: AgentSurfacePlanResult | null = null;
     let generationSurfacePolicy: SurfacePolicy | null = null;
 
-    // Shape classification picks ONE response shape so the Ghost surface brief
-    // can name the likely composition. Ghost remains the visual authority.
-    // Skipped when the host supplies a layout because the layout is the
-    // composition anchor.
-    let shape: ResponseShape | null = null;
-    if (!playgroundMode && !layout && ghostContext && process.env.SUMMON_INFER_SHAPE !== '0') {
-      writeGeneratePhase(res, seedLines, 'planning', 'Inferring response shape');
-      const startedAt = performance.now();
-      shape = await inferShape({
-        completeText: (request) => modelProvider.completeText(request, modelSelection),
-      }, prompt);
-      writeGenerateTiming(
-        res,
-        seedLines,
-        timingStartedAt,
-        'shape',
-        shape ? `Inferred response shape: ${shape}` : 'Response shape inference skipped',
-        performance.now() - startedAt,
-      );
-    }
-
     if (playgroundMode) {
       writeGeneratePhase(res, seedLines, 'contract', 'Preparing playground run');
       const startedAt = performance.now();
@@ -457,7 +436,6 @@ app.post('/api/generate', async (req, res) => {
         userPrompt: prompt,
         mode,
         surfacePlan,
-        shape,
         tools: hasSurfacePolicy
           ? toolCeiling
           : agentPlan
@@ -494,7 +472,6 @@ app.post('/api/generate', async (req, res) => {
           enabled: true,
           validation: 'observe',
           broker: 'off',
-          shapeInference: 'off',
           repairs: 1,
           repairIssueCodes: playgroundRepairIssueCodes,
         },
@@ -512,6 +489,13 @@ app.post('/api/generate', async (req, res) => {
         path: '/ghost-token-source',
         value: ghostTokenSourceMeta(ghostContext.tokenSource),
       });
+      if (ghostContext.ingestion) {
+        preludeLines.push({
+          op: 'meta',
+          path: '/ghost-ingestion-contract',
+          value: ghostIngestionContractMeta(ghostContext.ingestion),
+        });
+      }
     }
     if (agentPlan) {
       preludeLines.push({
@@ -531,9 +515,6 @@ app.post('/api/generate', async (req, res) => {
           fallback: agentPlan.policyResolution.fallback,
         },
       });
-    }
-    if (shape) {
-      preludeLines.push({ op: 'meta', path: '/shape', value: shape });
     }
     if (layout) {
       preludeLines.push({ op: 'meta', path: '/layout', value: layout.id });
@@ -580,7 +561,7 @@ app.post('/api/generate', async (req, res) => {
             mode,
             layoutId: layout?.id ?? null,
             validation: summarizeContractIssues(summary.validationIssues),
-            acceptedLines: summary.acceptedLines,
+            acceptedLines: summary.emittedLines,
             prompt,
           }),
         };
@@ -594,7 +575,6 @@ app.post('/api/generate', async (req, res) => {
       };
       console.log(
         `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
-          ` shape=${shape ?? 'all'}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +
           ` tools=${pack?.tools.length ?? 0}/${toolCeiling?.tools.length ?? 0}` +
@@ -640,7 +620,7 @@ const playgroundPromptBlock: ContractPromptBlock = {
   ].join('\n'),
 };
 
-type GenerateTimingPhase = 'shape' | 'policy' | 'ghost-brief';
+type GenerateTimingPhase = 'policy' | 'ghost-brief';
 
 function roundMs(value: number): number {
   return Math.max(0, Math.round(value));

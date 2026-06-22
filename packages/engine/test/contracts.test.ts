@@ -41,16 +41,17 @@ test('structured output instructions restate the bundle contract', () => {
   assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /objects with `op`\/`path` fields/);
 });
 
-test('token compiler emits prompt vocabulary and validates from the token contract', () => {
+test('token compiler is agnostic to design-source token names', () => {
   const ok = compileTokenContract({ css: defaultTokens });
   assert.equal(ok.issues.length, 0);
   assert.equal(ok.definedTokens.has('color-bg'), true);
-  assert.equal(ok.liveOpportunistic.includes('space-12'), true);
-  assert.match(ok.promptVocabulary, /host ships a stylesheet/);
+  assert.equal(ok.liveOpportunistic.length, 0);
+  assert.match(ok.promptVocabulary, /do not assume Summon-specific token names/);
 
-  const bad = compileTokenContract({ css: ':root { --color-bg: red; }' });
-  assert.equal(bad.issues.some((issue) => issue.severity === 'block'), true);
-  assert.equal(bad.issues[0]?.source, 'token');
+  const custom = compileTokenContract({ css: ':root { --paper: #faf7ed; --ink: #16130f; --breathing-room: 28px; }' });
+  assert.equal(custom.issues.some((issue) => issue.severity === 'block'), false);
+  assert.equal(custom.definedTokens.has('paper'), true);
+  assert.equal(custom.definedTokens.has('breathing-room'), true);
 });
 
 test('system compiler ignores component island metadata in V2', () => {
@@ -75,13 +76,12 @@ test('system compiler ignores component island metadata in V2', () => {
   assert.equal('components' in compiled.validationContext, false);
 });
 
-test('direction compiler validates tokens and selects matching shape exemplars', () => {
+test('direction compiler is token-agnostic and ships all style references', () => {
   const contract = compileDirectionContract({
     id: 'test',
     prompt: 'Use sharp editorial cards.',
     tokensCss: defaultTokens,
     opts: {},
-    shape: 'card',
     exemplars: [
       {
         name: 'button',
@@ -89,15 +89,13 @@ test('direction compiler validates tokens and selects matching shape exemplars',
         content: '<button>Continue</button>',
       },
       {
-        name: 'card-shape',
-        kind: 'shape',
-        shape: 'card',
+        name: 'card-reference',
+        kind: 'reference',
         content: '<article>Card exemplar</article>',
       },
       {
-        name: 'comparison-shape',
-        kind: 'shape',
-        shape: 'comparison',
+        name: 'comparison-reference',
+        kind: 'reference',
         content: '<section>Comparison exemplar</section>',
       },
     ],
@@ -106,7 +104,7 @@ test('direction compiler validates tokens and selects matching shape exemplars',
   assert.equal(contract.issues.length, 0);
   assert.equal(contract.promptBlock.id, 'direction:test');
   assert.match(contract.promptBlock.text, /Card exemplar/);
-  assert.doesNotMatch(contract.promptBlock.text, /Comparison exemplar/);
+  assert.match(contract.promptBlock.text, /Comparison exemplar/);
   assert.match(contract.promptBlock.text, /Continue/);
 });
 

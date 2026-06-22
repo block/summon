@@ -58,7 +58,6 @@ export function useSurfaceStream({
   setCurrentAgentPolicySummary,
   setCurrentEffectiveSurfacePlan,
   setCurrentSurfaceContractView,
-  setCurrentShape,
   setActiveTokensSourceOverride,
   setSurfaceTokensSource,
   setCurrentValidationSummary,
@@ -80,7 +79,6 @@ export function useSurfaceStream({
   setCurrentAgentPolicySummary: (value: string | null) => void;
   setCurrentEffectiveSurfacePlan: (value: SurfacePlan | null) => void;
   setCurrentSurfaceContractView: (value: SurfaceContractView | null) => void;
-  setCurrentShape: (value: string | null) => void;
   setActiveTokensSourceOverride: (value: string | null) => void;
   setSurfaceTokensSource: (value: string) => void;
   setCurrentValidationSummary: (value: string | null) => void;
@@ -132,18 +130,12 @@ export function useSurfaceStream({
       }
       return;
     }
-    if (line.op === 'meta' && line.path === '/shape') {
-      const shape = typeof line.value === 'string' ? line.value : '';
-      if (shape) setCurrentShape(shape);
-      logLine('op-meta', `shape -> ${shape || JSON.stringify(line.value)}`);
-      return;
-    }
     if (line.op === 'meta' && line.path === '/playground-mode') {
-      const value = line.value as { validation?: unknown; broker?: unknown; shapeInference?: unknown; repairs?: unknown; repairIssueCodes?: unknown } | undefined;
+      const value = line.value as { validation?: unknown; broker?: unknown; repairs?: unknown; repairIssueCodes?: unknown } | undefined;
       const repairCodes = Array.isArray(value?.repairIssueCodes)
         ? value.repairIssueCodes.filter((code): code is string => typeof code === 'string')
         : [];
-      logLine('op-meta', `playground -> validation=${String(value?.validation ?? 'observe')}; broker=${String(value?.broker ?? 'off')}; shape=${String(value?.shapeInference ?? 'off')}; repairs=${String(value?.repairs ?? 0)}${repairCodes.length ? `; repairCodes=${repairCodes.join(',')}` : ''}`);
+      logLine('op-meta', `playground -> validation=${String(value?.validation ?? 'observe')}; broker=${String(value?.broker ?? 'off')}; repairs=${String(value?.repairs ?? 0)}${repairCodes.length ? `; repairCodes=${repairCodes.join(',')}` : ''}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/validation-observed') {
@@ -262,7 +254,6 @@ export function useSurfaceStream({
     setCurrentAgentGoalSummary,
     setCurrentAgentPolicySummary,
     setCurrentEffectiveSurfacePlan,
-    setCurrentShape,
     setCurrentStreamHealth,
     setCurrentSurfaceContractView,
     setCurrentValidationSummary,
@@ -355,7 +346,6 @@ export function useSurfaceStream({
     let firstByteSeen = false;
     let firstArtifactSeen = false;
     let surfacePlanFromStream: SurfacePlan | null = null;
-    let shapeFromStream: string | null = null;
     const result = await consumeSurfaceStream(chunksWithByteCounts(response.body, (count) => {
       if (!firstByteSeen) {
         firstByteSeen = true;
@@ -372,7 +362,6 @@ export function useSurfaceStream({
       },
       onMeta: (line, context) => {
         if (line.path === '/surface-plan') surfacePlanFromStream = normalizeSurfacePlan(line.value);
-        if (line.path === '/shape' && typeof line.value === 'string') shapeFromStream = line.value;
         applyLineTo(line, context);
       },
       onArtifact: (artifact, line, context) => {
@@ -425,7 +414,6 @@ export function useSurfaceStream({
     return {
       ...result,
       surfacePlan: surfacePlanFromStream,
-      shape: shapeFromStream,
     };
   }, [
     appendDevEvent,
