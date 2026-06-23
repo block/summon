@@ -4,7 +4,9 @@ import type { SurfacePreviewSnapshot } from "@anarchitecture/summon/browser";
 import { createSurfaceEnvelope } from "@anarchitecture/summon/envelope";
 import {
   isArrowSurfaceArtifact,
+  isHtmlSurfaceArtifact,
   type ProtocolLine,
+  type SummonOutputRuntime,
   type SummonLayout,
   type SurfaceContractView,
   type SurfacePlan,
@@ -36,7 +38,7 @@ import { loadSavedSurfaces } from "./savedSurfaces.js";
 import {
   buildContractRows,
   generationPhaseLabel,
-  ghostRootFromSelection,
+  runtimeTargetText,
   scenarioUsesFixedPolicy,
   surfacePolicyForPlan,
 } from "./surfaceHelpers.js";
@@ -53,6 +55,7 @@ import type {
 } from "./types.js";
 
 const DEFAULT_FINGERPRINT_ID = "editorial-mono";
+const DEFAULT_EXPERIMENTAL_RUNTIME: SummonOutputRuntime = "arrow-control";
 
 export function GeneratePage() {
   const surfaceRef = useRef<SummonSurfaceHandle>(null);
@@ -62,7 +65,7 @@ export function GeneratePage() {
     new Map<string, (decision: ApprovalDecision) => void>(),
   );
   const summonedCountRef = useRef(0);
-  const { directions, ghostRoots, modelProviders, defaultModelProviderId } =
+  const { ghostRoots: fingerprints, modelProviders, defaultModelProviderId } =
     useWorkbenchCatalogs();
   const { savedSurfaces, updateSavedSurfaces } = useSavedSurfaces();
 
@@ -77,22 +80,20 @@ export function GeneratePage() {
     SHOWCASE_SCENARIOS[0]!.surfacePlan,
   );
   const [layoutId, setLayoutId] = useState("");
-  const [playgroundMode, setPlaygroundMode] = useState(true);
-  const [playgroundToolsEnabled, setPlaygroundToolsEnabled] = useState(false);
+  const [playgroundMode, setPlaygroundMode] = useState(false);
   const [agentBrokerEnabled, setAgentBrokerEnabled] = useState(true);
   const [customContractEnabled, setCustomContractEnabled] = useState(false);
-  const [directionId, setDirectionId] = useState<string | null>(
-    `fingerprint:${DEFAULT_FINGERPRINT_ID}`,
+  const [fingerprintId, setFingerprintId] = useState<string | null>(
+    DEFAULT_FINGERPRINT_ID,
   );
-  const [ghostTarget, setGhostTarget] = useState(".");
-  const [ghostBaseDirectionId, setGhostBaseDirectionId] = useState<
-    string | null
-  >(null);
+  const [fingerprintTargetPath, setFingerprintTargetPath] = useState(".");
   const [modelProviderId, setModelProviderId] = useState("");
   const [generationModel, setGenerationModel] = useState("");
   const [utilityModel, setUtilityModel] = useState("");
   const [customModel, setCustomModel] = useState("");
-  const [runProfile, setRunProfile] = useState<RunProfile>("fast");
+  const [runProfile, setRunProfile] = useState<RunProfile>("quality");
+  const [experimentalRuntime, setExperimentalRuntime] =
+    useState<SummonOutputRuntime>(DEFAULT_EXPERIMENTAL_RUNTIME);
   const [maxOutputTokens, setMaxOutputTokens] = useState(64000);
   const [anthropicThinking, setAnthropicThinking] = useState<
     "adaptive" | "off"
@@ -218,22 +219,39 @@ export function GeneratePage() {
       applyRunProfileDefaults(runProfile, selectedProvider);
   }, [applyRunProfileDefaults, runProfile, selectedProvider]);
 
-  const tokensFor = useCallback(
-    (id: string | null): string => {
-      if (!id) return defaultTokensSource;
-      if (ghostRootFromSelection(id)) {
-        return ghostBaseDirectionId
-          ? directions.find(
-              (direction) => direction.id === ghostBaseDirectionId,
-            )?.tokensCss ?? defaultTokensSource
-          : defaultTokensSource;
+  useEffect(() => {
+    if (fingerprints.length === 0) {
+      setFingerprintId(null);
+      setFingerprintTargetPath(".");
+      return;
+    }
+    setFingerprintId((current) => {
+      if (current && fingerprints.some((fingerprint) => fingerprint.id === current)) {
+        return current;
       }
-      return (
-        directions.find((direction) => direction.id === id)?.tokensCss ??
-        defaultTokensSource
-      );
-    },
-    [directions, ghostBaseDirectionId],
+      const fallback =
+        fingerprints.find((fingerprint) => fingerprint.id === DEFAULT_FINGERPRINT_ID)
+          ?.id ?? fingerprints[0]?.id ?? null;
+      const selected = fallback
+        ? fingerprints.find((fingerprint) => fingerprint.id === fallback)
+        : null;
+      setFingerprintTargetPath(selected?.defaultTargetPath || ".");
+      return fallback;
+    });
+  }, [fingerprints]);
+
+  useEffect(() => {
+    const selected = fingerprintId
+      ? fingerprints.find((fingerprint) => fingerprint.id === fingerprintId)
+      : null;
+    if (selected && !fingerprintTargetPath.trim()) {
+      setFingerprintTargetPath(selected.defaultTargetPath || ".");
+    }
+  }, [fingerprintId, fingerprintTargetPath, fingerprints]);
+
+  const tokensFor = useCallback(
+    (_id: string | null): string => defaultTokensSource,
+    [],
   );
 
   const logLine = useCallback((cls: string, text: string) => {
@@ -475,15 +493,12 @@ export function GeneratePage() {
       scenarioId: selectedScenario.id,
       prompt: prompt.trim() || selectedScenario.prompt,
       mode,
-      toolNames:
-        playgroundMode && !playgroundToolsEnabled
-          ? []
-          : runtimeToolNames ?? selectedScenario.toolNames,
+      toolNames: runtimeToolNames ?? selectedScenario.toolNames,
       agentBroker,
       ...(!playgroundMode && !agentBroker ? { surfacePolicy } : {}),
       surfacePlan,
       ...(layoutId ? { layoutId } : {}),
-      directionId,
+      fingerprintId,
       modelProvider: modelSelection.modelProvider ?? null,
       ...(modelSelection.generationModel
         ? { generationModel: modelSelection.generationModel }
@@ -492,6 +507,7 @@ export function GeneratePage() {
         ? { utilityModel: modelSelection.utilityModel }
         : {}),
       ...(modelSelection.customModel ? { customModel: true } : {}),
+      experimentalRuntime,
       ...(modelSelection.modelOptions
         ? { modelOptions: modelSelection.modelOptions }
         : {}),
@@ -500,8 +516,8 @@ export function GeneratePage() {
     agentBrokerEnabled,
     customContractEnabled,
     playgroundMode,
-    playgroundToolsEnabled,
-    directionId,
+    fingerprintId,
+    experimentalRuntime,
     layoutId,
     mode,
     prompt,
@@ -526,9 +542,10 @@ export function GeneratePage() {
             id: Date.now(),
             prompt: args.prompt,
             title: args.title || undefined,
-            directionId,
+            fingerprintId,
+            fingerprintTargetPath: fingerprintTargetPath.trim() || ".",
             tokensSource:
-              activeTokensSourceOverrideRef.current ?? tokensFor(directionId),
+              activeTokensSourceOverrideRef.current ?? tokensFor(fingerprintId),
             modelSelection: readModelSelectionRef.current(),
             agentBroker: activeContract.agentBroker === true,
           };
@@ -549,7 +566,8 @@ export function GeneratePage() {
     activeContract.agentBroker,
     activeContract.toolNames,
     activeContract.mode,
-    directionId,
+    fingerprintId,
+    fingerprintTargetPath,
     logLine,
     requestHostApproval,
     tokensFor,
@@ -599,17 +617,6 @@ export function GeneratePage() {
     setMode(scenario.mode);
     setSurfacePlan(scenario.surfacePlan);
     setLayoutId(scenario.layoutId ?? "");
-    const fallbackDirectionId = `fingerprint:${DEFAULT_FINGERPRINT_ID}`;
-    const desiredDirectionId = scenario.directionId ?? fallbackDirectionId;
-    setDirectionId(desiredDirectionId ?? null);
-    if (scenario.id.startsWith("ghost-")) {
-      const rootId = scenario.id.slice("ghost-".length);
-      const root = ghostRoots.find((item) => item.id === rootId);
-      setGhostTarget(root?.defaultTargetPath || ".");
-      setGhostBaseDirectionId(
-        root?.defaultBaseDirectionId ?? root?.defaultTokenFallback ?? null,
-      );
-    }
     resetForScenarioChange();
     logLine("op-meta", `scenario -> ${scenario.label}`);
   }
@@ -618,8 +625,6 @@ export function GeneratePage() {
     surfaceRef,
     modeRef,
     artifactRevisionRef,
-    directionId,
-    tokensFor,
     appendDevEvent,
     logLine,
     setBytes,
@@ -640,7 +645,7 @@ export function GeneratePage() {
 
   const saveSurfaceEnvelope = useCallback(
     (runPrompt: string, result: StreamResult) => {
-      const artifact = findArrowArtifact(result.protocolLines);
+      const artifact = findRenderableArtifact(result.protocolLines);
       if (!result.surfacePlan || !artifact) return;
       const envelope = createSurfaceEnvelope({
         prompt: runPrompt,
@@ -654,12 +659,12 @@ export function GeneratePage() {
           validationTools: toolContract?.validationTools,
         },
         metadata: {
-          directionId,
+          fingerprintId,
           layoutId: readLayout()?.id ?? null,
           mode,
           validationMode: "observe",
         },
-        tokenCss: activeTokensSourceOverride ?? tokensFor(directionId),
+        tokenCss: activeTokensSourceOverride ?? tokensFor(fingerprintId),
       });
       updateSavedSurfaces([
         envelope,
@@ -670,7 +675,7 @@ export function GeneratePage() {
       activeTokensSourceOverride,
       toolContract,
       toolRegistry,
-      directionId,
+      fingerprintId,
       mode,
       readLayout,
       tokensFor,
@@ -687,9 +692,9 @@ export function GeneratePage() {
     activeTokensSourceOverride,
     activeContract,
     playgroundMode,
-    directionId,
-    ghostTarget,
-    ghostBaseDirectionId,
+    fingerprintId,
+    experimentalRuntime,
+    fingerprintTargetPath,
     tokensFor,
     clearApprovals,
     clearRuntimeState,
@@ -737,6 +742,7 @@ export function GeneratePage() {
   const statusText = bytes
     ? `${statusLabel} · ${bytes.toLocaleString()} B`
     : statusLabel;
+  const runtimeLabel = runtimeTargetText(experimentalRuntime);
   const generationPreview = useMemo(
     () =>
       buildGenerationPreview({
@@ -785,12 +791,12 @@ export function GeneratePage() {
       return {
         tone: "error" as const,
         title: playgroundMode
-          ? "No renderable Arrow artifact was produced"
+          ? `No renderable ${runtimeLabel} artifact was produced`
           : "Generation failed",
         detail:
           latestStageError ??
           (playgroundMode
-            ? "The model response could not be normalized into a main.ts/main.js Arrow bundle."
+            ? `The model response could not be normalized into a ${runtimeLabel} bundle.`
             : "No accepted artifact was produced."),
       };
     }
@@ -813,6 +819,18 @@ export function GeneratePage() {
     currentSurfaceContractView,
     currentValidationSummary,
   });
+  const generationDisabledReason = useMemo(() => {
+    if (fingerprints.length === 0) {
+      return "No Ghost fingerprint catalog is available.";
+    }
+    if (!fingerprintId) {
+      return "Choose a Ghost fingerprint.";
+    }
+    if (!fingerprints.some((fingerprint) => fingerprint.id === fingerprintId)) {
+      return "Selected Ghost fingerprint is not in the current catalog.";
+    }
+    return null;
+  }, [fingerprintId, fingerprints]);
   const devtoolsTally = useMemo(() => {
     if (devEvents.length === 0) return "no events";
     const counts: Record<string, number> = {};
@@ -880,25 +898,23 @@ export function GeneratePage() {
             </div>
           }
           setPrompt={setPrompt}
-          selectedFingerprintId={ghostRootFromSelection(directionId)}
-          fingerprints={ghostRoots}
+          selectedFingerprintId={fingerprintId}
+          fingerprints={fingerprints}
           onSelectFingerprint={(id) => {
-            const root = id ? ghostRoots.find((item) => item.id === id) : null;
-            setDirectionId(
-              id ? `fingerprint:${id}` : directions[0]?.id ?? null,
-            );
-            setGhostTarget(root?.defaultTargetPath || ".");
-            setGhostBaseDirectionId(
-              root?.defaultBaseDirectionId ??
-                root?.defaultTokenFallback ??
-                null,
-            );
+            const fingerprint = id
+              ? fingerprints.find((item) => item.id === id)
+              : null;
+            setFingerprintId(id);
+            setFingerprintTargetPath(fingerprint?.defaultTargetPath || ".");
             setActiveTokensSourceOverride(null);
             setShowWelcome(true);
           }}
+          experimentalRuntime={experimentalRuntime}
+          onSelectExperimentalRuntime={setExperimentalRuntime}
           running={running}
           onGenerate={generate}
           statusText={statusText}
+          generationDisabledReason={generationDisabledReason}
           generationPreview={generationPreview}
           stageNotice={stageNotice}
           onOpenDiagnostics={() => setDiagnosticsOpen(true)}
@@ -934,7 +950,7 @@ export function GeneratePage() {
               Options
             </div>
             <div className="mt-0.5 font-mono text-[11px] text-ink-muted">
-              {modelProviderId || "server default"} · {mode}
+              {modelProviderId || "server default"} · {mode} · {runtimeLabel}
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -961,8 +977,6 @@ export function GeneratePage() {
           <ContractInspector
             playgroundMode={playgroundMode}
             setPlaygroundMode={setPlaygroundMode}
-            playgroundToolsEnabled={playgroundToolsEnabled}
-            setPlaygroundToolsEnabled={setPlaygroundToolsEnabled}
             contractRows={contractRows}
             currentSurfaceContractView={currentSurfaceContractView}
             currentEffectiveSurfacePlan={currentEffectiveSurfacePlan}
@@ -986,10 +1000,9 @@ export function GeneratePage() {
             setAnthropicThinking={handleAnthropicThinkingChange}
             modelEffort={modelEffort}
             setModelEffort={handleModelEffortChange}
-            directions={directions}
-            ghostRoots={ghostRoots}
-            directionId={directionId}
-            setDirectionId={setDirectionId}
+            ghostRoots={fingerprints}
+            fingerprintId={fingerprintId}
+            setFingerprintId={setFingerprintId}
             setActiveTokensSourceOverride={setActiveTokensSourceOverride}
             setShowWelcome={setShowWelcome}
             layoutId={layoutId}
@@ -1001,10 +1014,8 @@ export function GeneratePage() {
             customContractEnabled={customContractEnabled}
             setCustomContractEnabled={setCustomContractEnabled}
             selectedScenario={selectedScenario}
-            ghostTarget={ghostTarget}
-            setGhostTarget={setGhostTarget}
-            ghostBaseDirectionId={ghostBaseDirectionId}
-            setGhostBaseDirectionId={setGhostBaseDirectionId}
+            fingerprintTargetPath={fingerprintTargetPath}
+            setFingerprintTargetPath={setFingerprintTargetPath}
             surfacePlan={surfacePlan}
             setSurfacePlan={setSurfacePlan}
           />
@@ -1064,13 +1075,13 @@ function cleanStageError(text: string): string {
     .trim();
 }
 
-function findArrowArtifact(lines: readonly ProtocolLine[]) {
+function findRenderableArtifact(lines: readonly ProtocolLine[]) {
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
     if (
       line?.op === "artifact" &&
       line.path === "/artifact" &&
-      isArrowSurfaceArtifact(line.value)
+      (isArrowSurfaceArtifact(line.value) || isHtmlSurfaceArtifact(line.value))
     ) {
       return line.value;
     }

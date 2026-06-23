@@ -164,12 +164,46 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /# Ghost Relay Brief/);
     assert.match(prepared.prompt, /## Summon Surface Brief/);
     assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=arrow; data=embedded; authority=none; persistence=replayable/);
+    assert.match(prepared.prompt, /Output runtime: arrow-control/);
     assert.match(prepared.prompt, /Use the supplied Ghost Relay Brief as the complete fingerprint entrypoint/);
     assert.match(prepared.prompt, /structured Arrow sandbox bundle/);
     assert.match(prepared.prompt, /Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata/);
     assert.match(prepared.prompt, /The agent broker controls host authority and tools/);
     assert.match(prepared.prompt, /Compose from the fingerprint prose, inventory, and composition layers/);
+    assert.match(prepared.prompt, /The user request is the semantic and task authority/);
+    assert.match(prepared.prompt, /The Ghost fingerprint is the visual and composition authority/);
+    assert.match(prepared.prompt, /Choose among the fingerprint composition patterns based on the user request, surface plan, and granted tools/);
     assert.match(prepared.prompt, /Preserve quiet density/);
+  });
+
+  it('uses HTML output wording in the Summon surface brief when requested', async () => {
+    const root = await makeGhostFixture({ large: true });
+    const roots = parseGhostRoots(`checkout=${root}`);
+    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+
+    const ctx = await resolveGhostContext(parsed.request, roots);
+    const prepared = prepareGhostSurfacePrompt(ctx, {
+      userPrompt: 'show checkout queue status',
+      mode: 'static',
+      outputRuntime: 'html-static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'arrow',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'replayable',
+      },
+    });
+
+    assert.match(prepared.prompt, /Output runtime: html-static/);
+    assert.match(prepared.prompt, /structured HTML\/CSS sandbox bundle/);
+    assert.match(prepared.prompt, /create_summon_html_surface/);
+    assert.match(prepared.prompt, /final HTML artifact/);
+    assert.doesNotMatch(prepared.prompt, /structured Arrow sandbox bundle/);
+    assert.doesNotMatch(prepared.prompt, /create_summon_arrow_surface/);
+    assert.doesNotMatch(prepared.prompt, /final Arrow artifact/);
   });
 
   it('accepts arbitrary Ghost token CSS instead of requiring Summon token names', async () => {

@@ -3,14 +3,19 @@ import {
 } from '@anarchitecture/summon';
 import {
   isArrowSurfaceArtifact,
+  isHtmlSurfaceArtifact,
+  normalizeHtmlSurfacePatch,
   type ArtifactLine,
   type ArrowSurfaceArtifact,
+  type HtmlSurfacePatch,
+  type HtmlSurfaceArtifact,
   type SurfaceEvent,
   type ValidationTool,
 } from '@anarchitecture/summon/engine';
 import {
   mountInlineSurface,
   type InlineSurfaceHandle,
+  type HtmlStreamPreviewDelta,
   type SurfacePreviewSnapshot,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
@@ -31,7 +36,7 @@ import {
 
 export interface SummonSurfaceProps {
   envelope?: SurfaceEnvelope | null;
-  artifact?: ArrowSurfaceArtifact | null;
+  artifact?: SummonRenderableArtifact | null;
   grantedTools?: string[];
   validationTools?: ValidationTool[];
   toolRegistry?: ToolRegistry | null;
@@ -54,10 +59,14 @@ export interface SummonSurfaceProps {
 export interface SummonSurfaceHandle {
   root: HTMLDivElement | null;
   surfaceId: string | null;
-  renderArtifact(artifact: ArrowSurfaceArtifact): void;
+  renderArtifact(artifact: SummonRenderableArtifact): void;
+  applyHtmlPreviewDelta(delta: HtmlStreamPreviewDelta): void;
+  applyHtmlPatch(patch: HtmlSurfacePatch): void;
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot | null;
 }
+
+export type SummonRenderableArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact;
 
 export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>(function SummonSurface(
   props,
@@ -65,7 +74,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
 ) {
   const rootRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<InlineSurfaceHandle | null>(null);
-  const lastRenderedArtifactRef = useRef<ArrowSurfaceArtifact | null>(null);
+  const lastRenderedArtifactRef = useRef<SummonRenderableArtifact | null>(null);
   const events = useMemo(() => createEventStore(), []);
 
   useImperativeHandle(ref, () => ({
@@ -75,9 +84,15 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     get surfaceId() {
       return handleRef.current?.surfaceId ?? null;
     },
-    renderArtifact(artifact: ArrowSurfaceArtifact) {
+    renderArtifact(artifact: SummonRenderableArtifact) {
       lastRenderedArtifactRef.current = artifact;
       handleRef.current?.renderArtifact(artifact);
+    },
+    applyHtmlPreviewDelta(delta) {
+      handleRef.current?.applyHtmlPreviewDelta(delta);
+    },
+    applyHtmlPatch(patch) {
+      handleRef.current?.applyHtmlPatch(patch);
     },
     pushState(state: Record<string, unknown>) {
       handleRef.current?.pushState(state);
@@ -117,7 +132,8 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       ...(contract?.initialState ?? {}),
       ...(props.initialState ?? {}),
     };
-    const arrowArtifact = resolveArrowArtifact(props);
+    const renderableArtifact = resolveRenderableArtifact(props);
+    const replayHtmlPatches = htmlPatchesFromEnvelope(props.envelope);
 
     let handle: InlineSurfaceHandle | null = null;
     const policy = new PolicyEngine({
@@ -132,7 +148,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
 
     handle = mountInlineSurface({
       root,
-      artifact: arrowArtifact,
+      artifact: renderableArtifact,
       grantedTools,
       validationTools,
       initialState,
@@ -157,6 +173,9 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     handleRef.current = handle;
     if (lastRenderedArtifactRef.current !== null) {
       handle.renderArtifact(lastRenderedArtifactRef.current);
+    }
+    for (const patch of replayHtmlPatches) {
+      handle.applyHtmlPatch(patch);
     }
 
     return () => {
@@ -188,7 +207,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
   });
 });
 
-function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact | null {
+function resolveRenderableArtifact(props: SummonSurfaceProps): SummonRenderableArtifact | null {
   if (props.artifact) return props.artifact;
   const lines = props.envelope?.protocolLines;
   if (!lines) return null;
@@ -196,9 +215,21 @@ function resolveArrowArtifact(props: SummonSurfaceProps): ArrowSurfaceArtifact |
     const line = lines[i];
     if (!line || line.op !== 'artifact' || line.path !== '/artifact') continue;
     const value = (line as ArtifactLine).value;
-    if (isArrowSurfaceArtifact(value)) {
+    if (isArrowSurfaceArtifact(value) || isHtmlSurfaceArtifact(value)) {
       return value;
     }
   }
   return null;
+}
+
+function htmlPatchesFromEnvelope(envelope: SurfaceEnvelope | null | undefined): HtmlSurfacePatch[] {
+  const lines = envelope?.protocolLines;
+  if (!lines) return [];
+  const patches: HtmlSurfacePatch[] = [];
+  for (const line of lines) {
+    if (line.op !== 'patch' || line.path !== '/artifact/html-patch') continue;
+    const normalized = normalizeHtmlSurfacePatch(line.value);
+    if (normalized.patch) patches.push(normalized.patch);
+  }
+  return patches;
 }

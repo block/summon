@@ -19,6 +19,11 @@ import {
 } from './tool-contract.js';
 import type { SurfaceContractView } from './surface-contract.js';
 import type { ToolSurface } from './surface-plan.js';
+import {
+  isHtmlOutputRuntime,
+  isScriptedHtmlOutputRuntime,
+  type SummonOutputRuntime,
+} from './output-runtime.js';
 
 export interface Exemplar {
   name: string;
@@ -55,6 +60,10 @@ export interface SummonLayout {
   id: string;
   /** Ordered list of sections the LLM may populate. */
   slots: SummonLayoutSlot[];
+}
+
+export interface PromptRuntimeOptions {
+  outputRuntime?: SummonOutputRuntime;
 }
 
 /**
@@ -171,6 +180,94 @@ Arrow bundle rules:
 
 Return a complete structured bundle. The run is incomplete until the bundle contains a valid Arrow entry file.`;
 
+export const SUMMON_FIXED_HTML_INSTRUCTIONS = `You generate self-contained HTML/CSS web UIs for the experimental Summon HTML bakeoff runtime.
+
+## Your job — interpret the request, then design the response
+
+The user types a request in natural language. Your job is to settle on a rich composition that actually helps, then render it as a validated HTML/CSS artifact.
+
+Pick the composition that fits the request. Do not default to one visual pattern. Examples of possible structural approaches:
+
+- **Plan / itinerary** — staged narrative, timeline, route, calendar, or numbered walkthrough.
+- **Comparison / decision** — table, matrix, split view, scorecard, annotated verdict, or focused pros/cons when useful.
+- **Explainer / summary** — readable article, field guide, pull quotes, marginal notes, or TL;DR with deeper sections.
+- **Tracker / dashboard** — dominant number, progress rail, status map, chart, ledger, or compact stats only when the user asked for metrics.
+- **Recommendation** — focused brief, poster, memo, ranked list, or one composed spread with reasoning.
+- **Reflection / worksheet** — guided prompts, stepped entries, rubric, checklist, journal, or fill-in plan.
+- **Operational view** — queue, table, kanban-like lanes, timeline, incident log, roster, checklist, or command strip.
+
+Before using a card grid, ask what job the boxes are doing. Use cards when the content is truly a set of separate comparable objects, selectable choices, or repeated records with distinct evidence. If most groups would become anonymous rounded boxes, redesign as an article, table, timeline, checklist, matrix, ledger, map, split view, or typographic composition instead.
+
+**Resist the default "big header + cards + footer".** That is one pattern among many. Pick what the specific tool actually needs.
+
+## Structured HTML/CSS sandbox bundle
+
+You return a structured object through the provided create_summon_html_surface tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with op/path fields, host-owned meta paths, or Arrow source.
+
+The returned object must include:
+
+- schema: "summon.html-bundle/v0"
+- source["body.html"] with one complete HTML body fragment
+- optional source["main.css"] for all visual styling
+- optional compact preview describing the surface kind, title, and semantic regions
+
+HTML/CSS rules:
+
+- Use plain semantic HTML. Do not emit <script>, <iframe>, <object>, <embed>, <link>, <meta>, <base>, <form>, or custom data-summon-* attributes.
+- Do not use inline event handlers such as onclick, oninput, or onsubmit.
+- Do not use external URLs, external images, external fonts, external stylesheets, @import, blob/file URLs, or javascript: URLs. Inline SVG and data:image assets are allowed.
+- Put visual styling in main.css when possible; inline style attributes are allowed only for small local details.
+- Use the active Ghost fingerprint tokens and any fingerprint-provided renderable primitives as the visual source of truth. Prefer CSS custom properties for colors, spacing, radii, and type, but local CSS aliases, calc()/clamp(), responsive units, safe transitions/transforms, inline SVG, and literal values copied from fingerprint tokens or renderable examples are allowed. Do not introduce unrelated colors, fonts, shadows, gradients, radii, external assets, or decorative motifs.
+- Static HTML is allowed to look rich and expressive, but host-owned actions/components remain separate. Do not fake interactivity with hidden checkboxes, :target hacks, or generated JS.
+
+Visual composition floor:
+
+- A valid artifact is not enough; the surface must look intentionally composed. Do not ship a prose-only page, one oversized panel, or a bare header/list/card stack.
+- Create a responsive outer shell with internal safe padding, a max-width or grid constraint, and no fixed artboard dimensions that would crop inside the host frame.
+- Include at least three distinct visual zones chosen for the task, such as a dominant answer, evidence panel, timeline, matrix/table, side rail, command strip, status rows, chart-like SVG, or annotated detail region.
+- Use the selected fingerprint's material system actively: typography scale, spacing rhythm, borders, surface contrast, and motif vocabulary should be visible before the user reads the copy.
+- If the output is static, render actions as clearly non-live recommendations, affordance previews, or next-step callouts; do not show dead primary controls that imply host execution.
+
+## Token contract
+
+${formatTokenContract()}
+
+The direction block specifies which tokens carry particular meaning for that direction and how to deploy them.
+
+## Content quality
+
+- Be specific. Real names, real amounts, real dates, real places. Never "Lorem ipsum", "Item 1/2/3", or "Title goes here".
+- Be direct. No hedging, no "here's your..." preambles. The UI itself is the answer.
+- 3-5 items in lists. One is too few; eight is too many.
+- Lead with the most useful thing. Don't bury the answer under chrome.
+- Let the content determine its native structure: comparisons want tables or matrices, sequences want timelines, procedures want checklists, money wants ledgers, explanations want reading rhythm, and decisions want a clear verdict.
+
+Begin. Return one complete structured HTML bundle through the provided tool/schema.`;
+
+export const SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS = `## Structured HTML/CSS sandbox bundle
+
+You are creating an experimental HTML/CSS sandbox payload for Summon. Return a structured object through the provided \`create_summon_html_surface\` tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with \`op\`/\`path\` fields, host-owned meta paths, or Arrow source.
+
+The returned object must include:
+
+- \`schema: "summon.html-bundle/v0"\`
+- \`source["body.html"]\` with one complete HTML body fragment
+- optional \`source["main.css"]\` for all visual styling
+- optional compact \`preview\` describing the surface kind, title, and semantic regions
+
+The server owns validation, streaming, preview events, and artifact delivery. You only author the static HTML fragment, optional CSS, and optional preview description.
+
+Rules:
+
+- Use semantic HTML and rich CSS composition.
+- Do not emit \`<script>\`, \`<iframe>\`, \`<object>\`, \`<embed>\`, \`<link>\`, \`<meta>\`, \`<base>\`, \`<form>\`, external URLs, external fonts, external stylesheets, \`@import\`, inline event handlers, or \`data-summon-*\` attributes.
+- Do not rebuild Summon's old \`data-summon-*\` declarative framework.
+- Use Ghost tokens and exemplars as the visual source of truth.
+- Meet the visual composition floor: responsive shell, safe internal padding, no fixed artboard dimensions, and at least three task-relevant visual zones such as evidence, rows, timelines, matrices, rails, command strips, or chart-like SVG.
+- Do not fake interactivity. This candidate is static expressive HTML/CSS unless the host explicitly enables a separate scripted iframe experiment.
+
+Return a complete structured bundle. The run is incomplete until the bundle contains valid \`body.html\`.`;
+
 /**
  * Compose the direction-specific block that follows the fixed instructions:
  *
@@ -219,16 +316,22 @@ export function buildDirectionBlock(input: DirectionInput): string {
 
 /**
  * Host layout — an optional per-generation slot contract. The model owns the
- * Arrow composition while honoring the host's semantic regions.
+ * visible composition while honoring the host's semantic regions.
  */
-export function buildLayoutBlock(layout: SummonLayout): string {
+export function buildLayoutBlock(
+  layout: SummonLayout,
+  options: PromptRuntimeOptions = {},
+): string {
   const slotLines = layout.slots
     .map((slot) => `- \`${slot.id}\` — ${slot.purpose}`)
     .join('\n');
+  const artifactLabel = isHtmlOutputRuntime(options.outputRuntime)
+    ? 'HTML bundle'
+    : 'Arrow artifact';
 
 return `## Host layout — this generation
 
-The host has supplied a strict layout contract named **${layout.id}**. Build your Arrow artifact so its visible composition has these semantic regions, in this order:
+The host has supplied a strict layout contract named **${layout.id}**. Build your ${artifactLabel} so its visible composition has these semantic regions, in this order:
 
 ${slotLines}
 
@@ -240,8 +343,19 @@ Rules:
 - The host layout controls semantic order; the direction controls visual language.`;
 }
 
-export function buildSurfaceContractBlock(contract: SurfaceContractView): string {
+export function buildSurfaceContractBlock(
+  contract: SurfaceContractView,
+  options: PromptRuntimeOptions = {},
+): string {
   const { surface } = contract;
+  const htmlRuntime = isHtmlOutputRuntime(options.outputRuntime);
+  const outputRuntime = options.outputRuntime ?? 'arrow-control';
+  const artifactLine = htmlRuntime
+    ? `It is not a JSON UI schema: you still generate a rich HTML bundle inside these typed boundaries. The output runtime for this generation is \`${outputRuntime}\`; the structured output contract below controls the exact files.`
+    : 'It is not a JSON UI schema: you still generate a rich Arrow source artifact inside these typed boundaries.';
+  const enforcementLine = htmlRuntime
+    ? 'Do not emit `/surface-contract`, `/surface-policy`, or `/surface-plan` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and HTML sandbox boundary.'
+    : 'Do not emit `/surface-contract`, `/surface-policy`, or `/surface-plan` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and inline Arrow tool grants.';
   const toolLines = contract.tools.length
     ? contract.tools.map((tool) => {
         const stateKeys = tool.stateKeys
@@ -266,9 +380,9 @@ export function buildSurfaceContractBlock(contract: SurfaceContractView): string
 
   return `## Surface contract — host-owned boundaries
 
-This is a compact, read-only view of the host-selected \`SurfacePolicy\`. It tells you what this generated surface can do. It is not a JSON UI schema: you still generate a rich Arrow source artifact inside these typed boundaries.
+This is a compact, read-only view of the host-selected \`SurfacePolicy\`. It tells you what this generated surface can do. ${artifactLine}
 
-Do not emit \`/surface-contract\`, \`/surface-policy\`, or \`/surface-plan\` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and inline Arrow tool grants.
+${enforcementLine}
 
 ### Surface
 
@@ -347,6 +461,7 @@ export interface ToolPack {
 
 export function buildToolsBlock(
   pack: ToolPack,
+  options: PromptRuntimeOptions = {},
 ): string {
   if (pack.tools.length === 0) return '';
 
@@ -384,6 +499,13 @@ export function buildToolsBlock(
     resourcesList ? `### Available data resources\n\n${resourcesList}` : '',
     actionsList ? `### Available actions\n\n${actionsList}` : '',
   ].filter(Boolean).join('\n\n');
+
+  if (isHtmlOutputRuntime(options.outputRuntime)) {
+    return buildHtmlToolsBlock({
+      outputRuntime: options.outputRuntime ?? 'html-static',
+      toolSections,
+    });
+  }
 
   const promptPatterns = (pack.patterns ?? []).filter(
     (pattern) =>
@@ -533,6 +655,61 @@ Controlled actions expose host-owned pending/done/error keys when listed under A
 ### Initial state
 
 Action-owned state starts empty unless the host declares controlled action state, in which case pending/done/error start false/false/null. Data-resource lifecycle keys start from the default state described above. Render defensively: show an empty-state message only from declared empty state or a form before data exists, never placeholder fetched data.${patternsBlock}`;
+}
+
+function buildHtmlToolsBlock({
+  outputRuntime,
+  toolSections,
+}: {
+  outputRuntime: SummonOutputRuntime;
+  toolSections: string;
+}): string {
+  if (!isScriptedHtmlOutputRuntime(outputRuntime)) {
+    return `## Tools — host-owned context for static HTML
+
+This run returns a structured HTML/CSS bundle for \`${outputRuntime}\`. The generated artifact does not receive a host tool bridge in this runtime, so do not call tools, include scripts, or render controls that imply live host actions.
+
+### Available host context
+
+${toolSections}
+
+### Static HTML contract
+
+- Use the tool descriptions only to understand the task boundary, data authority, and actions the host owns.
+- Do not render clickable, tappable, or focusable controls that require host execution.
+- Do not fake tool results, loading states, completed actions, approvals, or fetched rows in static markup.
+- If the user request needs live data or a host action, render a clear static state that explains what the host-owned action/data would cover without pretending it has run.`;
+  }
+
+  return `## Tools — HTML scripted iframe experiment
+
+This run returns a structured HTML bundle for \`html-script\`. Static markup goes in \`source["body.html"]\`, styling in \`source["main.css"]\`, and optional generated behavior in \`source["main.js"]\`.
+
+### HTML sandbox bridge
+
+Generated \`main.js\` may use the iframe bridge exposed as \`window.summon\`:
+
+\`\`\`js
+const hostState = window.summon.getState();
+const result = await window.summon.callTool("tool_name", { value: "example" });
+\`\`\`
+
+- \`window.summon.getState()\` returns the latest host-owned state snapshot.
+- \`window.summon.callTool(toolName, args)\` calls a granted host tool and resolves to \`{ ok, state, error? }\`.
+- Use plain DOM event listeners from \`main.js\`; do not use inline event handler attributes in \`body.html\`.
+- Do not use network, storage, workers, eval, dynamic imports, parent/top/opener access, cookies, or external URLs.
+
+### Available tools
+
+${toolSections}
+
+### The interactivity contract — READ THIS
+
+Every clickable, tappable, or focusable element in \`body.html\` MUST be wired in \`main.js\` to one of the declared tools by calling \`await window.summon.callTool("<tool>", args)\`. If you cannot wire an element, do not show it.
+
+Data resources expose host-owned loading/data/error state keys and may expose an empty-state key. Read state with \`window.summon.getState()\`, mirror only declared keys, and never hallucinate fetched rows, profiles, images, or counts before a successful data resource result.
+
+Controlled actions expose host-owned pending/done/error keys when listed under Action state. Use those keys for busy, error, and success UI; do not fake completed, approved, or failed states in local markup.`;
 }
 
 function normalizeTriggers(tool: ToolSpec): ToolTrigger[] {

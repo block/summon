@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { type ToolPack } from '@anarchitecture/summon';
 import {
+  buildFingerprintSteeringPayload,
   isArrowSurfaceArtifact,
   parseProtocolLine,
   type ValidationTool,
@@ -13,11 +14,13 @@ import { cn } from '../lib/cn.js';
 import { createDemoToolRegistry } from '../tools.js';
 import { ALL_PROMPTS, sample } from '../prompts.js';
 
-interface DirectionInfo {
+const DEFAULT_FINGERPRINT_ID = 'editorial-mono';
+
+interface FingerprintInfo {
   id: string;
-  name: string;
-  description: string;
-  tokensCss: string;
+  name?: string;
+  summary?: string;
+  defaultTargetPath?: string;
 }
 
 type SourceMode = 'random' | 'same';
@@ -26,10 +29,6 @@ type LayoutMode = 'grid' | 'stacked';
 
 const maxInteractiveTiles = 8;
 const maxStaticTiles = 12;
-
-function tokensFor(directions: DirectionInfo[], directionId: string): string {
-  return directions.find((direction) => direction.id === directionId)?.tokensCss ?? defaultTokensSource;
-}
 
 function summarizeAgentMeta(value: unknown): string {
   if (!value || typeof value !== 'object') return 'agent broker';
@@ -53,7 +52,8 @@ function summarizeAgentMeta(value: unknown): string {
 interface BatchTileRun {
   id: number;
   prompt: string;
-  directionId: string;
+  fingerprintId: string;
+  fingerprintTargetPath: string;
   tokensCss: string;
   interactivity: Interactivity;
   signal: AbortSignal;
@@ -79,6 +79,7 @@ function BatchTile({
   const [statusClass, setStatusClass] = useState('pending');
   const [bytes, setBytes] = useState(0);
   const [tool, setTool] = useState<{ text: string; err?: boolean } | null>(null);
+  const [tokensSource, setTokensSource] = useState(run.tokensCss);
 
   const registry = useMemo(() => {
     if (run.interactivity !== 'interactive') return null;
@@ -102,6 +103,7 @@ function BatchTile({
       setStatus('streaming');
       setBytes(0);
       setTool(null);
+      setTokensSource(run.tokensCss);
 
       try {
         const res = await fetch('/api/generate', {
@@ -109,7 +111,10 @@ function BatchTile({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: run.prompt,
-            directionId: run.directionId,
+            ...(buildFingerprintSteeringPayload({
+              id: run.fingerprintId,
+              targetPath: run.fingerprintTargetPath,
+            }) ?? {}),
             tools: run.interactivity === 'interactive' ? toolPack : undefined,
             agent: { enabled: true },
           }),
@@ -129,6 +134,10 @@ function BatchTile({
           }
           if (parsed.op === 'meta' && parsed.path === '/agent-policy-resolution') {
             setTool({ text: `agent policy: ${summarizeAgentMeta(parsed.value)}` });
+          }
+          if (parsed.op === 'meta' && parsed.path === '/ghost-token-source') {
+            const value = parsed.value as { css?: unknown } | undefined;
+            if (typeof value?.css === 'string') setTokensSource(value.css);
           }
           if (parsed.op === 'artifact' && isArrowSurfaceArtifact(parsed.value)) {
             surfaceRef.current?.renderArtifact(parsed.value);
@@ -196,7 +205,7 @@ function BatchTile({
           ref={surfaceRef}
           title={run.prompt}
           className={cn('block w-full border-0 bg-surface-raised', stacked ? 'h-[880px]' : 'h-[760px]')}
-          tokensSource={run.tokensCss}
+          tokensSource={tokensSource}
           toolRegistry={registry}
           validationTools={validationTools ?? undefined}
         />
@@ -211,8 +220,9 @@ function BatchTile({
 }
 
 export function BatchPage() {
-  const [directions, setDirections] = useState<DirectionInfo[]>([]);
-  const [directionId, setDirectionId] = useState('');
+  const [fingerprints, setFingerprints] = useState<FingerprintInfo[]>([]);
+  const [fingerprintId, setFingerprintId] = useState('');
+  const [fingerprintTargetPath, setFingerprintTargetPath] = useState('.');
   const [sourceMode, setSourceMode] = useState<SourceMode>('random');
   const [layout, setLayout] = useState<LayoutMode>('grid');
   const [interactivity, setInteractivity] = useState<Interactivity>('static');
@@ -228,15 +238,21 @@ export function BatchPage() {
 
   useEffect(() => {
     let active = true;
-    void fetch('/api/directions')
+    void fetch('/api/fingerprints')
       .then((res) => (res.ok ? res.json() : []))
-      .then((payload: DirectionInfo[]) => {
+      .then((payload: FingerprintInfo[]) => {
         if (!active) return;
-        setDirections(payload);
-        setDirectionId(payload[0]?.id ?? '');
+        const catalog = Array.isArray(payload) ? payload : [];
+        setFingerprints(catalog);
+        const selected =
+          catalog.find((fingerprint) => fingerprint.id === DEFAULT_FINGERPRINT_ID)
+            ?? catalog[0]
+            ?? null;
+        setFingerprintId(selected?.id ?? '');
+        setFingerprintTargetPath(selected?.defaultTargetPath || '.');
       })
       .catch(() => {
-        if (active) setDirections([]);
+        if (active) setFingerprints([]);
       });
     return () => {
       active = false;
@@ -269,6 +285,10 @@ export function BatchPage() {
     runStartRef.current = performance.now();
 
     const safeCount = Math.max(1, Math.min(cap, count || 1));
+    if (!fingerprintId) {
+      setSummary('No Ghost fingerprint catalog is available.');
+      return;
+    }
     let prompts: string[];
     if (sourceMode === 'same') {
       const prompt = samePrompt.trim();
@@ -284,11 +304,12 @@ export function BatchPage() {
     }
 
     setRunning(true);
-    const tokensCss = tokensFor(directions, directionId);
+    const tokensCss = defaultTokensSource;
     setRuns(prompts.map((prompt, index) => ({
       id: Date.now() + index,
       prompt,
-      directionId,
+      fingerprintId,
+      fingerprintTargetPath: fingerprintTargetPath.trim() || '.',
       tokensCss,
       interactivity,
       signal: nextAbort.signal,
@@ -305,11 +326,16 @@ export function BatchPage() {
       />
       <div className={cn(pageWidthClass, 'mb-3.5 flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface p-3.5')}>
         <label className="flex items-center gap-2 text-[13px] text-ink-soft">
-          Direction
-          <select id="direction" className={cn(compactSelectClass, 'min-w-44')} value={directionId} onChange={(event) => setDirectionId(event.target.value)}>
-            {directions.length === 0 ? <option value="">Default</option> : null}
-            {directions.map((direction) => (
-              <option key={direction.id} value={direction.id} title={direction.description}>{direction.name}</option>
+          Fingerprint
+          <select id="fingerprint" className={cn(compactSelectClass, 'min-w-44')} value={fingerprintId} disabled={fingerprints.length === 0} onChange={(event) => {
+            const next = event.target.value;
+            const selected = fingerprints.find((fingerprint) => fingerprint.id === next) ?? null;
+            setFingerprintId(next);
+            setFingerprintTargetPath(selected?.defaultTargetPath || '.');
+          }}>
+            {fingerprints.length === 0 ? <option value="">No fingerprints</option> : null}
+            {fingerprints.map((fingerprint) => (
+              <option key={fingerprint.id} value={fingerprint.id} title={fingerprint.summary}>{fingerprint.name ?? fingerprint.id}</option>
             ))}
           </select>
         </label>
@@ -338,7 +364,7 @@ export function BatchPage() {
             <textarea id="same-prompt" className={cn(textareaClass, 'min-h-10 flex-1 basis-[300px] py-2.5 text-[13px]')} value={samePrompt} onChange={(event) => setSamePrompt(event.target.value)} placeholder="help me plan a low-key date night for this Friday" />
           </label>
         ) : null}
-        <Button id="run" type="button" size="sm" disabled={running} onClick={runBatch}>Run</Button>
+        <Button id="run" type="button" size="sm" disabled={running || !fingerprintId} onClick={runBatch}>Run</Button>
         <Button id="stop" type="button" variant="secondary" size="sm" disabled={!running} onClick={() => abortRef.current?.abort()}>Stop</Button>
       </div>
       <div

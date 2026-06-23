@@ -9,6 +9,7 @@ import {
   type SurfacePlan,
   type SurfacePolicy,
   type ContractPromptBlock,
+  type SummonOutputRuntime,
 } from '@anarchitecture/summon/engine';
 import {
   planAgentSurface,
@@ -102,6 +103,12 @@ app.use(cors({ origin: ALLOWED_ORIGIN }));
 
 const LAYOUT_ID_RE = /^[a-z][a-z0-9-]{0,79}$/;
 const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
+const EXPERIMENTAL_RUNTIME_VALUES: SummonOutputRuntime[] = [
+  'arrow-control',
+  'html-static',
+  'html-stream',
+  'html-script',
+];
 
 function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?: string } {
   if (raw === undefined || raw === null) return { layout: null };
@@ -153,6 +160,20 @@ function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?:
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function parseExperimentalRuntime(raw: unknown): { runtime: SummonOutputRuntime; error?: string } {
+  if (raw === undefined || raw === null || raw === '') return { runtime: 'arrow-control' };
+  if (typeof raw !== 'string') {
+    return { runtime: 'arrow-control', error: 'experimentalRuntime must be a string' };
+  }
+  if (!EXPERIMENTAL_RUNTIME_VALUES.includes(raw as SummonOutputRuntime)) {
+    return {
+      runtime: 'arrow-control',
+      error: `experimentalRuntime must be one of ${EXPERIMENTAL_RUNTIME_VALUES.join(', ')}`,
+    };
+  }
+  return { runtime: raw as SummonOutputRuntime };
 }
 
 // Simple concurrency cap for /api/generate — protects against a runaway batch
@@ -277,6 +298,12 @@ app.post('/api/generate', async (req, res) => {
   }
   const modelProvider = resolvedProvider.provider;
   const modelSelection = resolvedProvider.selection;
+  const parsedExperimentalRuntime = parseExperimentalRuntime(req.body?.experimentalRuntime);
+  if (parsedExperimentalRuntime.error) {
+    res.status(400).json({ error: parsedExperimentalRuntime.error });
+    return;
+  }
+  const experimentalRuntime = parsedExperimentalRuntime.runtime;
 
   if (req.body?.ghost !== undefined && req.body?.fingerprint !== undefined) {
     res.status(400).json({ error: 'Use either fingerprint or ghost, not both' });
@@ -436,6 +463,7 @@ app.post('/api/generate', async (req, res) => {
         userPrompt: prompt,
         mode,
         surfacePlan,
+        outputRuntime: experimentalRuntime,
         tools: hasSurfacePolicy
           ? toolCeiling
           : agentPlan
@@ -538,6 +566,7 @@ app.post('/api/generate', async (req, res) => {
         seedLines,
         validationMode,
         playground: playgroundMode,
+        experimentalRuntime,
         experimentalPromptBlock: playgroundMode ? playgroundPromptBlock : null,
       };
       const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
@@ -547,6 +576,9 @@ app.post('/api/generate', async (req, res) => {
         modelProvider: {
           generateArrowBundle: (request) => modelProvider.generateArrowBundle(request, modelSelection),
           repairArrowBundle: (request) => modelProvider.repairArrowBundle(request, modelSelection),
+          generateHtmlBundle: (request) => modelProvider.generateHtmlBundle(request, modelSelection),
+          repairHtmlBundle: (request) => modelProvider.repairHtmlBundle(request, modelSelection),
+          streamHtmlSurface: (request) => modelProvider.streamHtmlSurface(request, modelSelection),
         },
       }, (line) => {
         writeGenerateLine(res, line);
@@ -575,6 +607,7 @@ app.post('/api/generate', async (req, res) => {
       };
       console.log(
         `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
+          ` runtime=${experimentalRuntime}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +
           ` tools=${pack?.tools.length ?? 0}/${toolCeiling?.tools.length ?? 0}` +

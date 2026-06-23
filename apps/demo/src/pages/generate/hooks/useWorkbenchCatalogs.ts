@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { parseModelProviders } from '../modelProviders.js';
-import type { DirectionInfo, GhostRootInfo, ModelProviderInfo } from '../types.js';
+import type { GhostRootInfo, ModelProviderInfo } from '../types.js';
 
 export function useWorkbenchCatalogs() {
-  const [directions, setDirections] = useState<DirectionInfo[]>([]);
   const [ghostRoots, setGhostRoots] = useState<GhostRootInfo[]>([]);
   const [modelProviders, setModelProviders] = useState<ModelProviderInfo[]>([]);
   const [defaultModelProviderId, setDefaultModelProviderId] = useState<string | null>(null);
@@ -27,15 +26,6 @@ export function useWorkbenchCatalogs() {
         }
       }
       try {
-        const res = await fetch('/api/directions');
-        const payload = res.ok ? await res.json() as DirectionInfo[] : [];
-        if (active) {
-          setDirections(Array.isArray(payload) ? payload : []);
-        }
-      } catch {
-        if (active) setDirections([]);
-      }
-      try {
         const res = await fetch('/api/fingerprints');
         const payload = res.ok ? await res.json() as GhostRootInfo[] : [];
         if (active) setGhostRoots(Array.isArray(payload) ? payload : []);
@@ -50,7 +40,6 @@ export function useWorkbenchCatalogs() {
   }, []);
 
   return {
-    directions,
     ghostRoots,
     modelProviders,
     defaultModelProviderId,

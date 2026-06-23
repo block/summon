@@ -4,6 +4,10 @@ import {
   type ProtocolLine,
 } from '../protocol.js';
 import { validateArrowSurfaceArtifact } from '../arrow-artifact.js';
+import {
+  validateHtmlSurfaceArtifact,
+  validateHtmlSurfacePatch,
+} from '../html-artifact.js';
 import { normalizeValidationLimits } from '../validation-limits.js';
 import { protocolBlock } from './issues.js';
 import type { ValidationContext } from './types.js';
@@ -41,12 +45,33 @@ export function validateProtocolLine(
 
   if (line.op === 'artifact') {
     if (!line.value || typeof line.value !== 'object') {
-      issues.push(protocolBlock('invalid-arrow-artifact', 'Artifact line value must be an Arrow artifact object', line.path));
+      issues.push(protocolBlock('invalid-artifact', 'Artifact line value must be an artifact object', line.path));
       return issues;
     }
-    issues.push(...validateArrowSurfaceArtifact(line.value as never, {
-      maxSourceBytes: limits.maxProtocolLineBytes,
-      network: context.surfacePlan?.network ?? 'none',
+    const runtime = (line.value as { runtime?: unknown }).runtime;
+    if (runtime === 'arrow') {
+      issues.push(...validateArrowSurfaceArtifact(line.value as never, {
+        maxSourceBytes: limits.maxProtocolLineBytes,
+        network: context.surfacePlan?.network ?? 'none',
+      }));
+    } else if (runtime === 'html') {
+      issues.push(...validateHtmlSurfaceArtifact(line.value as never, {
+        allowScript: context.experimentalHtmlScript === true,
+        maxSourceBytes: limits.maxProtocolLineBytes,
+        maxCssBytes: limits.maxCssBytes,
+        maxDomDepth: limits.maxDomDepth,
+        maxDomNodes: limits.maxDomNodes,
+      }));
+    } else {
+      issues.push(protocolBlock('invalid-artifact-runtime', 'Artifact runtime must be "arrow" or experimental "html"', line.path));
+    }
+    return issues;
+  }
+
+  if (line.op === 'patch') {
+    issues.push(...validateHtmlSurfacePatch(line.value as never, {
+      maxDomDepth: limits.maxDomDepth,
+      maxDomNodes: limits.maxDomNodes,
     }));
   }
 

@@ -7,6 +7,7 @@ import type {
   ProtocolLine,
   StreamGraphSnapshot,
   SummonLayout,
+  SummonOutputRuntime,
   SurfacePolicy,
   ProtocolValidationMode,
 } from '@summon-internal/engine';
@@ -23,7 +24,24 @@ export interface ArrowBundleRequest extends SurfaceModelRequest {
   schema: Record<string, unknown>;
 }
 
+export interface HtmlBundleRequest extends SurfaceModelRequest {
+  schema: Record<string, unknown>;
+  runtime: SummonOutputRuntime;
+  allowScript?: boolean;
+}
+
+export interface HtmlStreamRequest extends SurfaceModelRequest {
+  runtime: 'html-stream';
+}
+
 export interface ArrowBundleRepairRequest extends ArrowBundleRequest {
+  previousBundle: unknown;
+  issues: ContractIssue[];
+  hints: string[];
+  attempt: number;
+}
+
+export interface HtmlBundleRepairRequest extends HtmlBundleRequest {
   previousBundle: unknown;
   issues: ContractIssue[];
   hints: string[];
@@ -33,6 +51,9 @@ export interface ArrowBundleRepairRequest extends ArrowBundleRequest {
 export interface SurfaceModelProvider {
   generateArrowBundle(request: ArrowBundleRequest): Promise<unknown>;
   repairArrowBundle?(request: ArrowBundleRepairRequest): Promise<unknown>;
+  generateHtmlBundle?(request: HtmlBundleRequest): Promise<unknown>;
+  repairHtmlBundle?(request: HtmlBundleRepairRequest): Promise<unknown>;
+  streamHtmlSurface?(request: HtmlStreamRequest): AsyncIterable<string>;
 }
 
 export interface SurfaceGenerationInput {
@@ -48,6 +69,7 @@ export interface SurfaceGenerationInput {
   preludeLines?: ProtocolLine[];
   seedLines?: ProtocolLine[];
   validationMode?: ProtocolValidationMode;
+  experimentalRuntime?: SummonOutputRuntime;
   playground?: boolean;
   maxRepairAttempts?: number;
   repairIssueCodes?: string[];

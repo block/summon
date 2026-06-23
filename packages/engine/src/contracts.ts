@@ -1,7 +1,9 @@
 import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_FIXED_HTML_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
+  SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
   buildToolsBlock,
   buildDirectionBlock,
   buildLayoutBlock,
@@ -29,6 +31,11 @@ import type {
   ValidationTool,
   ValidationContext,
 } from './runtime-validator.js';
+import {
+  isHtmlOutputRuntime,
+  isScriptedHtmlOutputRuntime,
+  type SummonOutputRuntime,
+} from './output-runtime.js';
 
 export type ContractIssueSource =
   | 'protocol'
@@ -166,6 +173,7 @@ export interface CompiledToolContract {
 
 export interface SystemContractInput {
   mode: ValidationContext['mode'];
+  outputRuntime?: SummonOutputRuntime;
   direction?: DirectionContractInput | null;
   ghost?: GhostGenerationContext | null;
   layout?: SummonLayout | null;
@@ -176,6 +184,8 @@ export interface SystemContractInput {
   surfaceContract?: SurfaceContractView | null;
   activeTokensCss?: string | null;
 }
+
+export type { SummonOutputRuntime } from './output-runtime.js';
 
 export interface CompiledSystemContracts {
   promptBlocks: ContractPromptBlock[];
@@ -196,17 +206,39 @@ export function withIssueSeverity(
   return { ...issue, severity };
 }
 
-export function hintsForContractIssue(issue: ContractIssue): string[] {
+export function hintsForContractIssue(
+  issue: ContractIssue,
+  options: { outputRuntime?: SummonOutputRuntime } = {},
+): string[] {
   if (issue.hint) return [issue.hint];
+  const htmlRuntime = isHtmlOutputRuntime(options.outputRuntime);
+  const scriptedHtmlRuntime = isScriptedHtmlOutputRuntime(options.outputRuntime);
   switch (issue.code) {
     case 'external-url':
       return ['Inline assets as data URLs or remove the external reference.'];
     case 'unsafe-tag':
       return ['Use plain HTML elements; remove iframe/object/embed/link/meta/base-like tags.'];
     case 'inline-handler':
+      if (scriptedHtmlRuntime) {
+        return ['Move event handling into source["main.js"] and call granted host tools with `window.summon.callTool()` when needed.'];
+      }
+      if (htmlRuntime) {
+        return ['Remove inline event handlers; this HTML runtime must be static HTML/CSS without generated event code.'];
+      }
       return ['Use Arrow event handlers inside the template and call granted host tools with `callTool()` from `host-bridge:summon`.'];
     case 'static-script':
+    case 'html-script-not-enabled':
       return ['Remove script tags in static mode, or express the UI without interactivity.'];
+    case 'unsafe-html-script':
+      return ['Remove generated script APIs that access network, storage, parent/top/opener windows, workers, eval, or dynamic imports.'];
+    case 'missing-html-body':
+      return ['Return a complete HTML bundle with source["body.html"] containing the static body fragment.'];
+    case 'invalid-html-bundle-schema':
+      return ['Use schema "summon.html-bundle/v0" for experimental HTML runs.'];
+    case 'html-bundle-extra-file':
+      return ['Only source["body.html"], optional source["main.css"], and optional experiment-gated source["main.js"] are supported.'];
+    case 'unsupported-html-attribute':
+      return ['Use semantic HTML, ARIA/data attributes, safe SVG attributes, and CSS classes instead of unsupported browser attributes.'];
     case 'script-not-granted':
     case 'surface-script-policy-removed':
       return ['Return an Arrow artifact that uses `reactive()`, Arrow event handlers, and `host-bridge:summon` instead of generated script tags.'];
@@ -214,6 +246,9 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'tool-trigger-not-granted':
       return ['Use only the granted tools and triggers listed in the Tools block.'];
     case 'invalid-args-json':
+      if (scriptedHtmlRuntime) {
+        return ['Build tool args as plain objects before calling `window.summon.callTool()` from source["main.js"].'];
+      }
       return ['Build tool args as plain objects in the Arrow event handler before calling `callTool()`.'];
     case 'unknown-resource':
     case 'non-resource-tool':
@@ -321,6 +356,7 @@ export function compileDirectionContract(
 
 export function compileToolContract(
   pack: ToolPack | null | undefined,
+  options: { outputRuntime?: SummonOutputRuntime } = {},
 ): CompiledToolContract {
   const normalized: ToolPack = pack ?? { tools: [] };
   const initialState: Record<string, unknown> = {};
@@ -354,7 +390,7 @@ export function compileToolContract(
     promptBlock: normalized.tools.length > 0
       ? {
           id: 'tools',
-          text: buildToolsBlock(normalized),
+          text: buildToolsBlock(normalized, options),
           cache: 'ephemeral',
         }
       : null,
@@ -368,10 +404,12 @@ export function compileToolContract(
 export function compileSystemContracts(
   input: SystemContractInput,
 ): CompiledSystemContracts {
+  const outputRuntime = input.outputRuntime ?? 'arrow-control';
+  const htmlRuntime = isHtmlOutputRuntime(outputRuntime);
   const promptBlocks: ContractPromptBlock[] = [
     {
       id: 'fixed',
-      text: SUMMON_FIXED_INSTRUCTIONS,
+      text: htmlRuntime ? SUMMON_FIXED_HTML_INSTRUCTIONS : SUMMON_FIXED_INSTRUCTIONS,
       cache: 'ephemeral',
     },
   ];
@@ -410,7 +448,7 @@ export function compileSystemContracts(
   if (input.layout) {
     promptBlocks.push({
       id: `layout:${input.layout.id}`,
-      text: buildLayoutBlock(input.layout),
+      text: buildLayoutBlock(input.layout, { outputRuntime }),
       cache: 'ephemeral',
     });
   }
@@ -422,25 +460,27 @@ export function compileSystemContracts(
   if (input.surfaceContract) {
     promptBlocks.push({
       id: 'surface-contract',
-      text: buildSurfaceContractBlock(input.surfaceContract),
+      text: buildSurfaceContractBlock(input.surfaceContract, { outputRuntime }),
       cache: 'ephemeral',
     });
   } else if (activeSurfacePlan) {
     promptBlocks.push({
       id: 'surface-plan',
-      text: buildSurfacePlanBlock(activeSurfacePlan),
+      text: buildSurfacePlanBlock(activeSurfacePlan, { outputRuntime }),
       cache: 'ephemeral',
     });
   }
 
-  const tool = compileToolContract(input.tools);
+  const tool = compileToolContract(input.tools, { outputRuntime });
   if (tool.promptBlock) promptBlocks.push(tool.promptBlock);
   issues.push(...tool.issues);
 
 
   promptBlocks.push({
     id: 'output-contract',
-    text: SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
+    text: htmlRuntime
+      ? SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS
+      : SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
     cache: 'none',
   });
 
@@ -455,6 +495,7 @@ export function compileSystemContracts(
       tools: tool.validationTools,
       surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
+      experimentalHtmlScript: outputRuntime === 'html-script',
     },
   };
 }

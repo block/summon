@@ -8,11 +8,18 @@ import {
 import {
   consumeSurfaceStream,
   mountInlineSurface,
+  type HtmlStreamPreviewDelta,
   type InlineSurfaceHandle,
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import { type ProtocolLine, type SurfaceContractView, type ValidationContext } from '@anarchitecture/summon/engine';
+import {
+  buildFingerprintSteeringPayload,
+  buildGhostSteeringPayload,
+  type ProtocolLine,
+  type SurfaceContractView,
+  type ValidationContext,
+} from '@anarchitecture/summon/engine';
 import { tokensSource } from '@anarchitecture/summon/assets';
 import { createGalleryToolRegistry } from './tools.js';
 import {
@@ -95,6 +102,15 @@ interface ModelSelectionPayload {
   customModel?: boolean;
 }
 
+interface CatalogFingerprintInfo {
+  id: string;
+  name?: string;
+  summary?: string;
+  defaultTargetPath?: string;
+}
+
+const DEFAULT_FINGERPRINT_ID = 'editorial-mono';
+
 const presetList = document.getElementById('preset-list')!;
 const presetCountEl = document.getElementById('preset-count')!;
 const providerSummaryEl = document.getElementById('provider-summary')!;
@@ -150,6 +166,8 @@ let activeTokensSourceOverride: string | null = null;
 let modelProviderLabel = 'server default';
 let defaultModelProviderId: string | null = null;
 let modelProviders: ModelProviderInfo[] = [];
+let catalogFingerprints: CatalogFingerprintInfo[] = [];
+let selectedCatalogFingerprintId: string | null = null;
 let generationInFlight = false;
 let surfaceRenderedDuringRun = false;
 let acceptedStructuralLines = 0;
@@ -298,6 +316,13 @@ function remountSurface(): void {
 }
 
 async function generateSelectedSurface(): Promise<void> {
+  const steeringPayload = steeringPayloadForSelectedPreset();
+  if (!steeringPayload) {
+    setSetupNote('No Ghost fingerprint catalog is available for regular gallery presets.');
+    renderHealth('setup needed');
+    selectInspectorTab('contract');
+    return;
+  }
   abortController?.abort();
   abortController = new AbortController();
   events.clear();
@@ -327,17 +352,7 @@ async function generateSelectedSurface(): Promise<void> {
         ...readModelSelection(),
         surfacePolicy: selectedPreset.surfacePolicy,
         tools: toolPack,
-        ...(selectedPreset.ghost
-          ? {
-              ghost: {
-                rootId: selectedPreset.ghost.rootId,
-                targetPath: selectedPreset.ghost.targetPath,
-                ...(selectedPreset.ghost.baseDirectionId
-                  ? { baseDirectionId: selectedPreset.ghost.baseDirectionId }
-                  : {}),
-              },
-            }
-          : {}),
+        ...steeringPayload,
       }),
     });
 
@@ -365,6 +380,11 @@ async function generateSelectedSurface(): Promise<void> {
         welcome.hidden = true;
         handle?.renderArtifact(artifact);
       },
+      onHtmlPatch: (patch) => {
+        surfaceRenderedDuringRun = true;
+        welcome.hidden = true;
+        handle?.applyHtmlPatch(patch);
+      },
       onParseError: (raw) => {
         events.push({ kind: 'transport-parse-error', at: Date.now(), raw });
         selectInspectorTab('stream');
@@ -384,8 +404,32 @@ async function generateSelectedSurface(): Promise<void> {
     );
   } finally {
     generationInFlight = false;
-    runButton.disabled = false;
+    runButton.disabled = !canRunSelectedPreset();
   }
+}
+
+function selectedCatalogFingerprint(): CatalogFingerprintInfo | null {
+  if (!selectedCatalogFingerprintId) return null;
+  return catalogFingerprints.find((fingerprint) => fingerprint.id === selectedCatalogFingerprintId) ?? null;
+}
+
+function steeringPayloadForSelectedPreset() {
+  if (selectedPreset.ghost) {
+    return buildGhostSteeringPayload({
+      rootId: selectedPreset.ghost.rootId,
+      targetPath: selectedPreset.ghost.targetPath,
+      baseDirectionId: selectedPreset.ghost.baseDirectionId,
+    });
+  }
+  const fingerprint = selectedCatalogFingerprint();
+  return buildFingerprintSteeringPayload({
+    id: fingerprint?.id ?? null,
+    targetPath: fingerprint?.defaultTargetPath ?? '.',
+  });
+}
+
+function canRunSelectedPreset(): boolean {
+  return Boolean(selectedPreset.ghost || selectedCatalogFingerprint());
 }
 
 function compiledPolicyFor(preset: GalleryPreset): CompiledSurfacePolicy {
@@ -445,6 +489,19 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
     if (typeof value.health?.blockedCount === 'number') blockedLines = value.health.blockedCount;
     if (blockedLines > 0) selectInspectorTab('stream');
   }
+  if (line.path === '/html-stream-preview') {
+    const delta = parseHtmlStreamPreviewDelta(line.value);
+    if (delta) handle?.applyHtmlPreviewDelta(delta);
+  }
+  if (line.path === '/html-stream-summary') {
+    const value = line.value as { previewDeltaCount?: unknown; committedPatchCount?: unknown; blockedPatchReasons?: unknown } | undefined;
+    const previewDeltaCount = typeof value?.previewDeltaCount === 'number' ? value.previewDeltaCount : 0;
+    const committedPatchCount = typeof value?.committedPatchCount === 'number' ? value.committedPatchCount : 0;
+    const blockedPatchReasons = Array.isArray(value?.blockedPatchReasons)
+      ? value.blockedPatchReasons.filter((reason): reason is string => typeof reason === 'string')
+      : [];
+    pushHostMessage(`html stream preview=${previewDeltaCount} patches=${committedPatchCount}${blockedPatchReasons.length ? ` blocked=${blockedPatchReasons.join(',')}` : ''}`);
+  }
   if (line.path === '/ghost-token-source') {
     const value = line.value as { css?: unknown };
     if (typeof value.css === 'string' && value.css.trim()) {
@@ -454,6 +511,35 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
   }
   warningCountEl.textContent = String(warningLines);
   blockedCountEl.textContent = String(blockedLines);
+}
+
+function parseHtmlStreamPreviewDelta(value: unknown): HtmlStreamPreviewDelta | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const delta = value as Record<string, unknown>;
+  const action = delta.action;
+  const text = typeof delta.delta === 'string'
+    ? delta.delta
+    : typeof delta.text === 'string'
+      ? delta.text
+      : '';
+  if (delta.runtime !== 'html') return null;
+  if (typeof delta.target !== 'string' || !delta.target) return null;
+  if (
+    action !== 'append' &&
+    action !== 'replace' &&
+    action !== 'update' &&
+    action !== 'remove' &&
+    action !== 'morph'
+  ) {
+    return null;
+  }
+  if (!text) return null;
+  return {
+    runtime: 'html',
+    target: delta.target,
+    action,
+    delta: text,
+  };
 }
 
 function renderAuthorityMeter(compiled: CompiledSurfacePolicy): void {
@@ -525,8 +611,13 @@ function renderContract(): void {
   surfaceComponentsPill.textContent = 'Arrow-only UI';
   welcomeTitle.textContent = selectedPreset.title;
   welcomeDetail.textContent = selectedPreset.description;
+  runButton.disabled = generationInFlight || !canRunSelectedPreset();
+  runButton.title = canRunSelectedPreset()
+    ? ''
+    : 'No Ghost fingerprint catalog is available for regular presets.';
   renderAuthorityMeter(compiledPolicyFor(selectedPreset));
   contractSummary.innerHTML = '';
+  const fingerprint = selectedCatalogFingerprint();
   const rows: Array<[string, string, string]> = [
     ['provider', 'Model provider', provider ? `${provider.name} - ${generationModel}` : modelProviderLabel],
     ['utility', 'Utility model', utilityModel],
@@ -539,7 +630,8 @@ function renderContract(): void {
     ['ui', 'Visual UI', 'Arrow source only'],
     ...(selectedPreset.ghost
       ? [['ghost', 'Ghost root', `${selectedPreset.ghost.rootId} - ${selectedPreset.ghost.targetPath}`] as [string, string, string]]
-      : []),
+      : [['fingerprint', 'Fingerprint', fingerprint ? `${fingerprint.name ?? fingerprint.id} - ${fingerprint.defaultTargetPath ?? '.'}` : 'missing catalog fingerprint'] as [string, string, string]]
+    ),
   ];
   for (const [key, label, value] of rows) {
     const row = document.createElement('div');
@@ -551,10 +643,16 @@ function renderContract(): void {
 }
 
 async function initGallery(): Promise<void> {
-  const [ghostRoots] = await Promise.all([
+  const [ghostRoots, fingerprints] = await Promise.all([
     loadGhostRoots(),
+    loadCatalogFingerprints(),
     loadModelProviderSummary(),
   ]);
+  catalogFingerprints = fingerprints;
+  selectedCatalogFingerprintId =
+    catalogFingerprints.find((fingerprint) => fingerprint.id === DEFAULT_FINGERPRINT_ID)?.id
+      ?? catalogFingerprints[0]?.id
+      ?? null;
   galleryPresets = [
     ...GALLERY_PRESETS,
     ...ghostRoots.map(createGhostGalleryPreset),
@@ -570,6 +668,17 @@ async function loadGhostRoots(): Promise<GhostRootInfo[]> {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const roots = await response.json();
     return Array.isArray(roots) ? roots as GhostRootInfo[] : [];
+  } catch {
+    return [];
+  }
+}
+
+async function loadCatalogFingerprints(): Promise<CatalogFingerprintInfo[]> {
+  try {
+    const response = await fetch('/api/fingerprints');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const fingerprints = await response.json();
+    return Array.isArray(fingerprints) ? fingerprints as CatalogFingerprintInfo[] : [];
   } catch {
     return [];
   }

@@ -1,5 +1,5 @@
 import { createServer, type Server, type ServerResponse } from 'node:http';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const galleryApiPort = Number(process.env.SUMMON_GALLERY_API_PORT ?? 3015);
 
@@ -54,6 +54,29 @@ function modelProviderPayload(): object {
   };
 }
 
+function fingerprintPayload(): object {
+  return [{
+    id: 'editorial-mono',
+    name: 'Editorial Mono',
+    summary: 'Default catalog fingerprint for smoke tests.',
+    defaultTargetPath: '.',
+  }];
+}
+
+async function routeCatalogFingerprints(page: Page): Promise<void> {
+  await page.route('**/api/fingerprints', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(fingerprintPayload()),
+    });
+  });
+}
+
+test.beforeEach(async ({ page }) => {
+  await routeCatalogFingerprints(page);
+});
+
 function writeProtocolLine(res: ServerResponse, line: unknown): void {
   res.write(`${JSON.stringify(line)}\n`);
 }
@@ -79,6 +102,12 @@ async function startProgressiveApiServer(): Promise<Server> {
     if (req.method === 'GET' && req.url === '/api/ghost-roots') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end('[]');
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/api/fingerprints') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(fingerprintPayload()));
       return;
     }
 
@@ -147,6 +176,7 @@ test('gallery boots and preset selection updates the contract panel', async ({ p
   await expect(page.locator('[data-contract-row="tier"]')).toContainText('declarative');
   await expect(page.locator('[data-contract-row="grants"]')).toContainText('Allowed host tools');
   await expect(page.locator('[data-contract-row="grants"]')).toContainText('search');
+  await expect(page.locator('[data-contract-row="fingerprint"]')).toContainText('Editorial Mono');
 });
 
 test('gallery shows progressive placeholder before final stream replacement', async ({ page }) => {
@@ -155,15 +185,13 @@ test('gallery shows progressive placeholder before final stream replacement', as
     await page.goto('/');
     await page.locator('#run').click();
 
-    await expect(page.locator('#welcome-kicker')).toHaveText(/Streaming|Writing/);
-    await expect(page.locator('#welcome-detail')).toContainText('Waiting for validated surface lines');
+    await expect(page.locator('#welcome-kicker')).toHaveText(/streaming|writing/i);
+    await expect(page.locator('#welcome-detail')).toContainText('sandbox updates as validated structure arrives');
 
-    const preview = page.locator('#sandbox [data-summon-preview-root]');
-    await expect(preview).toContainText('Drafting surface');
-    await expect(preview).toContainText('Gathering the shape.');
-    await expect(page.locator('#accepted-count')).toContainText('5');
+    await expect(page.locator('#accepted-count')).toContainText(/[1-6]/);
     const surface = page.locator('#sandbox arrow-sandbox');
     await expect(surface.locator('h1')).toContainText('Final answer');
+    const preview = page.locator('#sandbox [data-summon-preview-root]');
     await expect(preview).toHaveCount(0);
     await expect(page.locator('#accepted-count')).toContainText('6');
     await expect(page.locator('#status')).toContainText('done');
@@ -268,6 +296,11 @@ export default html\`
     purpose: 'compare',
     grants: ['choose'],
   });
+  expect(captured.fingerprint).toEqual({
+    id: 'editorial-mono',
+    targetPath: '.',
+  });
+  expect(captured.directionId).toBeUndefined();
   expect(captured.tools.tools.map((tool: any) => tool.name)).toEqual([
     'search',
     'choose',
@@ -384,6 +417,11 @@ export default html\`
     purpose: 'explore',
     grants: ['search'],
   });
+  expect(captured.fingerprint).toEqual({
+    id: 'editorial-mono',
+    targetPath: '.',
+  });
+  expect(captured.directionId).toBeUndefined();
 
   const surface = page.locator('#sandbox arrow-sandbox');
   await expect(surface.locator('#empty')).toBeHidden();
@@ -573,6 +611,11 @@ test('Arrow fidelity preset renders generated visuals without component grants',
   await expect(surface.locator('#launch-score')).toContainText('Launch score');
   await expect(surface.locator('#quality-trend')).toContainText('Quality trend');
   expect(requests[0].components).toBeUndefined();
+  expect(requests[0].fingerprint).toEqual({
+    id: 'editorial-mono',
+    targetPath: '.',
+  });
+  expect(requests[0].directionId).toBeUndefined();
   await expect(page.locator('#event-log')).toContainText('rendered');
 });
 

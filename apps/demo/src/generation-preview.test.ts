@@ -21,7 +21,7 @@ const hostResourcePlan: SurfacePlan = {
   network: 'none',
 };
 
-test('generation preview uses host layout slots before stream regions arrive', () => {
+test('generation preview stays empty before real stream regions arrive', () => {
   const preview = buildGenerationPreview({
     prompt: 'build a launch plan',
     status: 'drafting',
@@ -36,16 +36,7 @@ test('generation preview uses host layout slots before stream regions arrive', (
     toolNames: [],
   });
 
-  assert.deepEqual(preview.sections.map((section) => section.label), [
-    'Header',
-    'Content',
-    'Actions',
-  ]);
-  assert.deepEqual(preview.sections.map((section) => section.source), [
-    'layout',
-    'layout',
-    'layout',
-  ]);
+  assert.deepEqual(preview.sections, []);
 });
 
 test('generation preview enriches layout slots with streamed region labels and summaries', () => {
@@ -129,7 +120,7 @@ test('generation preview reducer folds streamed events into a host snapshot', ()
   assert.equal(preview.sections[0]?.summary, 'Clarifies the launch question.');
 });
 
-test('generation preview falls back to a generic skeleton without layout or stream events', () => {
+test('generation preview does not invent semantic sections without stream events', () => {
   const preview = buildGenerationPreview({
     prompt: 'explain Roth vs traditional IRA',
     status: 'planning',
@@ -148,16 +139,7 @@ test('generation preview falls back to a generic skeleton without layout or stre
     toolNames: [],
   });
 
-  assert.deepEqual(preview.sections.map((section) => section.label), [
-    'Frame',
-    'Content',
-    'Takeaway',
-  ]);
-  assert.deepEqual(preview.sections.map((section) => section.source), [
-    'fallback',
-    'fallback',
-    'fallback',
-  ]);
+  assert.deepEqual(preview.sections, []);
 });
 
 test('generation preview creates a small set of user-facing chips from contract data', () => {

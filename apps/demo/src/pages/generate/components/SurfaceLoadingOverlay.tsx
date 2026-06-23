@@ -45,12 +45,11 @@ export function SurfaceLoadingOverlay({
   className?: string;
 }) {
   const sections = (preview?.sections ?? []).slice(0, compact ? 3 : 4);
-  const chips = (preview?.chips ?? []).slice(0, compact ? 2 : 4);
 
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-0 z-[3] flex items-center justify-center bg-surface-raised/88 px-6 text-center backdrop-blur-md transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_420ms_cubic-bezier(0.22,1,0.36,1)_both]",
+        "pointer-events-none absolute inset-0 z-[3] flex items-center justify-center overflow-hidden bg-surface/96 px-6 text-center backdrop-blur-md transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_420ms_cubic-bezier(0.22,1,0.36,1)_both]",
         className,
       )}
       data-summon-host-loader
@@ -58,9 +57,10 @@ export function SurfaceLoadingOverlay({
       aria-live="polite"
       aria-label={`${label}: ${preview?.phase ?? statusText}`}
     >
+      <div className="summon-host-dot-field" aria-hidden="true" />
       <div
         className={cn(
-          "grid w-full justify-items-center",
+          "relative z-[1] grid w-full justify-items-center",
           compact ? "max-w-[320px] gap-2.5" : "max-w-[520px] gap-4",
         )}
       >
@@ -92,7 +92,7 @@ export function SurfaceLoadingOverlay({
             {preview?.phase ?? statusText}
           </span>
         </div>
-        {preview ? (
+        {sections.length > 0 ? (
           <div
             className={cn(
               "summon-host-preview-sketch grid w-full min-w-0 gap-3 text-left",
@@ -101,33 +101,6 @@ export function SurfaceLoadingOverlay({
             data-summon-preview-sketch
             aria-hidden="true"
           >
-            <div className="grid min-w-0 gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate font-medium leading-tight text-ink",
-                    compact ? "text-[12px]" : "text-[14px]",
-                  )}
-                >
-                  {preview.title}
-                </span>
-                <span className="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
-                  {preview.kind}
-                </span>
-              </div>
-              {chips.length ? (
-                <div className="flex min-w-0 flex-wrap gap-1.5">
-                  {chips.map((chip) => (
-                    <span
-                      key={chip}
-                      className="rounded-full border border-line/70 px-2 py-0.5 font-mono text-[10px] font-semibold leading-tight tracking-normal text-ink-muted"
-                    >
-                      {chip}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
             <div className="grid gap-2.5">
               {sections.map((section, index) => (
                 <PreviewSection

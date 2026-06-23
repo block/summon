@@ -13,6 +13,7 @@ export type {
   SurfaceStatus,
   SurfaceEventLine,
   ArtifactLine,
+  HtmlPatchLine,
   ProtocolParseErrorCode,
   ProtocolParseOptions,
   ProtocolSkipMetaValue,
@@ -43,6 +44,30 @@ export type {
   SummonArrowPreviewRegion,
 } from './arrow-bundle.js';
 export {
+  SUMMON_HTML_BUNDLE_SCHEMA,
+  canonicalizeHtmlFragment,
+  createHtmlBundleJsonSchema,
+  createHtmlBundleToolDefinition,
+  htmlArtifactFromBundle,
+  isHtmlSurfaceArtifact,
+  isSummonHtmlBundle,
+  normalizeHtmlBundle,
+  normalizeHtmlSurfaceArtifact,
+  normalizeHtmlSurfacePatch,
+  validateHtmlSurfaceArtifact,
+  validateHtmlSurfacePatch,
+} from './html-artifact.js';
+export type {
+  HtmlArtifactValidationOptions,
+  HtmlPatchAction,
+  HtmlSurfaceArtifact,
+  HtmlSurfacePatch,
+  NormalizeHtmlBundleResult,
+  SummonHtmlBundle,
+  SummonHtmlPreview,
+  SummonHtmlPreviewRegion,
+} from './html-artifact.js';
+export {
   DEFAULT_VALIDATION_LIMITS,
   normalizeValidationLimits,
 } from './validation-limits.js';
@@ -57,8 +82,10 @@ export type {
 } from './stream-graph.js';
 export {
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_FIXED_HTML_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS as SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
+  SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
   buildDirectionBlock,
   buildLayoutBlock,
   buildToolsBlock,
@@ -69,11 +96,20 @@ export type {
   DirectionInput,
   SummonLayout,
   SummonLayoutSlot,
+  PromptRuntimeOptions,
   ToolSpec,
   DataResourceSpec,
   ToolPattern,
   ToolPack,
 } from './prompt.js';
+export {
+  DEFAULT_SUMMON_OUTPUT_RUNTIME,
+  isHtmlOutputRuntime,
+  isScriptedHtmlOutputRuntime,
+} from './output-runtime.js';
+export type {
+  SummonOutputRuntime,
+} from './output-runtime.js';
 export {
   compileTokenContract,
   compileDirectionContract,
@@ -168,6 +204,20 @@ export type {
   SurfacePurpose,
   SurfaceNetwork,
 } from './surface-plan.js';
+export {
+  GENERATION_FINGERPRINT_SELECTION_PREFIX,
+  buildFingerprintSteeringPayload,
+  buildGhostSteeringPayload,
+  fingerprintIdFromSelection,
+  fingerprintSelectionValue,
+} from './generation-steering.js';
+export type {
+  GenerationFingerprintSteeringInput,
+  GenerationFingerprintSteeringPayload,
+  GenerationGhostSteeringInput,
+  GenerationGhostSteeringPayload,
+  GenerationSteeringPayload,
+} from './generation-steering.js';
 export {
   compileSurfacePolicy,
   normalizeSurfacePolicy,

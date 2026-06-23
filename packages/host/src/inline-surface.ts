@@ -1,14 +1,27 @@
 import type { EventStore } from '@summon-internal/devtools';
 import type {
   ArrowSurfaceArtifact,
+  HtmlSurfaceArtifact,
+  HtmlPatchAction,
+  HtmlSurfacePatch,
   SurfaceStatus,
   SurfaceEvent,
   ValidationTool,
 } from '@summon-internal/engine';
 
+export type InlineSurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact;
+
+export interface HtmlStreamPreviewDelta {
+  runtime: 'html';
+  target: string;
+  action: HtmlPatchAction;
+  delta?: string;
+  text?: string;
+}
+
 export interface InlineSurfaceOptions {
   root: HTMLElement;
-  artifact?: ArrowSurfaceArtifact | null;
+  artifact?: InlineSurfaceArtifact | null;
   grantedTools: string[];
   validationTools?: ValidationTool[];
   initialState?: Record<string, unknown>;
@@ -48,7 +61,9 @@ export interface SurfacePreviewSnapshot {
 export interface InlineSurfaceHandle {
   surfaceId: string;
   root: HTMLElement;
-  renderArtifact(artifact: ArrowSurfaceArtifact): void;
+  renderArtifact(artifact: InlineSurfaceArtifact): void;
+  applyHtmlPreviewDelta(delta: HtmlStreamPreviewDelta): void;
+  applyHtmlPatch(patch: HtmlSurfacePatch): void;
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot;
   previewSnapshot(): SurfacePreviewSnapshot;
@@ -56,6 +71,12 @@ export interface InlineSurfaceHandle {
 }
 
 const PREVIEW_ROOT_ATTR = 'data-summon-preview-root';
+export const HTML_IFRAME_SANDBOX = 'allow-scripts';
+const HTML_MESSAGE_READY = 'SUMMON_HTML_READY';
+const HTML_MESSAGE_TOOL = 'SUMMON_HTML_TOOL';
+const HTML_MESSAGE_TOOL_RESULT = 'SUMMON_HTML_TOOL_RESULT';
+const HTML_MESSAGE_STATE = 'SUMMON_HTML_STATE';
+const HTML_MESSAGE_PATCH = 'SUMMON_HTML_PATCH';
 const DISABLE_FETCH_PRELUDE = [
   'try {',
   '  Object.defineProperty(globalThis, "fetch", { value: undefined, configurable: true, writable: false });',
@@ -168,6 +189,13 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
   const preview = createPreviewState();
   let currentState = cloneState(options.initialState);
   let arrowTeardown: (() => void) | null = null;
+  let htmlTeardown: (() => void) | null = null;
+  let htmlFrame: HTMLIFrameElement | null = null;
+  let htmlPreviewFrame: HTMLIFrameElement | null = null;
+  let htmlSandboxId: string | null = null;
+  let htmlReady = false;
+  const pendingHtmlPatches: HtmlSurfacePatch[] = [];
+  const htmlPreviewBuffers = new Map<string, string>();
   let renderRevision = 0;
   // Preview status events can arrive after an accepted artifact line but before
   // Arrow's sandbox DOM exists. Track the host-owned render lifecycle instead
@@ -213,6 +241,136 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     return result;
   };
 
+  const teardownHtmlRuntime = () => {
+    if (htmlTeardown) {
+      try {
+        htmlTeardown();
+      } catch {
+        // best effort
+      }
+    }
+    htmlTeardown = null;
+    htmlFrame = null;
+    htmlSandboxId = null;
+    htmlReady = false;
+    pendingHtmlPatches.length = 0;
+    clearHtmlPreview();
+  };
+
+  const clearHtmlPreview = (target?: string) => {
+    if (target) {
+      for (const key of Array.from(htmlPreviewBuffers.keys())) {
+        if (key.endsWith(`:${target}`)) htmlPreviewBuffers.delete(key);
+      }
+    } else {
+      htmlPreviewBuffers.clear();
+    }
+    if (htmlPreviewBuffers.size > 0) {
+      renderHtmlPreviewFrame();
+      return;
+    }
+    htmlPreviewFrame?.remove();
+    htmlPreviewFrame = null;
+  };
+
+  const renderHtmlPreviewFrame = () => {
+    const bodyHtml = Array.from(htmlPreviewBuffers.values()).join('\n');
+    if (!bodyHtml.trim()) {
+      clearHtmlPreview();
+      return;
+    }
+    const frame = htmlPreviewFrame ?? document.createElement('iframe');
+    if (!htmlPreviewFrame) {
+      frame.className = 'summon-html-stream-preview-frame';
+      frame.title = 'Summon inert HTML stream preview';
+      frame.setAttribute('sandbox', '');
+      frame.setAttribute('referrerpolicy', 'no-referrer');
+      htmlPreviewFrame = frame;
+      root.append(frame);
+    }
+    frame.srcdoc = buildHtmlPreviewSrcdoc({
+      bodyHtml,
+      tokensSource: options.tokensSource,
+    });
+  };
+
+  const postHtmlMessage = (type: string, value: Record<string, unknown> = {}) => {
+    if (!htmlFrame?.contentWindow || !htmlSandboxId) return false;
+    htmlFrame.contentWindow.postMessage({ type, sandboxId: htmlSandboxId, ...value }, '*');
+    return true;
+  };
+
+  const flushHtmlPatches = () => {
+    if (!htmlReady) return;
+    while (pendingHtmlPatches.length > 0) {
+      const patch = pendingHtmlPatches.shift();
+      if (!patch) continue;
+      postHtmlMessage(HTML_MESSAGE_PATCH, { patch });
+    }
+  };
+
+  const renderHtmlArtifact = (artifact: HtmlSurfaceArtifact, revision: number) => {
+    teardownHtmlRuntime();
+    if (arrowTeardown) {
+      try {
+        arrowTeardown();
+      } catch {
+        // best effort
+      }
+      arrowTeardown = null;
+    }
+    renderState = 'rendering';
+    clearRuntimeChildren(root);
+
+    const sandboxId = `${surfaceId}-${revision}`;
+    const bootstrapNonce = randomNonce();
+    const frame = document.createElement('iframe');
+    frame.className = 'summon-html-surface-frame';
+    frame.title = 'Summon generated HTML surface';
+    frame.setAttribute('sandbox', HTML_IFRAME_SANDBOX);
+    frame.setAttribute('referrerpolicy', 'no-referrer');
+    frame.srcdoc = buildHtmlSandboxSrcdoc({
+      artifact,
+      sandboxId,
+      bootstrapNonce,
+      tokensSource: options.tokensSource,
+    });
+    htmlFrame = frame;
+    htmlSandboxId = sandboxId;
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== frame.contentWindow) return;
+      const message = parseHtmlSandboxMessage(event.data, sandboxId);
+      if (!message) {
+        options.onToolRejected?.('forged or malformed HTML sandbox message', event.data);
+        return;
+      }
+      if (message.type === HTML_MESSAGE_READY) {
+        if (disposed || revision !== renderRevision) return;
+        htmlReady = true;
+        renderState = 'rendered';
+        postHtmlMessage(HTML_MESSAGE_STATE, { state: cloneState(currentState) });
+        flushHtmlPatches();
+        options.events?.push({ kind: 'rendered', at: Date.now(), surfaceId, revision });
+        return;
+      }
+      if (message.type === HTML_MESSAGE_TOOL) {
+        void callToolInternal(message.tool, message.args).then((result) => {
+          postHtmlMessage(HTML_MESSAGE_TOOL_RESULT, {
+            requestId: message.requestId,
+            result,
+          });
+        });
+      }
+    };
+    window.addEventListener('message', onMessage);
+    htmlTeardown = () => {
+      window.removeEventListener('message', onMessage);
+      frame.remove();
+    };
+    root.append(frame);
+  };
+
   const handle: InlineSurfaceHandle = {
     surfaceId,
     root,
@@ -220,6 +378,17 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       if (disposed) return;
       renderRevision += 1;
       const revision = renderRevision;
+      if (artifact.runtime === 'html') {
+        options.events?.push({
+          kind: 'render',
+          at: Date.now(),
+          surfaceId,
+          bytes: JSON.stringify(artifact.source).length,
+        });
+        renderHtmlArtifact(artifact, revision);
+        return;
+      }
+      teardownHtmlRuntime();
       if (arrowTeardown) {
         try {
           arrowTeardown();
@@ -300,6 +469,28 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       if (disposed) return;
       currentState = cloneState(state);
       notifyState();
+      postHtmlMessage(HTML_MESSAGE_STATE, { state: cloneState(currentState) });
+    },
+    applyHtmlPatch(patch) {
+      if (disposed) return;
+      clearHtmlPreview(patch.target);
+      if (!htmlFrame || !htmlSandboxId || !htmlReady) {
+        pendingHtmlPatches.push(patch);
+        return;
+      }
+      postHtmlMessage(HTML_MESSAGE_PATCH, { patch });
+    },
+    applyHtmlPreviewDelta(delta) {
+      if (disposed) return;
+      const text = typeof delta.delta === 'string'
+        ? delta.delta
+        : typeof delta.text === 'string'
+          ? delta.text
+          : '';
+      if (!text || !delta.target || !delta.action) return;
+      const key = `${delta.action}:${delta.target}`;
+      htmlPreviewBuffers.set(key, `${htmlPreviewBuffers.get(key) ?? ''}${text}`);
+      renderHtmlPreviewFrame();
     },
     applyPreviewEvent(event) {
       const snapshot = preview.apply(event);
@@ -322,6 +513,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
         }
       }
       arrowTeardown = null;
+      teardownHtmlRuntime();
       subscribers.clear();
       root.replaceChildren();
       root.classList.remove('summon-inline-surface');
@@ -339,6 +531,151 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
   });
   if (options.artifact) handle.renderArtifact(options.artifact);
   return handle;
+}
+
+export interface HtmlSandboxSrcdocOptions {
+  artifact: HtmlSurfaceArtifact;
+  sandboxId: string;
+  bootstrapNonce: string;
+  tokensSource?: string;
+}
+
+export interface HtmlPreviewSrcdocOptions {
+  bodyHtml: string;
+  tokensSource?: string;
+}
+
+export type HtmlSandboxMessage =
+  | {
+      type: typeof HTML_MESSAGE_READY;
+      sandboxId: string;
+    }
+  | {
+      type: typeof HTML_MESSAGE_TOOL;
+      sandboxId: string;
+      requestId: string;
+      tool: string;
+      args: Record<string, unknown>;
+    };
+
+export function buildHtmlSandboxCsp(nonce: string): string {
+  return [
+    "default-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+    "connect-src 'none'",
+    "object-src 'none'",
+    'img-src data:',
+    'font-src data:',
+    'media-src data:',
+    `style-src 'nonce-${cspNonce(nonce)}' 'unsafe-inline'`,
+    `script-src 'nonce-${cspNonce(nonce)}'`,
+  ].join('; ');
+}
+
+export function buildHtmlPreviewCsp(): string {
+  return [
+    "default-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+    "connect-src 'none'",
+    "object-src 'none'",
+    'img-src data:',
+    'font-src data:',
+    'media-src data:',
+    "style-src 'unsafe-inline'",
+    "script-src 'none'",
+  ].join('; ');
+}
+
+export function buildHtmlSandboxSrcdoc(options: HtmlSandboxSrcdocOptions): string {
+  const { artifact, bootstrapNonce, sandboxId } = options;
+  const css = [
+    htmlSandboxFrameCss(),
+    options.tokensSource ?? '',
+    artifact.source['main.css'] ?? '',
+  ].filter(Boolean).join('\n');
+  const generatedScript = artifact.source['main.js'];
+  return [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '<meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    `<meta http-equiv="Content-Security-Policy" content="${escapeHtmlAttr(buildHtmlSandboxCsp(bootstrapNonce))}">`,
+    `<style nonce="${escapeHtmlAttr(bootstrapNonce)}">${escapeStyleText(css)}</style>`,
+    '</head>',
+    '<body>',
+    '<main id="summon-html-root">',
+    artifact.source['body.html'],
+    '</main>',
+    `<script nonce="${escapeHtmlAttr(bootstrapNonce)}">${escapeScriptText(htmlSandboxBootstrap(sandboxId))}</script>`,
+    generatedScript
+      ? `<script nonce="${escapeHtmlAttr(bootstrapNonce)}">${escapeScriptText(generatedScript)}</script>`
+      : '',
+    '</body>',
+    '</html>',
+  ].join('');
+}
+
+export function buildHtmlPreviewSrcdoc(options: HtmlPreviewSrcdocOptions): string {
+  const css = [
+    htmlSandboxFrameCss(),
+    options.tokensSource ?? '',
+    `
+body {
+  background: color-mix(in srgb, var(--color-bg, Canvas) 92%, transparent);
+}
+#summon-html-stream-preview-root {
+  min-height: 100%;
+}
+`,
+  ].filter(Boolean).join('\n');
+  return [
+    '<!doctype html>',
+    '<html>',
+    '<head>',
+    '<meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    `<meta http-equiv="Content-Security-Policy" content="${escapeHtmlAttr(buildHtmlPreviewCsp())}">`,
+    `<style>${escapeStyleText(css)}</style>`,
+    '</head>',
+    '<body>',
+    '<main id="summon-html-stream-preview-root">',
+    options.bodyHtml,
+    '</main>',
+    '</body>',
+    '</html>',
+  ].join('');
+}
+
+export function parseHtmlSandboxMessage(value: unknown, expectedSandboxId: string): HtmlSandboxMessage | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const message = value as Record<string, unknown>;
+  if (message.sandboxId !== expectedSandboxId) return null;
+  if (message.type === HTML_MESSAGE_READY) {
+    return {
+      type: HTML_MESSAGE_READY,
+      sandboxId: expectedSandboxId,
+    };
+  }
+  if (message.type === HTML_MESSAGE_TOOL) {
+    if (typeof message.requestId !== 'string' || !message.requestId) return null;
+    if (typeof message.tool !== 'string' || !message.tool) return null;
+    const args = message.args && typeof message.args === 'object' && !Array.isArray(message.args)
+      ? message.args as Record<string, unknown>
+      : {};
+    return {
+      type: HTML_MESSAGE_TOOL,
+      sandboxId: expectedSandboxId,
+      requestId: message.requestId,
+      tool: message.tool,
+      args,
+    };
+  }
+  return null;
 }
 
 async function loadSandboxFactory(): Promise<SandboxFactory> {
@@ -491,17 +828,278 @@ function renderRuntimeError(root: HTMLElement, reason: string): void {
   root.append(errorRoot);
 }
 
-function scopeTokenCss(css: string, surfaceId: string): string {
-  const selector = `[data-summon-inline-surface="${surfaceId}"]`;
-  return css
-    .replaceAll(':root', selector)
-    .replace(/html\s*,\s*body\s*\{/g, `${selector} {`);
+export function scopeTokenCss(css: string, surfaceId: string): string {
+  return scopeCssRules(css, `[data-summon-inline-surface="${escapeCssIdentifier(surfaceId)}"]`);
+}
+
+function scopeCssRules(css: string, rootSelector: string): string {
+  let output = '';
+  let cursor = 0;
+
+  while (cursor < css.length) {
+    const delimiter = findNextRuleDelimiter(css, cursor);
+    if (!delimiter) {
+      output += css.slice(cursor);
+      break;
+    }
+
+    const prelude = css.slice(cursor, delimiter.index);
+    if (delimiter.char === ';') {
+      output += prelude + delimiter.char;
+      cursor = delimiter.index + 1;
+      continue;
+    }
+
+    const close = findMatchingBlockEnd(css, delimiter.index);
+    if (close < 0) {
+      output += css.slice(cursor);
+      break;
+    }
+
+    const block = css.slice(delimiter.index + 1, close);
+    const atRuleName = parseAtRuleName(prelude);
+    if (atRuleName) {
+      output += prelude + '{' + (atRuleContainsStyleRules(atRuleName) ? scopeCssRules(block, rootSelector) : block) + '}';
+    } else {
+      output += scopeSelectorList(prelude, rootSelector) + '{' + block + '}';
+    }
+    cursor = close + 1;
+  }
+
+  return output;
+}
+
+function scopeSelectorList(selectorList: string, rootSelector: string): string {
+  return splitSelectorList(selectorList)
+    .map((selector) => scopeOneSelector(selector, rootSelector))
+    .join(',');
+}
+
+function scopeOneSelector(selector: string, rootSelector: string): string {
+  const leadingTriviaLength = leadingCssTriviaLength(selector);
+  const leadingTrivia = selector.slice(0, leadingTriviaLength);
+  const selectorBody = selector.slice(leadingTriviaLength);
+  const trailingWhitespace = selector.match(/\s*$/)?.[0] ?? '';
+  const trimmed = selectorBody.trim();
+  if (!trimmed) return selector;
+  if (trimmed.startsWith(rootSelector)) return selector;
+
+  const rootScoped = trimmed
+    .replace(/^:root\b/, rootSelector)
+    .replace(/^html\b/, rootSelector)
+    .replace(/^body\b/, rootSelector);
+  if (rootScoped !== trimmed) {
+    return `${leadingTrivia}${rootScoped}${trailingWhitespace}`;
+  }
+
+  return `${leadingTrivia}${rootSelector} ${trimmed}${trailingWhitespace}`;
+}
+
+function leadingCssTriviaLength(value: string): number {
+  let index = 0;
+  while (index < value.length) {
+    const whitespace = value.slice(index).match(/^\s+/)?.[0];
+    if (whitespace) {
+      index += whitespace.length;
+      continue;
+    }
+    if (value[index] === '/' && value[index + 1] === '*') {
+      const commentEnd = value.indexOf('*/', index + 2);
+      if (commentEnd < 0) return index;
+      index = commentEnd + 2;
+      continue;
+    }
+    break;
+  }
+  return index;
+}
+
+function splitSelectorList(selectorList: string): string[] {
+  const selectors: string[] = [];
+  let start = 0;
+  let squareDepth = 0;
+  let parenDepth = 0;
+  let quote: '"' | "'" | null = null;
+  let inComment = false;
+
+  for (let i = 0; i < selectorList.length; i += 1) {
+    const char = selectorList[i];
+    const next = selectorList[i + 1];
+    if (inComment) {
+      if (char === '*' && next === '/') {
+        inComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (char === '\\') {
+        i += 1;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      inComment = true;
+      i += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '[') {
+      squareDepth += 1;
+      continue;
+    }
+    if (char === ']') {
+      squareDepth = Math.max(0, squareDepth - 1);
+      continue;
+    }
+    if (char === '(') {
+      parenDepth += 1;
+      continue;
+    }
+    if (char === ')') {
+      parenDepth = Math.max(0, parenDepth - 1);
+      continue;
+    }
+    if (char === ',' && squareDepth === 0 && parenDepth === 0) {
+      selectors.push(selectorList.slice(start, i));
+      start = i + 1;
+    }
+  }
+
+  selectors.push(selectorList.slice(start));
+  return selectors;
+}
+
+function findNextRuleDelimiter(css: string, start: number): { index: number; char: '{' | ';' } | null {
+  let parenDepth = 0;
+  let squareDepth = 0;
+  let quote: '"' | "'" | null = null;
+  let inComment = false;
+
+  for (let i = start; i < css.length; i += 1) {
+    const char = css[i];
+    const next = css[i + 1];
+    if (inComment) {
+      if (char === '*' && next === '/') {
+        inComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (char === '\\') {
+        i += 1;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      inComment = true;
+      i += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '(') {
+      parenDepth += 1;
+      continue;
+    }
+    if (char === ')') {
+      parenDepth = Math.max(0, parenDepth - 1);
+      continue;
+    }
+    if (char === '[') {
+      squareDepth += 1;
+      continue;
+    }
+    if (char === ']') {
+      squareDepth = Math.max(0, squareDepth - 1);
+      continue;
+    }
+    if (parenDepth === 0 && squareDepth === 0 && (char === '{' || char === ';')) {
+      return { index: i, char };
+    }
+  }
+
+  return null;
+}
+
+function findMatchingBlockEnd(css: string, openIndex: number): number {
+  let depth = 0;
+  let quote: '"' | "'" | null = null;
+  let inComment = false;
+
+  for (let i = openIndex; i < css.length; i += 1) {
+    const char = css[i];
+    const next = css[i + 1];
+    if (inComment) {
+      if (char === '*' && next === '/') {
+        inComment = false;
+        i += 1;
+      }
+      continue;
+    }
+    if (quote) {
+      if (char === '\\') {
+        i += 1;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      inComment = true;
+      i += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '{') {
+      depth += 1;
+      continue;
+    }
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+
+  return -1;
+}
+
+function parseAtRuleName(prelude: string): string | null {
+  const match = prelude.slice(leadingCssTriviaLength(prelude)).match(/^@([A-Za-z-]+)/);
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
+function atRuleContainsStyleRules(name: string): boolean {
+  return !new Set([
+    'counter-style',
+    'font-face',
+    'keyframes',
+    'page',
+    'property',
+  ]).has(name);
+}
+
+function escapeCssIdentifier(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 function defaultPreviewCss(surfaceId: string): string {
   return `
 [data-summon-inline-surface="${surfaceId}"] {
-  min-height: 100%;
+  position: relative;
   background: var(--color-bg, Canvas);
   color: var(--color-text, CanvasText);
   font-family: var(--font-sans, system-ui, sans-serif);
@@ -566,6 +1164,25 @@ function defaultPreviewCss(surfaceId: string): string {
   font-size: clamp(15px, 2vw, 20px);
   line-height: 1.45;
 }
+[data-summon-inline-surface="${surfaceId}"] .summon-html-surface-frame {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--color-bg, Canvas);
+}
+[data-summon-inline-surface="${surfaceId}"] .summon-html-stream-preview-frame {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+  background: transparent;
+}
 @keyframes summon-preview-spin {
   to { transform: rotate(360deg); }
 }
@@ -574,6 +1191,139 @@ function defaultPreviewCss(surfaceId: string): string {
   50% { transform: scale(1); opacity: 0.68; }
 }
 `;
+}
+
+function htmlSandboxFrameCss(): string {
+  return `
+html,
+body,
+#summon-html-root {
+  min-height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--color-bg, Canvas);
+  color: var(--color-text, CanvasText);
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+* {
+  box-sizing: border-box;
+}
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+`;
+}
+
+function htmlSandboxBootstrap(sandboxId: string): string {
+  return `
+(() => {
+  const sandboxId = ${JSON.stringify(sandboxId)};
+  const pending = new Map();
+  let requestSeq = 0;
+  let currentState = {};
+  const clone = (value) => {
+    if (!value || typeof value !== 'object') return {};
+    try { return JSON.parse(JSON.stringify(value)); } catch { return {}; }
+  };
+  const send = (type, payload = {}) => {
+    window.parent.postMessage({ type, sandboxId, ...payload }, '*');
+  };
+  const fragmentFromHtml = (html) => {
+    const template = document.createElement('template');
+    template.innerHTML = String(html || '');
+    return template.content;
+  };
+  const applyPatch = (patch) => {
+    if (!patch || patch.runtime !== 'html' || typeof patch.target !== 'string') return;
+    const target = document.getElementById(patch.target);
+    if (!target) return;
+    if (patch.action === 'remove') {
+      target.remove();
+      return;
+    }
+    const fragment = fragmentFromHtml(patch.html);
+    if (patch.action === 'append') {
+      target.append(fragment);
+      return;
+    }
+    if (patch.action === 'update') {
+      target.replaceChildren(fragment);
+      return;
+    }
+    if (patch.action === 'replace' || patch.action === 'morph') {
+      target.replaceWith(fragment);
+    }
+  };
+  window.summon = Object.freeze({
+    getState() {
+      return clone(currentState);
+    },
+    callTool(tool, args = {}) {
+      const requestId = 'html-tool-' + (++requestSeq);
+      send(${JSON.stringify(HTML_MESSAGE_TOOL)}, {
+        requestId,
+        tool: String(tool || ''),
+        args: clone(args),
+      });
+      return new Promise((resolve) => {
+        pending.set(requestId, resolve);
+      });
+    },
+  });
+  window.addEventListener('message', (event) => {
+    const message = event.data;
+    if (!message || typeof message !== 'object' || message.sandboxId !== sandboxId) return;
+    if (message.type === ${JSON.stringify(HTML_MESSAGE_STATE)}) {
+      currentState = clone(message.state);
+      return;
+    }
+    if (message.type === ${JSON.stringify(HTML_MESSAGE_PATCH)}) {
+      applyPatch(message.patch);
+      return;
+    }
+    if (message.type === ${JSON.stringify(HTML_MESSAGE_TOOL_RESULT)}) {
+      const resolve = pending.get(message.requestId);
+      if (resolve) {
+        pending.delete(message.requestId);
+        resolve(message.result || { ok: false, state: clone(currentState), error: 'missing result' });
+      }
+    }
+  });
+  send(${JSON.stringify(HTML_MESSAGE_READY)});
+})();
+`;
+}
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
+function escapeStyleText(value: string): string {
+  return value.replace(/<\/style/gi, '<\\/style');
+}
+
+function escapeScriptText(value: string): string {
+  return value.replace(/<\/script/gi, '<\\/script');
+}
+
+function cspNonce(value: string): string {
+  return value.replace(/[^A-Za-z0-9+/_=-]/g, '');
+}
+
+function randomNonce(): string {
+  const bytes = new Uint8Array(16);
+  globalThis.crypto?.getRandomValues?.(bytes);
+  if (bytes.some(Boolean)) {
+    return btoa(String.fromCharCode(...bytes)).replace(/=+$/, '');
+  }
+  return `nonce-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
 function randomSurfaceId(): string {

@@ -359,7 +359,7 @@ export function DropdownSelect({
                     disabled={option.disabled}
                     title={option.title ?? option.description}
                     className={cn(
-                      'relative flex w-full min-w-0 items-start gap-2 rounded-control px-2.5 py-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-surface-muted focus:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-45',
+                      'relative flex w-full min-w-0 items-start gap-2 rounded-[18px] px-2.5 py-2 text-left text-xs outline-none transition-colors duration-150 hover:bg-surface-muted focus:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-45',
                       selected && 'bg-surface-muted text-ink',
                     )}
                     onClick={() => selectOption(option)}

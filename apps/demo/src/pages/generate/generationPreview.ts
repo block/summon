@@ -14,7 +14,7 @@ export interface GenerationPreviewSection {
   label: string;
   summary?: string;
   role?: string;
-  source: 'layout' | 'stream' | 'fallback';
+  source: 'layout' | 'stream';
 }
 
 export interface GenerationPreviewModel {
@@ -49,11 +49,9 @@ export function buildGenerationPreview(
   const layout = input.contractView?.layout ?? input.layout;
   const layoutSections = sectionsFromLayout(layout);
   const streamSections = sectionsFromSnapshot(input.previewSnapshot);
-  const fallbackSections = sectionsFromPlan(plan);
   const sections = mergeSections({
     layout: layoutSections,
     stream: streamSections,
-    fallback: fallbackSections,
   });
 
   return {
@@ -182,49 +180,12 @@ function sectionsFromSnapshot(
     }));
 }
 
-function sectionsFromPlan(plan: SurfacePlan | null): GenerationPreviewSection[] {
-  const dataSummary =
-    plan?.data === 'host-resource'
-      ? 'Making room for loading, results, and empty states'
-      : 'Shaping the generated content hierarchy';
-  const actionSummary =
-    plan?.authority === 'host-action'
-      ? 'Reserving space for host-owned controls'
-      : 'Preparing the final takeaway';
-
-  return [
-    {
-      id: 'fallback:frame',
-      label: 'Frame',
-      summary: 'Setting structure and rhythm',
-      role: 'frame',
-      source: 'fallback',
-    },
-    {
-      id: 'fallback:content',
-      label: plan?.data === 'host-resource' ? 'Data states' : 'Content',
-      summary: dataSummary,
-      role: 'content',
-      source: 'fallback',
-    },
-    {
-      id: 'fallback:finish',
-      label: plan?.authority === 'host-action' ? 'Controls' : 'Takeaway',
-      summary: actionSummary,
-      role: 'finish',
-      source: 'fallback',
-    },
-  ];
-}
-
 function mergeSections({
   layout,
   stream,
-  fallback,
 }: {
   layout: GenerationPreviewSection[];
   stream: GenerationPreviewSection[];
-  fallback: GenerationPreviewSection[];
 }): GenerationPreviewSection[] {
   if (layout.length > 0 && stream.length > 0) {
     const merged = layout.map((section, index) => {
@@ -243,8 +204,7 @@ function mergeSections({
   }
 
   if (stream.length > 0) return stream.slice(0, 4);
-  if (layout.length > 0) return layout.slice(0, 4);
-  return fallback.slice(0, 3);
+  return [];
 }
 
 function chipsFor({

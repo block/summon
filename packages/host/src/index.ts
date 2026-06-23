@@ -1,5 +1,18 @@
-export { mountInlineSurface } from './inline-surface.js';
+export {
+  HTML_IFRAME_SANDBOX,
+  buildHtmlPreviewCsp,
+  buildHtmlPreviewSrcdoc,
+  buildHtmlSandboxCsp,
+  buildHtmlSandboxSrcdoc,
+  mountInlineSurface,
+  parseHtmlSandboxMessage,
+} from './inline-surface.js';
 export type {
+  HtmlSandboxMessage,
+  HtmlSandboxSrcdocOptions,
+  HtmlPreviewSrcdocOptions,
+  HtmlStreamPreviewDelta,
+  InlineSurfaceArtifact,
   InlineSurfaceHandle,
   InlineSurfaceOptions,
   SurfacePreviewNode,
@@ -51,6 +64,7 @@ export {
 export type {
   CreateSurfaceEnvelopeInput,
   SurfaceEnvelope,
+  SurfaceEnvelopeArtifact,
 } from './surface-envelope.js';
 export { consumeSurfaceStream } from './surface-stream.js';
 export type {
@@ -60,6 +74,7 @@ export type {
   SurfaceStreamParseError,
   SurfaceStreamResult,
   SurfaceStreamSource,
+  SurfaceArtifact,
 } from './surface-stream.js';
 export type {
   Artifact,

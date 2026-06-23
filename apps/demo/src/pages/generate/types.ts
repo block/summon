@@ -1,14 +1,7 @@
 import type { ApprovalRequest, SurfacePolicy } from '@anarchitecture/summon';
 import type { SurfaceStreamResult } from '@anarchitecture/summon/browser';
-import type { SummonLayout, SurfacePlan } from '@anarchitecture/summon/engine';
+import type { SummonLayout, SummonOutputRuntime, SurfacePlan } from '@anarchitecture/summon/engine';
 import type { ActiveContract } from '../../showcase.js';
-
-export interface DirectionInfo {
-  id: string;
-  name: string;
-  description: string;
-  tokensCss: string;
-}
 
 export interface GhostRootInfo {
   id: string;
@@ -90,9 +83,9 @@ export interface TimingEntry {
 export interface StreamOptions {
   prompt: string;
   active: ActiveContract;
-  directionId: string | null;
-  ghostTargetPath: string;
-  ghostBaseDirectionId: string | null;
+  fingerprintId: string | null;
+  experimentalRuntime: SummonOutputRuntime;
+  fingerprintTargetPath: string;
   layout?: SummonLayout | null;
   playgroundMode: boolean;
   signal: AbortSignal;
@@ -119,7 +112,8 @@ export interface ChildSurfaceModel {
   id: number;
   prompt: string;
   title?: string;
-  directionId: string | null;
+  fingerprintId: string | null;
+  fingerprintTargetPath: string;
   tokensSource: string;
   modelSelection: ModelSelectionPayload;
   agentBroker: boolean;

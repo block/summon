@@ -1,9 +1,13 @@
 import {
   type ProtocolLine,
+  type SummonOutputRuntime,
   type ToolPack,
   type SurfaceContractView,
   type SurfacePlan,
   type SurfacePolicy,
+  buildFingerprintSteeringPayload,
+  fingerprintIdFromSelection,
+  fingerprintSelectionValue as engineFingerprintSelectionValue,
 } from '@anarchitecture/summon/engine';
 import {
   narrowToolPack,
@@ -152,12 +156,14 @@ export function surfacePolicyForPlan(
   };
 }
 
+export { buildFingerprintSteeringPayload };
+
 export function fingerprintSelectionValue(fingerprintId: string): string {
-  return `fingerprint:${fingerprintId}`;
+  return engineFingerprintSelectionValue(fingerprintId);
 }
 
 export function fingerprintFromSelection(selection: string | null): string | null {
-  return selection?.startsWith('fingerprint:') ? selection.slice('fingerprint:'.length) : null;
+  return fingerprintIdFromSelection(selection);
 }
 
 export function ghostSelectionValue(rootId: string): string {
@@ -339,17 +345,30 @@ export function buildContractRows({
     ['requested', 'Requested surface config', active.agentBroker ? 'brokered from prompt' : planText(requested), 'neutral'],
     ['effective', 'Effective safety plan', effective, effectivePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${toolCount}: ${hostTools}`, toolCount ? 'neutral' : 'pending'],
-    ['visuals', 'Generated visuals', 'Arrow artifact only', effectivePlan ? 'good' : 'pending'],
+    ['visuals', 'Generated visuals', runtimeTargetText(active.experimentalRuntime), effectivePlan ? 'good' : 'pending'],
     ['runtime', 'Sandbox runtime', runtime, effectivePlan ? 'good' : 'pending'],
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
     ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
-    ['tokens', 'Tokens', active.directionId?.startsWith('fingerprint:') ? 'fingerprint' : 'direction', active.directionId ? 'good' : 'pending'],
+    ['tokens', 'Fingerprint', active.fingerprintId ?? 'pending', active.fingerprintId ? 'good' : 'pending'],
   ].map(([key, label, value, tone]) => ({ key, label, value, tone })) as Array<{
     key: string;
     label: string;
     value: string;
     tone: string;
   }>;
+}
+
+export function runtimeTargetText(runtime: SummonOutputRuntime | undefined): string {
+  switch (runtime ?? 'arrow-control') {
+    case 'arrow-control':
+      return 'Arrow control';
+    case 'html-static':
+      return 'HTML static';
+    case 'html-stream':
+      return 'HTML token preview + commits';
+    case 'html-script':
+      return 'HTML scripted iframe';
+  }
 }
 
 export function numberOptions(presets: number[] | undefined, selected: number): number[] {

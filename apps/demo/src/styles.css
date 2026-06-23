@@ -238,6 +238,23 @@ pre {
   box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ink) 0%, transparent);
 }
 
+.summon-host-dot-field {
+  position: absolute;
+  inset: -20%;
+  opacity: 0.42;
+  background-image:
+    radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-ink) 22%, transparent) 0 1px,
+      transparent 1.25px
+    );
+  background-position: 50% 50%;
+  background-size: 18px 18px;
+  mask-image: radial-gradient(circle at 50% 50%, black 0 34%, transparent 72%);
+  transform: translate3d(0, 0, 0) scale(1);
+  animation: summon-dot-field-breathe 4.6s ease-in-out infinite;
+}
+
 .summon-host-preview-sketch {
   opacity: 0.82;
 }
@@ -379,6 +396,19 @@ pre {
   100% {
     opacity: 0;
     transform: translate3d(-50%, -50%, 0) scale(2.6);
+  }
+}
+
+@keyframes summon-dot-field-breathe {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  50% {
+    opacity: 0.48;
+    transform: translate3d(0, 0, 0) scale(1.018);
   }
 }
 

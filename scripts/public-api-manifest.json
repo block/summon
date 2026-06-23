@@ -77,13 +77,20 @@
     "./browser": {
       "file": "browser",
       "values": [
+        "HTML_IFRAME_SANDBOX",
+        "buildHtmlSandboxCsp",
+        "buildHtmlSandboxSrcdoc",
         "consumeSurfaceStream",
-        "mountInlineSurface"
+        "mountInlineSurface",
+        "parseHtmlSandboxMessage"
       ],
       "types": [
         "ArrowNetworkPolicy",
         "ArrowSurfaceArtifact",
         "Artifact",
+        "HtmlSandboxMessage",
+        "HtmlSandboxSrcdocOptions",
+        "InlineSurfaceArtifact",
         "InlineSurfaceHandle",
         "InlineSurfaceOptions",
         "SurfacePreviewNode",
@@ -93,7 +100,8 @@
         "SurfaceStreamOptions",
         "SurfaceStreamParseError",
         "SurfaceStreamResult",
-        "SurfaceStreamSource"
+        "SurfaceStreamSource",
+        "SurfaceArtifact"
       ]
     },
     "./devtools": {
@@ -148,6 +156,7 @@
         "SURFACE_TIER_VALUES",
         "StreamGraph",
         "TOKEN_CONTRACT",
+        "arrowArtifactFromBundle",
         "buildDirectionBlock",
         "buildLayoutBlock",
         "buildSurfaceContractBlock",
@@ -161,16 +170,22 @@
         "compileTokenContract",
         "compileToolContract",
         "contractIssue",
+        "createArrowBundleJsonSchema",
+        "createHtmlBundleJsonSchema",
         "createProtocolHardener",
         "defaultTriggersForKind",
         "formatTokenContract",
         "formatToolProtocolContract",
         "hasCompleteResourceStateKeys",
+        "htmlArtifactFromBundle",
         "hintsForContractIssue",
         "inferSurfacePlan",
         "isArrowSurfaceArtifact",
+        "isHtmlSurfaceArtifact",
         "isProtocolLine",
+        "normalizeArrowBundle",
         "normalizeArrowSurfaceArtifact",
+        "normalizeHtmlBundle",
         "normalizeSurfacePlan",
         "normalizeSurfacePolicy",
         "normalizeValidationLimits",
@@ -190,6 +205,11 @@
         "ArrowNetworkPolicy",
         "ArrowSurfaceArtifact",
         "ArtifactLine",
+        "HtmlSurfaceArtifact",
+        "HtmlSurfacePatch",
+        "SummonArrowBundle",
+        "SummonHtmlBundle",
+        "SummonOutputRuntime",
         "CompileSurfaceContractViewOptions",
         "CompileSurfacePolicyOptions",
         "CompiledDirectionContract",
@@ -277,10 +297,13 @@
     "./host": {
       "file": "host",
       "values": [
+        "HTML_IFRAME_SANDBOX",
         "PolicyEngine",
         "SUMMON_SURFACE_ENVELOPE_VERSION",
         "ToolArgsError",
         "bindEndpoint",
+        "buildHtmlSandboxCsp",
+        "buildHtmlSandboxSrcdoc",
         "consumeSurfaceStream",
         "createSurfaceEnvelope",
         "createToolRegistry",
@@ -293,6 +316,7 @@
         "defineWorkerResource",
         "isSurfaceEnvelope",
         "mountInlineSurface",
+        "parseHtmlSandboxMessage",
         "parseSurfaceEnvelope"
       ],
       "types": [
@@ -307,6 +331,9 @@
         "DataResourceDefinition",
         "EndpointBinding",
         "EndpointStateKeys",
+        "HtmlSandboxMessage",
+        "HtmlSandboxSrcdocOptions",
+        "InlineSurfaceArtifact",
         "InlineSurfaceHandle",
         "InlineSurfaceOptions",
         "PolicyDispatchResult",
@@ -321,6 +348,7 @@
         "SurfaceStreamParseError",
         "SurfaceStreamResult",
         "SurfaceStreamSource",
+        "SurfaceArtifact",
         "ToolContext",
         "ToolDefinition",
         "ToolHandler",
@@ -354,7 +382,8 @@
       ],
       "types": [
         "SummonSurfaceHandle",
-        "SummonSurfaceProps"
+        "SummonSurfaceProps",
+        "SummonRenderableArtifact"
       ]
     }
   },
@@ -392,6 +421,8 @@
         "ProtocolSkipMetaValue",
         "ArrowBundleRequest",
         "ArrowBundleRepairRequest",
+        "HtmlBundleRequest",
+        "HtmlBundleRepairRequest",
         "SurfaceModelProvider",
         "SurfaceModelRequest",
         "SurfaceGenerationInput",

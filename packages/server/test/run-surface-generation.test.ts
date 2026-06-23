@@ -50,6 +50,173 @@ test('runSurfaceGeneration emits server-owned preview and artifact lines', async
   ]);
 });
 
+test('runSurfaceGeneration emits experimental HTML artifacts when requested', async () => {
+  const lines: ProtocolLine[] = [];
+  let capturedSystemText = '';
+  let streamed = false;
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      throw new Error('Arrow provider should not be used for html-static');
+    },
+    async *streamHtmlSurface() {
+      streamed = true;
+      throw new Error('streamHtmlSurface should not be used for html-static');
+    },
+    async generateHtmlBundle(request) {
+      assert.equal(request.runtime, 'html-static');
+      assert.equal(request.schema.properties && typeof request.schema.properties === 'object', true);
+      capturedSystemText = request.promptBlocks.map((block) => block.text).join('\n');
+      return {
+        schema: 'summon.html-bundle/v0',
+        preview: {
+          kind: 'inform',
+          title: 'HTML',
+          regions: [{ id: 'hero', role: 'summary', label: 'Hero' }],
+        },
+        source: {
+          'body.html': '<section id="hero"><h1>HTML</h1></section>',
+          'main.css': '#hero { color: var(--color-text); }',
+        },
+      };
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'hello html',
+    experimentalRuntime: 'html-static',
+    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search'] },
+    tools: {
+      tools: [
+        {
+          name: 'search',
+          description: 'Search host-owned data.',
+          argsSchema: '{query: string}',
+          stateShape: '{loading: boolean, results: unknown[]}',
+          kind: 'resource',
+          triggers: ['submit'],
+          stateKeys: { loading: 'loading', data: 'results', error: 'error' },
+          surface: { data: 'host-resource', authority: 'read' },
+        },
+      ],
+    },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, false);
+  assert.equal(streamed, false);
+  assert.match(capturedSystemText, /create_summon_html_surface/);
+  assert.match(capturedSystemText, /host-owned context for static HTML/);
+  assert.match(capturedSystemText, /does not receive a host tool bridge/);
+  assert.doesNotMatch(capturedSystemText, /create_summon_arrow_surface/);
+  assert.doesNotMatch(capturedSystemText, /host-bridge:summon/);
+  assert.doesNotMatch(capturedSystemText, /@arrow-js\/core/);
+  assert.doesNotMatch(capturedSystemText, /Runtime is always `arrow`/);
+  assert.doesNotMatch(capturedSystemText, /Arrow artifact/);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/model-output-mode' && (line.value as { runtime?: unknown }).runtime === 'html-static'));
+  const artifact = lines.find((line) => line.op === 'artifact');
+  assert.equal((artifact?.value as { runtime?: unknown } | undefined)?.runtime, 'html');
+});
+
+test('runSurfaceGeneration streams html-stream preview deltas before validated patch commits', async () => {
+  const lines: ProtocolLine[] = [];
+  let generatedHtmlBundle = false;
+  let capturedSystemText = '';
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      throw new Error('Arrow provider should not be used for html-stream');
+    },
+    async generateHtmlBundle() {
+      generatedHtmlBundle = true;
+      throw new Error('generateHtmlBundle should not be used for html-stream');
+    },
+    async *streamHtmlSurface(request) {
+      assert.equal(request.runtime, 'html-stream');
+      capturedSystemText = request.promptBlocks.map((block) => block.text).join('\n');
+      yield '@@summon-html-scaffold\n{"schema":"summon.html-bundle/v0","preview":{"kind":"inform","title":"Stream"},"source":{"body.html":"<main><section id=\\"hero\\"></section></main>","main.css":"#hero{color:var(--color-text)}"}}\n@@end-summon-html-scaffold\n';
+      yield '@@summon-html-patch target="hero" action="replace"\n<section id="hero">';
+      yield '<h2>Updated</h2></section>';
+      yield '\n@@end-summon-html-patch\n';
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'stream html',
+    experimentalRuntime: 'html-stream',
+    playground: true,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, false);
+  assert.equal(generatedHtmlBundle, false);
+  assert.match(capturedSystemText, /Experimental HTML stream protocol/);
+  const artifactIndex = lines.findIndex((line) => line.op === 'artifact');
+  const firstPreviewIndex = lines.findIndex((line) => line.op === 'meta' && line.path === '/html-stream-preview');
+  const patchIndex = lines.findIndex((line) => line.op === 'patch' && line.path === '/artifact/html-patch');
+  assert.ok(artifactIndex >= 0);
+  assert.ok(firstPreviewIndex > artifactIndex);
+  assert.ok(patchIndex > firstPreviewIndex);
+  assert.deepEqual((lines[patchIndex]?.value as { target?: unknown; action?: unknown }), {
+    runtime: 'html',
+    action: 'replace',
+    target: 'hero',
+    html: '<section id="hero"><h2>Updated</h2></section>\n',
+  });
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/html-stream-summary' && (line.value as { committedPatchCount?: unknown }).committedPatchCount === 1));
+});
+
+test('runSurfaceGeneration keeps unsafe html-stream text preview-only and blocks the committed fragment', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      throw new Error('Arrow provider should not be used for html-stream');
+    },
+    async *streamHtmlSurface() {
+      yield '@@summon-html-scaffold\n{"schema":"summon.html-bundle/v0","source":{"body.html":"<main><section id=\\"hero\\"></section></main>"}}\n@@end-summon-html-scaffold\n';
+      yield '@@summon-html-patch target="hero" action="replace"\n<img src="https://example.test/a.png" alt="x">';
+      yield '\n@@end-summon-html-patch\n';
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'unsafe stream html',
+    experimentalRuntime: 'html-stream',
+    playground: true,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, true);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/html-stream-preview'));
+  assert.equal(lines.some((line) => line.op === 'patch' && line.path === '/artifact/html-patch'), false);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'external-url'));
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-blocked' && (line.value as { code?: unknown }).code === 'external-url'));
+});
+
+test('runSurfaceGeneration blocks html-stream output without a scaffold frame', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      throw new Error('Arrow provider should not be used for html-stream');
+    },
+    async *streamHtmlSurface() {
+      yield '@@summon-html-patch target="hero" action="replace"\n<p>Patch before scaffold</p>\n@@end-summon-html-patch\n';
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'missing scaffold',
+    experimentalRuntime: 'html-stream',
+    playground: true,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, true);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'missing-html-stream-scaffold'));
+  assert.equal(lines.some((line) => line.op === 'artifact'), false);
+});
+
 test('runSurfaceGeneration repairs invalid structured bundle', async () => {
   const lines: ProtocolLine[] = [];
   let repaired = false;

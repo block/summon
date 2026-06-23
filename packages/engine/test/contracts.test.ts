@@ -6,6 +6,7 @@ import {
   compileSurfaceContractView,
   compileSystemContracts,
   compileTokenContract,
+  hintsForContractIssue,
   inferSurfacePlan,
   normalizeSurfacePlan,
   suggestSurfacePlan,
@@ -207,6 +208,88 @@ test('system compiler includes a host-owned surface plan block', () => {
   assert.match(surfaceBlock?.text ?? '', /Do not emit a `\/surface-plan` meta line/);
 });
 
+test('system compiler uses HTML-static prompt blocks without Arrow bridge leakage', () => {
+  const compiled = compileSystemContracts({
+    mode: 'interactive',
+    outputRuntime: 'html-static',
+    layout: {
+      id: 'two-slot',
+      slots: [
+        { id: 'hero', purpose: 'Primary answer' },
+        { id: 'details', purpose: 'Supporting context' },
+      ],
+    },
+    surfacePlan: {
+      purpose: 'explore',
+      runtime: 'arrow',
+      data: 'host-resource',
+      authority: 'read',
+      persistence: 'replayable',
+      network: 'none',
+    },
+    tools: {
+      tools: [
+        {
+          name: 'search',
+          description: 'Search host data.',
+          argsSchema: '{query: string}',
+          stateShape: '{loading: boolean, results: unknown[]}',
+          kind: 'resource',
+          triggers: ['submit'],
+          stateKeys: { loading: 'loading', data: 'results', error: 'error' },
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(
+    compiled.promptBlocks.map((block) => block.id),
+    ['fixed', 'layout:two-slot', 'surface-plan', 'tools', 'output-contract'],
+  );
+  assert.equal(compiled.validationContext.experimentalHtmlScript, false);
+  const systemText = compiled.promptBlocks.map((block) => block.text).join('\n');
+  assert.match(systemText, /create_summon_html_surface/);
+  assert.match(systemText, /summon\.html-bundle\/v0/);
+  assert.match(systemText, /Build your HTML bundle/);
+  assert.match(systemText, /host-owned context for static HTML/);
+  assert.match(systemText, /does not receive a host tool bridge/);
+  assert.match(systemText, /Visual composition floor/);
+  assert.match(systemText, /no fixed artboard dimensions/);
+  assert.match(systemText, /at least three distinct visual zones/);
+  assert.doesNotMatch(systemText, /create_summon_arrow_surface/);
+  assert.doesNotMatch(systemText, /host-bridge:summon/);
+  assert.doesNotMatch(systemText, /@arrow-js\/core/);
+  assert.doesNotMatch(systemText, /Runtime is always `arrow`/);
+  assert.doesNotMatch(systemText, /Arrow artifact/);
+});
+
+test('system compiler documents the HTML scripted iframe bridge for html-script', () => {
+  const compiled = compileSystemContracts({
+    mode: 'interactive',
+    outputRuntime: 'html-script',
+    tools: {
+      tools: [
+        {
+          name: 'choose',
+          description: 'Pick an option.',
+          argsSchema: '{option: string}',
+          stateShape: '{choice: string}',
+          triggers: ['click'],
+        },
+      ],
+    },
+  });
+
+  assert.equal(compiled.validationContext.experimentalHtmlScript, true);
+  const toolsBlock = compiled.promptBlocks.find((block) => block.id === 'tools');
+  assert.match(toolsBlock?.text ?? '', /HTML scripted iframe experiment/);
+  assert.match(toolsBlock?.text ?? '', /source\["main\.js"\]/);
+  assert.match(toolsBlock?.text ?? '', /window\.summon\.getState/);
+  assert.match(toolsBlock?.text ?? '', /window\.summon\.callTool/);
+  assert.doesNotMatch(toolsBlock?.text ?? '', /host-bridge:summon/);
+  assert.doesNotMatch(toolsBlock?.text ?? '', /@arrow-js\/core/);
+});
+
 test('system compiler includes compact surface contract view without dropping detail blocks', () => {
   const tools: ToolPack = {
     tools: [
@@ -399,4 +482,23 @@ test('system compiler can produce Arrow-native interactive contracts', () => {
   assert.doesNotMatch(toolsBlock?.text ?? '', /document\.getElementById/);
   assert.doesNotMatch(toolsBlock?.text ?? '', /data-summon-on-click="choose"/);
   assert.match(toolsBlock?.text ?? '', /arrow pattern/);
+});
+
+test('contract repair hints are runtime-aware for shared HTML issue codes', () => {
+  const issue = {
+    source: 'html' as const,
+    severity: 'block' as const,
+    code: 'inline-handler',
+    message: 'Inline event handler is not allowed',
+  };
+
+  assert.deepEqual(hintsForContractIssue(issue), [
+    'Use Arrow event handlers inside the template and call granted host tools with `callTool()` from `host-bridge:summon`.',
+  ]);
+  assert.deepEqual(hintsForContractIssue(issue, { outputRuntime: 'html-static' }), [
+    'Remove inline event handlers; this HTML runtime must be static HTML/CSS without generated event code.',
+  ]);
+  assert.deepEqual(hintsForContractIssue(issue, { outputRuntime: 'html-script' }), [
+    'Move event handling into source["main.js"] and call granted host tools with `window.summon.callTool()` when needed.',
+  ]);
 });

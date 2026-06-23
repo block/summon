@@ -1,5 +1,6 @@
 import type {
   ToolPack,
+  SummonOutputRuntime,
   SurfacePlan,
   SurfacePlanMode,
 } from '@anarchitecture/summon/engine';
@@ -17,7 +18,7 @@ export interface ShowcaseScenario {
   surfacePolicy: SurfacePolicy;
   surfacePlan: SurfacePlan;
   layoutId?: string;
-  directionId?: string | null;
+  fingerprintId?: string | null;
 }
 
 export interface ActiveContract {
@@ -29,11 +30,12 @@ export interface ActiveContract {
   surfacePolicy?: SurfacePolicy;
   surfacePlan: SurfacePlan;
   layoutId?: string;
-  directionId?: string | null;
+  fingerprintId?: string | null;
   modelProvider?: string | null;
   generationModel?: string;
   utilityModel?: string;
   customModel?: boolean;
+  experimentalRuntime?: SummonOutputRuntime;
   modelOptions?: {
     maxOutputTokens?: number;
     anthropicThinking?: 'adaptive' | 'off';
@@ -286,7 +288,7 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
         persistence: 'replayable',
         network: 'none',
       },
-    directionId: `fingerprint:${rootId}`,
+    fingerprintId: rootId,
   };
 }
 

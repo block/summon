@@ -7,4 +7,5 @@ export {
 export type {
   CreateSurfaceEnvelopeInput,
   SurfaceEnvelope,
+  SurfaceEnvelopeArtifact,
 } from '@summon-internal/host/envelope';

@@ -108,7 +108,7 @@ export function createProtocolHardener(options: ProtocolHardenerOptions): Protoc
         };
       }
 
-      if (line.op === 'artifact' || line.op === 'event') {
+      if (line.op === 'artifact' || line.op === 'event' || line.op === 'patch') {
         return {
           outboundLines: [line],
           acceptedLines: [line],
@@ -150,7 +150,7 @@ function isArtifactShapedLine(line: ProtocolLine): line is ArtifactLine {
   const value = line.value;
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const artifact = value as { runtime?: unknown; source?: unknown };
-  if (artifact.runtime !== 'arrow') return false;
+  if (artifact.runtime !== 'arrow' && artifact.runtime !== 'html') return false;
   if (!artifact.source || typeof artifact.source !== 'object' || Array.isArray(artifact.source)) return false;
   return Object.values(artifact.source).every((contents) => typeof contents === 'string');
 }

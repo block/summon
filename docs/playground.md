@@ -1,17 +1,17 @@
-# Summon Playground
+# Summon Diagnostic Playground
 
-The playground is the local-first Summon loop for Ghost-backed generative UI exploration.
+The playground path is the local-first diagnostic loop for Ghost-backed generative UI debugging. The main Generate workbench defaults to real showcase scenarios with the agent broker, host policy, granted tools, repair attempts, and enforced validation.
 
-It keeps the Arrow renderer, but turns hardening into diagnostics:
+Diagnostic mode keeps the Arrow renderer, but turns hardening into diagnostics:
 
 ```txt
-Ghost fingerprint / direction -> prompt -> Arrow bundle -> render
+Ghost fingerprint -> prompt -> Arrow bundle -> render
 ```
 
-When **Playground mode** is enabled in the Generate workbench:
+When **Diagnostic mode** is enabled in the Generate workbench:
 
 - the agent broker is skipped
-- generic response-shape inference does not exist; Ghost composition and host policy shape the run
+- generic response-shape inference does not exist; Ghost composition and the selected scenario's tool ceiling shape the run
 - repair attempts are skipped
 - validation runs in observe mode
 - preflight validation blockers are emitted as diagnostics instead of blocking generation
@@ -30,7 +30,7 @@ pnpm dev:playground
 
 Open `http://localhost:5173/generate`.
 
-Playground mode is on by default in the workbench. Pick a direction or configured Ghost fingerprint, enter a prompt, and generate.
+Generate opens in the showcase path by default. Pick a configured Ghost fingerprint, choose a sample prompt or enter your own, and generate. Use the advanced **Diagnostic mode** toggle only when you want observe-mode validation and best-effort artifact rendering.
 
 ## Ghost roots
 
@@ -40,8 +40,12 @@ To use Ghost steering, add one or more roots to `apps/server/.env`:
 SUMMON_GHOST_ROOTS=checkout=/absolute/path/to/checkout
 ```
 
-Then select `Fingerprint · <id>` in the Direction control. The workbench sends the Ghost target and prompt to the server, streams Ghost context metadata, and renders the generated Arrow artifact best-effort.
+Then select the fingerprint in the Generate workbench. The workbench sends `{ fingerprint: { id, targetPath } }` to the server, streams Ghost context metadata, and renders the generated artifact.
 
-## Hardened mode
+## Showcase Mode
 
-Turn **Playground mode** off in the UI to restore the stricter adoption path: broker/policy selection, repair attempts, and enforced Arrow/runtime validation gates.
+The default Generate path is the stricter adoption path: broker/policy selection, scenario tool ceilings, repair attempts, and enforced Arrow/runtime validation gates.
+
+## Experimental HTML Stream
+
+The `HTML preview stream` picker option is for bakeoff diagnostics only. It streams raw HTML text into an inert, scriptless preview iframe, then commits only complete fragments that pass the existing `/artifact/html-patch` validation path. Raw partial HTML is never applied to the authoritative surface iframe.

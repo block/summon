@@ -854,6 +854,44 @@ test('surface envelope parser accepts valid replay envelopes', () => {
   assert.equal(parseSurfaceEnvelope(JSON.stringify(envelope))?.id, envelope.id);
 });
 
+test('surface envelope parser accepts HTML artifacts with validated patch history', () => {
+  const artifact = {
+    runtime: 'html' as const,
+    source: {
+      'body.html': '<main><section id="hero"><h1>Saved</h1></section></main>',
+      'main.css': '#hero { color: var(--color-text); }',
+    },
+  };
+  const patch = {
+    runtime: 'html' as const,
+    action: 'replace' as const,
+    target: 'hero',
+    html: '<section id="hero"><h2>Replayed</h2></section>',
+  };
+  const envelope = createSurfaceEnvelope({
+    prompt: 'stream html',
+    surfacePlan: {
+      purpose: 'inform',
+      runtime: 'arrow',
+      data: 'embedded',
+      authority: 'none',
+      persistence: 'replayable',
+      network: 'none',
+    },
+    artifact,
+    protocolLines: [
+      { op: 'artifact', path: '/artifact', value: artifact },
+      { op: 'patch', path: '/artifact/html-patch', value: patch },
+    ],
+    grants: { tools: [] },
+    metadata: { mode: 'static' },
+  });
+
+  const parsed = parseSurfaceEnvelope(JSON.stringify(envelope));
+  assert.equal(parsed?.artifact.runtime, 'html');
+  assert.equal(parsed?.protocolLines.length, 2);
+});
+
 test('surface envelope parser rejects malformed, wrong-version, and escalating envelopes', () => {
   const artifact = {
     runtime: 'arrow' as const,

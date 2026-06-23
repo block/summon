@@ -1,9 +1,20 @@
 export {
+  HTML_IFRAME_SANDBOX,
+  buildHtmlPreviewCsp,
+  buildHtmlPreviewSrcdoc,
+  buildHtmlSandboxCsp,
+  buildHtmlSandboxSrcdoc,
   consumeSurfaceStream,
   mountInlineSurface,
+  parseHtmlSandboxMessage,
 } from '@summon-internal/host/browser';
 export type {
   Artifact,
+  HtmlSandboxMessage,
+  HtmlSandboxSrcdocOptions,
+  HtmlPreviewSrcdocOptions,
+  HtmlStreamPreviewDelta,
+  InlineSurfaceArtifact,
   InlineSurfaceHandle,
   InlineSurfaceOptions,
   SurfacePreviewNode,
@@ -14,4 +25,5 @@ export type {
   SurfaceStreamParseError,
   SurfaceStreamResult,
   SurfaceStreamSource,
+  SurfaceArtifact,
 } from '@summon-internal/host/browser';

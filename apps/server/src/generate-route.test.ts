@@ -69,6 +69,39 @@ function anthropicBundleMessage(id: string, html: string, model = 'claude-opus-4
   };
 }
 
+function htmlBundle(html: string) {
+  return {
+    schema: 'summon.html-bundle/v0',
+    preview: {
+      kind: 'inform',
+      title: 'HTML dinner finder',
+      regions: [{ id: 'hero', role: 'summary', label: 'Hero' }],
+    },
+    source: {
+      'body.html': html,
+      'main.css': '#hero { color: var(--color-text); background: var(--color-bg); }',
+    },
+  };
+}
+
+function anthropicHtmlBundleMessage(id: string, html: string, model = 'claude-opus-4-8') {
+  return {
+    id,
+    type: 'message',
+    role: 'assistant',
+    model,
+    content: [{
+      type: 'tool_use',
+      id: `${id}_tool`,
+      name: 'create_summon_html_surface',
+      input: htmlBundle(html),
+    }],
+    stop_reason: 'tool_use',
+    stop_sequence: null,
+    usage: { input_tokens: 12, output_tokens: 24 },
+  };
+}
+
 function openAIResponseBundle(html: string) {
   return {
     output: [{
@@ -145,8 +178,15 @@ test('api generate sends narrowed contract and stream meta shape through package
     const request = JSON.parse(await readBody(req));
     anthropicRequests.push(request);
     if (Array.isArray(request.tools)) {
+      const toolName = typeof request.tools[0]?.name === 'string'
+        ? request.tools[0].name
+        : 'create_summon_arrow_surface';
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(anthropicBundleMessage('msg_test', '<section><h1>Dinner finder</h1><p>Ready.</p></section>', request.model)));
+      res.end(JSON.stringify(
+        toolName === 'create_summon_html_surface'
+          ? anthropicHtmlBundleMessage('msg_test_html', '<section id="hero"><h1>Dinner finder</h1><p>Ready.</p></section>', request.model)
+          : anthropicBundleMessage('msg_test', '<section><h1>Dinner finder</h1><p>Ready.</p></section>', request.model),
+      ));
       return;
     }
     const generatedText = [JSON.stringify(arrowBundle('<section><h1>Dinner finder</h1><p>Ready.</p></section>'))];
@@ -468,6 +508,54 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal(ghostResponse.status, 400);
   assert.match(ghostBody, /resolved-context is no longer supported/);
   assert.equal(anthropicRequests.length, 3);
+
+  const htmlResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build a dinner finder as static html',
+      fingerprint: { id: 'editorial-mono' },
+      experimentalRuntime: 'html-static',
+      surfacePolicy: {
+        tier: 'declarative',
+        purpose: 'explore',
+        grants: ['search'],
+      },
+      tools: searchTools,
+    }),
+  });
+  const htmlBody = await htmlResponse.text();
+  assert.equal(htmlResponse.status, 200, htmlBody);
+
+  assert.equal(anthropicRequests.length, 4);
+  const htmlRequest = anthropicRequests[3] as {
+    system?: Array<{ text?: string }>;
+    tools?: Array<{ name?: string }>;
+    tool_choice?: { name?: string };
+  };
+  assert.equal(htmlRequest.tools?.[0]?.name, 'create_summon_html_surface');
+  assert.equal(htmlRequest.tool_choice?.name, 'create_summon_html_surface');
+  const htmlSystemText = htmlRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
+  assert.match(htmlSystemText, /Output runtime: html-static/);
+  assert.match(htmlSystemText, /structured HTML\/CSS sandbox bundle/);
+  assert.match(htmlSystemText, /create_summon_html_surface/);
+  assert.match(htmlSystemText, /host-owned context for static HTML/);
+  assert.match(htmlSystemText, /does not receive a host tool bridge/);
+  assert.doesNotMatch(htmlSystemText, /structured Arrow sandbox bundle/);
+  assert.doesNotMatch(htmlSystemText, /create_summon_arrow_surface/);
+  assert.doesNotMatch(htmlSystemText, /host-bridge:summon/);
+  assert.doesNotMatch(htmlSystemText, /@arrow-js\/core/);
+  assert.doesNotMatch(htmlSystemText, /Runtime is always `arrow`/);
+  assert.doesNotMatch(htmlSystemText, /Arrow artifact/);
+
+  const htmlLines = htmlBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  assert.ok(htmlLines.some((line) => line.op === 'meta' && line.path === '/model-output-mode' && (line.value as { runtime?: unknown }).runtime === 'html-static'));
+  const htmlArtifact = htmlLines.find((line) => line.op === 'artifact');
+  assert.equal((htmlArtifact?.value as { runtime?: unknown } | undefined)?.runtime, 'html');
 });
 
 test('api generate playground repairs invalid entry-file bundles', async (t) => {

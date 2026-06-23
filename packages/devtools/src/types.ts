@@ -18,7 +18,7 @@ export interface BaseEvent {
   surfaceId?: string;
 }
 
-/** An inline Arrow surface was mounted with the given grant. */
+/** An inline surface was mounted with the given grant. */
 export interface SurfaceMountedEvent extends BaseEvent {
   kind: 'surface-mounted';
   surfaceId: string;
@@ -26,7 +26,7 @@ export interface SurfaceMountedEvent extends BaseEvent {
   validationTools?: unknown[];
 }
 
-/** Arrow runtime reported a mount/runtime error. */
+/** Surface runtime reported a mount/runtime error. */
 export interface SurfaceRuntimeErrorEvent extends BaseEvent {
   kind: 'surface-runtime-error';
   surfaceId: string;
@@ -46,7 +46,7 @@ export interface SurfacePreviewEvent extends BaseEvent {
   event: unknown;
 }
 
-/** A tool passed the bridge allowlist. Args are the (still-unvalidated) bag from Arrow. */
+/** A tool passed the bridge allowlist. Args are the still-unvalidated generated bag. */
 export interface ToolCalledEvent extends BaseEvent {
   kind: 'tool-called';
   surfaceId?: string;
@@ -90,7 +90,7 @@ export interface StatePushedEvent extends BaseEvent {
 /** A server-owned stream line was successfully parsed. */
 export interface ServerLineEvent extends BaseEvent {
   kind: 'server-line';
-  line: { op: 'meta' | 'event' | 'artifact'; path: string; value?: unknown };
+  line: { op: 'meta' | 'event' | 'artifact' | 'patch'; path: string; value?: unknown };
 }
 
 /** A server transport line did not parse as a stream line. */
@@ -115,7 +115,7 @@ export interface StreamGraphEvent extends BaseEvent {
   };
   artifacts: Array<{
     revision: number;
-    runtime: 'arrow';
+    runtime: 'arrow' | 'html';
     bytes: number;
     firstSeenLine?: number;
     lastUpdatedLine?: number;
@@ -153,7 +153,7 @@ export interface SurfaceContractEvent extends BaseEvent {
   };
 }
 
-/** Host pushed an Arrow artifact into the inline Arrow sandbox. */
+/** Host pushed an artifact into the inline surface runtime. */
 export interface RenderEvent extends BaseEvent {
   kind: 'render';
   surfaceId: string;
@@ -161,7 +161,7 @@ export interface RenderEvent extends BaseEvent {
   bytes: number;
 }
 
-/** The inline Arrow sandbox finished mounting the latest Arrow artifact. */
+/** The inline surface runtime finished mounting the latest artifact. */
 export interface RenderedEvent extends BaseEvent {
   kind: 'rendered';
   surfaceId: string;

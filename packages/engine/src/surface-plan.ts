@@ -1,4 +1,8 @@
 import type { ToolPack } from './prompt.js';
+import {
+  isHtmlOutputRuntime,
+  type SummonOutputRuntime,
+} from './output-runtime.js';
 
 export type SurfacePurpose =
   | 'inform'
@@ -144,7 +148,20 @@ export function inferSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan 
   return suggestSurfacePlan(input);
 }
 
-export function buildSurfacePlanBlock(plan: SurfacePlan): string {
+export function buildSurfacePlanBlock(
+  plan: SurfacePlan,
+  options: { outputRuntime?: SummonOutputRuntime } = {},
+): string {
+  const outputRuntime = options.outputRuntime ?? 'arrow-control';
+  const runtimeRules = isHtmlOutputRuntime(outputRuntime)
+    ? `- This generation's output runtime is \`${outputRuntime}\`: return the structured HTML bundle requested by the output contract, not protocol lines or another source-tree format.
+- \`SurfacePlan.runtime\` remains \`${plan.runtime}\` as host safety-plan metadata; do not reinterpret it as a request to change the output format.
+- Static, declarative, worker, and approval behavior comes from \`SurfacePolicy.tier\` and this plan's data/authority fields, not alternate surface-plan runtimes.
+- Use only the host-owned capabilities described in the Tools block; worker execution and approval remain host-owned.`
+    : `- Runtime is always \`arrow\`: emit one \`op: "artifact"\` line at \`/artifact\` containing an Arrow sandbox source tree with one \`main.ts\` or \`main.js\`.
+- Static, declarative, worker, and approval behavior comes from \`SurfacePolicy.tier\` and this plan's data/authority fields, not alternate runtimes.
+- Use only tools the host describes in the Tools block; worker execution and approval remain host-owned.`;
+
   return `## Surface plan — host-owned runtime contract
 
 The host has selected this minimum safe surface plan:
@@ -160,9 +177,7 @@ This plan is a host decision, not part of your generated artifact. Do not emit a
 
 Runtime rules:
 
-- Runtime is always \`arrow\`: emit one \`op: "artifact"\` line at \`/artifact\` containing an Arrow sandbox source tree with one \`main.ts\` or \`main.js\`.
-- Static, declarative, worker, and approval behavior comes from \`SurfacePolicy.tier\` and this plan's data/authority fields, not alternate runtimes.
-- Use only tools the host describes in the Tools block; worker execution and approval remain host-owned.
+${runtimeRules}
 
 Authority rules:
 

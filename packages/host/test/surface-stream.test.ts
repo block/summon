@@ -22,6 +22,33 @@ function artifactLine(source = 'import { html } from "@arrow-js/core";\nexport d
   })}\n`;
 }
 
+function htmlArtifactLine(body = '<section id="hero"><h1>HTML</h1></section>'): string {
+  return `${JSON.stringify({
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'html',
+      source: {
+        'body.html': body,
+        'main.css': '#hero { color: var(--color-text); }',
+      },
+    },
+  })}\n`;
+}
+
+function htmlPatchLine(html = '<section id="hero"><h2>Updated</h2></section>'): string {
+  return `${JSON.stringify({
+    op: 'patch',
+    path: '/artifact/html-patch',
+    value: {
+      runtime: 'html',
+      action: 'replace',
+      target: 'hero',
+      html,
+    },
+  })}\n`;
+}
+
 test('consumeSurfaceStream parses split chunks and delivers Arrow artifacts', async () => {
   const artifacts: string[] = [];
   const graphSnapshots: number[] = [];
@@ -64,6 +91,40 @@ test('consumeSurfaceStream delivers valid semantic preview events before artifac
   assert.equal(result.streamGraph.preview.events.count, 1);
   assert.equal(result.streamGraph.preview.lastStatus, 'drafting');
   assert.equal(result.protocolLines.map((line) => line.op).join(','), 'event,artifact');
+});
+
+test('consumeSurfaceStream delivers validated HTML artifacts and patch fragments', async () => {
+  const artifacts: string[] = [];
+  const patches: string[] = [];
+  const result = await consumeSurfaceStream([
+    htmlArtifactLine(),
+    htmlPatchLine(),
+  ], {
+    mode: 'static',
+    onArtifact: (artifact) => {
+      if (artifact.runtime === 'html') artifacts.push(artifact.source['body.html']);
+    },
+    onHtmlPatch: (patch) => patches.push(patch.html ?? ''),
+  });
+
+  assert.deepEqual(artifacts, ['<section id="hero"><h1>HTML</h1></section>']);
+  assert.deepEqual(patches, ['<section id="hero"><h2>Updated</h2></section>']);
+  assert.equal(result.htmlPatches.length, 1);
+  assert.equal(result.streamGraph.artifacts.at(-1)?.runtime, 'html');
+});
+
+test('consumeSurfaceStream blocks invalid HTML patches before callback delivery', async () => {
+  const patches: string[] = [];
+  const result = await consumeSurfaceStream([
+    htmlPatchLine('<img src="https://example.test/a.png" alt="x">'),
+  ], {
+    mode: 'static',
+    onHtmlPatch: (patch) => patches.push(patch.html ?? ''),
+  });
+
+  assert.deepEqual(patches, []);
+  assert.deepEqual(result.validationIssues.map((issue) => issue.code), ['external-url']);
+  assert.equal(result.protocolLines.length, 0);
 });
 
 test('consumeSurfaceStream accepts host-owned contract and rendering phases', async () => {

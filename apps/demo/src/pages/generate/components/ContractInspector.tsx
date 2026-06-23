@@ -10,13 +10,10 @@ import {
 } from '@anarchitecture/summon/engine';
 import type { Mode, ShowcaseScenario } from '../../../showcase.js';
 import {
-  ghostRootFromSelection,
-  ghostSelectionValue,
   numberOptions,
   scenarioUsesFixedPolicy,
 } from '../surfaceHelpers.js';
 import type {
-  DirectionInfo,
   GhostRootInfo,
   ModelCatalogEntry,
   ModelProviderInfo,
@@ -29,8 +26,6 @@ import { compactInputClass, compactSelectClass, fieldLabelClass } from '../../..
 export function ContractInspector({
   playgroundMode,
   setPlaygroundMode,
-  playgroundToolsEnabled,
-  setPlaygroundToolsEnabled,
   contractRows,
   currentSurfaceContractView,
   currentEffectiveSurfacePlan,
@@ -54,10 +49,9 @@ export function ContractInspector({
   setAnthropicThinking,
   modelEffort,
   setModelEffort,
-  directions,
   ghostRoots,
-  directionId,
-  setDirectionId,
+  fingerprintId,
+  setFingerprintId,
   setActiveTokensSourceOverride,
   setShowWelcome,
   layoutId,
@@ -69,17 +63,13 @@ export function ContractInspector({
   customContractEnabled,
   setCustomContractEnabled,
   selectedScenario,
-  ghostTarget,
-  setGhostTarget,
-  ghostBaseDirectionId,
-  setGhostBaseDirectionId,
+  fingerprintTargetPath,
+  setFingerprintTargetPath,
   surfacePlan,
   setSurfacePlan,
 }: {
   playgroundMode: boolean;
   setPlaygroundMode: (value: boolean) => void;
-  playgroundToolsEnabled: boolean;
-  setPlaygroundToolsEnabled: (value: boolean) => void;
   contractRows: Array<{ key: string; label: string; value: string; tone: string }>;
   currentSurfaceContractView: SurfaceContractView | null;
   currentEffectiveSurfacePlan: SurfacePlan | null;
@@ -103,10 +93,9 @@ export function ContractInspector({
   setAnthropicThinking: (value: 'adaptive' | 'off') => void;
   modelEffort: 'low' | 'medium' | 'high';
   setModelEffort: (value: 'low' | 'medium' | 'high') => void;
-  directions: DirectionInfo[];
   ghostRoots: GhostRootInfo[];
-  directionId: string | null;
-  setDirectionId: (value: string | null) => void;
+  fingerprintId: string | null;
+  setFingerprintId: (value: string | null) => void;
   setActiveTokensSourceOverride: (value: string | null) => void;
   setShowWelcome: (value: boolean) => void;
   layoutId: string;
@@ -118,22 +107,19 @@ export function ContractInspector({
   customContractEnabled: boolean;
   setCustomContractEnabled: (value: boolean) => void;
   selectedScenario: ShowcaseScenario;
-  ghostTarget: string;
-  setGhostTarget: (value: string) => void;
-  ghostBaseDirectionId: string | null;
-  setGhostBaseDirectionId: (value: string | null) => void;
+  fingerprintTargetPath: string;
+  setFingerprintTargetPath: (value: string) => void;
   surfacePlan: SurfacePlan;
   setSurfacePlan: Dispatch<SetStateAction<SurfacePlan>>;
 }) {
   const selectClassName = cn(compactSelectClass, 'w-full rounded-card');
   const inputClassName = cn(compactInputClass, 'w-full rounded-card');
   const toggleClassName = 'flex min-h-[34px] cursor-pointer items-center gap-2 rounded-card border border-line px-2.5 text-xs font-semibold text-ink-soft [&_input]:size-[13px] [&_input]:accent-ink';
-  const ghostSelected = Boolean(ghostRootFromSelection(directionId));
 
   return (
     <aside className="sticky top-12 min-w-0 max-[1180px]:static max-[1180px]:col-span-full max-[820px]:order-1" aria-label="Contract inspector">
       <div className="mb-[18px] flex items-center justify-between gap-2.5 border-b border-line pb-3 font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
-        <span>{playgroundMode ? 'Playground Options' : 'Surface Inspector'}</span>
+        <span>{playgroundMode ? 'Diagnostic Options' : 'Surface Inspector'}</span>
         <span id="inspector-status" className="text-[11px] normal-case text-ink-muted">{playgroundMode ? 'simple' : currentSurfaceContractView ? 'contract' : currentEffectiveSurfacePlan ? 'effective' : 'pending'}</span>
       </div>
       {!playgroundMode ? (
@@ -159,17 +145,13 @@ export function ContractInspector({
 
       <section className={cn('grid gap-3', !playgroundMode && 'border-t border-line pt-5')} aria-label="Run settings">
         <div className="rounded-card border border-good/30 bg-good/10 p-3 text-xs text-ink-soft" hidden={!playgroundMode}>
-          <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-good">Playground mode</div>
-          <p className="mt-1 leading-snug">Best-effort Ghost-steered Arrow rendering. Broker, shape inference, repair loops, and validation gates are off; diagnostics still stream.</p>
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-good">Diagnostic mode</div>
+          <p className="mt-1 leading-snug">Best-effort Ghost-steered rendering. Broker, shape inference, repair loops, and validation gates are off; diagnostics still stream.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className={toggleClassName} title="Render best-effort Arrow surfaces with validation as diagnostics only">
             <input id="playground-mode" type="checkbox" checked={playgroundMode} onChange={(event) => setPlaygroundMode(event.target.checked)} />
-            <span>Playground mode</span>
-          </label>
-          <label className={toggleClassName} title="Allow the selected demo scenario tools in playground mode" hidden={!playgroundMode}>
-            <input id="playground-tools" type="checkbox" checked={playgroundToolsEnabled} disabled={!playgroundMode} onChange={(event) => setPlaygroundToolsEnabled(event.target.checked)} />
-            <span>Demo tools</span>
+            <span>Diagnostic mode</span>
           </label>
           <ModeGroup title="Run profile">
             <label>
@@ -244,36 +226,27 @@ export function ContractInspector({
             </select>
           </label>
           <label className="min-w-0">
-            <span className={fieldLabelClass}>Direction</span>
-            <select id="direction" className={selectClassName} title="Design direction" value={directionId ?? ''} onChange={(event) => {
+            <span className={fieldLabelClass}>Fingerprint</span>
+            <select id="fingerprint" className={selectClassName} title="Ghost fingerprint" value={fingerprintId ?? ''} disabled={ghostRoots.length === 0} onChange={(event) => {
               const next = event.target.value || null;
-              setDirectionId(next);
+              setFingerprintId(next);
               setActiveTokensSourceOverride(null);
-              const selectedFingerprintId = ghostRootFromSelection(next);
-              const selectedFingerprint = selectedFingerprintId
-                ? ghostRoots.find((fingerprint) => fingerprint.id === selectedFingerprintId)
+              const selectedFingerprint = next
+                ? ghostRoots.find((fingerprint) => fingerprint.id === next)
                 : null;
               if (selectedFingerprint) {
-                setGhostTarget(selectedFingerprint.defaultTargetPath || '.');
-                setGhostBaseDirectionId(selectedFingerprint.defaultBaseDirectionId ?? selectedFingerprint.defaultTokenFallback ?? null);
+                setFingerprintTargetPath(selectedFingerprint.defaultTargetPath || '.');
               }
               setShowWelcome(true);
             }}>
-              {directions.length === 0 && ghostRoots.length === 0 ? <option value="">Default (no direction)</option> : null}
-              {ghostRoots.length > 0 ? (
-                <optgroup label="Fingerprints">
-                  {ghostRoots.map((fingerprint) => (
-                    <option key={fingerprint.id} value={ghostSelectionValue(fingerprint.id)} title={fingerprint.summary}>
-                      {fingerprint.name ?? fingerprint.id}
-                    </option>
-                  ))}
-                </optgroup>
+              {ghostRoots.length === 0 ? (
+                <option value="">No catalog fingerprints</option>
               ) : null}
-              {directions.length > 0 ? (
-                <optgroup label="Directions">
-                  {directions.map((direction) => <option key={direction.id} value={direction.id} title={direction.description}>{direction.name}</option>)}
-                </optgroup>
-              ) : null}
+              {ghostRoots.map((fingerprint) => (
+                <option key={fingerprint.id} value={fingerprint.id} title={fingerprint.summary}>
+                  {fingerprint.name ?? fingerprint.id}
+                </option>
+              ))}
             </select>
           </label>
           <label className="min-w-0" hidden={playgroundMode}>
@@ -281,12 +254,6 @@ export function ContractInspector({
             <select id="layout" className={selectClassName} title="Host layout" value={layoutId} onChange={(event) => setLayoutId(event.target.value)}>
               <option value="">Free layout</option>
               <option value="card-structured">Card: header/content/actions</option>
-            </select>
-          </label>
-          <label className="min-w-0" hidden={playgroundMode}>
-            <span className={fieldLabelClass}>Runtime</span>
-            <select id="runtime-policy" className={selectClassName} title="Generated code runtime" value="arrow" disabled>
-              <option value="arrow">Arrow sandbox</option>
             </select>
           </label>
           <label className="min-w-0" hidden={playgroundMode}>
@@ -308,17 +275,10 @@ export function ContractInspector({
           </label>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 max-[820px]:grid-cols-1" hidden={playgroundMode && !ghostSelected}>
+        <div className="grid grid-cols-2 gap-3 max-[820px]:grid-cols-1">
           <label className="min-w-0">
             <span className={fieldLabelClass}>Fingerprint target</span>
-            <input id="ghost-target" className={inputClassName} type="text" value={ghostTarget} disabled={!ghostSelected} placeholder="Target path" title="Fingerprint target path" onChange={(event) => setGhostTarget(event.target.value)} />
-          </label>
-          <label className="min-w-0">
-            <span className={fieldLabelClass}>Token fallback</span>
-            <select id="ghost-base-direction" className={selectClassName} title="Optional token fallback direction" value={ghostBaseDirectionId ?? ''} disabled={!ghostSelected || directions.length === 0} onChange={(event) => setGhostBaseDirectionId(event.target.value || null)}>
-              <option value="">Fingerprint/default tokens</option>
-              {directions.map((direction) => <option key={direction.id} value={direction.id}>{direction.name}</option>)}
-            </select>
+            <input id="fingerprint-target" className={inputClassName} type="text" value={fingerprintTargetPath} disabled={!fingerprintId} placeholder="Target path" title="Fingerprint target path" onChange={(event) => setFingerprintTargetPath(event.target.value)} />
           </label>
         </div>
       </section>

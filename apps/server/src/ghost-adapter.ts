@@ -1,7 +1,9 @@
 import {
+  isHtmlOutputRuntime,
   type ToolPack,
   type ProtocolLine,
   type SurfacePlan,
+  type SummonOutputRuntime,
 } from '@anarchitecture/summon/engine';
 import {
   compileGhostIngestionContract,
@@ -104,6 +106,7 @@ export interface GhostSurfacePromptOptions {
   mode: 'static' | 'interactive';
   surfacePlan: SurfacePlan;
   tools?: ToolPack | null;
+  outputRuntime?: SummonOutputRuntime;
 }
 
 export interface GhostReviewPacket {
@@ -438,12 +441,21 @@ function buildSummonFingerprintSurfaceBrief(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): string {
+  const outputRuntime = options.outputRuntime ?? 'arrow-control';
+  const htmlRuntime = isHtmlOutputRuntime(outputRuntime);
   const toolNames = options.tools?.tools.map((tool) => tool.name) ?? [];
+  const outputRule = htmlRuntime
+    ? '- Return a structured HTML/CSS sandbox bundle through the `create_summon_html_surface` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, host-owned metadata, or Arrow source.'
+    : '- Return a structured Arrow sandbox bundle through the `create_summon_arrow_surface` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata.';
+  const successRule = htmlRuntime
+    ? '- This generation succeeds only if the final HTML artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.'
+    : '- This generation succeeds only if the final Arrow artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.';
   const details = [
     `Product: ${context.product}`,
     `Target path: ${relayTargetPath(context)}`,
     `User request: ${oneLine(options.userPrompt, 600)}`,
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
+    `Output runtime: ${outputRuntime}`,
     `Mode: ${options.mode}`,
     context.ingestion?.relay.selectedRefs.composition.length
       ? `Selected Ghost composition refs: ${context.ingestion.relay.selectedRefs.composition.join(', ')}`
@@ -461,12 +473,14 @@ function buildSummonFingerprintSurfaceBrief(
     'Generation rules:',
     '',
     '- Do not pause to inspect suggested files or ask the host for more Ghost context. Use the supplied Ghost Relay Brief as the complete fingerprint entrypoint for this run.',
-    '- Return a structured Arrow sandbox bundle through the `create_summon_arrow_surface` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata.',
+    outputRule,
     '',
     'Primary success criterion:',
     '',
-    '- This generation succeeds only if the final Arrow artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.',
+    successRule,
     '- A technically valid but generic surface is a failed generation.',
+    '- The user request is the semantic and task authority: satisfy its workflow, content, data need, and intended action before choosing decorative structure.',
+    '- The Ghost fingerprint is the visual and composition authority: use it to decide product grammar, hierarchy, density, patterns, and anti-patterns without replacing the user task.',
     '- The Ghost fingerprint is the binding authority for composition, hierarchy, density, spacing rhythm, typography rhythm, surface grammar, motif vocabulary, tone, and anti-pattern boundaries.',
     '- Summon safety restricts APIs, host authority, and runtime behavior. It does not require bland UI.',
     '',
@@ -474,6 +488,7 @@ function buildSummonFingerprintSurfaceBrief(
     '',
     '- Compose from the fingerprint prose, inventory, and composition layers. Prose states tool; inventory supplies material and evidence; composition supplies reusable surface patterns.',
     '- Imitate the Ghost fingerprint’s visual grammar. Preserve its composition patterns, hierarchy, typography rhythm, density, surface treatment, motifs, and anti-pattern boundaries. Adapt content to the user request without genericizing the visual system.',
+    '- Choose among the fingerprint composition patterns based on the user request, surface plan, and granted tools. Do not reuse the same shell every run when another fingerprint pattern better fits the task.',
     '- Choose a fingerprint composition shell before authoring the artifact. The root `<main>` must express that shell through layout, spacing, hierarchy, and surface treatment.',
     '- The final artifact must include a composed outer shell, not unframed content. Avoid generic header-plus-card-grid layouts unless the fingerprint explicitly calls for that pattern.',
     '- Use Ghost-provided tokens, aliases, renderable primitives, and fingerprint examples as the visual source of truth. You may define local CSS variables that alias or compose Ghost tokens and use advanced safe CSS layout, transitions, transforms, inline SVG, and typographic tuning when fingerprint-compatible.',

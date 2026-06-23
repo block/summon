@@ -5,8 +5,11 @@ import {
   surfaceContractViewFromCompiledPolicy,
   compileSystemContracts,
   createArrowBundleJsonSchema,
+  createHtmlBundleJsonSchema,
   normalizeArrowBundle,
+  normalizeHtmlBundle,
   arrowArtifactFromBundle,
+  htmlArtifactFromBundle,
   validateProtocolLine,
   hintsForContractIssue,
   contractIssue,
@@ -17,8 +20,16 @@ import {
   type SurfaceContractView,
   type SurfaceEventLine,
   type SurfacePlan,
+  type HtmlSurfacePatch,
   type SummonArrowBundle,
+  type SummonHtmlBundle,
+  type SummonOutputRuntime,
 } from '@summon-internal/engine';
+import {
+  HTML_STREAM_FRAME_PROMPT_BLOCK,
+  HtmlStreamAccumulator,
+  type HtmlStreamAccumulatorEvent,
+} from './html-stream.js';
 import { writeFinalSummaries } from './summary.js';
 import type {
   SurfaceGenerationInput,
@@ -51,6 +62,7 @@ export class SurfaceGenerationSession {
       : null;
     this.systemContracts = compileSystemContracts({
       mode: this.surfacePolicy?.mode ?? 'static',
+      outputRuntime: this.runtimeTarget(),
       direction: input.direction ?? null,
       ghost: input.ghost ?? null,
       layout: input.layout ?? null,
@@ -88,8 +100,11 @@ export class SurfaceGenerationSession {
       op: 'meta',
       path: '/model-output-mode',
       value: {
-        format: 'arrow-bundle',
-        schema: 'summon.arrow-bundle/v1',
+        format: this.runtimeTarget() === 'arrow-control' ? 'arrow-bundle' : 'html-bundle',
+        schema: this.runtimeTarget() === 'arrow-control'
+          ? 'summon.arrow-bundle/v1'
+          : 'summon.html-bundle/v0',
+        runtime: this.runtimeTarget(),
         repairAttempts: 0,
       },
     });
@@ -113,6 +128,15 @@ export class SurfaceGenerationSession {
   }
 
   async consumeProvider(): Promise<void> {
+    const runtimeTarget = this.runtimeTarget();
+    if (runtimeTarget === 'html-stream') {
+      await this.consumeHtmlStreamProvider();
+      return;
+    }
+    if (runtimeTarget !== 'arrow-control') {
+      await this.consumeHtmlProvider(runtimeTarget);
+      return;
+    }
     if (!this.input.playground) {
       await this.emitServerPreviewScaffold();
     }
@@ -142,13 +166,158 @@ export class SurfaceGenerationSession {
     await this.acceptBundleWithRepair(bundle, schema);
   }
 
+  private async consumeHtmlProvider(runtimeTarget: SummonOutputRuntime): Promise<void> {
+    if (!this.input.playground) {
+      await this.emitServerPreviewScaffold();
+    }
+    if (!this.input.modelProvider.generateHtmlBundle) {
+      await this.blockGeneration(contractIssue({
+        source: 'system',
+        severity: 'block',
+        code: 'missing-html-provider',
+        message: `Experimental runtime "${runtimeTarget}" requires a model provider with generateHtmlBundle()`,
+        path: '/model-provider',
+      }));
+      return;
+    }
+    await this.writePhase('drafting', 'Composing HTML bundle');
+    await this.writeTiming('drafting', 'Composing HTML bundle');
+    const providerStartedAt = nowMs();
+    const allowScript = runtimeTarget === 'html-script';
+    const schema = createHtmlBundleJsonSchema({ allowScript });
+    const bundle = await this.withStatusHeartbeat({
+      status: 'drafting',
+      messages: [
+        'Still composing HTML bundle',
+        'Waiting for structured HTML bundle',
+        'Keeping host contract bound while composing',
+      ],
+      run: () => this.input.modelProvider.generateHtmlBundle!({
+        prompt: this.input.prompt,
+        promptBlocks: this.systemContracts.promptBlocks,
+        schema,
+        runtime: runtimeTarget,
+        allowScript,
+        signal: this.input.signal,
+      }),
+    });
+    await this.writeTiming(
+      'bundle-received',
+      'Received structured HTML bundle',
+      nowMs() - providerStartedAt,
+    );
+    await this.acceptHtmlBundleWithRepair(bundle, schema, runtimeTarget, allowScript);
+  }
+
+  private async consumeHtmlStreamProvider(): Promise<void> {
+    const runtimeTarget = 'html-stream' as const;
+    if (!this.input.playground) {
+      await this.emitServerPreviewScaffold();
+    }
+    if (!this.input.modelProvider.streamHtmlSurface) {
+      await this.blockGeneration(contractIssue({
+        source: 'system',
+        severity: 'block',
+        code: 'missing-html-stream-provider',
+        message: 'Experimental runtime "html-stream" requires a model provider with streamHtmlSurface()',
+        path: '/model-provider',
+      }));
+      return;
+    }
+
+    await this.writePhase('drafting', 'Streaming HTML surface');
+    await this.writeTiming('drafting', 'Streaming HTML surface');
+    const providerStartedAt = nowMs();
+    const accumulator = new HtmlStreamAccumulator();
+    const counters = {
+      previewDeltaCount: 0,
+      committedPatchCount: 0,
+      blockedPatchReasons: [] as string[],
+    };
+
+    const processEvents = async (events: HtmlStreamAccumulatorEvent[]) => {
+      for (const event of events) {
+        if (this.blocked) return;
+        if (event.type === 'error') {
+          counters.blockedPatchReasons.push(event.issue.code);
+          await this.writeHtmlStreamSummary(counters);
+          await this.blockGeneration(event.issue);
+          return;
+        }
+        if (event.type === 'preview-delta') {
+          counters.previewDeltaCount += 1;
+          await this.writeProtocolLine({
+            op: 'meta',
+            path: '/html-stream-preview',
+            value: event.value,
+          });
+          continue;
+        }
+        if (event.type === 'scaffold') {
+          const result = await this.validateAndAcceptHtmlBundle(event.bundle, 0, false, { strict: true });
+          if (!result.accepted) {
+            counters.blockedPatchReasons.push(result.blocker.code);
+            await this.writeHtmlStreamSummary(counters);
+            await this.blockGeneration(result.blocker);
+          }
+          continue;
+        }
+        if (event.type === 'patch') {
+          const result = await this.validateAndAcceptHtmlPatch(event.patch);
+          if (result.accepted) {
+            counters.committedPatchCount += 1;
+          } else {
+            counters.blockedPatchReasons.push(result.blocker.code);
+            await this.writeHtmlStreamSummary(counters);
+            await this.blockGeneration(result.blocker);
+          }
+        }
+      }
+    };
+
+    await this.withStatusHeartbeat({
+      status: 'drafting',
+      messages: [
+        'Still streaming HTML preview',
+        'Waiting for validated HTML patch frame',
+        'Keeping raw HTML preview inert until commit',
+      ],
+      run: async () => {
+        const stream = this.input.modelProvider.streamHtmlSurface!({
+          prompt: this.input.prompt,
+          promptBlocks: [
+            ...this.systemContracts.promptBlocks,
+            HTML_STREAM_FRAME_PROMPT_BLOCK,
+          ],
+          runtime: runtimeTarget,
+          signal: this.input.signal,
+        });
+        for await (const chunk of stream) {
+          if (this.input.signal?.aborted || this.blocked) break;
+          await processEvents(accumulator.push(chunk));
+        }
+        if (!this.blocked) await processEvents(accumulator.finish());
+      },
+    });
+
+    await this.writeTiming(
+      'bundle-received',
+      'Received streamed HTML frames',
+      nowMs() - providerStartedAt,
+    );
+    await this.writeHtmlStreamSummary(counters);
+  }
+
   async finalize(): Promise<SurfaceGenerationSummary> {
     if (!this.blocked && !this.acceptedLines.some((line) => line.op === 'artifact')) {
+      const runtimeTarget = this.runtimeTarget();
       await this.blockGeneration(contractIssue({
         source: 'protocol',
         severity: 'block',
-        code: 'missing-arrow-artifact',
-        message: 'Generation completed without a valid Arrow artifact',
+        code: runtimeTarget === 'arrow-control' ? 'missing-arrow-artifact' : 'missing-html-artifact',
+        message: runtimeTarget === 'arrow-control'
+          ? 'Generation completed without a valid Arrow artifact'
+          : 'Generation completed without a valid HTML artifact',
         path: '/artifact',
       }));
     }
@@ -208,7 +377,62 @@ export class SurfaceGenerationSession {
           schema,
           previousBundle: bundle,
           issues: result.issues,
-          hints: result.issues.flatMap((issue) => hintsForContractIssue(issue)),
+          hints: result.issues.flatMap((issue) => hintsForContractIssue(issue, { outputRuntime: 'arrow-control' })),
+          attempt: attempt + 1,
+          signal: this.input.signal,
+        }),
+      });
+    }
+  }
+
+  private async acceptHtmlBundleWithRepair(
+    initialBundle: unknown,
+    schema: Record<string, unknown>,
+    runtimeTarget: SummonOutputRuntime,
+    allowScript: boolean,
+  ): Promise<void> {
+    let bundle: unknown = initialBundle;
+    const maxRepairAttempts = Math.max(0, Math.floor(this.input.maxRepairAttempts ?? 1));
+    for (let attempt = 0; attempt <= maxRepairAttempts; attempt++) {
+      if (this.blocked) return;
+      const result = await this.validateAndAcceptHtmlBundle(bundle, attempt, allowScript);
+      if (result.accepted) return;
+      if (attempt >= maxRepairAttempts || !this.input.modelProvider.repairHtmlBundle) {
+        await this.blockGeneration(result.blocker);
+        return;
+      }
+      if (!isRepairable(result.issues, this.input.repairIssueCodes)) {
+        await this.blockGeneration(result.blocker);
+        return;
+      }
+      await this.writeProtocolLine({
+        op: 'meta',
+        path: '/model-output-mode',
+        value: {
+          format: 'html-bundle',
+          schema: 'summon.html-bundle/v0',
+          runtime: runtimeTarget,
+          repairAttempts: attempt + 1,
+          repairing: result.issues.map((issue) => issue.code),
+        },
+      });
+      await this.writePhase('validating', 'Repairing HTML bundle');
+      bundle = await this.withStatusHeartbeat({
+        status: 'validating',
+        messages: [
+          'Still repairing HTML bundle',
+          'Applying validation hints',
+          'Waiting for repaired HTML bundle',
+        ],
+        run: () => this.input.modelProvider.repairHtmlBundle!({
+          prompt: this.input.prompt,
+          promptBlocks: this.systemContracts.promptBlocks,
+          schema,
+          runtime: runtimeTarget,
+          allowScript,
+          previousBundle: bundle,
+          issues: result.issues,
+          hints: result.issues.flatMap((issue) => hintsForContractIssue(issue, { outputRuntime: runtimeTarget })),
           attempt: attempt + 1,
           signal: this.input.signal,
         }),
@@ -288,7 +512,7 @@ export class SurfaceGenerationSession {
       };
     }
     if (!this.input.playground) {
-      for (const line of previewLinesFromBundle(acceptedBundle)) {
+      for (const line of previewLinesFromBundle(acceptedBundle, 'Arrow')) {
         this.acceptedLines.push(line);
         await this.writeProtocolLine(line);
       }
@@ -300,6 +524,145 @@ export class SurfaceGenerationSession {
     await this.writeProtocolLine(artifactLine);
     await this.writeTiming('rendering', 'Rendered accepted artifact', nowMs() - renderStartedAt);
     return { accepted: true, issues: [], blocker: null as never };
+  }
+
+  private async validateAndAcceptHtmlBundle(
+    bundle: unknown,
+    attempt: number,
+    allowScript: boolean,
+    options: { strict?: boolean } = {},
+  ): Promise<{
+    accepted: boolean;
+    issues: ContractIssue[];
+    blocker: ContractIssue;
+  }> {
+    await this.writePhase('validating', 'Validating HTML bundle');
+    const validationStartedAt = nowMs();
+    const diagnostic = bundleDiagnostic(bundle, attempt);
+    await this.writeProtocolLine({ op: 'meta', path: '/html-bundle-diagnostic', value: diagnostic });
+    const normalized = normalizeHtmlBundle(bundle);
+    const issues = [...normalized.issues];
+    const artifact = normalized.bundle ? htmlArtifactFromBundle(normalized.bundle) : null;
+    if (artifact) {
+      issues.push(...validateProtocolLine({
+        op: 'artifact',
+        path: '/artifact',
+        value: artifact,
+      }, {
+        ...this.systemContracts.validationContext,
+        experimentalHtmlScript: allowScript,
+      }));
+    }
+
+    this.validationIssues.push(...issues);
+    const blocker = issues.find((issue) => issue.severity === 'block');
+    const observeValidation = !options.strict && this.isObserveValidation();
+    await this.writeTiming(
+      'validating',
+      blocker && !observeValidation ? 'Blocked HTML bundle' : 'Validated HTML bundle',
+      nowMs() - validationStartedAt,
+    );
+    if (!artifact) {
+      const invalidBundleIssue = contractIssue({
+        source: 'protocol',
+        severity: 'block',
+        code: 'invalid-html-bundle',
+        message: 'Model output did not produce a valid HTML bundle',
+        path: '/bundle',
+      });
+      return {
+        accepted: false,
+        issues: issues.length > 0 ? issues : [invalidBundleIssue],
+        blocker: blocker ?? invalidBundleIssue,
+      };
+    }
+    if (blocker && !observeValidation) {
+      return { accepted: false, issues, blocker };
+    }
+    if (blocker && observeValidation) {
+      for (const issue of issues.filter((item) => item.severity === 'block')) {
+        await this.writeObservedValidationIssue(issue);
+      }
+    }
+
+    const acceptedBundle = normalized.bundle;
+    if (!acceptedBundle) {
+      return {
+        accepted: false,
+        issues,
+        blocker: contractIssue({
+          source: 'protocol',
+          severity: 'block',
+          code: 'invalid-html-bundle',
+          message: 'Model output did not produce a valid HTML bundle',
+          path: '/bundle',
+        }),
+      };
+    }
+    if (!this.input.playground) {
+      for (const line of previewLinesFromBundle(acceptedBundle, 'HTML')) {
+        this.acceptedLines.push(line);
+        await this.writeProtocolLine(line);
+      }
+    }
+    await this.writePhase('rendering', 'Rendering accepted artifact');
+    const renderStartedAt = nowMs();
+    const artifactLine: ProtocolLine = { op: 'artifact', path: '/artifact', value: artifact };
+    this.acceptedLines.push(artifactLine);
+    await this.writeProtocolLine(artifactLine);
+    await this.writeTiming('rendering', 'Rendered accepted artifact', nowMs() - renderStartedAt);
+    return { accepted: true, issues: [], blocker: null as never };
+  }
+
+  private async validateAndAcceptHtmlPatch(patch: HtmlSurfacePatch): Promise<{
+    accepted: boolean;
+    issues: ContractIssue[];
+    blocker: ContractIssue;
+  }> {
+    await this.writePhase('validating', 'Validating HTML patch');
+    const validationStartedAt = nowMs();
+    const line: ProtocolLine = {
+      op: 'patch',
+      path: '/artifact/html-patch',
+      value: patch,
+    };
+    const issues = validateProtocolLine(line, {
+      ...this.systemContracts.validationContext,
+      experimentalHtmlScript: false,
+    });
+    this.validationIssues.push(...issues);
+    const blocker = issues.find((issue) => issue.severity === 'block');
+    await this.writeTiming(
+      'validating',
+      blocker ? 'Blocked HTML patch' : 'Validated HTML patch',
+      nowMs() - validationStartedAt,
+    );
+    if (blocker) {
+      return { accepted: false, issues, blocker };
+    }
+
+    await this.writePhase('rendering', 'Committing accepted HTML patch');
+    const renderStartedAt = nowMs();
+    this.acceptedLines.push(line);
+    await this.writeProtocolLine(line);
+    await this.writeTiming('rendering', 'Committed accepted HTML patch', nowMs() - renderStartedAt);
+    return { accepted: true, issues: [], blocker: null as never };
+  }
+
+  private async writeHtmlStreamSummary(counters: {
+    previewDeltaCount: number;
+    committedPatchCount: number;
+    blockedPatchReasons: readonly string[];
+  }): Promise<void> {
+    await this.writeProtocolLine({
+      op: 'meta',
+      path: '/html-stream-summary',
+      value: {
+        previewDeltaCount: counters.previewDeltaCount,
+        committedPatchCount: counters.committedPatchCount,
+        blockedPatchReasons: [...counters.blockedPatchReasons],
+      },
+    });
   }
 
   private async emitServerPreviewScaffold(): Promise<void> {
@@ -401,6 +764,10 @@ export class SurfaceGenerationSession {
 
   private isObserveValidation(): boolean {
     return this.input.validationMode === 'observe';
+  }
+
+  private runtimeTarget(): SummonOutputRuntime {
+    return this.input.experimentalRuntime ?? 'arrow-control';
   }
 
   private async writeObservedValidationIssue(issue: ContractIssue): Promise<void> {
@@ -523,7 +890,10 @@ function sourceExcerpt(source: string, zeroBasedLine: number | null, radius = 3)
   }).join('\n');
 }
 
-function previewLinesFromBundle(bundle: SummonArrowBundle): SurfaceEventLine[] {
+function previewLinesFromBundle(
+  bundle: SummonArrowBundle | SummonHtmlBundle,
+  runtimeLabel: 'Arrow' | 'HTML',
+): SurfaceEventLine[] {
   const preview = bundle.preview;
   if (!preview) {
     return [{
@@ -532,7 +902,7 @@ function previewLinesFromBundle(bundle: SummonArrowBundle): SurfaceEventLine[] {
       value: {
         type: 'surface.status',
         status: 'rendering',
-        text: 'Rendering accepted Arrow artifact',
+        text: `Rendering accepted ${runtimeLabel} artifact`,
       },
     }];
   }
@@ -656,6 +1026,24 @@ function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[])
     'invalid-arrow-bundle-entry',
     'arrow-bundle-extra-file',
     'invalid-arrow-bundle-source-file',
+    'invalid-html-bundle',
+    'invalid-html-bundle-schema',
+    'missing-html-bundle-source',
+    'missing-html-body',
+    'html-bundle-extra-file',
+    'invalid-html-bundle-source-file',
+    'html-source-limit',
+    'html-css-limit',
+    'invalid-css',
+    'invalid-html-fragment',
+    'unsafe-tag',
+    'static-script',
+    'inline-handler',
+    'external-url',
+    'unsupported-html-attribute',
+    'unsupported-legacy-data-summon-binding',
+    'html-script-not-enabled',
+    'unsafe-html-script',
   ]);
   const allowed = allowedCodes && allowedCodes.length > 0 ? new Set(allowedCodes) : null;
   return issues.some((issue) => (

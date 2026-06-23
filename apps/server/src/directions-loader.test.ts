@@ -13,7 +13,7 @@ import { defaultDirectionId, loadDirections } from './directions-loader.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..');
 
-test('bundled public directions load with Workbench as default', () => {
+test('bundled public directions remain available as token fallbacks only', () => {
   const directions = loadDirections();
 
   assert.deepEqual(directions.map((direction) => direction.id), [

@@ -7,6 +7,7 @@ import {
 import { GALLERY_PRESETS } from '../../surface-gallery/src/presets.js';
 import {
   createScopedDemoRegistry,
+  createGhostShowcaseScenario,
   narrowToolPack,
   SHOWCASE_SCENARIOS,
 } from './showcase.js';
@@ -28,8 +29,6 @@ const allDemoToolNames = [
   'publish_summary',
   'summon',
 ];
-
-const publicDirectionIds = new Set(['pulse', 'workbench']);
 
 test('createScopedDemoRegistry aligns prompt pack, validation grants, and handlers', () => {
   const registry = createScopedDemoRegistry({ onSummon: () => {} }, ['search', 'summon']);
@@ -176,16 +175,11 @@ test('batch prompt pool covers representative surface intents', () => {
   );
 });
 
-test('showcase scenarios reference bundled public directions', () => {
-  for (const scenario of SHOWCASE_SCENARIOS) {
-    if (!scenario.directionId) continue;
-    if (scenario.directionId.startsWith('ghost:')) continue;
-    const directionId = scenario.directionId;
-    assert.ok(
-      publicDirectionIds.has(directionId),
-      `${scenario.id} references unknown public direction "${scenario.directionId}"`,
-    );
-  }
+test('Ghost showcase scenarios store explicit fingerprint ids instead of legacy directions', () => {
+  const scenario = createGhostShowcaseScenario('checkout');
+
+  assert.equal(scenario.fingerprintId, 'checkout');
+  assert.equal('directionId' in scenario, false);
 });
 
 test('generate run profile fast picks fast catalog models and low-cost Anthropic options', () => {

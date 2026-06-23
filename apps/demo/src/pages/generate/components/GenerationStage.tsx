@@ -10,6 +10,7 @@ import {
   type SummonSurfaceHandle,
   type SummonSurfaceProps,
 } from "@anarchitecture/summon-react";
+import type { SummonOutputRuntime } from "@anarchitecture/summon/engine";
 import {
   Button,
   DropdownSelect,
@@ -22,6 +23,32 @@ import { ChildSurface } from "./ChildSurface.js";
 import { SurfaceLoadingOverlay } from "./SurfaceLoadingOverlay.js";
 
 const promptActionRadiusClass = "!rounded-[22px]";
+const runtimeGroups: DropdownSelectGroup[] = [
+  {
+    options: [
+      {
+        value: "arrow-control",
+        label: "Arrow",
+        description: "Control runtime for the bakeoff.",
+      },
+      {
+        value: "html-static",
+        label: "HTML static",
+        description: "Validated HTML and CSS artifact.",
+      },
+      {
+        value: "html-stream",
+        label: "HTML preview stream",
+        description: "Token preview with validated patch commits.",
+      },
+      {
+        value: "html-script",
+        label: "HTML script",
+        description: "Isolated scripted iframe experiment.",
+      },
+    ],
+  },
+];
 
 export function GenerationStage({
   prompt,
@@ -30,9 +57,12 @@ export function GenerationStage({
   selectedFingerprintId,
   fingerprints,
   onSelectFingerprint,
+  experimentalRuntime,
+  onSelectExperimentalRuntime,
   running,
   onGenerate,
   statusText,
+  generationDisabledReason,
   generationPreview,
   stageNotice,
   onOpenDiagnostics,
@@ -58,9 +88,12 @@ export function GenerationStage({
   selectedFingerprintId: string | null;
   fingerprints: GhostRootInfo[];
   onSelectFingerprint: (id: string | null) => void;
+  experimentalRuntime: SummonOutputRuntime;
+  onSelectExperimentalRuntime: (runtime: SummonOutputRuntime) => void;
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
+  generationDisabledReason?: string | null;
   generationPreview: GenerationPreviewModel;
   stageNotice: {
     tone: "pending" | "error";
@@ -90,20 +123,19 @@ export function GenerationStage({
     !stageNotice &&
     !surfaceReady &&
     (running || hasRenderedArtifact);
+  const showSandboxFrame =
+    !showWelcome && (surfaceReady || stageNotice !== null);
   const selectedFingerprint =
     fingerprints.find(
       (fingerprint) => fingerprint.id === selectedFingerprintId,
     ) ?? null;
   const fingerprintLabel =
     selectedFingerprint?.name ?? selectedFingerprintId ?? "Fingerprint";
+  const selectedRuntimeOption =
+    runtimeGroups[0]?.options.find((option) => option.value === experimentalRuntime) ??
+    runtimeGroups[0]?.options[0];
   const fingerprintGroups = useMemo<DropdownSelectGroup[]>(() => {
-    const options: DropdownSelectGroup["options"] = [
-      {
-        value: "",
-        label: "No fingerprint",
-        description: "Use the default Summon direction.",
-      },
-    ];
+    const options: DropdownSelectGroup["options"] = [];
 
     if (selectedFingerprintId && !selectedFingerprint) {
       options.push({
@@ -131,6 +163,7 @@ export function GenerationStage({
   ]);
   const [welcomeLeaving, setWelcomeLeaving] = useState(false);
   const [showWelcomeLayer, setShowWelcomeLayer] = useState(showWelcome);
+  const generateDisabled = Boolean(running || !prompt.trim() || generationDisabledReason);
 
   useEffect(() => {
     if (showWelcome) {
@@ -151,18 +184,27 @@ export function GenerationStage({
   return (
     <main className="absolute inset-0 min-h-0">
       <section
-        className="absolute inset-0 overflow-y-auto bg-surface px-4 pb-[184px] pt-[76px] max-[760px]:pb-[244px]"
+        className="absolute inset-0 overflow-hidden bg-surface px-4 pb-[184px] pt-[76px] max-[760px]:pb-[244px]"
         aria-label="Generated surface"
       >
-        <div className="mx-auto w-[min(880px,calc(100%-24px))]">
+        {showHostLoader ? (
+          <SurfaceLoadingOverlay
+            statusText={statusText}
+            preview={generationPreview}
+            className="z-[1]"
+          />
+        ) : null}
+        <div
+          className={cn(
+            "relative z-[2] mx-auto h-[calc(100vh-260px)] min-h-0 w-[min(1120px,calc(100%-24px))] transition-[opacity,filter,transform] duration-700 ease-out max-[760px]:h-[calc(100vh-320px)]",
+            showSandboxFrame
+              ? "translate-y-0 scale-100 opacity-100 blur-0"
+              : "pointer-events-none translate-y-6 scale-[0.96] opacity-0 blur-lg",
+          )}
+        >
           <div
             id="sandbox-frame"
-            className={cn(
-              "relative z-0 min-h-[calc(100vh-260px)] overflow-hidden rounded-[32px] border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-700 ease-out",
-              showWelcome
-                ? "pointer-events-none translate-y-6 scale-[0.96] opacity-0 blur-lg"
-                : "translate-y-0 scale-100 opacity-100 blur-0 motion-safe:animate-[summon-sandbox-rise_960ms_cubic-bezier(0.16,1,0.3,1)_both]",
-            )}
+            className="relative z-0 h-full min-h-0 overflow-hidden rounded-[32px] border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-700 ease-out motion-safe:animate-[summon-sandbox-rise_960ms_cubic-bezier(0.16,1,0.3,1)_both]"
           >
             <span id="surface-status" className="sr-only">
               {statusText}
@@ -171,7 +213,7 @@ export function GenerationStage({
               key={surfaceInstanceKey}
               ref={surfaceRef}
               id="sandbox"
-              className="block max-h-[calc(100vh-220px)] min-h-[calc(100vh-260px)] w-full overflow-auto border-0 bg-surface"
+              className="block h-full min-h-0 w-full overflow-auto border-0 bg-surface"
               title="Summon generate sandbox"
               tokensSource={surfaceTokensSource}
               toolRegistry={toolRegistry}
@@ -181,12 +223,6 @@ export function GenerationStage({
               onHandlerError={onSurfaceHandlerError}
               onRuntimeError={onSurfaceRuntimeError}
             />
-            {showHostLoader ? (
-              <SurfaceLoadingOverlay
-                statusText={statusText}
-                preview={generationPreview}
-              />
-            ) : null}
             {stageNotice ? (
               <div
                 className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
@@ -260,10 +296,10 @@ export function GenerationStage({
         onSubmit={(event) => {
           event.preventDefault();
           const value = prompt.trim();
-          if (value) void onGenerate(value);
+          if (value && !generationDisabledReason) void onGenerate(value);
         }}
       >
-        <div className="mx-auto grid w-[min(880px,calc(100%-24px))] gap-2.5 transition-[opacity,transform] duration-700 ease-out motion-safe:animate-[summon-title-rise_720ms_cubic-bezier(0.22,1,0.36,1)_140ms_both]">
+        <div className="mx-auto grid w-[min(1120px,calc(100%-24px))] gap-2.5 transition-[opacity,transform] duration-700 ease-out motion-safe:animate-[summon-title-rise_720ms_cubic-bezier(0.22,1,0.36,1)_140ms_both]">
           <div
             className={cn(
               "min-w-0 px-1 pb-1 transition-[opacity,filter,transform] duration-300 ease-out",
@@ -302,8 +338,8 @@ export function GenerationStage({
                   value={selectedFingerprintId ?? ""}
                   groups={fingerprintGroups}
                   overline="Fingerprint"
-                  placeholder="No fingerprint"
-                  title={selectedFingerprint?.summary ?? "Choose a fingerprint"}
+                  placeholder="Fingerprint"
+                  title={selectedFingerprint?.summary ?? generationDisabledReason ?? "Choose a fingerprint"}
                   side="top"
                   align="end"
                   disabled={running || fingerprints.length === 0}
@@ -314,14 +350,35 @@ export function GenerationStage({
                   )}
                   contentClassName="w-[min(320px,calc(100vw-32px))] !rounded-[32px] max-[760px]:left-0 max-[760px]:right-auto"
                   onValueChange={(nextValue) =>
-                    onSelectFingerprint(nextValue || null)
+                    nextValue ? onSelectFingerprint(nextValue) : undefined
+                  }
+                />
+                <DropdownSelect
+                  id="stream-type-picker"
+                  value={experimentalRuntime}
+                  groups={runtimeGroups}
+                  overline="Stream"
+                  placeholder="Arrow"
+                  title={selectedRuntimeOption?.description ?? "Choose output stream type"}
+                  side="top"
+                  align="end"
+                  disabled={running}
+                  className="w-[168px] max-w-[38vw]"
+                  triggerClassName={cn(
+                    "h-20 !border-0 !bg-ink px-3 py-0 text-xs font-semibold !text-ink-inverse shadow-none hover:opacity-85 focus:border-transparent",
+                    promptActionRadiusClass,
+                  )}
+                  contentClassName="w-[min(300px,calc(100vw-32px))] !rounded-[32px] max-[760px]:left-auto max-[760px]:right-0"
+                  onValueChange={(nextValue) =>
+                    onSelectExperimentalRuntime(nextValue as SummonOutputRuntime)
                   }
                 />
                 <Button
                   id="go"
                   type="submit"
                   className={cn("h-20 w-24 px-5", promptActionRadiusClass)}
-                  disabled={running || !prompt.trim()}
+                  title={generationDisabledReason ?? undefined}
+                  disabled={generateDisabled}
                 >
                   {running ? "summoning" : "summon"}
                 </Button>

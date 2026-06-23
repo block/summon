@@ -4,9 +4,11 @@
  *   {"op":"meta","path":"/status","value":"writing"}
  *   {"op":"event","path":"/surface","value":{"type":"surface.status","status":"drafting"}}
  *   {"op":"artifact","path":"/artifact","value":{"runtime":"arrow","source":{...}}}
+ *   {"op":"patch","path":"/artifact/html-patch","value":{"runtime":"html","action":"replace","target":"hero","html":"..."}}
  *
  * Preview UI is delivered as non-authoritative surface events. Executable UI is
- * delivered exclusively as complete Arrow artifacts.
+ * delivered as complete artifacts. Experimental HTML streaming only accepts
+ * complete validated patch fragments.
  */
 
 export interface MetaLine {
@@ -18,6 +20,12 @@ export interface MetaLine {
 export interface ArtifactLine {
   op: 'artifact';
   path: '/artifact';
+  value?: unknown;
+}
+
+export interface HtmlPatchLine {
+  op: 'patch';
+  path: '/artifact/html-patch';
   value?: unknown;
 }
 
@@ -71,7 +79,7 @@ export interface SurfaceEventLine {
   value?: unknown;
 }
 
-export type ProtocolLine = MetaLine | SurfaceEventLine | ArtifactLine;
+export type ProtocolLine = MetaLine | SurfaceEventLine | ArtifactLine | HtmlPatchLine;
 
 export const SUMMON_PROTOCOL_VERSION = 1;
 
@@ -93,7 +101,8 @@ export type ProtocolParseErrorCode =
   | 'invalid-shape'
   | 'invalid-op'
   | 'invalid-event-path'
-  | 'invalid-artifact-path';
+  | 'invalid-artifact-path'
+  | 'invalid-patch-path';
 
 export class ProtocolParseError extends Error {
   readonly code: ProtocolParseErrorCode;
@@ -150,6 +159,12 @@ export function parseProtocolLineStrict(
     }
     return p as unknown as ArtifactLine;
   }
+  if (p.op === 'patch') {
+    if (p.path !== '/artifact/html-patch') {
+      throw new ProtocolParseError('invalid-patch-path', 'HTML patch line path must be /artifact/html-patch');
+    }
+    return p as unknown as HtmlPatchLine;
+  }
   if (p.op === 'event') {
     if (p.path !== '/surface') {
       throw new ProtocolParseError('invalid-event-path', 'Event line path must be /surface');
@@ -173,6 +188,7 @@ export function isProtocolLine(value: unknown): value is ProtocolLine {
   const p = value as Record<string, unknown>;
   if (typeof p.op !== 'string' || typeof p.path !== 'string') return false;
   if (p.op === 'artifact') return p.path === '/artifact';
+  if (p.op === 'patch') return p.path === '/artifact/html-patch';
   if (p.op === 'event') return p.path === '/surface';
   return p.op === 'meta';
 }

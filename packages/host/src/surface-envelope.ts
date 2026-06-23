@@ -1,6 +1,7 @@
 import type {
   ArrowSurfaceArtifact,
   ContractIssue,
+  HtmlSurfaceArtifact,
   ProtocolLine,
   StreamGraphSnapshot,
   SurfacePlan,
@@ -8,12 +9,14 @@ import type {
 } from '@summon-internal/engine';
 import {
   isArrowSurfaceArtifact,
+  isHtmlSurfaceArtifact,
   isProtocolLine,
   normalizeSurfacePlan,
   validateProtocolLine,
 } from '@summon-internal/engine';
 
 export const SUMMON_SURFACE_ENVELOPE_VERSION = 4;
+export type SurfaceEnvelopeArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact;
 
 export interface SurfaceEnvelope {
   version: 4;
@@ -21,7 +24,7 @@ export interface SurfaceEnvelope {
   createdAt: string;
   prompt: string;
   surfacePlan: SurfacePlan;
-  artifact: ArrowSurfaceArtifact;
+  artifact: SurfaceEnvelopeArtifact;
   protocolLines: ProtocolLine[];
   validationIssues: ContractIssue[];
   streamGraph: StreamGraphSnapshot | null;
@@ -30,6 +33,7 @@ export interface SurfaceEnvelope {
     validationTools?: ValidationTool[];
   };
   metadata: {
+    fingerprintId?: string | null;
     directionId?: string | null;
     layoutId?: string | null;
     mode?: 'static' | 'interactive';
@@ -44,7 +48,7 @@ export interface CreateSurfaceEnvelopeInput {
   createdAt?: string | Date;
   prompt: string;
   surfacePlan: SurfacePlan;
-  artifact: ArrowSurfaceArtifact;
+  artifact: SurfaceEnvelopeArtifact;
   protocolLines: ProtocolLine[];
   validationIssues?: ContractIssue[];
   streamGraph?: StreamGraphSnapshot | null;
@@ -114,7 +118,7 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
   if (typeof input.id !== 'string' || !input.id) return false;
   if (typeof input.createdAt !== 'string' || Number.isNaN(Date.parse(input.createdAt))) return false;
   if (typeof input.prompt !== 'string') return false;
-  if (!isArrowSurfaceArtifact(input.artifact)) return false;
+  if (!isArrowSurfaceArtifact(input.artifact) && !isHtmlSurfaceArtifact(input.artifact)) return false;
   if (typeof input.runtimeVersion !== 'string' || !input.runtimeVersion) return false;
 
   const surfacePlan = normalizeSurfacePlan(input.surfacePlan);
@@ -212,6 +216,7 @@ function isMetadata(value: unknown): value is SurfaceEnvelope['metadata'] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const metadata = value as Record<string, unknown>;
   return (
+    (metadata.fingerprintId === undefined || metadata.fingerprintId === null || typeof metadata.fingerprintId === 'string') &&
     (metadata.directionId === undefined || metadata.directionId === null || typeof metadata.directionId === 'string') &&
     (metadata.layoutId === undefined || metadata.layoutId === null || typeof metadata.layoutId === 'string') &&
     (metadata.mode === undefined || metadata.mode === 'static' || metadata.mode === 'interactive') &&

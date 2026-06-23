@@ -6,12 +6,15 @@ import {
 } from 'react';
 import {
   consumeSurfaceStream,
+  type HtmlStreamPreviewDelta,
   type SurfacePreviewSnapshot,
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import {
   normalizeSurfacePlan,
+  buildFingerprintSteeringPayload,
   type ArrowSurfaceArtifact,
+  type HtmlSurfaceArtifact,
   type ProtocolLine,
   type SurfaceContractView,
   type SurfacePlan,
@@ -26,7 +29,6 @@ import {
   agentBrokerRequestFor,
   agentGoalText,
   agentPolicyText,
-  ghostRootFromSelection,
   missingArtifactMessage,
   parseSurfaceContractView,
   summarizeStreamGraphMeta,
@@ -58,8 +60,6 @@ export function useSurfaceStream({
   surfaceRef,
   modeRef,
   artifactRevisionRef,
-  directionId,
-  tokensFor,
   appendDevEvent,
   logLine,
   setBytes,
@@ -80,8 +80,6 @@ export function useSurfaceStream({
   surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
   modeRef: MutableRefObject<Mode>;
   artifactRevisionRef: MutableRefObject<number>;
-  directionId: string | null;
-  tokensFor: (id: string | null) => string;
   appendDevEvent: (event: DevtoolsEvent | ExtraDevtoolsEvent) => void;
   logLine: (cls: string, text: string) => void;
   setBytes: (value: number) => void;
@@ -209,6 +207,26 @@ export function useSurfaceStream({
       logLine('op-meta', `stream diagnostics -> ${JSON.stringify(line.value)}`);
       return;
     }
+    if (line.op === 'meta' && line.path === '/html-stream-preview') {
+      const delta = parseHtmlStreamPreviewDelta(line.value);
+      if (delta) {
+        surfaceRef.current?.applyHtmlPreviewDelta(delta);
+        logLine('op-meta', `html preview -> ${delta.action} #${delta.target}`);
+      }
+      return;
+    }
+    if (line.op === 'meta' && line.path === '/html-stream-summary') {
+      const value = line.value as { previewDeltaCount?: unknown; committedPatchCount?: unknown; blockedPatchReasons?: unknown } | undefined;
+      const previewDeltaCount = typeof value?.previewDeltaCount === 'number' ? value.previewDeltaCount : 0;
+      const committedPatchCount = typeof value?.committedPatchCount === 'number' ? value.committedPatchCount : 0;
+      const blockedPatchReasons = Array.isArray(value?.blockedPatchReasons)
+        ? value.blockedPatchReasons.filter((reason): reason is string => typeof reason === 'string')
+        : [];
+      const summary = `html preview=${previewDeltaCount} patches=${committedPatchCount} blocked=${blockedPatchReasons.length}`;
+      setCurrentStreamHealth(summary);
+      logLine('op-meta', `html stream -> ${summary}${blockedPatchReasons.length ? ` (${blockedPatchReasons.join(',')})` : ''}`);
+      return;
+    }
     if (line.op === 'meta' && line.path === '/timing') {
       const timing = parseTimingEntry(line.value);
       if (timing) {
@@ -226,12 +244,13 @@ export function useSurfaceStream({
       return;
     }
     if (line.op === 'meta' && line.path === '/model-output-mode') {
-      const value = line.value as { format?: unknown; schema?: unknown; repairAttempts?: unknown; repairing?: unknown } | undefined;
+      const value = line.value as { format?: unknown; schema?: unknown; runtime?: unknown; repairAttempts?: unknown; repairing?: unknown } | undefined;
       const format = typeof value?.format === 'string' ? value.format : 'unknown';
       const schema = typeof value?.schema === 'string' ? value.schema : 'unknown';
+      const runtime = typeof value?.runtime === 'string' ? `; runtime=${value.runtime}` : '';
       const repairs = typeof value?.repairAttempts === 'number' ? value.repairAttempts : 0;
       const repairing = Array.isArray(value?.repairing) ? `; repairing=${value.repairing.join(',')}` : '';
-      logLine('op-meta', `model output -> ${format}; schema=${schema}; repairs=${repairs}${repairing}`);
+      logLine('op-meta', `model output -> ${format}; schema=${schema}${runtime}; repairs=${repairs}${repairing}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/thinking') {
@@ -244,11 +263,12 @@ export function useSurfaceStream({
       return;
     }
     if (line.op === 'artifact') {
-      const artifact = line.value as ArrowSurfaceArtifact | undefined;
-      const files = artifact && artifact.runtime === 'arrow'
+      const artifact = line.value as ArrowSurfaceArtifact | HtmlSurfaceArtifact | undefined;
+      const validArtifact = artifact?.runtime === 'arrow' || artifact?.runtime === 'html';
+      const files = validArtifact
         ? Object.keys(artifact.source).join(', ')
         : 'invalid';
-      logLine('op-add', `artifact ${line.path} -> ${files}`);
+      logLine('op-add', `${validArtifact ? artifact.runtime : 'unknown'} artifact ${line.path} -> ${files}`);
       artifactRevisionRef.current += 1;
       setArtifactRevision(artifactRevisionRef.current);
       return;
@@ -257,7 +277,6 @@ export function useSurfaceStream({
     appendDevEvent,
     appendTimingEntry,
     artifactRevisionRef,
-    directionId,
     logLine,
     modeRef,
     setActiveTokensSourceOverride,
@@ -272,12 +291,11 @@ export function useSurfaceStream({
     setMode,
     setStatus,
     setSurfaceTokensSource,
-    tokensFor,
+    surfaceRef,
   ]);
 
   return useCallback(async (opts: StreamOptions): Promise<StreamResult> => {
     const active = opts.active;
-    const ghostRootId = ghostRootFromSelection(opts.directionId);
     const toolPack = toolPackFor(active);
     const surfaceRequest = opts.playgroundMode ? {} : surfaceRequestFor(active);
     const agent = opts.playgroundMode ? undefined : agentBrokerRequestFor(active);
@@ -309,21 +327,17 @@ export function useSurfaceStream({
       ...(active.customModel ? { customModel: true } : {}),
       ...(active.modelOptions ? { modelOptions: active.modelOptions } : {}),
     };
-    const steeringPayload = ghostRootId
-      ? {
-          fingerprint: {
-            id: ghostRootId,
-            targetPath: opts.ghostTargetPath,
-            ...(opts.ghostBaseDirectionId ? { baseDirectionId: opts.ghostBaseDirectionId } : {}),
-          },
-        }
-      : { directionId: opts.directionId };
+    const steeringPayload = buildFingerprintSteeringPayload({
+      id: opts.fingerprintId,
+      targetPath: opts.fingerprintTargetPath,
+    }) ?? {};
     const requestBody = opts.playgroundMode
       ? {
           prompt: opts.prompt,
           playground: true,
           validationMode: 'observe',
           maxRepairAttempts: 0,
+          experimentalRuntime: opts.experimentalRuntime,
           ...modelSelectionPayload,
           ...steeringPayload,
           tools: toolPack,
@@ -331,6 +345,7 @@ export function useSurfaceStream({
       : {
           prompt: opts.prompt,
           validationMode: 'enforce',
+          experimentalRuntime: opts.experimentalRuntime,
           ...modelSelectionPayload,
           ...steeringPayload,
           tools: toolPack,
@@ -382,6 +397,10 @@ export function useSurfaceStream({
           markClientTiming('first-artifact', 'First accepted artifact received');
         }
         surfaceRef.current?.renderArtifact(artifact);
+      },
+      onHtmlPatch: (patch) => {
+        surfaceRef.current?.applyHtmlPatch(patch);
+        logLine('op-artifact', `html patch ${patch.action} #${patch.target}`);
       },
       onSurfaceEvent: (event) => {
         setPreviewSnapshot((snapshot) =>
@@ -471,6 +490,34 @@ function roundMs(value: number): number {
 
 function formatTimingMs(value: number): string {
   return `${Math.round(value).toLocaleString()}ms`;
+}
+
+function parseHtmlStreamPreviewDelta(value: unknown): HtmlStreamPreviewDelta | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const delta = value as Record<string, unknown>;
+  if (delta.runtime !== 'html') return null;
+  if (typeof delta.target !== 'string' || !delta.target) return null;
+  if (
+    delta.action !== 'append' &&
+    delta.action !== 'replace' &&
+    delta.action !== 'update' &&
+    delta.action !== 'remove' &&
+    delta.action !== 'morph'
+  ) {
+    return null;
+  }
+  const text = typeof delta.delta === 'string'
+    ? delta.delta
+    : typeof delta.text === 'string'
+      ? delta.text
+      : '';
+  if (!text) return null;
+  return {
+    runtime: 'html',
+    target: delta.target,
+    action: delta.action,
+    delta: text,
+  };
 }
 
 async function readErrorResponse(response: Response): Promise<string> {
