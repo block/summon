@@ -20,8 +20,7 @@ import {
 import type { SurfaceContractView } from './surface-contract.js';
 import type { ToolSurface } from './surface-plan.js';
 import {
-  isHtmlOutputRuntime,
-  isScriptedHtmlOutputRuntime,
+  runtimeProfile,
   type SummonOutputRuntime,
 } from './output-runtime.js';
 
@@ -325,7 +324,7 @@ export function buildLayoutBlock(
   const slotLines = layout.slots
     .map((slot) => `- \`${slot.id}\` — ${slot.purpose}`)
     .join('\n');
-  const artifactLabel = isHtmlOutputRuntime(options.outputRuntime)
+  const artifactLabel = runtimeProfile(options.outputRuntime).format === 'html'
     ? 'HTML bundle'
     : 'Arrow artifact';
 
@@ -348,8 +347,9 @@ export function buildSurfaceContractBlock(
   options: PromptRuntimeOptions = {},
 ): string {
   const { surface } = contract;
-  const htmlRuntime = isHtmlOutputRuntime(options.outputRuntime);
   const outputRuntime = options.outputRuntime ?? 'arrow-control';
+  const profile = runtimeProfile(outputRuntime);
+  const htmlRuntime = profile.format === 'html';
   const artifactLine = htmlRuntime
     ? `It is not a JSON UI schema: you still generate a rich HTML bundle inside these typed boundaries. The output runtime for this generation is \`${outputRuntime}\`; the structured output contract below controls the exact files.`
     : 'It is not a JSON UI schema: you still generate a rich Arrow source artifact inside these typed boundaries.';
@@ -500,7 +500,7 @@ export function buildToolsBlock(
     actionsList ? `### Available actions\n\n${actionsList}` : '',
   ].filter(Boolean).join('\n\n');
 
-  if (isHtmlOutputRuntime(options.outputRuntime)) {
+  if (runtimeProfile(options.outputRuntime).format === 'html') {
     return buildHtmlToolsBlock({
       outputRuntime: options.outputRuntime ?? 'html-static',
       toolSections,
@@ -664,7 +664,7 @@ function buildHtmlToolsBlock({
   outputRuntime: SummonOutputRuntime;
   toolSections: string;
 }): string {
-  if (!isScriptedHtmlOutputRuntime(outputRuntime)) {
+  if (runtimeProfile(outputRuntime).trust !== 'iframe-script') {
     return `## Tools — host-owned context for static HTML
 
 This run returns a structured HTML/CSS bundle for \`${outputRuntime}\`. The generated artifact does not receive a host tool bridge in this runtime, so do not call tools, include scripts, or render controls that imply live host actions.

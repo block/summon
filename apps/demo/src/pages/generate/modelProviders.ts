@@ -1,11 +1,30 @@
-import type {
-  ModelCatalogEntry,
-  ModelOptions,
-  ModelProviderControls,
-  ModelProviderDefaults,
-  ModelProviderInfo,
-  RunProfile,
+import {
+  type SummonOutputRuntime,
+} from '@anarchitecture/summon/engine';
+import {
+  MODEL_PROFILE_KEYS,
+  type ModelCatalogEntry,
+  type ModelOptions,
+  type ModelProfileKey,
+  type ModelProfileState,
+  type ModelProviderControls,
+  type ModelProviderDefaults,
+  type ModelProviderInfo,
+  type RuntimeModelProfileKey,
+  type RunProfile,
 } from './types.js';
+
+const MODEL_PROFILE_KEY_BY_RUNTIME = {
+  'arrow-control': 'arrow-control',
+  'html-static': 'html-static',
+  'html-stream': 'html-stream',
+  'html-script': 'html-script',
+  'unsafe-html-raw-stream': 'html-stream',
+} satisfies Record<SummonOutputRuntime, RuntimeModelProfileKey>;
+
+export function modelProfileKeyForRuntime(runtime: SummonOutputRuntime): RuntimeModelProfileKey {
+  return MODEL_PROFILE_KEY_BY_RUNTIME[runtime];
+}
 
 export function parseModelCatalog(raw: unknown): ModelCatalogEntry[] {
   if (!Array.isArray(raw)) return [];
@@ -70,7 +89,7 @@ export function parseProviderControls(raw: unknown): ModelProviderControls | und
     ? ((item.anthropicThinking as { options?: unknown[] }).options ?? []).filter((value): value is 'adaptive' | 'off' => value === 'adaptive' || value === 'off')
     : [];
   const effortOptions = Array.isArray((item.effort as Record<string, unknown> | undefined)?.options)
-    ? ((item.effort as { options?: unknown[] }).options ?? []).filter((value): value is 'low' | 'medium' | 'high' => value === 'low' || value === 'medium' || value === 'high')
+    ? ((item.effort as { options?: unknown[] }).options ?? []).filter((value): value is 'low' | 'medium' | 'high' | 'max' => value === 'low' || value === 'medium' || value === 'high' || value === 'max')
     : [];
   return {
     customModels: item.customModels !== false,
@@ -80,10 +99,10 @@ export function parseProviderControls(raw: unknown): ModelProviderControls | und
       options: thinkingOptions.length ? thinkingOptions : ['adaptive', 'off'],
     },
     effort: {
-      default: ['low', 'medium', 'high'].includes(String((item.effort as { default?: unknown } | undefined)?.default))
-        ? (item.effort as { default: 'low' | 'medium' | 'high' }).default
-        : 'medium',
-      options: effortOptions.length ? effortOptions : ['low', 'medium', 'high'],
+      default: ['low', 'medium', 'high', 'max'].includes(String((item.effort as { default?: unknown } | undefined)?.default))
+        ? (item.effort as { default: 'low' | 'medium' | 'high' | 'max' }).default
+        : 'max',
+      options: effortOptions.length ? effortOptions : ['low', 'medium', 'high', 'max'],
     },
   };
 }
@@ -128,7 +147,7 @@ export function fallbackCatalog(id: string, label: string): ModelCatalogEntry[] 
     label,
     status: 'stable',
     tier: 'balanced',
-    maxOutputTokens: 64000,
+    maxOutputTokens: 128000,
   }];
 }
 
@@ -137,7 +156,7 @@ export interface RunProfileDefaults {
   utilityModel: string;
   maxOutputTokens: number;
   anthropicThinking: 'adaptive' | 'off';
-  effort: 'low' | 'medium' | 'high';
+  effort: 'low' | 'medium' | 'high' | 'max';
 }
 
 export function defaultsForRunProfile(
@@ -169,13 +188,13 @@ function qualityDefaults(provider: ModelProviderInfo): RunProfileDefaults {
     utilityModel: provider.defaults?.utilityModel ?? provider.utilityModel,
     maxOutputTokens: provider.controls?.maxOutputTokens.default ??
       provider.defaults?.modelOptions.maxOutputTokens ??
-      64000,
+      128000,
     anthropicThinking: provider.controls?.anthropicThinking?.default ??
       provider.defaults?.modelOptions.anthropicThinking ??
       'adaptive',
     effort: provider.controls?.effort?.default ??
       provider.defaults?.modelOptions.effort ??
-      'medium',
+      'max',
   };
 }
 
@@ -207,4 +226,76 @@ function optionOrDefault<T extends string>(
   fallback: T,
 ): T {
   return options?.includes(desired) ? desired : fallback;
+}
+
+const STRUCTURED_PROFILES: ModelProfileKey[] = ['arrow-control', 'html-static'];
+
+export function isStructuredProfile(key: ModelProfileKey): boolean {
+  return STRUCTURED_PROFILES.includes(key);
+}
+
+export function defaultsForModelProfile(
+  provider: ModelProviderInfo | null,
+  profile: Exclude<RunProfile, 'custom'>,
+  key: ModelProfileKey,
+): ModelProfileState {
+  const defaults: RunProfileDefaults = provider
+    ? defaultsForRunProfile(provider, profile)
+    : {
+        generationModel: '',
+        utilityModel: '',
+        maxOutputTokens: 128000,
+        anthropicThinking: 'adaptive',
+        effort: 'max',
+      };
+
+  return {
+    modelProvider: provider?.id,
+    generationModel: key === 'utility' ? '' : defaults.generationModel,
+    utilityModel: defaults.utilityModel,
+    customModel: '',
+    customModelEnabled: false,
+    maxOutputTokens:
+      key === 'utility'
+        ? Math.min(defaults.maxOutputTokens, 2000)
+        : defaults.maxOutputTokens,
+    anthropicThinking: isStructuredProfile(key) ? 'off' : defaults.anthropicThinking,
+    effort: key === 'utility' ? 'low' : defaults.effort,
+  };
+}
+
+export function createEmptyModelProfiles(): Record<ModelProfileKey, ModelProfileState> {
+  return MODEL_PROFILE_KEYS.reduce((acc, key) => {
+    acc[key] = defaultsForModelProfile(null, 'quality', key);
+    return acc;
+  }, {} as Record<ModelProfileKey, ModelProfileState>);
+}
+
+export function modelProfilesForRunProfile(
+  provider: ModelProviderInfo | null,
+  profile: Exclude<RunProfile, 'custom'>,
+): Record<ModelProfileKey, ModelProfileState> {
+  return MODEL_PROFILE_KEYS.reduce((acc, key) => {
+    acc[key] = defaultsForModelProfile(provider, profile, key);
+    return acc;
+  }, {} as Record<ModelProfileKey, ModelProfileState>);
+}
+
+export function hydrateMissingModelProfiles(
+  current: Record<ModelProfileKey, ModelProfileState>,
+  provider: ModelProviderInfo | null,
+  profile: Exclude<RunProfile, 'custom'>,
+): Record<ModelProfileKey, ModelProfileState> {
+  if (!provider) return current;
+  const next = { ...current };
+  let changed = false;
+  for (const key of MODEL_PROFILE_KEYS) {
+    const slot = current[key];
+    const empty = key === 'utility' ? !slot.utilityModel : !slot.generationModel;
+    if (empty || !slot.modelProvider) {
+      next[key] = defaultsForModelProfile(provider, profile, key);
+      changed = true;
+    }
+  }
+  return changed ? next : current;
 }

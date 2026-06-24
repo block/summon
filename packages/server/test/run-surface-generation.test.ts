@@ -26,6 +26,13 @@ function withoutTiming(lines: readonly ProtocolLine[]): ProtocolLine[] {
   return lines.filter((line) => !(line.op === 'meta' && line.path === '/timing'));
 }
 
+function runMetrics(lines: readonly ProtocolLine[]): Record<string, unknown> {
+  const line = lines.find((item) => item.op === 'meta' && item.path === '/run-metrics');
+  assert.ok(line, 'expected /run-metrics line');
+  assert.ok(line.value && typeof line.value === 'object');
+  return line.value as Record<string, unknown>;
+}
+
 test('runSurfaceGeneration emits server-owned preview and artifact lines', async () => {
   const lines: ProtocolLine[] = [];
   const summary = await runSurfaceGeneration({
@@ -40,6 +47,15 @@ test('runSurfaceGeneration emits server-owned preview and artifact lines', async
   assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/model-output-mode'));
   assert.ok(lines.some((line) => line.op === 'event' && line.path === '/surface'));
   assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
+  assert.deepEqual(runMetrics(lines), {
+    schema: 'summon.run-metrics/v1',
+    runtime: 'arrow-control',
+    repairs: 0,
+    blocked: false,
+    validationCount: 0,
+    safetyViolations: 0,
+    safetyViolationCodes: [],
+  });
   assert.deepEqual(summary.acceptedLines.map((line) => line.op), ['event', 'event', 'event', 'event', 'event', 'artifact']);
   assert.deepEqual(withoutTiming(lines).slice(0, 5).map((line) => `${line.op} ${line.path}`), [
     'meta /surface-policy',
@@ -117,6 +133,95 @@ test('runSurfaceGeneration emits experimental HTML artifacts when requested', as
   assert.equal((artifact?.value as { runtime?: unknown } | undefined)?.runtime, 'html');
 });
 
+test('runSurfaceGeneration blocks unsafe html-static bundles before artifact emission', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      throw new Error('Arrow provider should not be used for html-static');
+    },
+    async generateHtmlBundle() {
+      return {
+        schema: 'summon.html-bundle/v0',
+        source: {
+          'body.html': '<section id="hero"><script>window.evil = true</script><h1>Unsafe</h1></section>',
+          'main.js': 'window.summon.callTool("search", {});',
+        },
+      };
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'unsafe static html',
+    experimentalRuntime: 'html-static',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+    maxRepairAttempts: 0,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, true);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'static-script'));
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'html-script-not-enabled'));
+  assert.equal(lines.some((line) => line.op === 'artifact'), false);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-blocked'));
+});
+
+test('runSurfaceGeneration accepts safe html-script bundles and blocks unsafe script APIs', async () => {
+  const safeLines: ProtocolLine[] = [];
+  const safeSummary = await runSurfaceGeneration({
+    prompt: 'safe scripted html',
+    experimentalRuntime: 'html-script',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: {
+      async generateArrowBundle() {
+        throw new Error('Arrow provider should not be used for html-script');
+      },
+      async generateHtmlBundle(request) {
+        assert.equal(request.runtime, 'html-script');
+        assert.equal(request.allowScript, true);
+        return {
+          schema: 'summon.html-bundle/v0',
+          source: {
+            'body.html': '<section id="hero"><button id="probe">Probe</button></section>',
+            'main.js': 'document.getElementById("probe")?.addEventListener("click", () => window.summon.callTool("noop", {}));',
+          },
+        };
+      },
+    },
+  }, (line) => safeLines.push(line));
+
+  assert.equal(safeSummary.blocked, false);
+  assert.ok(safeLines.some((line) => line.op === 'artifact' && (line.value as { runtime?: unknown }).runtime === 'html'));
+
+  const unsafeLines: ProtocolLine[] = [];
+  const unsafeSummary = await runSurfaceGeneration({
+    prompt: 'unsafe scripted html',
+    experimentalRuntime: 'html-script',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: {
+      async generateArrowBundle() {
+        throw new Error('Arrow provider should not be used for html-script');
+      },
+      async generateHtmlBundle() {
+        return {
+          schema: 'summon.html-bundle/v0',
+          source: {
+            'body.html': '<section id="hero">Unsafe script</section>',
+            'main.js': 'localStorage.setItem("leak", "1"); fetch("https://example.test"); window.parent.postMessage("x", "*");',
+          },
+        };
+      },
+    },
+    maxRepairAttempts: 0,
+  }, (line) => unsafeLines.push(line));
+
+  assert.equal(unsafeSummary.blocked, true);
+  assert.ok(unsafeSummary.validationIssues.some((issue) => issue.code === 'unsafe-html-script'));
+  assert.equal(unsafeLines.some((line) => line.op === 'artifact'), false);
+  const metrics = runMetrics(unsafeLines);
+  assert.equal(metrics.blocked, true);
+  assert.deepEqual(metrics.safetyViolationCodes, ['unsafe-html-script']);
+});
+
 test('runSurfaceGeneration streams html-stream preview deltas before validated patch commits', async () => {
   const lines: ProtocolLine[] = [];
   let generatedHtmlBundle = false;
@@ -151,11 +256,12 @@ test('runSurfaceGeneration streams html-stream preview deltas before validated p
   assert.equal(generatedHtmlBundle, false);
   assert.match(capturedSystemText, /Experimental HTML stream protocol/);
   const artifactIndex = lines.findIndex((line) => line.op === 'artifact');
-  const firstPreviewIndex = lines.findIndex((line) => line.op === 'meta' && line.path === '/html-stream-preview');
   const patchIndex = lines.findIndex((line) => line.op === 'patch' && line.path === '/artifact/html-patch');
   assert.ok(artifactIndex >= 0);
-  assert.ok(firstPreviewIndex > artifactIndex);
-  assert.ok(patchIndex > firstPreviewIndex);
+  const previewIndex = lines.findIndex((line) => line.op === 'meta' && line.path === '/html-stream-preview');
+  assert.ok(previewIndex > artifactIndex);
+  assert.ok(previewIndex < patchIndex);
+  assert.ok(patchIndex > artifactIndex);
   assert.deepEqual((lines[patchIndex]?.value as { target?: unknown; action?: unknown }), {
     runtime: 'html',
     action: 'replace',
@@ -163,6 +269,32 @@ test('runSurfaceGeneration streams html-stream preview deltas before validated p
     html: '<section id="hero"><h2>Updated</h2></section>\n',
   });
   assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/html-stream-summary' && (line.value as { committedPatchCount?: unknown }).committedPatchCount === 1));
+});
+
+test('runSurfaceGeneration accepts html-stream scaffold with malformed preview regions as warnings', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      throw new Error('Arrow provider should not be used for html-stream');
+    },
+    async *streamHtmlSurface() {
+      yield '@@summon-html-scaffold\n{"schema":"summon.html-bundle/v0","preview":{"kind":"inform","title":"Stream","regions":["hero",{"id":"content"},null]},"source":{"body.html":"<main><section id=\\"hero\\">Hello</section><section id=\\"content\\"></section></main>"}}\n@@end-summon-html-scaffold\n';
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'stream html malformed preview',
+    experimentalRuntime: 'html-stream',
+    playground: true,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, false);
+  assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'coerced-html-preview-region'));
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'ignored-html-preview-region'));
+  assert.equal(summary.validationIssues.some((issue) => issue.code === 'invalid-html-preview-region'), false);
 });
 
 test('runSurfaceGeneration keeps unsafe html-stream text preview-only and blocks the committed fragment', async () => {
@@ -187,10 +319,66 @@ test('runSurfaceGeneration keeps unsafe html-stream text preview-only and blocks
   }, (line) => lines.push(line));
 
   assert.equal(summary.blocked, true);
-  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/html-stream-preview'));
+  assert.equal(lines.some((line) => line.op === 'meta' && line.path === '/html-stream-preview'), true);
   assert.equal(lines.some((line) => line.op === 'patch' && line.path === '/artifact/html-patch'), false);
   assert.ok(summary.validationIssues.some((issue) => issue.code === 'external-url'));
   assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-blocked' && (line.value as { code?: unknown }).code === 'external-url'));
+  const metrics = runMetrics(lines);
+  assert.equal(metrics.blocked, true);
+  assert.equal(metrics.validationCount, summary.validationIssues.length);
+  assert.equal(metrics.safetyViolations, 1);
+  assert.deepEqual(metrics.safetyViolationCodes, ['external-url']);
+});
+
+test('runSurfaceGeneration blocks unsafe html-stream scaffold before commit', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      throw new Error('Arrow provider should not be used for html-stream');
+    },
+    async *streamHtmlSurface() {
+      yield '@@summon-html-scaffold\n{"schema":"summon.html-bundle/v0","source":{"body.html":"<main><section id=\\"hero\\"><script>window.evil=true</script></section></main>"}}\n@@end-summon-html-scaffold\n';
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'unsafe stream scaffold',
+    experimentalRuntime: 'html-stream',
+    playground: true,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, true);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'static-script'));
+  assert.equal(lines.some((line) => line.op === 'artifact'), false);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/html-stream-summary' && ((line.value as { blockedPatchReasons?: unknown }).blockedPatchReasons as unknown[]).includes('static-script')));
+});
+
+test('runSurfaceGeneration blocks html-stream marker tokens inside patch bodies', async () => {
+  const lines: ProtocolLine[] = [];
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      throw new Error('Arrow provider should not be used for html-stream');
+    },
+    async *streamHtmlSurface() {
+      yield '@@summon-html-scaffold\n{"schema":"summon.html-bundle/v0","source":{"body.html":"<main><section id=\\"hero\\"></section></main>"}}\n@@end-summon-html-scaffold\n';
+      yield '@@summon-html-patch target="hero" action="replace"\n<section id="hero">@@summon-html-scaffold</section>\n@@end-summon-html-patch\n';
+    },
+  };
+
+  const summary = await runSurfaceGeneration({
+    prompt: 'marker in patch body',
+    experimentalRuntime: 'html-stream',
+    playground: true,
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+  }, (line) => lines.push(line));
+
+  assert.equal(summary.blocked, true);
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'html-stream-marker-in-patch-body'));
+  assert.equal(lines.some((line) => line.op === 'patch' && line.path === '/artifact/html-patch'), false);
+  assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/html-stream-summary' && ((line.value as { blockedPatchReasons?: unknown }).blockedPatchReasons as unknown[]).includes('html-stream-marker-in-patch-body')));
 });
 
 test('runSurfaceGeneration blocks html-stream output without a scaffold frame', async () => {
@@ -252,6 +440,10 @@ test('runSurfaceGeneration repairs invalid structured bundle', async () => {
   assert.equal(summary.blocked, false);
   assert.ok(summary.validationIssues.some((issue) => issue.code === 'unsupported-arrow-open-tag-expression'));
   assert.ok(lines.some((line) => line.op === 'artifact'));
+  const metrics = runMetrics(lines);
+  assert.equal(metrics.repairs, 1);
+  assert.equal(metrics.blocked, false);
+  assert.equal(metrics.validationCount, summary.validationIssues.length);
 });
 
 test('runSurfaceGeneration repairs Arrow source syntax errors before runtime', async () => {

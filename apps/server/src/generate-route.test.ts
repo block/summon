@@ -167,6 +167,106 @@ function firstMetaLine(lines: ProtocolLine[], path: string): Extract<ProtocolLin
   return line;
 }
 
+test('api generate gates unsafe raw runtime behind explicit env flag', async (t) => {
+  const anthropicRequests: unknown[] = [];
+  const anthropic = createServer(async (req, res) => {
+    if (req.method === 'POST') {
+      anthropicRequests.push(JSON.parse(await readBody(req)));
+    }
+    res.writeHead(500);
+    res.end('model provider should not be called for unsafe gate checks');
+  });
+  await listen(anthropic);
+  t.after(async () => {
+    await closeServer(anthropic);
+  });
+  const anthropicPort = addressPort(anthropic);
+
+  const blockedPort = await reservePort();
+  const blockedApp = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(blockedPort),
+      SUMMON_MODEL_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'test-key',
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${anthropicPort}`,
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_INFER_SHAPE: '0',
+      SUMMON_ALLOW_UNSAFE_RUNTIME: '',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const blockedOutput = captureOutput(blockedApp);
+  t.after(async () => {
+    await stopChild(blockedApp);
+  });
+  await waitForHealth(blockedPort, blockedApp, blockedOutput);
+
+  const blockedResponse = await fetch(`http://127.0.0.1:${blockedPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'stream unsafe raw html',
+      fingerprint: { id: 'editorial-mono' },
+      experimentalRuntime: 'unsafe-html-raw-stream',
+    }),
+  });
+  assert.equal(blockedResponse.status, 400);
+  assert.match(await blockedResponse.text(), /SUMMON_ALLOW_UNSAFE_RUNTIME=1/);
+  assert.equal(anthropicRequests.length, 0);
+
+  const allowedPort = await reservePort();
+  const allowedApp = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(allowedPort),
+      SUMMON_MODEL_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'test-key',
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${anthropicPort}`,
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_INFER_SHAPE: '0',
+      SUMMON_ALLOW_UNSAFE_RUNTIME: '1',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const allowedOutput = captureOutput(allowedApp);
+  t.after(async () => {
+    await stopChild(allowedApp);
+  });
+  await waitForHealth(allowedPort, allowedApp, allowedOutput);
+
+  const allowedResponse = await fetch(`http://127.0.0.1:${allowedPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'stream unsafe raw html',
+      fingerprint: { id: 'editorial-mono' },
+      experimentalRuntime: 'unsafe-html-raw-stream',
+      surfacePolicy: { tier: 'static', purpose: 'inform' },
+    }),
+  });
+  const allowedBody = await allowedResponse.text();
+  assert.equal(allowedResponse.status, 200, allowedBody);
+  const lines = allowedBody
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+  const mode = firstMetaLine(lines, '/model-output-mode').value as { runtime?: unknown };
+  assert.equal(mode.runtime, 'unsafe-html-raw-stream');
+  const blocked = firstMetaLine(lines, '/validation-blocked').value as { code?: unknown };
+  assert.equal(blocked.code, 'unsupported-output-runtime');
+  assert.equal(anthropicRequests.length, 0);
+});
+
 test('api generate sends narrowed contract and stream meta shape through package runner', async (t) => {
   const anthropicRequests: unknown[] = [];
   const anthropic = createServer(async (req, res) => {
@@ -972,7 +1072,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
   };
   assert.equal(streamRequest.model, 'claude-haiku-4-5');
   assert.equal(streamRequest.max_tokens, 12000);
-  assert.equal(streamRequest.thinking, undefined);
+  assert.deepEqual(streamRequest.thinking, { type: 'disabled' });
   assert.equal(streamRequest.output_config, undefined);
   assert.ok(Array.isArray(streamRequest.tools));
 

@@ -5,6 +5,7 @@ import { createSurfaceEnvelope } from "@anarchitecture/summon/envelope";
 import {
   isArrowSurfaceArtifact,
   isHtmlSurfaceArtifact,
+  runtimeProfile,
   type ProtocolLine,
   type SummonOutputRuntime,
   type SummonLayout,
@@ -33,7 +34,15 @@ import { useGenerationRuns } from "./hooks/useGenerationRuns.js";
 import { useSavedSurfaces } from "./hooks/useSavedSurfaces.js";
 import { useSurfaceStream } from "./hooks/useSurfaceStream.js";
 import { useWorkbenchCatalogs } from "./hooks/useWorkbenchCatalogs.js";
-import { defaultsForRunProfile, fallbackCatalog } from "./modelProviders.js";
+import {
+  createEmptyModelProfiles,
+  defaultsForModelProfile,
+  fallbackCatalog,
+  hydrateMissingModelProfiles,
+  isStructuredProfile,
+  modelProfileKeyForRuntime,
+  modelProfilesForRunProfile,
+} from "./modelProviders.js";
 import { loadSavedSurfaces } from "./savedSurfaces.js";
 import {
   buildContractRows,
@@ -48,6 +57,9 @@ import type {
   DiagnosticsTab,
   LogEntry,
   ModelOptions,
+  ModelProfileKey,
+  ModelProfileState,
+  ModelProviderInfo,
   ModelSelectionPayload,
   RunProfile,
   StreamResult,
@@ -56,6 +68,45 @@ import type {
 
 const DEFAULT_FINGERPRINT_ID = "editorial-mono";
 const DEFAULT_EXPERIMENTAL_RUNTIME: SummonOutputRuntime = "arrow-control";
+
+function unsafeRuntimeGateEnabled(): boolean {
+  if (import.meta.env.VITE_SUMMON_ALLOW_UNSAFE_RUNTIME === "1") return true;
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("unsafe") === "1";
+}
+
+function profileStateToPayload(
+  profile: ModelProfileState,
+  key: ModelProfileKey,
+  providers: ModelProviderInfo[],
+): ModelSelectionPayload {
+  const payload: ModelSelectionPayload = {};
+  if (profile.modelProvider) payload.modelProvider = profile.modelProvider;
+
+  if (key !== "utility") {
+    if (profile.customModelEnabled) {
+      const custom = profile.customModel.trim();
+      if (custom) {
+        payload.generationModel = custom;
+        payload.customModel = true;
+      }
+    } else if (profile.generationModel) {
+      payload.generationModel = profile.generationModel;
+    }
+  }
+  if (profile.utilityModel) payload.utilityModel = profile.utilityModel;
+
+  const options: ModelOptions = {};
+  if (Number.isFinite(profile.maxOutputTokens))
+    options.maxOutputTokens = profile.maxOutputTokens;
+  const provider = providers.find((item) => item.id === profile.modelProvider);
+  if (provider?.id === "anthropic") {
+    options.anthropicThinking = profile.anthropicThinking;
+    options.effort = profile.effort;
+  }
+  if (Object.keys(options).length > 0) payload.modelOptions = options;
+  return payload;
+}
 
 export function GeneratePage() {
   const surfaceRef = useRef<SummonSurfaceHandle>(null);
@@ -87,20 +138,12 @@ export function GeneratePage() {
     DEFAULT_FINGERPRINT_ID,
   );
   const [fingerprintTargetPath, setFingerprintTargetPath] = useState(".");
-  const [modelProviderId, setModelProviderId] = useState("");
-  const [generationModel, setGenerationModel] = useState("");
-  const [utilityModel, setUtilityModel] = useState("");
-  const [customModel, setCustomModel] = useState("");
   const [runProfile, setRunProfile] = useState<RunProfile>("quality");
   const [experimentalRuntime, setExperimentalRuntime] =
     useState<SummonOutputRuntime>(DEFAULT_EXPERIMENTAL_RUNTIME);
-  const [maxOutputTokens, setMaxOutputTokens] = useState(64000);
-  const [anthropicThinking, setAnthropicThinking] = useState<
-    "adaptive" | "off"
-  >("adaptive");
-  const [modelEffort, setModelEffort] = useState<"low" | "medium" | "high">(
-    "medium",
-  );
+  const [modelProfiles, setModelProfiles] = useState<
+    Record<ModelProfileKey, ModelProfileState>
+  >(() => createEmptyModelProfiles());
   const [activeTokensSourceOverride, setActiveTokensSourceOverride] = useState<
     string | null
   >(null);
@@ -148,10 +191,20 @@ export function GeneratePage() {
   const [children, setChildren] = useState<ChildSurfaceModel[]>([]);
   const [running, setRunning] = useState(false);
   const timingEntryIdRef = useRef(0);
+  const allowUnsafeRuntime = useMemo(() => unsafeRuntimeGateEnabled(), []);
 
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  useEffect(() => {
+    if (
+      !allowUnsafeRuntime &&
+      runtimeProfile(experimentalRuntime).trust === "unsafe"
+    ) {
+      setExperimentalRuntime(DEFAULT_EXPERIMENTAL_RUNTIME);
+    }
+  }, [allowUnsafeRuntime, experimentalRuntime]);
 
   useEffect(() => {
     artifactRevisionRef.current = artifactRevision;
@@ -169,32 +222,21 @@ export function GeneratePage() {
       ) ?? showcaseScenarios[0]!,
     [selectedScenarioId, showcaseScenarios],
   );
+  const activeModelProfileKey: ModelProfileKey =
+    modelProfileKeyForRuntime(experimentalRuntime);
+  const activeModelProfile = modelProfiles[activeModelProfileKey];
+  const utilityModelProfile = modelProfiles.utility;
+
   const selectedProvider = useMemo(
     () =>
-      modelProviders.find((provider) => provider.id === modelProviderId) ??
-      null,
-    [modelProviderId, modelProviders],
+      modelProviders.find(
+        (provider) => provider.id === activeModelProfile.modelProvider,
+      ) ?? null,
+    [modelProviders, activeModelProfile.modelProvider],
   );
 
-  const applyRunProfileDefaults = useCallback(
-    (profile: Exclude<RunProfile, "custom">, provider = selectedProvider) => {
-      if (!provider) return;
-      const defaults = defaultsForRunProfile(provider, profile);
-      setGenerationModel(defaults.generationModel);
-      setUtilityModel(defaults.utilityModel);
-      setCustomModel("");
-      setMaxOutputTokens(defaults.maxOutputTokens);
-      setAnthropicThinking(defaults.anthropicThinking);
-      setModelEffort(defaults.effort);
-    },
-    [selectedProvider],
-  );
-
-  useEffect(() => {
-    if (modelProviders.length === 0) {
-      setModelProviderId("");
-      return;
-    }
+  const defaultProviderForInit = useMemo<ModelProviderInfo | null>(() => {
+    if (modelProviders.length === 0) return null;
     const configuredDefault = defaultModelProviderId
       ? modelProviders.find(
           (provider) =>
@@ -204,20 +246,26 @@ export function GeneratePage() {
     const firstConfigured = modelProviders.find(
       (provider) => provider.configured,
     );
-    const next = configuredDefault?.id ?? firstConfigured?.id ?? "";
-    setModelProviderId((current) => current || next);
+    return configuredDefault ?? firstConfigured ?? modelProviders[0] ?? null;
   }, [defaultModelProviderId, modelProviders]);
 
   useEffect(() => {
-    if (!selectedProvider) {
-      setGenerationModel("");
-      setUtilityModel("");
-      setMaxOutputTokens(64000);
-      return;
-    }
-    if (runProfile !== "custom")
-      applyRunProfileDefaults(runProfile, selectedProvider);
-  }, [applyRunProfileDefaults, runProfile, selectedProvider]);
+    if (!defaultProviderForInit) return;
+    setModelProfiles((current) =>
+      hydrateMissingModelProfiles(current, defaultProviderForInit, "quality"),
+    );
+  }, [defaultProviderForInit]);
+
+  const updateModelProfile = useCallback(
+    (key: ModelProfileKey, patch: Partial<ModelProfileState>) => {
+      setModelProfiles((current) => ({
+        ...current,
+        [key]: { ...current[key], ...patch },
+      }));
+      setRunProfile("custom");
+    },
+    [],
+  );
 
   useEffect(() => {
     if (fingerprints.length === 0) {
@@ -264,7 +312,8 @@ export function GeneratePage() {
         setSurfaceReady(false);
       } else if (
         event.kind === "rendered" ||
-        event.kind === "surface-runtime-error"
+        event.kind === "surface-runtime-error" ||
+        event.kind === "surface-preview-event"
       ) {
         setSurfaceReady(true);
       }
@@ -325,80 +374,79 @@ export function GeneratePage() {
     setSurfaceReady(false);
   }, []);
 
-  const markCustomRunProfile = useCallback(() => {
-    setRunProfile("custom");
-  }, []);
-
   const handleRunProfileChange = useCallback(
     (profile: RunProfile) => {
       setRunProfile(profile);
-      if (profile !== "custom") applyRunProfileDefaults(profile);
+      if (profile !== "custom") {
+        setModelProfiles(
+          modelProfilesForRunProfile(defaultProviderForInit, profile),
+        );
+      }
     },
-    [applyRunProfileDefaults],
+    [defaultProviderForInit],
   );
 
   const handleModelProviderChange = useCallback(
     (value: string) => {
-      markCustomRunProfile();
-      setModelProviderId(value);
       const provider = modelProviders.find((item) => item.id === value) ?? null;
-      if (provider) {
-        applyRunProfileDefaults("quality", provider);
-      } else {
-        setGenerationModel("");
-        setUtilityModel("");
-      }
+      setModelProfiles((current) => ({
+        ...current,
+        [activeModelProfileKey]: defaultsForModelProfile(
+          provider,
+          "quality",
+          activeModelProfileKey,
+        ),
+      }));
+      setRunProfile("custom");
     },
-    [applyRunProfileDefaults, markCustomRunProfile, modelProviders],
+    [activeModelProfileKey, modelProviders],
   );
 
   const handleGenerationModelChange = useCallback(
     (value: string) => {
-      markCustomRunProfile();
-      setGenerationModel(value);
-      if (value !== "__custom__") setCustomModel("");
+      updateModelProfile(activeModelProfileKey, {
+        customModelEnabled: value === "__custom__",
+        ...(value === "__custom__"
+          ? {}
+          : { generationModel: value, customModel: "" }),
+      });
     },
-    [markCustomRunProfile],
+    [activeModelProfileKey, updateModelProfile],
   );
 
   const handleCustomModelChange = useCallback(
     (value: string) => {
-      markCustomRunProfile();
-      setCustomModel(value);
+      updateModelProfile(activeModelProfileKey, { customModel: value });
     },
-    [markCustomRunProfile],
+    [activeModelProfileKey, updateModelProfile],
   );
 
   const handleUtilityModelChange = useCallback(
     (value: string) => {
-      markCustomRunProfile();
-      setUtilityModel(value);
+      updateModelProfile("utility", { utilityModel: value });
     },
-    [markCustomRunProfile],
+    [updateModelProfile],
   );
 
   const handleMaxOutputTokensChange = useCallback(
     (value: number) => {
-      markCustomRunProfile();
-      setMaxOutputTokens(value);
+      updateModelProfile(activeModelProfileKey, { maxOutputTokens: value });
     },
-    [markCustomRunProfile],
+    [activeModelProfileKey, updateModelProfile],
   );
 
   const handleAnthropicThinkingChange = useCallback(
     (value: "adaptive" | "off") => {
-      markCustomRunProfile();
-      setAnthropicThinking(value);
+      updateModelProfile(activeModelProfileKey, { anthropicThinking: value });
     },
-    [markCustomRunProfile],
+    [activeModelProfileKey, updateModelProfile],
   );
 
   const handleModelEffortChange = useCallback(
-    (value: "low" | "medium" | "high") => {
-      markCustomRunProfile();
-      setModelEffort(value);
+    (value: "low" | "medium" | "high" | "max") => {
+      updateModelProfile(activeModelProfileKey, { effort: value });
     },
-    [markCustomRunProfile],
+    [activeModelProfileKey, updateModelProfile],
   );
 
   const settleApproval = useCallback(
@@ -439,45 +487,39 @@ export function GeneratePage() {
   );
 
   const readModelSelection = useCallback((): ModelSelectionPayload => {
-    const selection: ModelSelectionPayload = {};
-    if (modelProviderId) selection.modelProvider = modelProviderId;
-    if (generationModel === "__custom__") {
-      const custom = customModel.trim();
-      if (custom) {
-        selection.generationModel = custom;
-        selection.customModel = true;
-      }
-    } else if (generationModel) {
-      selection.generationModel = generationModel;
-    }
-    if (utilityModel) selection.utilityModel = utilityModel;
-    const options: ModelOptions = {};
-    if (Number.isFinite(maxOutputTokens))
-      options.maxOutputTokens = maxOutputTokens;
-    if (selectedProvider?.id === "anthropic") {
-      options.anthropicThinking = anthropicThinking;
-      options.effort = modelEffort;
-    }
-    if (Object.keys(options).length > 0) selection.modelOptions = options;
-    return selection;
+    const activePayload = profileStateToPayload(
+      activeModelProfile,
+      activeModelProfileKey,
+      modelProviders,
+    );
+    const utilityPayload = profileStateToPayload(
+      utilityModelProfile,
+      "utility",
+      modelProviders,
+    );
+    return {
+      // Flat fields preserved for backward compatibility and so that
+      // ChildSurfaceModel.modelSelection continues to work unchanged.
+      ...activePayload,
+      modelProfiles: {
+        [activeModelProfileKey]: activePayload,
+        utility: utilityPayload,
+      },
+    };
   }, [
-    anthropicThinking,
-    customModel,
-    generationModel,
-    maxOutputTokens,
-    modelEffort,
-    modelProviderId,
-    selectedProvider,
-    utilityModel,
+    activeModelProfile,
+    activeModelProfileKey,
+    modelProviders,
+    utilityModelProfile,
   ]);
 
-  const modelProviderIdRef = useRef(modelProviderId);
+  const modelProviderIdRef = useRef(activeModelProfile.modelProvider ?? null);
   const readModelSelectionRef = useRef(readModelSelection);
 
   useEffect(() => {
-    modelProviderIdRef.current = modelProviderId;
+    modelProviderIdRef.current = activeModelProfile.modelProvider ?? null;
     readModelSelectionRef.current = readModelSelection;
-  }, [modelProviderId, readModelSelection]);
+  }, [activeModelProfile.modelProvider, readModelSelection]);
 
   const activeContract = useMemo<ActiveContract>(() => {
     const modelSelection = readModelSelection();
@@ -510,6 +552,9 @@ export function GeneratePage() {
       experimentalRuntime,
       ...(modelSelection.modelOptions
         ? { modelOptions: modelSelection.modelOptions }
+        : {}),
+      ...(modelSelection.modelProfiles
+        ? { modelProfiles: modelSelection.modelProfiles }
         : {}),
     };
   }, [
@@ -725,17 +770,22 @@ export function GeneratePage() {
     setCurrentSurfaceContractView,
   });
 
+  const utilityProvider =
+    modelProviders.find(
+      (provider) => provider.id === utilityModelProfile.modelProvider,
+    ) ??
+    selectedProvider;
   const providerModels = selectedProvider?.models.length
     ? selectedProvider.models
     : selectedProvider
     ? fallbackCatalog(selectedProvider.model, selectedProvider.model)
     : [];
-  const utilityModels = selectedProvider?.utilityModels.length
-    ? selectedProvider.utilityModels
-    : selectedProvider
+  const utilityModels = utilityProvider?.utilityModels.length
+    ? utilityProvider.utilityModels
+    : utilityProvider
     ? fallbackCatalog(
-        selectedProvider.utilityModel,
-        selectedProvider.utilityModel,
+        utilityProvider.utilityModel,
+        utilityProvider.utilityModel,
       )
     : [];
   const statusLabel = generationPhaseLabel(status);
@@ -911,6 +961,7 @@ export function GeneratePage() {
           }}
           experimentalRuntime={experimentalRuntime}
           onSelectExperimentalRuntime={setExperimentalRuntime}
+          allowUnsafeRuntime={allowUnsafeRuntime}
           running={running}
           onGenerate={generate}
           statusText={statusText}
@@ -950,7 +1001,7 @@ export function GeneratePage() {
               Options
             </div>
             <div className="mt-0.5 font-mono text-[11px] text-ink-muted">
-              {modelProviderId || "server default"} · {mode} · {runtimeLabel}
+              {activeModelProfile.modelProvider || "server default"} · {mode} · {runtimeLabel}
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -982,23 +1033,33 @@ export function GeneratePage() {
             currentEffectiveSurfacePlan={currentEffectiveSurfacePlan}
             runProfile={runProfile}
             onRunProfileChange={handleRunProfileChange}
-            modelProviderId={modelProviderId}
+            modelProfileKey={activeModelProfileKey}
+            structuredProfile={isStructuredProfile(activeModelProfileKey)}
+            modelProviderId={activeModelProfile.modelProvider ?? ""}
             setModelProviderId={handleModelProviderChange}
             modelProviders={modelProviders}
             selectedProvider={selectedProvider}
             providerModels={providerModels}
             utilityModels={utilityModels}
-            generationModel={generationModel}
+            generationModel={
+              activeModelProfile.customModelEnabled
+                ? "__custom__"
+                : activeModelProfile.generationModel
+            }
             setGenerationModel={handleGenerationModelChange}
-            customModel={customModel}
+            customModel={activeModelProfile.customModel}
             setCustomModel={handleCustomModelChange}
-            utilityModel={utilityModel}
+            utilityModel={utilityModelProfile.utilityModel}
             setUtilityModel={handleUtilityModelChange}
-            maxOutputTokens={maxOutputTokens}
+            maxOutputTokens={activeModelProfile.maxOutputTokens}
             setMaxOutputTokens={handleMaxOutputTokensChange}
-            anthropicThinking={anthropicThinking}
+            anthropicThinking={
+              isStructuredProfile(activeModelProfileKey)
+                ? "off"
+                : activeModelProfile.anthropicThinking
+            }
             setAnthropicThinking={handleAnthropicThinkingChange}
-            modelEffort={modelEffort}
+            modelEffort={activeModelProfile.effort}
             setModelEffort={handleModelEffortChange}
             ghostRoots={fingerprints}
             fingerprintId={fingerprintId}

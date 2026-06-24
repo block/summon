@@ -36,12 +36,14 @@ export function SurfaceLoadingOverlay({
   preview,
   label = "summoning",
   compact = false,
+  fullPage = false,
   className,
 }: {
   statusText: string;
   preview?: GenerationPreviewModel;
   label?: string;
   compact?: boolean;
+  fullPage?: boolean;
   className?: string;
 }) {
   const sections = (preview?.sections ?? []).slice(0, compact ? 3 : 4);
@@ -49,7 +51,8 @@ export function SurfaceLoadingOverlay({
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-0 z-[3] flex items-center justify-center overflow-hidden bg-surface/96 px-6 text-center backdrop-blur-md transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_420ms_cubic-bezier(0.22,1,0.36,1)_both]",
+        "pointer-events-none inset-0 flex items-center justify-center overflow-hidden bg-surface/96 px-6 text-center backdrop-blur-md transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_420ms_cubic-bezier(0.22,1,0.36,1)_both]",
+        fullPage ? "fixed z-50" : "absolute z-[3]",
         className,
       )}
       data-summon-host-loader
@@ -57,7 +60,13 @@ export function SurfaceLoadingOverlay({
       aria-live="polite"
       aria-label={`${label}: ${preview?.phase ?? statusText}`}
     >
-      <div className="summon-host-dot-field" aria-hidden="true" />
+      <div
+        className={cn(
+          "summon-host-dot-field",
+          fullPage && "summon-host-dot-field--page-pulse",
+        )}
+        aria-hidden="true"
+      />
       <div
         className={cn(
           "relative z-[1] grid w-full justify-items-center",

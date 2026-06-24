@@ -10,6 +10,7 @@ export interface GhostRootInfo {
   status?: string;
   version?: string;
   tags?: string[];
+  previewColors?: string[];
   defaultTargetPath?: string;
   defaultBaseDirectionId?: string | null;
   defaultTokenFallback?: string | null;
@@ -43,7 +44,7 @@ export interface ModelProviderControls {
   customModels: boolean;
   maxOutputTokens: { default: number; presets: number[] };
   anthropicThinking?: { default: 'adaptive' | 'off'; options: Array<'adaptive' | 'off'> };
-  effort?: { default: 'low' | 'medium' | 'high'; options: Array<'low' | 'medium' | 'high'> };
+  effort?: { default: 'low' | 'medium' | 'high' | 'max'; options: Array<'low' | 'medium' | 'high' | 'max'> };
 }
 
 export interface ModelProviderDefaults {
@@ -55,7 +56,35 @@ export interface ModelProviderDefaults {
 export interface ModelOptions {
   maxOutputTokens?: number;
   anthropicThinking?: 'adaptive' | 'off';
-  effort?: 'low' | 'medium' | 'high';
+  effort?: 'low' | 'medium' | 'high' | 'max';
+}
+
+export type ModelProfileKey =
+  | 'arrow-control'
+  | 'html-static'
+  | 'html-stream'
+  | 'html-script'
+  | 'utility';
+
+export type RuntimeModelProfileKey = Exclude<ModelProfileKey, 'utility'>;
+
+export const MODEL_PROFILE_KEYS: ModelProfileKey[] = [
+  'arrow-control',
+  'html-static',
+  'html-stream',
+  'html-script',
+  'utility',
+];
+
+export interface ModelProfileState {
+  modelProvider?: string;
+  generationModel: string;
+  utilityModel: string;
+  customModel: string;
+  customModelEnabled: boolean;
+  maxOutputTokens: number;
+  anthropicThinking: 'adaptive' | 'off';
+  effort: 'low' | 'medium' | 'high' | 'max';
 }
 
 export interface ModelSelectionPayload {
@@ -64,6 +93,7 @@ export interface ModelSelectionPayload {
   utilityModel?: string;
   customModel?: boolean;
   modelOptions?: ModelOptions;
+  modelProfiles?: Partial<Record<ModelProfileKey, ModelSelectionPayload>>;
 }
 
 export type DiagnosticsTab = 'stream' | 'devtools' | 'timing' | 'history' | 'safety';
@@ -80,6 +110,19 @@ export interface TimingEntry {
   durationMs?: number;
 }
 
+export interface RunMetrics {
+  runtime: SummonOutputRuntime;
+  ttfb: number | null;
+  ttfp: number | null;
+  tti: number | null;
+  complete: number | null;
+  repairs: number;
+  blocked: boolean;
+  validationCount: number;
+  safetyViolations: number;
+  bytes: number;
+}
+
 export interface StreamOptions {
   prompt: string;
   active: ActiveContract;
@@ -93,6 +136,7 @@ export interface StreamOptions {
 
 export interface StreamResult extends SurfaceStreamResult {
   surfacePlan: SurfacePlan | null;
+  metrics: RunMetrics;
 }
 
 export interface StreamOptionsPayload {

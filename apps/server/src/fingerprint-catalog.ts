@@ -15,6 +15,7 @@ export interface FingerprintCatalogEntry {
   status: 'draft' | 'review' | 'published' | 'deprecated';
   version: string;
   tags: string[];
+  previewColors: string[];
   root: string;
   fingerprintDir: string;
   tokenCssPath: string | null;
@@ -29,6 +30,7 @@ export interface PublicFingerprintInfo {
   status: string;
   version: string;
   tags: string[];
+  previewColors: string[];
   defaultTargetPath: string;
   defaultTokenFallback: string | null;
 }
@@ -93,6 +95,7 @@ export function publicFingerprints(catalog: FingerprintCatalog): PublicFingerpri
       status: entry.status,
       version: entry.version,
       tags: [...entry.tags],
+      previewColors: [...entry.previewColors],
       defaultTargetPath: entry.defaultTargetPath,
       defaultTokenFallback: entry.defaultTokenFallback,
     }))
@@ -187,6 +190,9 @@ function loadBundle(catalogRoot: string, item: RawCatalogEntry): FingerprintCata
   if (tokenCssPath && (!existsSync(tokenCssPath) || !statSync(tokenCssPath).isFile())) {
     throw new Error(`Fingerprint bundle ${item.id} token CSS not found`);
   }
+  const previewColors = tokenCssPath
+    ? extractPreviewColors(readFileSync(tokenCssPath, 'utf-8'))
+    : [];
   return {
     id: item.id,
     name: stringField(meta.name, item.id),
@@ -194,6 +200,7 @@ function loadBundle(catalogRoot: string, item: RawCatalogEntry): FingerprintCata
     status: statusField(meta.status),
     version: stringField(meta.version, '0.0.0'),
     tags: Array.isArray(meta.tags) ? meta.tags.filter((tag): tag is string => typeof tag === 'string') : [],
+    previewColors,
     root: bundleRoot,
     fingerprintDir,
     tokenCssPath,
@@ -280,4 +287,51 @@ function isWithinOrEqual(root: string, child: string): boolean {
 function displayPath(root: string, absPath: string): string {
   const rel = relative(root, absPath);
   return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : absPath;
+}
+
+const PREVIEW_COLOR_TOKENS = [
+  '--color-bg',
+  '--color-surface',
+  '--color-surface-muted',
+  '--color-canvas',
+  '--color-command',
+  '--color-surface-dark',
+  '--color-surface-light',
+  '--color-accent',
+  '--color-accent-2',
+  '--color-accent-hot',
+  '--color-accent-warm',
+  '--color-accent-yellow',
+  '--color-text',
+  '--color-border-strong',
+];
+
+function extractPreviewColors(css: string): string[] {
+  const declarations = new Map<string, string>();
+  const colorRe = /(--color-[a-z0-9-]+)\s*:\s*(#[0-9a-f]{3,8}|rgba?\([^)]+\))\s*;/gi;
+  for (const match of css.matchAll(colorRe)) {
+    const token = match[1]?.toLowerCase();
+    const value = match[2]?.trim();
+    if (token && value) declarations.set(token, value);
+  }
+
+  const colors: string[] = [];
+  const seen = new Set<string>();
+  const addColor = (value: string | undefined) => {
+    if (!value) return;
+    const normalized = value.replace(/\s+/g, '').toLowerCase();
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    colors.push(value);
+  };
+
+  for (const token of PREVIEW_COLOR_TOKENS) {
+    addColor(declarations.get(token));
+    if (colors.length >= 5) return colors;
+  }
+  for (const value of declarations.values()) {
+    addColor(value);
+    if (colors.length >= 5) return colors;
+  }
+  return colors;
 }

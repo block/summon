@@ -10,45 +10,108 @@ import {
   type SummonSurfaceHandle,
   type SummonSurfaceProps,
 } from "@anarchitecture/summon-react";
-import type { SummonOutputRuntime } from "@anarchitecture/summon/engine";
+import {
+  SUMMON_OUTPUT_RUNTIME_VALUES,
+  runtimeProfile,
+  type RuntimeProfile,
+  type SummonOutputRuntime,
+} from "@anarchitecture/summon/engine";
 import {
   Button,
   DropdownSelect,
   type DropdownSelectGroup,
 } from "../../../components/ui.js";
 import { cn } from "../../../lib/cn.js";
+import { fingerprintOptionFor } from "../fingerprintDisplay.js";
 import type { GenerationPreviewModel } from "../generationPreview.js";
 import type { ChildSurfaceModel, GhostRootInfo } from "../types.js";
 import { ChildSurface } from "./ChildSurface.js";
 import { SurfaceLoadingOverlay } from "./SurfaceLoadingOverlay.js";
 
 const promptActionRadiusClass = "!rounded-[22px]";
-const runtimeGroups: DropdownSelectGroup[] = [
+
+const runtimeCopy: Record<
+  SummonOutputRuntime,
+  { label: string; description: string }
+> = {
+  "arrow-control": {
+    label: "Arrow control",
+    description:
+      "Structured Arrow bundle with host-owned tools and state bridge.",
+  },
+  "html-static": {
+    label: "HTML static",
+    description:
+      "Structured inert HTML/CSS bundle optimized for rich visual composition.",
+  },
+  "html-stream": {
+    label: "HTML stream",
+    description:
+      "Raw model stream framed as scaffold plus validated patch commits.",
+  },
+  "html-script": {
+    label: "HTML script",
+    description:
+      "Structured HTML/CSS/JS iframe experiment with sandboxed script behavior.",
+  },
+  "unsafe-html-raw-stream": {
+    label: "Unsafe raw HTML stream",
+    description:
+      "Dev-only raw model tokens streamed directly into a sandboxed iframe.",
+  },
+};
+
+const runtimeGroupDefinitions: Array<{
+  label: string;
+  includes: (profile: RuntimeProfile) => boolean;
+}> = [
   {
-    options: [
-      {
-        value: "arrow-control",
-        label: "Arrow",
-        description: "Control runtime for the bakeoff.",
-      },
-      {
-        value: "html-static",
-        label: "HTML static",
-        description: "Validated HTML and CSS artifact.",
-      },
-      {
-        value: "html-stream",
-        label: "HTML preview stream",
-        description: "Token preview with validated patch commits.",
-      },
-      {
-        value: "html-script",
-        label: "HTML script",
-        description: "Isolated scripted iframe experiment.",
-      },
-    ],
+    label: "Arrow bundle",
+    includes: (profile) =>
+      profile.format === "arrow" && profile.delivery === "bundle",
+  },
+  {
+    label: "HTML bundle",
+    includes: (profile) =>
+      profile.format === "html" &&
+      profile.delivery === "bundle" &&
+      profile.trust !== "unsafe",
+  },
+  {
+    label: "HTML stream",
+    includes: (profile) =>
+      profile.format === "html" &&
+      profile.delivery === "stream" &&
+      profile.trust !== "unsafe",
+  },
+  {
+    label: "Unsafe control",
+    includes: (profile) => profile.trust === "unsafe",
   },
 ];
+
+function runtimeGroupsForUnsafeGate(
+  allowUnsafeRuntime: boolean,
+): DropdownSelectGroup[] {
+  return runtimeGroupDefinitions
+    .map((group) => ({
+      label: group.label,
+      options: SUMMON_OUTPUT_RUNTIME_VALUES
+        .filter((runtime) => {
+          const profile = runtimeProfile(runtime);
+          return (
+            group.includes(profile) &&
+            (allowUnsafeRuntime || profile.trust !== "unsafe")
+          );
+        })
+        .map((runtime) => ({
+          value: runtime,
+          label: runtimeCopy[runtime].label,
+          description: runtimeCopy[runtime].description,
+        })),
+    }))
+    .filter((group) => group.options.length > 0);
+}
 
 export function GenerationStage({
   prompt,
@@ -59,6 +122,7 @@ export function GenerationStage({
   onSelectFingerprint,
   experimentalRuntime,
   onSelectExperimentalRuntime,
+  allowUnsafeRuntime,
   running,
   onGenerate,
   statusText,
@@ -90,6 +154,7 @@ export function GenerationStage({
   onSelectFingerprint: (id: string | null) => void;
   experimentalRuntime: SummonOutputRuntime;
   onSelectExperimentalRuntime: (runtime: SummonOutputRuntime) => void;
+  allowUnsafeRuntime: boolean;
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
@@ -117,14 +182,24 @@ export function GenerationStage({
   childSurfaces: ChildSurfaceModel[];
   onCloseChild: (id: number) => void;
 }) {
+  const selectedRuntimeProfile = runtimeProfile(experimentalRuntime);
+  const isStreamDelivery = selectedRuntimeProfile.delivery === "stream";
+  const isUnsafeRuntime = selectedRuntimeProfile.trust === "unsafe";
+  const runtimeGroups = useMemo(
+    () => runtimeGroupsForUnsafeGate(allowUnsafeRuntime),
+    [allowUnsafeRuntime],
+  );
   const showSamplePills = showWelcome && !running;
   const showHostLoader =
+    !isStreamDelivery &&
+    !isUnsafeRuntime &&
     !showWelcome &&
     !stageNotice &&
     !surfaceReady &&
     (running || hasRenderedArtifact);
   const showSandboxFrame =
-    !showWelcome && (surfaceReady || stageNotice !== null);
+    !showWelcome &&
+    (surfaceReady || stageNotice !== null || isStreamDelivery || isUnsafeRuntime);
   const selectedFingerprint =
     fingerprints.find(
       (fingerprint) => fingerprint.id === selectedFingerprintId,
@@ -132,7 +207,9 @@ export function GenerationStage({
   const fingerprintLabel =
     selectedFingerprint?.name ?? selectedFingerprintId ?? "Fingerprint";
   const selectedRuntimeOption =
-    runtimeGroups[0]?.options.find((option) => option.value === experimentalRuntime) ??
+    runtimeGroups
+      .flatMap((group) => group.options)
+      .find((option) => option.value === experimentalRuntime) ??
     runtimeGroups[0]?.options[0];
   const fingerprintGroups = useMemo<DropdownSelectGroup[]>(() => {
     const options: DropdownSelectGroup["options"] = [];
@@ -141,18 +218,12 @@ export function GenerationStage({
       options.push({
         value: selectedFingerprintId,
         label: fingerprintLabel,
-        description: "Selected fingerprint is not in the current catalog.",
+        meta: "Missing from catalog",
+        title: "Selected fingerprint is not in the current catalog.",
       });
     }
 
-    options.push(
-      ...fingerprints.map((fingerprint) => ({
-        value: fingerprint.id,
-        label: fingerprint.name ?? fingerprint.id,
-        description: fingerprint.summary,
-        title: fingerprint.summary,
-      })),
-    );
+    options.push(...fingerprints.map(fingerprintOptionFor));
 
     return [{ options }];
   }, [
@@ -163,7 +234,9 @@ export function GenerationStage({
   ]);
   const [welcomeLeaving, setWelcomeLeaving] = useState(false);
   const [showWelcomeLayer, setShowWelcomeLayer] = useState(showWelcome);
-  const generateDisabled = Boolean(running || !prompt.trim() || generationDisabledReason);
+  const generateDisabled = Boolean(
+    running || !prompt.trim() || generationDisabledReason,
+  );
 
   useEffect(() => {
     if (showWelcome) {
@@ -191,7 +264,7 @@ export function GenerationStage({
           <SurfaceLoadingOverlay
             statusText={statusText}
             preview={generationPreview}
-            className="z-[1]"
+            fullPage
           />
         ) : null}
         <div
@@ -311,6 +384,13 @@ export function GenerationStage({
           >
             {scenarioPicker}
           </div>
+          {allowUnsafeRuntime ? (
+            <div className="mb-2 rounded-[18px] border border-danger/40 bg-danger/10 px-4 py-3 text-[12px] font-semibold leading-snug text-danger">
+              {isUnsafeRuntime
+                ? "Unsafe raw HTML stream selected. Control-only; also requires SUMMON_ALLOW_UNSAFE_RUNTIME=1 on the server."
+                : "Unsafe runtime controls exposed. Control-only; selection still requires SUMMON_ALLOW_UNSAFE_RUNTIME=1 on the server."}
+            </div>
+          ) : null}
           <div className="rounded-t-[32px] bg-surface-raised/92 p-2 shadow-elevated backdrop-blur-xl">
             <div className="flex items-start gap-2 max-[760px]:grid">
               <label className="min-w-0 flex-1" htmlFor="prompt">
@@ -332,14 +412,18 @@ export function GenerationStage({
                   }}
                 />
               </label>
-              <div className="flex items-center gap-2 pl-1 max-[760px]:justify-between max-[760px]:px-3 max-[760px]:pb-1">
+              <div className="flex items-center gap-1 pl-1 max-[760px]:justify-between max-[760px]:px-3 max-[760px]:pb-1">
                 <DropdownSelect
                   id="fingerprint-picker"
                   value={selectedFingerprintId ?? ""}
                   groups={fingerprintGroups}
                   overline="Fingerprint"
                   placeholder="Fingerprint"
-                  title={selectedFingerprint?.summary ?? generationDisabledReason ?? "Choose a fingerprint"}
+                  title={
+                    selectedFingerprint?.summary ??
+                    generationDisabledReason ??
+                    "Choose a fingerprint"
+                  }
                   side="top"
                   align="end"
                   disabled={running || fingerprints.length === 0}
@@ -357,9 +441,12 @@ export function GenerationStage({
                   id="stream-type-picker"
                   value={experimentalRuntime}
                   groups={runtimeGroups}
-                  overline="Stream"
-                  placeholder="Arrow"
-                  title={selectedRuntimeOption?.description ?? "Choose output stream type"}
+                  overline="Runtime"
+                  placeholder="Arrow control"
+                  title={
+                    selectedRuntimeOption?.description ??
+                    "Choose output runtime"
+                  }
                   side="top"
                   align="end"
                   disabled={running}
@@ -370,7 +457,9 @@ export function GenerationStage({
                   )}
                   contentClassName="w-[min(300px,calc(100vw-32px))] !rounded-[32px] max-[760px]:left-auto max-[760px]:right-0"
                   onValueChange={(nextValue) =>
-                    onSelectExperimentalRuntime(nextValue as SummonOutputRuntime)
+                    onSelectExperimentalRuntime(
+                      nextValue as SummonOutputRuntime,
+                    )
                   }
                 />
                 <Button

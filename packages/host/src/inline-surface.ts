@@ -64,6 +64,9 @@ export interface InlineSurfaceHandle {
   renderArtifact(artifact: InlineSurfaceArtifact): void;
   applyHtmlPreviewDelta(delta: HtmlStreamPreviewDelta): void;
   applyHtmlPatch(patch: HtmlSurfacePatch): void;
+  beginUnsafeHtmlStream(): void;
+  writeUnsafeHtmlChunk(chunk: string): void;
+  endUnsafeHtmlStream(): void;
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot;
   previewSnapshot(): SurfacePreviewSnapshot;
@@ -72,6 +75,9 @@ export interface InlineSurfaceHandle {
 
 const PREVIEW_ROOT_ATTR = 'data-summon-preview-root';
 export const HTML_IFRAME_SANDBOX = 'allow-scripts';
+const HTML_PREVIEW_IFRAME_SANDBOX = 'allow-same-origin';
+const HTML_PREVIEW_ROOT_ID = 'summon-html-stream-preview-root';
+const HTML_PREVIEW_STYLE_ID = 'summon-html-stream-preview-style';
 const HTML_MESSAGE_READY = 'SUMMON_HTML_READY';
 const HTML_MESSAGE_TOOL = 'SUMMON_HTML_TOOL';
 const HTML_MESSAGE_TOOL_RESULT = 'SUMMON_HTML_TOOL_RESULT';
@@ -192,8 +198,12 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
   let htmlTeardown: (() => void) | null = null;
   let htmlFrame: HTMLIFrameElement | null = null;
   let htmlPreviewFrame: HTMLIFrameElement | null = null;
+  let htmlPreviewCss = '';
+  let htmlPreviewArtifactCss = '';
   let htmlSandboxId: string | null = null;
   let htmlReady = false;
+  let unsafeHtmlFrame: HTMLIFrameElement | null = null;
+  let unsafeHtmlDocOpen = false;
   const pendingHtmlPatches: HtmlSurfacePatch[] = [];
   const htmlPreviewBuffers = new Map<string, string>();
   let renderRevision = 0;
@@ -241,7 +251,21 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     return result;
   };
 
+  const teardownUnsafeHtmlStream = () => {
+    if (unsafeHtmlDocOpen) {
+      try {
+        unsafeHtmlFrame?.contentDocument?.close();
+      } catch {
+        // best effort
+      }
+    }
+    unsafeHtmlDocOpen = false;
+    unsafeHtmlFrame?.remove();
+    unsafeHtmlFrame = null;
+  };
+
   const teardownHtmlRuntime = () => {
+    teardownUnsafeHtmlStream();
     if (htmlTeardown) {
       try {
         htmlTeardown();
@@ -255,6 +279,8 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     htmlReady = false;
     pendingHtmlPatches.length = 0;
     clearHtmlPreview();
+    htmlPreviewCss = '';
+    htmlPreviewArtifactCss = '';
   };
 
   const clearHtmlPreview = (target?: string) => {
@@ -271,6 +297,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     }
     htmlPreviewFrame?.remove();
     htmlPreviewFrame = null;
+    htmlPreviewCss = '';
   };
 
   const renderHtmlPreviewFrame = () => {
@@ -279,19 +306,34 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       clearHtmlPreview();
       return;
     }
+    const css = htmlPreviewCssFor(options.tokensSource, htmlPreviewArtifactCss);
     const frame = htmlPreviewFrame ?? document.createElement('iframe');
     if (!htmlPreviewFrame) {
       frame.className = 'summon-html-stream-preview-frame';
       frame.title = 'Summon inert HTML stream preview';
-      frame.setAttribute('sandbox', '');
+      frame.setAttribute('sandbox', HTML_PREVIEW_IFRAME_SANDBOX);
       frame.setAttribute('referrerpolicy', 'no-referrer');
+      frame.srcdoc = buildHtmlPreviewSrcdoc({
+        bodyHtml: '',
+        tokensSource: options.tokensSource,
+        artifactCss: htmlPreviewArtifactCss,
+      });
+      htmlPreviewCss = css;
       htmlPreviewFrame = frame;
+      frame.addEventListener('load', () => {
+        if (htmlPreviewFrame !== frame) return;
+        updateHtmlPreviewFrame(frame, Array.from(htmlPreviewBuffers.values()).join('\n'), htmlPreviewCss);
+      });
       root.append(frame);
+      updateHtmlPreviewFrame(frame, bodyHtml, css);
+      return;
     }
-    frame.srcdoc = buildHtmlPreviewSrcdoc({
-      bodyHtml,
-      tokensSource: options.tokensSource,
-    });
+    if (htmlPreviewCss !== css) {
+      htmlPreviewCss = css;
+      updateHtmlPreviewFrame(frame, bodyHtml, css);
+      return;
+    }
+    updateHtmlPreviewFrame(frame, bodyHtml, css);
   };
 
   const postHtmlMessage = (type: string, value: Record<string, unknown> = {}) => {
@@ -311,6 +353,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
 
   const renderHtmlArtifact = (artifact: HtmlSurfaceArtifact, revision: number) => {
     teardownHtmlRuntime();
+    htmlPreviewArtifactCss = artifact.source['main.css'] ?? '';
     if (arrowTeardown) {
       try {
         arrowTeardown();
@@ -480,6 +523,58 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       }
       postHtmlMessage(HTML_MESSAGE_PATCH, { patch });
     },
+    beginUnsafeHtmlStream() {
+      if (disposed) return;
+      teardownHtmlRuntime();
+      if (arrowTeardown) {
+        try {
+          arrowTeardown();
+        } catch {
+          // best effort
+        }
+        arrowTeardown = null;
+      }
+      clearRuntimeChildren(root);
+      renderState = 'rendering';
+      const frame = document.createElement('iframe');
+      frame.className = 'summon-unsafe-html-raw-stream-frame';
+      frame.title = 'Unsafe raw HTML stream preview';
+      frame.setAttribute('sandbox', 'allow-scripts');
+      frame.setAttribute('referrerpolicy', 'no-referrer');
+      root.append(frame);
+      unsafeHtmlFrame = frame;
+      const doc = frame.contentDocument;
+      if (doc) {
+        doc.open();
+        unsafeHtmlDocOpen = true;
+      }
+      options.events?.push({ kind: 'render', at: Date.now(), surfaceId, bytes: 0 });
+    },
+    writeUnsafeHtmlChunk(chunk) {
+      if (disposed) return;
+      if (!unsafeHtmlFrame || !unsafeHtmlDocOpen) handle.beginUnsafeHtmlStream();
+      try {
+        unsafeHtmlFrame?.contentDocument?.write(chunk);
+        if (renderState !== 'rendered') {
+          renderState = 'rendered';
+          options.events?.push({ kind: 'rendered', at: Date.now(), surfaceId, revision: renderRevision });
+        }
+      } catch (err) {
+        const reason = `Unsafe raw HTML stream failed: ${err instanceof Error ? err.message : String(err)}`;
+        renderState = 'failed';
+        reportRuntimeError(options, surfaceId, reason);
+      }
+    },
+    endUnsafeHtmlStream() {
+      if (disposed) return;
+      if (!unsafeHtmlDocOpen) return;
+      try {
+        unsafeHtmlFrame?.contentDocument?.close();
+      } catch {
+        // best effort
+      }
+      unsafeHtmlDocOpen = false;
+    },
     applyHtmlPreviewDelta(delta) {
       if (disposed) return;
       const text = typeof delta.delta === 'string'
@@ -529,7 +624,11 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     grantedTools: Array.from(toolAllowlist),
     validationTools: options.validationTools ?? [],
   });
-  if (options.artifact) handle.renderArtifact(options.artifact);
+  if (options.artifact) {
+    handle.renderArtifact(options.artifact);
+  } else {
+    renderPreview(root, preview.snapshot());
+  }
   return handle;
 }
 
@@ -543,6 +642,7 @@ export interface HtmlSandboxSrcdocOptions {
 export interface HtmlPreviewSrcdocOptions {
   bodyHtml: string;
   tokensSource?: string;
+  artifactCss?: string;
 }
 
 export type HtmlSandboxMessage =
@@ -563,7 +663,6 @@ export function buildHtmlSandboxCsp(nonce: string): string {
     "default-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-ancestors 'none'",
     "connect-src 'none'",
     "object-src 'none'",
     'img-src data:',
@@ -579,7 +678,6 @@ export function buildHtmlPreviewCsp(): string {
     "default-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
-    "frame-ancestors 'none'",
     "connect-src 'none'",
     "object-src 'none'",
     'img-src data:',
@@ -620,19 +718,46 @@ export function buildHtmlSandboxSrcdoc(options: HtmlSandboxSrcdocOptions): strin
   ].join('');
 }
 
-export function buildHtmlPreviewSrcdoc(options: HtmlPreviewSrcdocOptions): string {
-  const css = [
+function htmlPreviewCssFor(tokensSource?: string, artifactCss?: string): string {
+  return [
     htmlSandboxFrameCss(),
-    options.tokensSource ?? '',
+    tokensSource ?? '',
+    artifactCss ?? '',
     `
 body {
   background: color-mix(in srgb, var(--color-bg, Canvas) 92%, transparent);
 }
-#summon-html-stream-preview-root {
+#${HTML_PREVIEW_ROOT_ID} {
   min-height: 100%;
 }
 `,
   ].filter(Boolean).join('\n');
+}
+
+function updateHtmlPreviewFrame(frame: HTMLIFrameElement, bodyHtml: string, css: string): void {
+  const doc = frame.contentDocument;
+  if (!doc?.body) {
+    frame.srcdoc = htmlPreviewSrcdocFromCss(bodyHtml, css);
+    return;
+  }
+  let style = doc.getElementById(HTML_PREVIEW_STYLE_ID) as HTMLStyleElement | null;
+  if (!style) {
+    style = doc.createElement('style');
+    style.id = HTML_PREVIEW_STYLE_ID;
+    doc.head.append(style);
+  }
+  if (style.textContent !== css) style.textContent = css;
+
+  let previewRoot = doc.getElementById(HTML_PREVIEW_ROOT_ID);
+  if (!previewRoot) {
+    previewRoot = doc.createElement('main');
+    previewRoot.id = HTML_PREVIEW_ROOT_ID;
+    doc.body.replaceChildren(previewRoot);
+  }
+  previewRoot.innerHTML = sanitizeHtmlPreview(bodyHtml);
+}
+
+function htmlPreviewSrcdocFromCss(bodyHtml: string, css: string): string {
   return [
     '<!doctype html>',
     '<html>',
@@ -640,15 +765,22 @@ body {
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     `<meta http-equiv="Content-Security-Policy" content="${escapeHtmlAttr(buildHtmlPreviewCsp())}">`,
-    `<style>${escapeStyleText(css)}</style>`,
+    `<style id="${HTML_PREVIEW_STYLE_ID}">${escapeStyleText(css)}</style>`,
     '</head>',
     '<body>',
-    '<main id="summon-html-stream-preview-root">',
-    options.bodyHtml,
+    `<main id="${HTML_PREVIEW_ROOT_ID}">`,
+    sanitizeHtmlPreview(bodyHtml),
     '</main>',
     '</body>',
     '</html>',
   ].join('');
+}
+
+export function buildHtmlPreviewSrcdoc(options: HtmlPreviewSrcdocOptions): string {
+  return htmlPreviewSrcdocFromCss(
+    options.bodyHtml,
+    htmlPreviewCssFor(options.tokensSource, options.artifactCss),
+  );
 }
 
 export function parseHtmlSandboxMessage(value: unknown, expectedSandboxId: string): HtmlSandboxMessage | null {
@@ -1183,6 +1315,14 @@ function defaultPreviewCss(surfaceId: string): string {
   pointer-events: none;
   background: transparent;
 }
+[data-summon-inline-surface="${surfaceId}"] .summon-unsafe-html-raw-stream-frame {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+  border: 0;
+  background: Canvas;
+}
 @keyframes summon-preview-spin {
   to { transform: rotate(360deg); }
 }
@@ -1296,6 +1436,15 @@ function htmlSandboxBootstrap(sandboxId: string): string {
   send(${JSON.stringify(HTML_MESSAGE_READY)});
 })();
 `;
+}
+
+function sanitizeHtmlPreview(value: string): string {
+  return value
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    .replace(/<script\b[^>]*\/?\s*>/gi, '')
+    .replace(/\s+on[a-z][\w:-]*\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s+(?:src|href|xlink:href|formaction|action|poster|data)\s*=\s*("(?:https?:|javascript:)[^"]*"|'(?:https?:|javascript:)[^']*'|(?:https?:|javascript:)[^\s>]+)/gi, '')
+    .replace(/<\/?(?:iframe|object|embed|form|frame|frameset|portal|meta|base|link)\b[^>]*>/gi, '');
 }
 
 function escapeHtmlAttr(value: string): string {

@@ -31,6 +31,7 @@ export interface GalleryPreset {
 
 export interface GhostRootInfo {
   id: string;
+  previewColors?: string[];
   defaultTargetPath?: string;
   defaultBaseDirectionId?: string | null;
 }

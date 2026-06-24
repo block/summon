@@ -34,6 +34,10 @@ export interface HtmlStreamRequest extends SurfaceModelRequest {
   runtime: 'html-stream';
 }
 
+export interface UnsafeRawHtmlStreamRequest extends SurfaceModelRequest {
+  runtime: 'unsafe-html-raw-stream';
+}
+
 export interface ArrowBundleRepairRequest extends ArrowBundleRequest {
   previousBundle: unknown;
   issues: ContractIssue[];

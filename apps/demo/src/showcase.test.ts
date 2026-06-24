@@ -13,7 +13,15 @@ import {
 } from './showcase.js';
 import { ALL_PROMPTS } from './prompts.js';
 import { groupScenarios, missingArtifactMessage } from './pages/generate/surfaceHelpers.js';
-import { defaultsForRunProfile } from './pages/generate/modelProviders.js';
+import {
+  createEmptyModelProfiles,
+  defaultsForModelProfile,
+  defaultsForRunProfile,
+  hydrateMissingModelProfiles,
+  isStructuredProfile,
+  modelProfilesForRunProfile,
+} from './pages/generate/modelProviders.js';
+import { MODEL_PROFILE_KEYS } from './pages/generate/types.js';
 import type { ModelProviderInfo } from './pages/generate/types.js';
 
 const allDemoToolNames = [
@@ -228,15 +236,33 @@ test('missing artifact errors include stream graph evidence', () => {
   assert.match(message, /blocked=0/);
 });
 
+test('missing artifact errors use the selected output runtime', () => {
+  const message = missingArtifactMessage([
+    {
+      op: 'meta',
+      path: '/validation-blocked',
+      value: {
+        code: 'invalid-html-preview-region',
+        message: 'HTML bundle preview region must be an object',
+        severity: 'block',
+      },
+    },
+  ], 'html-stream');
+
+  assert.match(message, /HTML stream scaffold artifact/);
+  assert.doesNotMatch(message, /Arrow artifact/);
+  assert.match(message, /invalid-html-preview-region/);
+});
+
 test('generate run profile quality restores provider-reported defaults', () => {
   const provider = providerFixture();
 
   assert.deepEqual(defaultsForRunProfile(provider, 'quality'), {
     generationModel: 'claude-opus-4-8',
     utilityModel: 'claude-sonnet-4-6',
-    maxOutputTokens: 64000,
+    maxOutputTokens: 128000,
     anthropicThinking: 'adaptive',
-    effort: 'medium',
+    effort: 'max',
   });
 });
 
@@ -249,9 +275,82 @@ test('generate run profile fast falls back to nearest lower output preset', () =
   assert.equal(defaultsForRunProfile(provider, 'fast').maxOutputTokens, 8000);
 });
 
+test('structured runtime profiles force Anthropic thinking off', () => {
+  const provider = providerFixture();
+
+  assert.equal(isStructuredProfile('arrow-control'), true);
+  assert.equal(isStructuredProfile('html-static'), true);
+  assert.equal(isStructuredProfile('html-stream'), false);
+  assert.equal(isStructuredProfile('utility'), false);
+
+  assert.equal(
+    defaultsForModelProfile(provider, 'quality', 'arrow-control').anthropicThinking,
+    'off',
+  );
+  assert.equal(
+    defaultsForModelProfile(provider, 'quality', 'html-static').anthropicThinking,
+    'off',
+  );
+  // Stream runtimes may keep adaptive thinking from the provider defaults.
+  assert.equal(
+    defaultsForModelProfile(provider, 'quality', 'html-stream').anthropicThinking,
+    'adaptive',
+  );
+});
+
+test('utility profile uses a small token budget and low effort', () => {
+  const provider = providerFixture();
+  const utility = defaultsForModelProfile(provider, 'quality', 'utility');
+
+  assert.equal(utility.generationModel, '');
+  assert.equal(utility.utilityModel, 'claude-sonnet-4-6');
+  assert.ok(utility.maxOutputTokens <= 2000);
+  assert.equal(utility.effort, 'low');
+});
+
+test('run profile defaults produce an independent profile per runtime', () => {
+  const provider = providerFixture();
+  const profiles = modelProfilesForRunProfile(provider, 'quality');
+
+  for (const key of MODEL_PROFILE_KEYS) {
+    assert.ok(profiles[key], `missing profile ${key}`);
+    assert.equal(profiles[key].modelProvider, 'anthropic');
+  }
+
+  // Editing one profile must not bleed into another.
+  const edited = { ...profiles, 'html-static': { ...profiles['html-static'], generationModel: 'claude-sonnet-4-6' } };
+  assert.equal(edited['html-static'].generationModel, 'claude-sonnet-4-6');
+  assert.equal(edited['arrow-control'].generationModel, profiles['arrow-control'].generationModel);
+  assert.equal(edited['html-stream'].generationModel, profiles['html-stream'].generationModel);
+});
+
+test('hydrateMissingModelProfiles fills empty slots without clobbering edits', () => {
+  const provider = providerFixture();
+  const empty = createEmptyModelProfiles();
+  assert.equal(empty['arrow-control'].generationModel, '');
+
+  // Simulate a user edit that must be preserved.
+  const withEdit = {
+    ...empty,
+    'html-static': {
+      ...empty['html-static'],
+      modelProvider: 'anthropic',
+      generationModel: 'claude-opus-4-8',
+    },
+  };
+
+  const hydrated = hydrateMissingModelProfiles(withEdit, provider, 'quality');
+  // Edited slot preserved.
+  assert.equal(hydrated['html-static'].generationModel, 'claude-opus-4-8');
+  // Empty slots filled.
+  assert.equal(hydrated['arrow-control'].generationModel, 'claude-opus-4-8');
+  assert.equal(hydrated['html-stream'].modelProvider, 'anthropic');
+  assert.equal(hydrated.utility.utilityModel, 'claude-sonnet-4-6');
+});
+
 function providerFixture({
   fastModelMaxOutputTokens = 64000,
-  presets = [8000, 12000, 16000, 32000, 64000],
+  presets = [8000, 12000, 16000, 32000, 64000, 128000],
 }: {
   fastModelMaxOutputTokens?: number;
   presets?: number[];
@@ -298,16 +397,16 @@ function providerFixture({
       generationModel: 'claude-opus-4-8',
       utilityModel: 'claude-sonnet-4-6',
       modelOptions: {
-        maxOutputTokens: 64000,
+        maxOutputTokens: 128000,
         anthropicThinking: 'adaptive',
-        effort: 'medium',
+        effort: 'max',
       },
     },
     controls: {
       customModels: true,
-      maxOutputTokens: { default: 64000, presets },
+      maxOutputTokens: { default: 128000, presets },
       anthropicThinking: { default: 'adaptive', options: ['adaptive', 'off'] },
-      effort: { default: 'medium', options: ['low', 'medium', 'high'] },
+      effort: { default: 'max', options: ['low', 'medium', 'high', 'max'] },
     },
   };
 }

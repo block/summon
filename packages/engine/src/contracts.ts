@@ -32,8 +32,7 @@ import type {
   ValidationContext,
 } from './runtime-validator.js';
 import {
-  isHtmlOutputRuntime,
-  isScriptedHtmlOutputRuntime,
+  runtimeProfile,
   type SummonOutputRuntime,
 } from './output-runtime.js';
 
@@ -211,8 +210,9 @@ export function hintsForContractIssue(
   options: { outputRuntime?: SummonOutputRuntime } = {},
 ): string[] {
   if (issue.hint) return [issue.hint];
-  const htmlRuntime = isHtmlOutputRuntime(options.outputRuntime);
-  const scriptedHtmlRuntime = isScriptedHtmlOutputRuntime(options.outputRuntime);
+  const profile = runtimeProfile(options.outputRuntime);
+  const htmlRuntime = profile.format === 'html';
+  const scriptedHtmlRuntime = profile.trust === 'iframe-script';
   switch (issue.code) {
     case 'external-url':
       return ['Inline assets as data URLs or remove the external reference.'];
@@ -405,7 +405,8 @@ export function compileSystemContracts(
   input: SystemContractInput,
 ): CompiledSystemContracts {
   const outputRuntime = input.outputRuntime ?? 'arrow-control';
-  const htmlRuntime = isHtmlOutputRuntime(outputRuntime);
+  const profile = runtimeProfile(outputRuntime);
+  const htmlRuntime = profile.format === 'html';
   const promptBlocks: ContractPromptBlock[] = [
     {
       id: 'fixed',
@@ -495,7 +496,7 @@ export function compileSystemContracts(
       tools: tool.validationTools,
       surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
-      experimentalHtmlScript: outputRuntime === 'html-script',
+      experimentalHtmlScript: profile.trust === 'iframe-script',
     },
   };
 }

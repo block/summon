@@ -10,6 +10,9 @@ import {
   type SurfacePolicy,
   type ContractPromptBlock,
   type SummonOutputRuntime,
+  DEFAULT_SUMMON_OUTPUT_RUNTIME,
+  SUMMON_OUTPUT_RUNTIME_VALUES,
+  runtimeProfile,
 } from '@anarchitecture/summon/engine';
 import {
   planAgentSurface,
@@ -43,6 +46,7 @@ import {
 import { parseToolPack } from './tool-pack.js';
 import {
   createModelProviderRegistry,
+  type ModelProfileKey,
   type ProviderUsageSnapshot,
 } from './model-providers.js';
 
@@ -103,12 +107,18 @@ app.use(cors({ origin: ALLOWED_ORIGIN }));
 
 const LAYOUT_ID_RE = /^[a-z][a-z0-9-]{0,79}$/;
 const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
-const EXPERIMENTAL_RUNTIME_VALUES: SummonOutputRuntime[] = [
-  'arrow-control',
-  'html-static',
-  'html-stream',
-  'html-script',
-];
+const ALLOW_UNSAFE_RUNTIME = process.env.SUMMON_ALLOW_UNSAFE_RUNTIME === '1';
+const EXPERIMENTAL_RUNTIME_VALUES: SummonOutputRuntime[] =
+  SUMMON_OUTPUT_RUNTIME_VALUES.filter((runtime) => (
+    ALLOW_UNSAFE_RUNTIME || runtimeProfile(runtime).trust !== 'unsafe'
+  ));
+const MODEL_PROFILE_KEY_BY_RUNTIME = {
+  'arrow-control': 'arrow-control',
+  'html-static': 'html-static',
+  'html-stream': 'html-stream',
+  'html-script': 'html-script',
+  'unsafe-html-raw-stream': 'html-stream',
+} satisfies Record<SummonOutputRuntime, ModelProfileKey>;
 
 function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?: string } {
   if (raw === undefined || raw === null) return { layout: null };
@@ -163,17 +173,31 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
 }
 
 function parseExperimentalRuntime(raw: unknown): { runtime: SummonOutputRuntime; error?: string } {
-  if (raw === undefined || raw === null || raw === '') return { runtime: 'arrow-control' };
+  if (raw === undefined || raw === null || raw === '') return { runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME };
   if (typeof raw !== 'string') {
-    return { runtime: 'arrow-control', error: 'experimentalRuntime must be a string' };
+    return { runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME, error: 'experimentalRuntime must be a string' };
+  }
+  if (
+    SUMMON_OUTPUT_RUNTIME_VALUES.includes(raw as SummonOutputRuntime) &&
+    runtimeProfile(raw as SummonOutputRuntime).trust === 'unsafe' &&
+    !ALLOW_UNSAFE_RUNTIME
+  ) {
+    return {
+      runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME,
+      error: `experimentalRuntime "${raw}" requires SUMMON_ALLOW_UNSAFE_RUNTIME=1`,
+    };
   }
   if (!EXPERIMENTAL_RUNTIME_VALUES.includes(raw as SummonOutputRuntime)) {
     return {
-      runtime: 'arrow-control',
+      runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME,
       error: `experimentalRuntime must be one of ${EXPERIMENTAL_RUNTIME_VALUES.join(', ')}`,
     };
   }
   return { runtime: raw as SummonOutputRuntime };
+}
+
+function modelProfileKeyForRuntime(runtime: SummonOutputRuntime): ModelProfileKey {
+  return MODEL_PROFILE_KEY_BY_RUNTIME[runtime];
 }
 
 // Simple concurrency cap for /api/generate — protects against a runaway batch
@@ -274,6 +298,7 @@ app.get('/api/ghost-roots', (_req, res) => {
       status: 'external',
       version: '',
       tags: [],
+      previewColors: [],
       defaultTargetPath: '.',
       defaultBaseDirectionId: null,
       source: 'external',
@@ -291,19 +316,28 @@ app.post('/api/generate', async (req, res) => {
     res.status(400).json({ error: 'prompt required' });
     return;
   }
-  const resolvedProvider = modelProviders.resolve(req.body?.modelProvider ?? req.body?.provider, req.body);
-  if (!resolvedProvider.ok) {
-    res.status(400).json({ error: resolvedProvider.error });
-    return;
-  }
-  const modelProvider = resolvedProvider.provider;
-  const modelSelection = resolvedProvider.selection;
   const parsedExperimentalRuntime = parseExperimentalRuntime(req.body?.experimentalRuntime);
   if (parsedExperimentalRuntime.error) {
     res.status(400).json({ error: parsedExperimentalRuntime.error });
     return;
   }
   const experimentalRuntime = parsedExperimentalRuntime.runtime;
+  const runtimeProfileKey = modelProfileKeyForRuntime(experimentalRuntime);
+  const utilityProfileKey: ModelProfileKey = 'utility';
+  const resolvedRuntimeProvider = modelProviders.resolve(req.body?.modelProvider ?? req.body?.provider, req.body, runtimeProfileKey);
+  if (!resolvedRuntimeProvider.ok) {
+    res.status(400).json({ error: resolvedRuntimeProvider.error });
+    return;
+  }
+  const resolvedUtilityProvider = modelProviders.resolve(req.body?.modelProvider ?? req.body?.provider, req.body, utilityProfileKey);
+  if (!resolvedUtilityProvider.ok) {
+    res.status(400).json({ error: resolvedUtilityProvider.error });
+    return;
+  }
+  const modelProvider = resolvedRuntimeProvider.provider;
+  const modelSelection = resolvedRuntimeProvider.selection;
+  const utilityModelProvider = resolvedUtilityProvider.provider;
+  const utilityModelSelection = resolvedUtilityProvider.selection;
 
   if (req.body?.ghost !== undefined && req.body?.fingerprint !== undefined) {
     res.status(400).json({ error: 'Use either fingerprint or ghost, not both' });
@@ -438,7 +472,7 @@ app.post('/api/generate', async (req, res) => {
         goalModel: process.env.SUMMON_AGENT_GOAL_MODEL === '0' || agentOptions?.goalModel === 'off'
           ? null
           : {
-              completeText: (request) => modelProvider.completeText(request, modelSelection),
+              completeText: (request) => utilityModelProvider.completeText(request, utilityModelSelection),
             },
         goalTimeoutMs: clampInt(agentOptions?.goalTimeoutMs, 250, 5000, 1800),
       });
@@ -606,7 +640,7 @@ app.post('/api/generate', async (req, res) => {
         cache_creation_input_tokens: 0,
       };
       console.log(
-        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${modelSelection.utilityModel} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
+        `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${utilityModelProvider.id}/${utilityModelSelection.utilityModel} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
           ` runtime=${experimentalRuntime}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +

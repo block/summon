@@ -49,6 +49,20 @@ function htmlPatchLine(html = '<section id="hero"><h2>Updated</h2></section>'): 
   })}\n`;
 }
 
+function htmlScriptArtifactLine(js: string): string {
+  return `${JSON.stringify({
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'html',
+      source: {
+        'body.html': '<section id="hero"><button id="probe">Probe</button></section>',
+        'main.js': js,
+      },
+    },
+  })}\n`;
+}
+
 test('consumeSurfaceStream parses split chunks and delivers Arrow artifacts', async () => {
   const artifacts: string[] = [];
   const graphSnapshots: number[] = [];
@@ -111,6 +125,40 @@ test('consumeSurfaceStream delivers validated HTML artifacts and patch fragments
   assert.deepEqual(patches, ['<section id="hero"><h2>Updated</h2></section>']);
   assert.equal(result.htmlPatches.length, 1);
   assert.equal(result.streamGraph.artifacts.at(-1)?.runtime, 'html');
+});
+
+test('consumeSurfaceStream gates scripted HTML artifacts on experimentalHtmlScript', async () => {
+  const withoutScriptTrust: string[] = [];
+  const blocked = await consumeSurfaceStream([
+    htmlScriptArtifactLine('document.getElementById("probe")?.setAttribute("data-ready", "true");'),
+  ], {
+    mode: 'static',
+    onArtifact: (artifact) => {
+      if (artifact.runtime === 'html') withoutScriptTrust.push(artifact.source['main.js'] ?? '');
+    },
+  });
+
+  assert.deepEqual(withoutScriptTrust, []);
+  assert.deepEqual(blocked.validationIssues.map((issue) => issue.code), ['html-script-not-enabled']);
+
+  const withScriptTrust: string[] = [];
+  const accepted = await consumeSurfaceStream([
+    htmlScriptArtifactLine('document.getElementById("probe")?.setAttribute("data-ready", "true");'),
+  ], {
+    mode: 'static',
+    validationContext: {
+      mode: 'static',
+      allowedTools: [],
+      tools: [],
+      experimentalHtmlScript: true,
+    },
+    onArtifact: (artifact) => {
+      if (artifact.runtime === 'html') withScriptTrust.push(artifact.source['main.js'] ?? '');
+    },
+  });
+
+  assert.deepEqual(accepted.validationIssues.map((issue) => issue.code), []);
+  assert.deepEqual(withScriptTrust, ['document.getElementById("probe")?.setAttribute("data-ready", "true");']);
 });
 
 test('consumeSurfaceStream blocks invalid HTML patches before callback delivery', async () => {

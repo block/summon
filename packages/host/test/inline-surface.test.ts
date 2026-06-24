@@ -71,6 +71,7 @@ test('HTML iframe srcdoc uses strict sandbox and nonce-bound CSP', () => {
   assert.match(csp, /default-src 'none'/);
   assert.match(csp, /connect-src 'none'/);
   assert.match(csp, /script-src 'nonce-nonce-1'/);
+  assert.doesNotMatch(csp, /frame-ancestors/);
   assert.doesNotMatch(csp, /allow-same-origin/);
 
   const srcdoc = buildHtmlSandboxSrcdoc({
@@ -89,6 +90,21 @@ test('HTML iframe srcdoc uses strict sandbox and nonce-bound CSP', () => {
   assert.match(srcdoc, /<main id="summon-html-root"><section id="hero">/);
   assert.match(srcdoc, /SUMMON_HTML_READY/);
   assert.doesNotMatch(srcdoc, /allow-same-origin/);
+
+  const scriptedSrcdoc = buildHtmlSandboxSrcdoc({
+    sandboxId: 'surface-1-2',
+    bootstrapNonce: 'nonce-2',
+    artifact: {
+      runtime: 'html',
+      source: {
+        'body.html': '<section id="hero"><button id="probe">Probe</button></section>',
+        'main.js': 'document.getElementById("probe");</script><script>window.evil = true</script>',
+      },
+    },
+  });
+  assert.match(scriptedSrcdoc, /script-src 'nonce-nonce-2'/);
+  assert.match(scriptedSrcdoc, /document\.getElementById\("probe"\);<\\\/script><script>window\.evil = true<\\\/script>/);
+  assert.doesNotMatch(scriptedSrcdoc, /<\/script><script>window\.evil/);
 });
 
 test('HTML stream preview srcdoc is inert and scriptless', () => {
@@ -96,15 +112,33 @@ test('HTML stream preview srcdoc is inert and scriptless', () => {
   assert.match(csp, /default-src 'none'/);
   assert.match(csp, /connect-src 'none'/);
   assert.match(csp, /script-src 'none'/);
+  assert.doesNotMatch(csp, /frame-ancestors/);
 
   const srcdoc = buildHtmlPreviewSrcdoc({
     tokensSource: ':root { --color-text: #111; }',
-    bodyHtml: '<section id="hero"><script>window.evil = true</script><h1>Preview</h1></section>',
+    artifactCss: '#hero { color: var(--color-text); }',
+    bodyHtml: [
+      '<section id="hero" onclick="evil()">',
+      '<script>window.evil = true</script>',
+      '<a href="javascript:evil()">bad</a>',
+      '<img src="https://example.test/pixel.png" alt="x">',
+      '<object data="https://example.test/embed"></object>',
+      '<form action="https://example.test"><button>Submit</button></form>',
+      '<h1>Preview</h1>',
+      '</section>',
+    ].join(''),
   });
   assert.match(srcdoc, /Content-Security-Policy/);
   assert.match(srcdoc, /script-src 'none'/);
   assert.match(srcdoc, /summon-html-stream-preview-root/);
+  assert.match(srcdoc, /#hero \{ color: var\(--color-text\); \}/);
   assert.match(srcdoc, /<h1>Preview<\/h1>/);
+  assert.doesNotMatch(srcdoc, /window\.evil/);
+  assert.doesNotMatch(srcdoc, /onclick/);
+  assert.doesNotMatch(srcdoc, /javascript:evil/);
+  assert.doesNotMatch(srcdoc, /https:\/\/example\.test/);
+  assert.doesNotMatch(srcdoc, /<object\b/);
+  assert.doesNotMatch(srcdoc, /<form\b/);
 });
 
 test('inline token CSS scopes fingerprint element selectors to the surface root', () => {

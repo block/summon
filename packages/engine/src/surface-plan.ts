@@ -1,6 +1,6 @@
 import type { ToolPack } from './prompt.js';
 import {
-  isHtmlOutputRuntime,
+  runtimeProfile,
   type SummonOutputRuntime,
 } from './output-runtime.js';
 
@@ -153,7 +153,7 @@ export function buildSurfacePlanBlock(
   options: { outputRuntime?: SummonOutputRuntime } = {},
 ): string {
   const outputRuntime = options.outputRuntime ?? 'arrow-control';
-  const runtimeRules = isHtmlOutputRuntime(outputRuntime)
+  const runtimeRules = runtimeProfile(outputRuntime).format === 'html'
     ? `- This generation's output runtime is \`${outputRuntime}\`: return the structured HTML bundle requested by the output contract, not protocol lines or another source-tree format.
 - \`SurfacePlan.runtime\` remains \`${plan.runtime}\` as host safety-plan metadata; do not reinterpret it as a request to change the output format.
 - Static, declarative, worker, and approval behavior comes from \`SurfacePolicy.tier\` and this plan's data/authority fields, not alternate surface-plan runtimes.

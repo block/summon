@@ -205,27 +205,6 @@ pre {
   --summon-ripple-dot-size: 2px;
 }
 
-.summon-host-ripple-grid::before,
-.summon-host-ripple-grid::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: -1;
-  width: 30%;
-  aspect-ratio: 1;
-  border: 1px solid color-mix(in srgb, var(--color-ink) 18%, transparent);
-  border-radius: 999px;
-  opacity: 0;
-  transform: translate3d(-50%, -50%, 0) scale(0.25);
-  animation: summon-ripple-ring 2.7s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
-.summon-host-ripple-grid::after {
-  width: 44%;
-  animation-delay: 820ms;
-}
-
 .summon-host-ripple-dot {
   width: var(--summon-ripple-dot-size);
   height: var(--summon-ripple-dot-size);
@@ -253,6 +232,13 @@ pre {
   mask-image: radial-gradient(circle at 50% 50%, black 0 34%, transparent 72%);
   transform: translate3d(0, 0, 0) scale(1);
   animation: summon-dot-field-breathe 4.6s ease-in-out infinite;
+}
+
+.summon-host-dot-field--page-pulse {
+  inset: -12%;
+  opacity: 0.5;
+  background-size: 22px 22px;
+  mask-image: radial-gradient(circle at 50% 50%, black 0 46%, transparent 82%);
 }
 
 .summon-host-preview-sketch {
@@ -375,27 +361,6 @@ pre {
   74% {
     opacity: var(--dot-rest-opacity);
     transform: scale(var(--dot-rest-scale));
-  }
-}
-
-@keyframes summon-ripple-ring {
-  0% {
-    opacity: 0;
-    transform: translate3d(-50%, -50%, 0) scale(0.25);
-  }
-
-  18% {
-    opacity: 0.16;
-  }
-
-  72% {
-    opacity: 0;
-    transform: translate3d(-50%, -50%, 0) scale(2.6);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(-50%, -50%, 0) scale(2.6);
   }
 }
 

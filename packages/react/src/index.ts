@@ -62,6 +62,9 @@ export interface SummonSurfaceHandle {
   renderArtifact(artifact: SummonRenderableArtifact): void;
   applyHtmlPreviewDelta(delta: HtmlStreamPreviewDelta): void;
   applyHtmlPatch(patch: HtmlSurfacePatch): void;
+  beginUnsafeHtmlStream(): void;
+  writeUnsafeHtmlChunk(chunk: string): void;
+  endUnsafeHtmlStream(): void;
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot | null;
 }
@@ -93,6 +96,15 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     },
     applyHtmlPatch(patch) {
       handleRef.current?.applyHtmlPatch(patch);
+    },
+    beginUnsafeHtmlStream() {
+      handleRef.current?.beginUnsafeHtmlStream();
+    },
+    writeUnsafeHtmlChunk(chunk: string) {
+      handleRef.current?.writeUnsafeHtmlChunk(chunk);
+    },
+    endUnsafeHtmlStream() {
+      handleRef.current?.endUnsafeHtmlStream();
     },
     pushState(state: Record<string, unknown>) {
       handleRef.current?.pushState(state);

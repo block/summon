@@ -104,10 +104,17 @@ export type {
 } from './prompt.js';
 export {
   DEFAULT_SUMMON_OUTPUT_RUNTIME,
+  RUNTIME_PROFILES,
+  SUMMON_OUTPUT_RUNTIME_VALUES,
   isHtmlOutputRuntime,
   isScriptedHtmlOutputRuntime,
+  runtimeProfile,
 } from './output-runtime.js';
 export type {
+  RuntimeDelivery,
+  RuntimeFormat,
+  RuntimeProfile,
+  RuntimeTrust,
   SummonOutputRuntime,
 } from './output-runtime.js';
 export {

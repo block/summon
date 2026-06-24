@@ -70,6 +70,7 @@ export interface DemoModelSelectionPayload {
   utilityModel?: string;
   customModel?: boolean;
   modelOptions?: object;
+  modelProfiles?: object;
 }
 
 function providerPayload(
@@ -82,6 +83,7 @@ function providerPayload(
     ...(selection?.utilityModel ? { utilityModel: selection.utilityModel } : {}),
     ...(selection?.customModel ? { customModel: true } : {}),
     ...(selection?.modelOptions ? { modelOptions: selection.modelOptions } : {}),
+    ...(selection?.modelProfiles ? { modelProfiles: selection.modelProfiles } : {}),
   };
 }
 

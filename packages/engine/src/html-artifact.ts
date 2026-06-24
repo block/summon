@@ -573,37 +573,112 @@ function normalizePreview(value: unknown, issues: ContractIssue[]): SummonHtmlPr
     issues.push(htmlIssue('invalid-html-preview', 'HTML bundle preview.kind must be a non-empty string', '/preview/kind'));
     return undefined;
   }
-  const regions: SummonHtmlPreviewRegion[] = [];
-  if (input.regions !== undefined) {
-    if (!Array.isArray(input.regions)) {
-      issues.push(htmlIssue('invalid-html-preview', 'HTML bundle preview.regions must be an array', '/preview/regions'));
-    } else {
-      for (const [index, rawRegion] of input.regions.entries()) {
-        if (!rawRegion || typeof rawRegion !== 'object' || Array.isArray(rawRegion)) {
-          issues.push(htmlIssue('invalid-html-preview-region', 'HTML bundle preview region must be an object', `/preview/regions/${index}`));
-          continue;
-        }
-        const region = rawRegion as Record<string, unknown>;
-        const id = typeof region.id === 'string' ? region.id.trim() : '';
-        const role = typeof region.role === 'string' ? region.role.trim() : '';
-        if (!id || !role) {
-          issues.push(htmlIssue('invalid-html-preview-region', 'HTML bundle preview regions require id and role', `/preview/regions/${index}`));
-          continue;
-        }
-        regions.push({
-          id,
-          role,
-          ...(typeof region.label === 'string' ? { label: region.label } : {}),
-          ...(typeof region.summary === 'string' ? { summary: region.summary } : {}),
-        });
-      }
-    }
-  }
+  const regions = normalizePreviewRegions(input.regions, issues);
   return {
     kind,
     ...(typeof input.title === 'string' ? { title: input.title } : {}),
     ...(regions.length > 0 ? { regions } : {}),
   };
+}
+
+function normalizePreviewRegions(value: unknown, issues: ContractIssue[]): SummonHtmlPreviewRegion[] {
+  if (value === undefined || value === null) return [];
+  const rawRegions = Array.isArray(value) ? value : [value];
+  if (!Array.isArray(value)) {
+    issues.push(htmlWarn(
+      'coerced-html-preview-regions',
+      'HTML bundle preview.regions was not an array; treating it as a single preview region',
+      '/preview/regions',
+    ));
+  }
+
+  const regions: SummonHtmlPreviewRegion[] = [];
+  for (const [index, rawRegion] of rawRegions.entries()) {
+    const fallback = regionFallback(rawRegion, index);
+    if (!rawRegion || typeof rawRegion !== 'object' || Array.isArray(rawRegion)) {
+      if (fallback) {
+        regions.push(fallback);
+        issues.push(htmlWarn(
+          'coerced-html-preview-region',
+          `HTML bundle preview region ${index} was not an object; treating it as a preview id`,
+          `/preview/regions/${index}`,
+        ));
+      } else {
+        issues.push(htmlWarn(
+          'ignored-html-preview-region',
+          `HTML bundle preview region ${index} was not an object and was ignored`,
+          `/preview/regions/${index}`,
+        ));
+      }
+      continue;
+    }
+    const region = rawRegion as Record<string, unknown>;
+    const id = typeof region.id === 'string' ? region.id.trim() : '';
+    const role = typeof region.role === 'string' ? region.role.trim() : '';
+    if (!id || !role) {
+      const fallbackRegion = fallback ?? partialRegionFallback(region, index);
+      if (fallbackRegion) {
+        regions.push(fallbackRegion);
+        issues.push(htmlWarn(
+          'coerced-html-preview-region',
+          `HTML bundle preview region ${index} was missing id or role; using a generated preview region`,
+          `/preview/regions/${index}`,
+        ));
+      } else {
+        issues.push(htmlWarn(
+          'ignored-html-preview-region',
+          `HTML bundle preview region ${index} was missing id or role and was ignored`,
+          `/preview/regions/${index}`,
+        ));
+      }
+      continue;
+    }
+    regions.push({
+      id,
+      role,
+      ...(typeof region.label === 'string' ? { label: region.label } : {}),
+      ...(typeof region.summary === 'string' ? { summary: region.summary } : {}),
+    });
+  }
+  return regions;
+}
+
+function partialRegionFallback(region: Record<string, unknown>, index: number): SummonHtmlPreviewRegion | null {
+  const id = typeof region.id === 'string' ? region.id.trim() : '';
+  const role = typeof region.role === 'string' ? region.role.trim() : '';
+  const label = typeof region.label === 'string' ? region.label.trim() : '';
+  const summary = typeof region.summary === 'string' ? region.summary.trim() : '';
+  const seed = id || label || summary || role;
+  if (!seed) return null;
+  return {
+    id: id || sanitizePreviewRegionId(seed) || `region-${index + 1}`,
+    role: role || 'content',
+    ...(label ? { label } : {}),
+    ...(summary ? { summary } : {}),
+  };
+}
+
+function regionFallback(value: unknown, index: number): SummonHtmlPreviewRegion | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const id = sanitizePreviewRegionId(trimmed) || `region-${index + 1}`;
+  return {
+    id,
+    role: 'content',
+    label: trimmed,
+  };
+}
+
+function sanitizePreviewRegionId(value: string): string {
+  const normalized = value
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+  if (/^[a-z]/.test(normalized)) return normalized;
+  if (/^[0-9]/.test(normalized)) return `region-${normalized}`.slice(0, 80);
+  return '';
 }
 
 function validateHtmlFragmentSource(

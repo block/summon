@@ -33,13 +33,21 @@ test('demo host pages stay React-state driven instead of DOM-controller driven',
 });
 
 test('generate page exposes experimental runtime selection through the UI request path', () => {
+  const page = readFileSync(join(srcRoot, 'pages/generate/GeneratePage.tsx'), 'utf8');
   const stage = readFileSync(join(srcRoot, 'pages/generate/components/GenerationStage.tsx'), 'utf8');
   const stream = readFileSync(join(srcRoot, 'pages/generate/hooks/useSurfaceStream.ts'), 'utf8');
 
+  assert.match(page, /function unsafeRuntimeGateEnabled/);
+  assert.match(page, /VITE_SUMMON_ALLOW_UNSAFE_RUNTIME/);
+  assert.match(page, /new URLSearchParams\(window\.location\.search\)\.get\("unsafe"\) === "1"/);
+  assert.match(page, /allowUnsafeRuntime=\{allowUnsafeRuntime\}/);
   assert.match(stage, /id="stream-type-picker"/);
-  assert.match(stage, /overline="Stream"/);
+  assert.match(stage, /overline="Runtime"/);
   assert.match(stage, /value=\{experimentalRuntime\}/);
-  assert.match(stage, /!bg-ink/);
+  assert.match(stage, /function runtimeGroupsForUnsafeGate/);
+  assert.match(stage, /allowUnsafeRuntime \|\| profile\.trust !== "unsafe"/);
+  assert.match(stage, /SUMMON_ALLOW_UNSAFE_RUNTIME=1/);
+  assert.match(stage, /!rounded-\[22px\]/);
   assert.match(stage, /hover:opacity-85/);
   assert.match(stage, /html-static/);
   assert.match(stage, /html-stream/);
@@ -76,13 +84,17 @@ test('generation callers use fingerprint steering instead of plain directionId p
   assert.doesNotMatch(child, /\bdirectionId\b/);
   assert.match(batch, /\/api\/fingerprints/);
   assert.match(batch, /buildFingerprintSteeringPayload/);
+  assert.match(batch, /experimentalRuntime: run\.runtime/);
+  assert.match(batch, /name="runtime-mode"/);
+  assert.match(batch, /id="batch-runtime"/);
+  assert.match(batch, /SUMMON_OUTPUT_RUNTIME_VALUES/);
   assert.doesNotMatch(batch, /\bdirectionId\b/);
 });
 
 test('dropdown select items use prompt-scale rounding', () => {
   const ui = readFileSync(join(srcRoot, 'components/ui.tsx'), 'utf8');
 
-  assert.match(ui, /rounded-\[18px\]/);
+  assert.match(ui, /rounded-\[22px\]/);
 });
 
 function walk(dir: string): string[] {

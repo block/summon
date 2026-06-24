@@ -13,6 +13,7 @@ import {
 import {
   normalizeSurfacePlan,
   buildFingerprintSteeringPayload,
+  runtimeProfile,
   type ArrowSurfaceArtifact,
   type HtmlSurfaceArtifact,
   type ProtocolLine,
@@ -36,6 +37,7 @@ import {
   surfaceRequestFor,
   toolPackFor,
 } from '../surfaceHelpers.js';
+import { createRunMetricsAccumulator } from '../runMetrics.js';
 import type { StreamOptions, StreamResult, TimingEntry } from '../types.js';
 
 async function* chunksWithByteCounts(
@@ -207,6 +209,22 @@ export function useSurfaceStream({
       logLine('op-meta', `stream diagnostics -> ${JSON.stringify(line.value)}`);
       return;
     }
+    if (line.op === 'meta' && line.path === '/unsafe-html-raw-stream-start') {
+      surfaceRef.current?.beginUnsafeHtmlStream();
+      logLine('op-meta', 'unsafe raw html stream -> start');
+      return;
+    }
+    if (line.op === 'meta' && line.path === '/unsafe-html-raw-stream-chunk') {
+      const chunk = typeof line.value === 'string' ? line.value : String(line.value ?? '');
+      surfaceRef.current?.writeUnsafeHtmlChunk(chunk);
+      logLine('op-meta', `unsafe raw html chunk -> ${chunk.length} chars`);
+      return;
+    }
+    if (line.op === 'meta' && line.path === '/unsafe-html-raw-stream-complete') {
+      surfaceRef.current?.endUnsafeHtmlStream();
+      logLine('op-meta', `unsafe raw html stream -> complete ${JSON.stringify(line.value)}`);
+      return;
+    }
     if (line.op === 'meta' && line.path === '/html-stream-preview') {
       const delta = parseHtmlStreamPreviewDelta(line.value);
       if (delta) {
@@ -300,24 +318,30 @@ export function useSurfaceStream({
     const surfaceRequest = opts.playgroundMode ? {} : surfaceRequestFor(active);
     const agent = opts.playgroundMode ? undefined : agentBrokerRequestFor(active);
     const streamStartedAt = performance.now();
+    const metrics = createRunMetricsAccumulator(opts.experimentalRuntime);
+    const elapsedSinceStart = () => performance.now() - streamStartedAt;
     const markClientTiming = (
       phase: string,
       label: string,
       durationMs?: number,
-    ) => {
+    ): number => {
+      const elapsedMs = roundMs(elapsedSinceStart());
       appendTimingEntry({
         phase,
         label,
-        elapsedMs: roundMs(performance.now() - streamStartedAt),
+        elapsedMs,
         ...(durationMs === undefined ? {} : { durationMs: roundMs(durationMs) }),
         source: 'client',
       });
+      return elapsedMs;
     };
     const validationContext: ValidationContext = {
       mode: active.mode,
       allowedTools: toolPack.tools.map((tool) => tool.name),
       tools: toolPack.tools,
       surfacePlan: active.surfacePlan,
+      experimentalHtmlScript:
+        runtimeProfile(opts.experimentalRuntime).trust === 'iframe-script',
     };
 
     const modelSelectionPayload = {
@@ -326,6 +350,7 @@ export function useSurfaceStream({
       ...(active.utilityModel ? { utilityModel: active.utilityModel } : {}),
       ...(active.customModel ? { customModel: true } : {}),
       ...(active.modelOptions ? { modelOptions: active.modelOptions } : {}),
+      ...(active.modelProfiles ? { modelProfiles: active.modelProfiles } : {}),
     };
     const steeringPayload = buildFingerprintSteeringPayload({
       id: opts.fingerprintId,
@@ -371,20 +396,29 @@ export function useSurfaceStream({
 
     let byteTotal = 0;
     let firstByteSeen = false;
+    let firstPaintTimingSeen = false;
     let firstArtifactSeen = false;
     let surfacePlanFromStream: SurfacePlan | null = null;
+    const noteFirstPaintTiming = () => {
+      if (firstPaintTimingSeen || metrics.snapshot().ttfp === null) return;
+      firstPaintTimingSeen = true;
+      markClientTiming('first-paint', 'First preview content received');
+    };
     const result = await consumeSurfaceStream(chunksWithByteCounts(response.body, (count) => {
       if (!firstByteSeen) {
         firstByteSeen = true;
-        markClientTiming('first-byte', 'First response byte received');
+        metrics.markFirstByte(markClientTiming('first-byte', 'First response byte received'));
       }
       byteTotal += count;
+      metrics.setBytes(byteTotal);
       setBytes(byteTotal);
     }), {
       mode: () => modeRef.current,
       shouldApplyLine: () => 'apply',
       onLine: (line, context) => {
         appendDevEvent({ kind: 'server-line', at: Date.now(), line });
+        metrics.observeProtocolLine(line, elapsedSinceStart());
+        noteFirstPaintTiming();
         if (line.op !== 'meta') applyLineTo(line, context);
       },
       onMeta: (line, context) => {
@@ -403,6 +437,8 @@ export function useSurfaceStream({
         logLine('op-artifact', `html patch ${patch.action} #${patch.target}`);
       },
       onSurfaceEvent: (event) => {
+        metrics.observeSurfaceEvent(event, elapsedSinceStart());
+        noteFirstPaintTiming();
         setPreviewSnapshot((snapshot) =>
           reduceSurfacePreviewSnapshot(snapshot, event),
         );
@@ -438,19 +474,20 @@ export function useSurfaceStream({
         });
       },
       validationContext,
-      validationMode: 'observe',
+      validationMode: opts.playgroundMode ? 'observe' : 'enforce',
     });
-    markClientTiming('stream-complete', 'Stream complete');
+    metrics.markComplete(markClientTiming('stream-complete', 'Stream complete'));
     if (
-      active.surfacePlan.runtime === 'arrow' &&
+      runtimeProfile(opts.experimentalRuntime).trust !== 'unsafe' &&
       !result.protocolLines.some((line) => line.op === 'artifact' && line.path === '/artifact')
     ) {
-      throw new Error(missingArtifactMessage(result.protocolLines));
+      throw new Error(missingArtifactMessage(result.protocolLines, opts.experimentalRuntime));
     }
 
     return {
       ...result,
       surfacePlan: surfacePlanFromStream,
+      metrics: metrics.snapshot(),
     };
   }, [
     appendDevEvent,

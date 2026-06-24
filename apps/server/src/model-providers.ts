@@ -35,7 +35,9 @@ export interface TextCompletionClient {
 export type ModelCatalogStatus = 'stable' | 'preview' | 'latest' | 'legacy';
 export type ModelCatalogTier = 'fast' | 'balanced' | 'frontier';
 export type AnthropicThinkingMode = 'adaptive' | 'off';
-export type ModelEffort = 'low' | 'medium' | 'high';
+export type ModelEffort = 'low' | 'medium' | 'high' | 'max';
+export type ModelProfileKey = 'arrow-control' | 'html-static' | 'html-stream' | 'html-script' | 'utility';
+export const MODEL_PROFILE_KEYS: ModelProfileKey[] = ['arrow-control', 'html-static', 'html-stream', 'html-script', 'utility'];
 
 export interface ModelCatalogEntry {
   id: string;
@@ -69,6 +71,7 @@ export interface ModelProviderDefaults {
   generationModel: string;
   utilityModel: string;
   modelOptions: NormalizedModelOptions;
+  modelProfiles: Record<ModelProfileKey, string>;
 }
 
 export interface ModelProviderInfo {
@@ -93,6 +96,7 @@ export interface NormalizedModelOptions {
 export interface ModelSelection {
   generationModel: string;
   utilityModel: string;
+  modelProfiles: Record<ModelProfileKey, string>;
   customModel: boolean;
   options: NormalizedModelOptions;
 }
@@ -111,7 +115,7 @@ export interface ModelProviderRegistry {
   defaultProvider: ModelProviderAdapter | null;
   get(id: ModelProviderId): ModelProviderAdapter;
   info(): ModelProviderInfo[];
-  resolve(raw: unknown, selectionRaw?: unknown): {
+  resolve(raw: unknown, selectionRaw?: unknown, profileKey?: ModelProfileKey): {
     ok: true;
     provider: ModelProviderAdapter;
     selection: ModelSelection;
@@ -123,27 +127,19 @@ const DEFAULT_OPENAI_MODEL = 'gpt-5';
 const DEFAULT_OPENAI_UTILITY_MODEL = 'gpt-5-mini';
 const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
 const DEFAULT_GEMINI_UTILITY_MODEL = 'gemini-2.5-flash';
-const DEFAULT_GENERATION_MAX_TOKENS = 64000;
-const STRUCTURED_GENERATION_MAX_TOKENS = 16000;
+const DEFAULT_GENERATION_MAX_TOKENS = 128000;
+const STRUCTURED_GENERATION_MAX_TOKENS = 128000;
+const DEFAULT_LONG_MODEL_TIMEOUT_MS = 60 * 60 * 1000;
 const ARROW_SURFACE_TOOL_NAME = 'create_summon_arrow_surface';
 const HTML_SURFACE_TOOL_NAME = 'create_summon_html_surface';
 const HTML_SURFACE_TOOL_DESCRIPTION = 'Create an experimental HTML/CSS sandbox surface bundle for Summon. The server owns streaming protocol and validation; return only the structured bundle fields.';
 const MIN_OUTPUT_TOKENS = 1000;
 const MAX_OUTPUT_TOKENS = 128000;
 const MODEL_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
-const EFFORT_OPTIONS: ModelEffort[] = ['low', 'medium', 'high'];
+const EFFORT_OPTIONS: ModelEffort[] = ['low', 'medium', 'high', 'max'];
 const THINKING_OPTIONS: AnthropicThinkingMode[] = ['adaptive', 'off'];
 
 const ANTHROPIC_MODELS: ModelCatalogEntry[] = [
-  {
-    id: 'claude-fable-5',
-    label: 'Claude Fable 5',
-    status: 'latest',
-    tier: 'frontier',
-    maxOutputTokens: 128000,
-    anthropicThinking: 'always',
-    description: 'Most capable widely released Claude model.',
-  },
   {
     id: 'claude-opus-4-8',
     label: 'Claude Opus 4.8',
@@ -209,10 +205,16 @@ export function createModelProviderRegistry(env: NodeJS.ProcessEnv): ModelProvid
     info() {
       return PROVIDER_IDS.map((id) => providers.get(id)!).map(providerInfo);
     },
-    resolve(raw, selectionRaw) {
-      const providerId = raw === undefined || raw === null || raw === ''
-        ? defaultProvider?.id
-        : parseProviderId(raw);
+    resolve(raw, selectionRaw, profileKey) {
+      const profileRaw = profileForKey(selectionRaw, profileKey);
+      const profileProvider = profileRaw && typeof profileRaw === 'object'
+        ? (profileRaw as Record<string, unknown>).modelProvider ?? (profileRaw as Record<string, unknown>).provider
+        : undefined;
+      const providerId = profileProvider !== undefined && profileProvider !== null && profileProvider !== ''
+        ? parseProviderId(profileProvider)
+        : raw === undefined || raw === null || raw === ''
+          ? defaultProvider?.id
+          : parseProviderId(raw);
       if (!providerId) {
         return {
           ok: false,
@@ -233,7 +235,7 @@ export function createModelProviderRegistry(env: NodeJS.ProcessEnv): ModelProvid
           error: `${provider.name} is not configured; set ${provider.missingEnv}`,
         };
       }
-      const resolvedSelection = provider.resolveSelection(selectionRaw);
+      const resolvedSelection = provider.resolveSelection(profileRaw ?? selectionRaw);
       if (!resolvedSelection.ok) return resolvedSelection;
       return { ok: true, provider, selection: resolvedSelection.selection };
     },
@@ -246,6 +248,13 @@ export function parseProviderId(raw: unknown): ModelProviderId | null {
   return PROVIDER_IDS.includes(normalized as ModelProviderId)
     ? (normalized as ModelProviderId)
     : null;
+}
+
+function profileForKey(raw: unknown, key?: ModelProfileKey): unknown {
+  if (!key || !raw || typeof raw !== 'object') return null;
+  const profiles = (raw as Record<string, unknown>).modelProfiles;
+  if (!profiles || typeof profiles !== 'object') return null;
+  return (profiles as Record<string, unknown>)[key] ?? null;
 }
 
 function providerInfo(provider: ModelProviderAdapter): ModelProviderInfo {
@@ -271,6 +280,7 @@ function createProviderDefaults(args: {
   anthropic?: boolean;
 }): ModelProviderDefaults {
   const generationModel = args.generationModel;
+  const modelProfiles = defaultModelProfiles(generationModel, args.utilityModel);
   const modelMax = maxOutputTokensForModel(args.catalog, generationModel);
   const maxOutputTokens = clampInt(
     Number(args.env.SUMMON_GENERATION_MAX_TOKENS),
@@ -290,13 +300,14 @@ function createProviderDefaults(args: {
     options.effort = forceEffortForModel(
       args.catalog,
       generationModel,
-      parseEffort(args.env.SUMMON_ANTHROPIC_EFFORT ?? args.env.ANTHROPIC_EFFORT, 'medium'),
+      parseEffort(args.env.SUMMON_ANTHROPIC_EFFORT ?? args.env.ANTHROPIC_EFFORT, 'max'),
     );
   }
   return {
     generationModel,
     utilityModel: args.utilityModel,
     modelOptions: options,
+    modelProfiles: modelProfilesFromEnv(args.env, args.generationModel, args.utilityModel),
   };
 }
 
@@ -307,7 +318,7 @@ function createProviderControls(defaults: ModelProviderDefaults, anthropic = fal
       min: MIN_OUTPUT_TOKENS,
       max: MAX_OUTPUT_TOKENS,
       default: defaults.modelOptions.maxOutputTokens,
-      presets: [8000, 12000, 16000, 32000, 64000],
+      presets: [8000, 12000, 16000, 32000, 64000, 128000],
     },
     ...(anthropic
       ? {
@@ -316,7 +327,7 @@ function createProviderControls(defaults: ModelProviderDefaults, anthropic = fal
             options: THINKING_OPTIONS,
           },
           effort: {
-            default: defaults.modelOptions.effort ?? 'medium',
+            default: defaults.modelOptions.effort ?? 'max',
             options: EFFORT_OPTIONS,
           },
         }
@@ -336,6 +347,7 @@ function createSelectionResolver(args: {
       ? raw as Record<string, unknown>
       : {};
     const customModel = obj.customModel === true;
+    const rawProfiles = obj.modelProfiles && typeof obj.modelProfiles === 'object' ? obj.modelProfiles as Record<string, unknown> : {};
     const generationModel = resolveModelId({
       providerName: args.providerName,
       role: 'generation',
@@ -356,7 +368,24 @@ function createSelectionResolver(args: {
     });
     if (!utilityModel.ok) return utilityModel;
 
-    const modelMax = maxOutputTokensForModel(args.models, generationModel.model);
+    const modelProfiles = { ...args.defaults.modelProfiles };
+    let customProfile = false;
+    for (const key of MODEL_PROFILE_KEYS) {
+      const fallback = key === 'utility' ? utilityModel.model : generationModel.model;
+      const resolved = resolveModelId({
+        providerName: args.providerName,
+        role: `${key} profile`,
+        raw: rawProfiles[key],
+        fallback,
+        catalog: key === 'utility' ? args.utilityModels : args.models,
+        customModel,
+      });
+      if (!resolved.ok) return resolved;
+      modelProfiles[key] = resolved.model;
+      customProfile ||= resolved.custom;
+    }
+
+    const modelMax = Math.min(...MODEL_PROFILE_KEYS.filter((key) => key !== 'utility').map((key) => maxOutputTokensForModel(args.models, modelProfiles[key])));
     const rawOptions = obj.modelOptions && typeof obj.modelOptions === 'object'
       ? obj.modelOptions as Record<string, unknown>
       : {};
@@ -377,7 +406,7 @@ function createSelectionResolver(args: {
       options.effort = forceEffortForModel(
         args.models,
         generationModel.model,
-        parseEffort(rawOptions.effort, args.defaults.modelOptions.effort ?? 'medium'),
+        parseEffort(rawOptions.effort, args.defaults.modelOptions.effort ?? 'max'),
       );
     }
 
@@ -386,11 +415,46 @@ function createSelectionResolver(args: {
       selection: {
         generationModel: generationModel.model,
         utilityModel: utilityModel.model,
-        customModel: customModel || generationModel.custom || utilityModel.custom,
+        modelProfiles,
+        customModel: customModel || generationModel.custom || utilityModel.custom || customProfile,
         options,
       },
     };
   };
+}
+
+function envProfileName(key: ModelProfileKey): string {
+  return key.toUpperCase().replace(/-/g, '_');
+}
+
+function modelProfilesFromEnv(env: NodeJS.ProcessEnv, generationModel: string, utilityModel: string): Record<ModelProfileKey, string> {
+  const profiles = defaultModelProfiles(generationModel, utilityModel);
+  for (const key of MODEL_PROFILE_KEYS) {
+    profiles[key] = env[`SUMMON_MODEL_PROFILE_${envProfileName(key)}`]
+      ?? env[`SUMMON_${envProfileName(key)}_MODEL`]
+      ?? profiles[key];
+  }
+  return profiles;
+}
+
+function defaultModelProfiles(generationModel: string, utilityModel: string): Record<ModelProfileKey, string> {
+  return {
+    'arrow-control': generationModel,
+    'html-static': generationModel,
+    'html-stream': generationModel,
+    'html-script': generationModel,
+    utility: utilityModel,
+  };
+}
+
+function profileModel(selection: ModelSelection, key: ModelProfileKey): string {
+  return selection.modelProfiles?.[key] ?? (key === 'utility' ? selection.utilityModel : selection.generationModel);
+}
+
+function structuredAnthropicOptions(selection: ModelSelection): Partial<Pick<Anthropic.MessageCreateParams, 'thinking' | 'output_config'>> {
+  // Anthropic rejects extended thinking when tool_choice is forced. Structured Arrow/HTML
+  // bundle generation and repair force tools, so explicitly disable thinking there.
+  return { thinking: { type: 'disabled' as const } };
 }
 
 function resolveModelId(args: {
@@ -454,7 +518,22 @@ function parseThinkingMode(raw: unknown, fallback: AnthropicThinkingMode): Anthr
 }
 
 function parseEffort(raw: unknown, fallback: ModelEffort): ModelEffort {
-  return raw === 'low' || raw === 'medium' || raw === 'high' ? raw : fallback;
+  return raw === 'low' || raw === 'medium' || raw === 'high' || raw === 'max' ? raw : fallback;
+}
+
+function anthropicGenerationOptions(
+  selection: ModelSelection,
+  options: { forceToolChoice?: boolean } = {},
+): Partial<Pick<Anthropic.MessageCreateParams, 'thinking' | 'output_config'>> {
+  const thinking = options.forceToolChoice ? 'off' : selection.options.anthropicThinking;
+  return {
+    ...(thinking === 'adaptive'
+      ? { thinking: { type: 'adaptive' as const, display: 'omitted' as const } }
+      : thinking === 'off'
+        ? { thinking: { type: 'disabled' as const } }
+        : {}),
+    ...(!options.forceToolChoice && selection.options.effort ? { output_config: { effort: selection.options.effort } } : {}),
+  };
 }
 
 function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
@@ -479,6 +558,12 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
   const client = apiKey
     ? new Anthropic({
         apiKey,
+        timeout: clampInt(
+          Number(env.SUMMON_MODEL_TIMEOUT_MS ?? env.ANTHROPIC_TIMEOUT_MS),
+          600000,
+          DEFAULT_LONG_MODEL_TIMEOUT_MS,
+          DEFAULT_LONG_MODEL_TIMEOUT_MS,
+        ),
         ...(env.ANTHROPIC_BASE_URL ? { baseURL: env.ANTHROPIC_BASE_URL } : {}),
       })
     : null;
@@ -502,10 +587,11 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     resolveSelection,
     async generateArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
-        model: selection.generationModel,
+        model: profileModel(selection, 'arrow-control'),
         max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
         system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: request.prompt }],
+        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
         tools: [anthropicStructuredSurfaceTool(request.schema)],
         tool_choice: { type: 'tool' as const, name: ARROW_SURFACE_TOOL_NAME },
       });
@@ -513,10 +599,11 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     },
     async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
-        model: selection.generationModel,
+        model: profileModel(selection, 'arrow-control'),
         max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
         system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: repairPrompt(request) }],
+        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
         tools: [anthropicStructuredSurfaceTool(request.schema)],
         tool_choice: { type: 'tool' as const, name: ARROW_SURFACE_TOOL_NAME },
       });
@@ -524,10 +611,11 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     },
     async generateHtmlBundle(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
-        model: selection.generationModel,
+        model: profileModel(selection, 'html-static'),
         max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
         system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: request.prompt }],
+        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
         tools: [anthropicStructuredSurfaceTool(request.schema, HTML_SURFACE_TOOL_NAME, HTML_SURFACE_TOOL_DESCRIPTION)],
         tool_choice: { type: 'tool' as const, name: HTML_SURFACE_TOOL_NAME },
       });
@@ -535,35 +623,22 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     },
     async repairHtmlBundle(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
-        model: selection.generationModel,
+        model: profileModel(selection, 'html-static'),
         max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
         system: anthropicSystemBlocks(request.promptBlocks),
         messages: [{ role: 'user', content: repairHtmlPrompt(request) }],
+        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
         tools: [anthropicStructuredSurfaceTool(request.schema, HTML_SURFACE_TOOL_NAME, HTML_SURFACE_TOOL_DESCRIPTION)],
         tool_choice: { type: 'tool' as const, name: HTML_SURFACE_TOOL_NAME },
       });
       return extractAnthropicToolInput(result.content, HTML_SURFACE_TOOL_NAME);
     },
     async *streamHtmlSurface(request, selection = defaultsToSelection(defaults)) {
-      const stream = ensureClient().messages.stream({
-        model: selection.generationModel,
-        max_tokens: selection.options.maxOutputTokens,
-        system: anthropicSystemBlocks(request.promptBlocks),
-        messages: [{ role: 'user', content: request.prompt }],
-      });
-      for await (const event of stream) {
-        if (
-          event.type === 'content_block_delta' &&
-          event.delta.type === 'text_delta' &&
-          event.delta.text
-        ) {
-          yield event.delta.text;
-        }
-      }
+      yield* streamAnthropicText(ensureClient(), request, selection);
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
-        model: selection.utilityModel,
+        model: profileModel(selection, 'utility'),
         max_tokens: request.maxTokens,
         ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
         system: [
@@ -577,6 +652,24 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       });
       return extractAnthropicText(result.content);
     },
+  };
+}
+
+function responsesBody(
+  selectedModel: string,
+  system: string,
+  prompt: string,
+  maxTokens: number,
+  stream: boolean,
+  temperature?: number,
+): Record<string, unknown> {
+  return {
+    model: selectedModel,
+    instructions: system,
+    input: prompt,
+    max_output_tokens: maxTokens,
+    stream,
+    ...(temperature !== undefined ? { temperature } : {}),
   };
 }
 
@@ -616,22 +709,6 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     return response;
   };
 
-  const responsesBody = (
-    selectedModel: string,
-    system: string,
-    prompt: string,
-    maxTokens: number,
-    stream: boolean,
-    temperature?: number,
-  ) => ({
-    model: selectedModel,
-    instructions: system,
-    input: prompt,
-    max_output_tokens: maxTokens,
-    stream,
-    ...(temperature !== undefined ? { temperature } : {}),
-  });
-
   return {
     id: 'openai',
     name: 'OpenAI',
@@ -648,7 +725,7 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       const response = await post(
         '/responses',
         openAIStructuredBody(
-          selection.generationModel,
+          profileModel(selection, 'arrow-control'),
           promptBlocksToText(request.promptBlocks),
           request.prompt,
           selection.options.maxOutputTokens,
@@ -662,7 +739,7 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       const response = await post(
         '/responses',
         openAIStructuredBody(
-          selection.generationModel,
+          profileModel(selection, 'arrow-control'),
           promptBlocksToText(request.promptBlocks),
           repairPrompt(request),
           selection.options.maxOutputTokens,
@@ -676,7 +753,7 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       const response = await post(
         '/responses',
         openAIStructuredBody(
-          selection.generationModel,
+          profileModel(selection, 'html-static'),
           promptBlocksToText(request.promptBlocks),
           request.prompt,
           selection.options.maxOutputTokens,
@@ -692,7 +769,7 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       const response = await post(
         '/responses',
         openAIStructuredBody(
-          selection.generationModel,
+          profileModel(selection, 'html-static'),
           promptBlocksToText(request.promptBlocks),
           repairHtmlPrompt(request),
           selection.options.maxOutputTokens,
@@ -705,31 +782,13 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       return extractOpenAIToolInput(await response.json(), HTML_SURFACE_TOOL_NAME);
     },
     async *streamHtmlSurface(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        '/responses',
-        responsesBody(
-          selection.generationModel,
-          promptBlocksToText(request.promptBlocks),
-          request.prompt,
-          selection.options.maxOutputTokens,
-          true,
-        ),
-        request.signal,
-      );
-      for await (const event of readSseEvents(response.body)) {
-        if (event.data === '[DONE]') break;
-        const payload = parseJsonObject(event.data);
-        if (!payload) continue;
-        const type = typeof payload.type === 'string' ? payload.type : event.event;
-        const delta = openAITextDelta(payload, type);
-        if (delta) yield delta;
-      }
+      yield* streamOpenAIText(post, request, selection);
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         '/responses',
         responsesBody(
-          selection.utilityModel,
+          profileModel(selection, 'utility'),
           request.system,
           request.prompt,
           request.maxTokens,
@@ -798,7 +857,7 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     resolveSelection,
     async generateArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
-        selection.generationModel,
+        profileModel(selection, 'arrow-control'),
         'generateContent',
         geminiStructuredBody(
           promptBlocksToText(request.promptBlocks),
@@ -812,7 +871,7 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     },
     async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
-        selection.generationModel,
+        profileModel(selection, 'arrow-control'),
         'generateContent',
         geminiStructuredBody(
           promptBlocksToText(request.promptBlocks),
@@ -826,7 +885,7 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     },
     async generateHtmlBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
-        selection.generationModel,
+        profileModel(selection, 'html-static'),
         'generateContent',
         geminiStructuredBody(
           promptBlocksToText(request.promptBlocks),
@@ -842,7 +901,7 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     },
     async repairHtmlBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
-        selection.generationModel,
+        profileModel(selection, 'html-static'),
         'generateContent',
         geminiStructuredBody(
           promptBlocksToText(request.promptBlocks),
@@ -857,26 +916,11 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
       return extractGeminiToolInput(await response.json(), HTML_SURFACE_TOOL_NAME);
     },
     async *streamHtmlSurface(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        selection.generationModel,
-        'streamGenerateContent',
-        geminiBody(
-          promptBlocksToText(request.promptBlocks),
-          request.prompt,
-          selection.options.maxOutputTokens,
-        ),
-        request.signal,
-      );
-      for await (const event of readSseEvents(response.body)) {
-        const payload = parseJsonObject(event.data);
-        if (!payload) continue;
-        const delta = extractGeminiText(payload);
-        if (delta) yield delta;
-      }
+      yield* streamGeminiText(post, request, selection);
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
-        selection.utilityModel,
+        profileModel(selection, 'utility'),
         'generateContent',
         geminiBody(request.system, request.prompt, request.maxTokens, request.temperature),
         request.signal,
@@ -1108,7 +1152,9 @@ function extractGeminiText(payload: unknown): string {
       if (!Array.isArray(parts)) return [];
       return parts.map((part) => {
         if (!part || typeof part !== 'object') return '';
-        const text = (part as { text?: unknown }).text;
+        const partObj = part as { text?: unknown; thought?: unknown };
+        if (partObj.thought === true) return '';
+        const text = partObj.text;
         return typeof text === 'string' ? text : '';
       });
     })
@@ -1126,10 +1172,84 @@ function geminiUsage(payload: Record<string, unknown>): ProviderUsageSnapshot | 
   };
 }
 
+
+async function* streamAnthropicText(
+  client: Anthropic,
+  request: { prompt: string; promptBlocks: ContractPromptBlock[]; signal?: AbortSignal },
+  selection: ModelSelection,
+): AsyncIterable<string> {
+  const stream = client.messages.stream({
+    model: profileModel(selection, 'html-stream'),
+    max_tokens: selection.options.maxOutputTokens,
+    system: anthropicSystemBlocks(request.promptBlocks),
+    messages: [{ role: 'user', content: request.prompt }],
+    ...anthropicGenerationOptions(selection),
+  });
+  for await (const event of stream) {
+    if (
+      event.type === 'content_block_delta' &&
+      event.delta.type === 'text_delta' &&
+      event.delta.text
+    ) {
+      yield event.delta.text;
+    }
+  }
+}
+
+async function* streamOpenAIText(
+  post: (path: string, body: Record<string, unknown>, signal?: AbortSignal) => Promise<Response>,
+  request: { prompt: string; promptBlocks: ContractPromptBlock[]; signal?: AbortSignal },
+  selection: ModelSelection,
+): AsyncIterable<string> {
+  const response = await post(
+    '/responses',
+    responsesBody(
+      profileModel(selection, 'html-stream'),
+      promptBlocksToText(request.promptBlocks),
+      request.prompt,
+      selection.options.maxOutputTokens,
+      true,
+    ),
+    request.signal,
+  );
+  for await (const event of readSseEvents(response.body)) {
+    if (event.data === '[DONE]') break;
+    const payload = parseJsonObject(event.data);
+    if (!payload) continue;
+    const type = typeof payload.type === 'string' ? payload.type : event.event;
+    const delta = openAITextDelta(payload, type);
+    if (delta) yield delta;
+  }
+}
+
+async function* streamGeminiText(
+  post: (model: string, method: 'generateContent' | 'streamGenerateContent', body: Record<string, unknown>, signal?: AbortSignal) => Promise<Response>,
+  request: { prompt: string; promptBlocks: ContractPromptBlock[]; signal?: AbortSignal },
+  selection: ModelSelection,
+): AsyncIterable<string> {
+  const response = await post(
+    profileModel(selection, 'html-stream'),
+    'streamGenerateContent',
+    geminiBody(
+      promptBlocksToText(request.promptBlocks),
+      request.prompt,
+      selection.options.maxOutputTokens,
+    ),
+    request.signal,
+  );
+  for await (const event of readSseEvents(response.body)) {
+    const payload = parseJsonObject(event.data);
+    if (!payload) continue;
+    const delta = extractGeminiText(payload);
+    if (delta) yield delta;
+  }
+}
+
 function defaultsToSelection(defaults: ModelProviderDefaults): ModelSelection {
   return {
     generationModel: defaults.generationModel,
     utilityModel: defaults.utilityModel,
+    modelProfiles: defaults.modelProfiles,
     customModel: false,
     options: defaults.modelOptions,
   };

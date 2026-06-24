@@ -16,12 +16,22 @@ import {
 import type {
   GhostRootInfo,
   ModelCatalogEntry,
+  ModelProfileKey,
   ModelProviderInfo,
   RunProfile,
 } from '../types.js';
+
+const RUNTIME_PROFILE_LABEL: Record<ModelProfileKey, string> = {
+  'arrow-control': 'Arrow control',
+  'html-static': 'HTML static',
+  'html-stream': 'HTML stream',
+  'html-script': 'HTML script',
+  utility: 'Utility',
+};
 import { ModeGroup } from '../../../components/chrome.js';
 import { cn } from '../../../lib/cn.js';
-import { compactInputClass, compactSelectClass, fieldLabelClass } from '../../../components/ui.js';
+import { DropdownSelect, compactInputClass, compactSelectClass, fieldLabelClass } from '../../../components/ui.js';
+import { fingerprintOptionFor } from '../fingerprintDisplay.js';
 
 export function ContractInspector({
   playgroundMode,
@@ -31,6 +41,8 @@ export function ContractInspector({
   currentEffectiveSurfacePlan,
   runProfile,
   onRunProfileChange,
+  modelProfileKey,
+  structuredProfile,
   modelProviderId,
   setModelProviderId,
   modelProviders,
@@ -75,6 +87,8 @@ export function ContractInspector({
   currentEffectiveSurfacePlan: SurfacePlan | null;
   runProfile: RunProfile;
   onRunProfileChange: (value: RunProfile) => void;
+  modelProfileKey: ModelProfileKey;
+  structuredProfile: boolean;
   modelProviderId: string;
   setModelProviderId: (value: string) => void;
   modelProviders: ModelProviderInfo[];
@@ -91,8 +105,8 @@ export function ContractInspector({
   setMaxOutputTokens: (value: number) => void;
   anthropicThinking: 'adaptive' | 'off';
   setAnthropicThinking: (value: 'adaptive' | 'off') => void;
-  modelEffort: 'low' | 'medium' | 'high';
-  setModelEffort: (value: 'low' | 'medium' | 'high') => void;
+  modelEffort: 'low' | 'medium' | 'high' | 'max';
+  setModelEffort: (value: 'low' | 'medium' | 'high' | 'max') => void;
   ghostRoots: GhostRootInfo[];
   fingerprintId: string | null;
   setFingerprintId: (value: string | null) => void;
@@ -115,6 +129,18 @@ export function ContractInspector({
   const selectClassName = cn(compactSelectClass, 'w-full rounded-card');
   const inputClassName = cn(compactInputClass, 'w-full rounded-card');
   const toggleClassName = 'flex min-h-[34px] cursor-pointer items-center gap-2 rounded-card border border-line px-2.5 text-xs font-semibold text-ink-soft [&_input]:size-[13px] [&_input]:accent-ink';
+  const selectedFingerprint = fingerprintId
+    ? ghostRoots.find((fingerprint) => fingerprint.id === fingerprintId)
+    : null;
+  const fingerprintOptions = ghostRoots.map(fingerprintOptionFor);
+  if (fingerprintId && !selectedFingerprint) {
+    fingerprintOptions.unshift({
+      value: fingerprintId,
+      label: fingerprintId,
+      meta: 'Missing from catalog',
+      title: 'Selected fingerprint is not in the current catalog.',
+    });
+  }
 
   return (
     <aside className="sticky top-12 min-w-0 max-[1180px]:static max-[1180px]:col-span-full max-[820px]:order-1" aria-label="Contract inspector">
@@ -185,8 +211,8 @@ export function ContractInspector({
             </select>
           </label>
           <label className="min-w-0">
-            <span className={fieldLabelClass}>Model</span>
-            <select id="generation-model" className={selectClassName} title="Generation model" value={generationModel} disabled={!selectedProvider} onChange={(event) => setGenerationModel(event.target.value)}>
+            <span className={fieldLabelClass}>{RUNTIME_PROFILE_LABEL[modelProfileKey]} model</span>
+            <select id="generation-model" className={selectClassName} title={`Generation model for the ${RUNTIME_PROFILE_LABEL[modelProfileKey]} runtime`} value={generationModel} disabled={!selectedProvider} onChange={(event) => setGenerationModel(event.target.value)}>
               {providerModels.map((model) => (
                 <option key={model.id} value={model.id} title={model.description ?? model.id}>
                   {model.label} · {model.tier}{model.status === 'stable' ? '' : ` · ${model.status}`}
@@ -200,8 +226,8 @@ export function ContractInspector({
             <input id="custom-model" className={inputClassName} type="text" placeholder="provider-model-id" title="Custom generation model id" value={customModel} onChange={(event) => setCustomModel(event.target.value)} />
           </label>
           <label className="min-w-0" hidden={playgroundMode}>
-            <span className={fieldLabelClass}>Utility</span>
-            <select id="utility-model" className={selectClassName} title="Utility model for shape and host demo calls" value={utilityModel} disabled={!selectedProvider} onChange={(event) => setUtilityModel(event.target.value)}>
+            <span className={fieldLabelClass}>Utility model</span>
+            <select id="utility-model" className={selectClassName} title="Utility model used for broker, policy, and host helper calls" value={utilityModel} disabled={!selectedProvider} onChange={(event) => setUtilityModel(event.target.value)}>
               {utilityModels.map((model) => (
                 <option key={model.id} value={model.id}>{model.label} · {model.tier}</option>
               ))}
@@ -215,40 +241,55 @@ export function ContractInspector({
           </label>
           <label id="anthropic-thinking-field" className="min-w-0" hidden={selectedProvider?.id !== 'anthropic' || (playgroundMode && runProfile !== 'custom')}>
             <span className={fieldLabelClass}>Thinking</span>
-            <select id="anthropic-thinking" className={selectClassName} title="Anthropic thinking mode" value={anthropicThinking} onChange={(event) => setAnthropicThinking(event.target.value as 'adaptive' | 'off')}>
+            <select
+              id="anthropic-thinking"
+              className={selectClassName}
+              title={structuredProfile
+                ? 'Thinking is forced off because this runtime uses structured tool output'
+                : 'Anthropic thinking mode'}
+              value={structuredProfile ? 'off' : anthropicThinking}
+              disabled={structuredProfile}
+              onChange={(event) => setAnthropicThinking(event.target.value as 'adaptive' | 'off')}
+            >
               {(selectedProvider?.controls?.anthropicThinking?.options ?? ['adaptive', 'off']).map((value) => <option key={value} value={value}>{value === 'adaptive' ? 'Adaptive' : 'Off'}</option>)}
             </select>
+            {structuredProfile ? (
+              <span className="mt-1 block text-[10px] leading-snug text-ink-muted">Forced off for structured tool output.</span>
+            ) : null}
           </label>
           <label id="model-effort-field" className="min-w-0" hidden={selectedProvider?.id !== 'anthropic' || (playgroundMode && runProfile !== 'custom')}>
             <span className={fieldLabelClass}>Effort</span>
-            <select id="model-effort" className={selectClassName} title="Anthropic effort" value={modelEffort} onChange={(event) => setModelEffort(event.target.value as 'low' | 'medium' | 'high')}>
-              {(selectedProvider?.controls?.effort?.options ?? ['low', 'medium', 'high']).map((value) => <option key={value} value={value}>{value}</option>)}
+            <select id="model-effort" className={selectClassName} title="Anthropic effort" value={modelEffort} onChange={(event) => setModelEffort(event.target.value as 'low' | 'medium' | 'high' | 'max')}>
+              {(selectedProvider?.controls?.effort?.options ?? ['low', 'medium', 'high', 'max']).map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
-          <label className="min-w-0">
+          <div className="min-w-0">
             <span className={fieldLabelClass}>Fingerprint</span>
-            <select id="fingerprint" className={selectClassName} title="Ghost fingerprint" value={fingerprintId ?? ''} disabled={ghostRoots.length === 0} onChange={(event) => {
-              const next = event.target.value || null;
-              setFingerprintId(next);
-              setActiveTokensSourceOverride(null);
-              const selectedFingerprint = next
-                ? ghostRoots.find((fingerprint) => fingerprint.id === next)
-                : null;
-              if (selectedFingerprint) {
-                setFingerprintTargetPath(selectedFingerprint.defaultTargetPath || '.');
-              }
-              setShowWelcome(true);
-            }}>
-              {ghostRoots.length === 0 ? (
-                <option value="">No catalog fingerprints</option>
-              ) : null}
-              {ghostRoots.map((fingerprint) => (
-                <option key={fingerprint.id} value={fingerprint.id} title={fingerprint.summary}>
-                  {fingerprint.name ?? fingerprint.id}
-                </option>
-              ))}
-            </select>
-          </label>
+            <DropdownSelect
+              id="fingerprint"
+              value={fingerprintId ?? ''}
+              groups={[{ options: fingerprintOptions }]}
+              placeholder={ghostRoots.length === 0 ? 'No catalog fingerprints' : 'Fingerprint'}
+              title={selectedFingerprint?.summary ?? 'Ghost fingerprint'}
+              ariaLabel="Ghost fingerprint"
+              disabled={ghostRoots.length === 0}
+              className="w-full"
+              triggerClassName="min-h-[58px] rounded-card py-2"
+              contentClassName="w-[min(360px,calc(100vw-32px))]"
+              onValueChange={(nextValue) => {
+                const next = nextValue || null;
+                setFingerprintId(next);
+                setActiveTokensSourceOverride(null);
+                const nextFingerprint = next
+                  ? ghostRoots.find((fingerprint) => fingerprint.id === next)
+                  : null;
+                if (nextFingerprint) {
+                  setFingerprintTargetPath(nextFingerprint.defaultTargetPath || '.');
+                }
+                setShowWelcome(true);
+              }}
+            />
+          </div>
           <label className="min-w-0" hidden={playgroundMode}>
             <span className={fieldLabelClass}>Layout</span>
             <select id="layout" className={selectClassName} title="Host layout" value={layoutId} onChange={(event) => setLayoutId(event.target.value)}>

@@ -25,7 +25,7 @@ export function generationPhaseLabel(status: string): string {
     case 'contract':
       return 'Binding host contract';
     case 'drafting':
-      return 'Composing Arrow bundle';
+      return 'Composing generated surface';
     case 'validating':
       return 'Validating bundle';
     case 'rendering':
@@ -191,10 +191,14 @@ export function summarizeStreamGraphMeta(value: unknown): string {
   return `${complete ? 'complete' : 'blocked'} · artifacts=${artifacts} blocked=${blocked}`;
 }
 
-export function missingArtifactMessage(protocolLines: ProtocolLine[]): string {
+export function missingArtifactMessage(
+  protocolLines: ProtocolLine[],
+  runtime?: SummonOutputRuntime,
+): string {
+  const artifactDescription = acceptedArtifactDescription(runtime);
   const blocked = findLastMetaValue(protocolLines, '/validation-blocked');
   if (isIssueLike(blocked)) {
-    return `Generation blocked before an Arrow artifact was accepted: ${blocked.code}: ${blocked.message}`;
+    return `Generation blocked before ${artifactDescription} was accepted: ${blocked.code}: ${blocked.message}`;
   }
 
   const serverError = findLastMetaValue(protocolLines, '/error');
@@ -213,7 +217,7 @@ export function missingArtifactMessage(protocolLines: ProtocolLine[]): string {
         .map(([code, count]) => `${code}=${count}`)
       : [];
     if (blockedCount > 0 || warningCount > 0 || codes.length > 0) {
-      return `Generation ended before a validated Arrow artifact was accepted. Validation: blocked=${blockedCount}; warnings=${warningCount}${codes.length ? `; ${codes.join(', ')}` : ''}.`;
+      return `Generation ended before ${artifactDescription} was accepted. Validation: blocked=${blockedCount}; warnings=${warningCount}${codes.length ? `; ${codes.join(', ')}` : ''}.`;
     }
   }
 
@@ -222,10 +226,25 @@ export function missingArtifactMessage(protocolLines: ProtocolLine[]): string {
     const item = graph as { artifacts?: unknown; health?: { blockedCount?: unknown; complete?: unknown } };
     const artifacts = Array.isArray(item.artifacts) ? item.artifacts.length : 0;
     const graphBlocked = typeof item.health?.blockedCount === 'number' ? item.health.blockedCount : 0;
-    return `Generation ended before a validated Arrow artifact was accepted. Stream ended with artifacts=${artifacts}, blocked=${graphBlocked}.`;
+    return `Generation ended before ${artifactDescription} was accepted. Stream ended with artifacts=${artifacts}, blocked=${graphBlocked}.`;
   }
 
-  return 'Generation ended before a validated Arrow artifact was accepted.';
+  return `Generation ended before ${artifactDescription} was accepted.`;
+}
+
+function acceptedArtifactDescription(runtime: SummonOutputRuntime | undefined): string {
+  switch (runtime ?? 'arrow-control') {
+    case 'arrow-control':
+      return 'a validated Arrow artifact';
+    case 'html-static':
+      return 'a validated HTML artifact';
+    case 'html-stream':
+      return 'an HTML stream scaffold artifact';
+    case 'html-script':
+      return 'a validated scripted HTML artifact';
+    case 'unsafe-html-raw-stream':
+      return 'an unsafe raw HTML stream';
+  }
 }
 
 function findLastMetaValue(protocolLines: ProtocolLine[], path: string): unknown {
@@ -368,6 +387,8 @@ export function runtimeTargetText(runtime: SummonOutputRuntime | undefined): str
       return 'HTML token preview + commits';
     case 'html-script':
       return 'HTML scripted iframe';
+    case 'unsafe-html-raw-stream':
+      return 'Unsafe raw HTML stream';
   }
 }
 

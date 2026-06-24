@@ -39,8 +39,19 @@ export interface ActiveContract {
   modelOptions?: {
     maxOutputTokens?: number;
     anthropicThinking?: 'adaptive' | 'off';
-    effort?: 'low' | 'medium' | 'high';
+    effort?: 'low' | 'medium' | 'high' | 'max';
   };
+  modelProfiles?: Record<string, {
+    modelProvider?: string;
+    generationModel?: string;
+    utilityModel?: string;
+    customModel?: boolean;
+    modelOptions?: {
+      maxOutputTokens?: number;
+      anthropicThinking?: 'adaptive' | 'off';
+      effort?: 'low' | 'medium' | 'high' | 'max';
+    };
+  }>;
 }
 
 export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [

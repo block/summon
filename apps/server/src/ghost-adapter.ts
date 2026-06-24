@@ -1,5 +1,5 @@
 import {
-  isHtmlOutputRuntime,
+  runtimeProfile,
   type ToolPack,
   type ProtocolLine,
   type SurfacePlan,
@@ -442,7 +442,7 @@ function buildSummonFingerprintSurfaceBrief(
   options: GhostSurfacePromptOptions,
 ): string {
   const outputRuntime = options.outputRuntime ?? 'arrow-control';
-  const htmlRuntime = isHtmlOutputRuntime(outputRuntime);
+  const htmlRuntime = runtimeProfile(outputRuntime).format === 'html';
   const toolNames = options.tools?.tools.map((tool) => tool.name) ?? [];
   const outputRule = htmlRuntime
     ? '- Return a structured HTML/CSS sandbox bundle through the `create_summon_html_surface` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, host-owned metadata, or Arrow source.'

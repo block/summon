@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { type ToolPack } from '@anarchitecture/summon';
 import {
+  consumeSurfaceStream,
+  type HtmlStreamPreviewDelta,
+} from '@anarchitecture/summon/browser';
+import {
   buildFingerprintSteeringPayload,
-  isArrowSurfaceArtifact,
-  parseProtocolLine,
+  runtimeProfile,
+  SUMMON_OUTPUT_RUNTIME_VALUES,
+  type ProtocolLine,
+  type SummonOutputRuntime,
   type ValidationTool,
 } from '@anarchitecture/summon/engine';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
@@ -13,8 +19,14 @@ import { Button, compactInputClass, compactSelectClass, pageWidthClass, panelCla
 import { cn } from '../lib/cn.js';
 import { createDemoToolRegistry } from '../tools.js';
 import { ALL_PROMPTS, sample } from '../prompts.js';
+import { createRunMetricsAccumulator } from './generate/runMetrics.js';
+import type { RunMetrics } from './generate/types.js';
 
 const DEFAULT_FINGERPRINT_ID = 'editorial-mono';
+const DEFAULT_BATCH_RUNTIME: SummonOutputRuntime = 'arrow-control';
+const BATCH_RUNTIME_VALUES = SUMMON_OUTPUT_RUNTIME_VALUES.filter(
+  (runtime) => runtimeProfile(runtime).trust !== 'unsafe',
+) as SummonOutputRuntime[];
 
 interface FingerprintInfo {
   id: string;
@@ -26,6 +38,7 @@ interface FingerprintInfo {
 type SourceMode = 'random' | 'same';
 type Interactivity = 'static' | 'interactive';
 type LayoutMode = 'grid' | 'stacked';
+type RuntimeBatchMode = 'single' | 'matrix';
 
 const maxInteractiveTiles = 8;
 const maxStaticTiles = 12;
@@ -49,9 +62,96 @@ function summarizeAgentMeta(value: unknown): string {
   return `${purpose}/${interaction}/${dataNeed}`;
 }
 
+async function* chunksWithByteCounts(
+  streamBody: ReadableStream<Uint8Array>,
+  onBytes: (bytes: number) => void,
+): AsyncGenerator<Uint8Array, void, void> {
+  const reader = streamBody.getReader();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) return;
+      if (!value) continue;
+      onBytes(value.byteLength);
+      yield value;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+function applyBatchMetaLine(
+  line: Extract<ProtocolLine, { op: 'meta' }>,
+  handlers: {
+    setTool: (value: { text: string; err?: boolean } | null) => void;
+    setTokensSource: (value: string) => void;
+    surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
+    setStatus: (value: string) => void;
+    setStatusClass: (value: string) => void;
+  },
+): void {
+  if (line.path === '/agent-goal') {
+    handlers.setTool({ text: `agent goal: ${summarizeAgentMeta(line.value)}` });
+    return;
+  }
+  if (line.path === '/agent-policy-resolution') {
+    handlers.setTool({ text: `agent policy: ${summarizeAgentMeta(line.value)}` });
+    return;
+  }
+  if (line.path === '/ghost-token-source') {
+    const value = line.value as { css?: unknown } | undefined;
+    if (typeof value?.css === 'string') handlers.setTokensSource(value.css);
+    return;
+  }
+  if (line.path === '/html-stream-preview') {
+    const delta = parseHtmlStreamPreviewDelta(line.value);
+    if (delta) handlers.surfaceRef.current?.applyHtmlPreviewDelta(delta);
+    return;
+  }
+  if (line.path === '/status') {
+    const status = String(line.value ?? '');
+    handlers.setStatus(status);
+    handlers.setStatusClass(status);
+    return;
+  }
+  if (line.path === '/error') {
+    const text = String(line.value ?? 'generation error');
+    handlers.setTool({ text, err: true });
+  }
+}
+
+function parseHtmlStreamPreviewDelta(value: unknown): HtmlStreamPreviewDelta | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const delta = value as Record<string, unknown>;
+  if (delta.runtime !== 'html') return null;
+  if (typeof delta.target !== 'string' || !delta.target) return null;
+  if (
+    delta.action !== 'append' &&
+    delta.action !== 'replace' &&
+    delta.action !== 'update' &&
+    delta.action !== 'remove' &&
+    delta.action !== 'morph'
+  ) {
+    return null;
+  }
+  const text = typeof delta.delta === 'string'
+    ? delta.delta
+    : typeof delta.text === 'string'
+      ? delta.text
+      : '';
+  if (!text) return null;
+  return {
+    runtime: 'html',
+    target: delta.target,
+    action: delta.action,
+    delta: text,
+  };
+}
+
 interface BatchTileRun {
   id: number;
   prompt: string;
+  runtime: SummonOutputRuntime;
   fingerprintId: string;
   fingerprintTargetPath: string;
   tokensCss: string;
@@ -63,6 +163,22 @@ interface TileResult {
   ok: boolean;
   bytes: number;
   ms: number;
+  runtime: SummonOutputRuntime;
+  metrics: RunMetrics;
+}
+
+interface RuntimeSummaryRow {
+  runtime: SummonOutputRuntime;
+  runs: number;
+  ok: number;
+  blocked: number;
+  avgTtfb: number | null;
+  avgTtfp: number | null;
+  avgTti: number | null;
+  avgComplete: number | null;
+  avgBytes: number;
+  avgRepairs: number;
+  safetyViolations: number;
 }
 
 function BatchTile({
@@ -95,6 +211,8 @@ function BatchTile({
   useEffect(() => {
     let cancelled = false;
     const start = performance.now();
+    const metrics = createRunMetricsAccumulator(run.runtime);
+    const elapsedSinceStart = () => performance.now() - start;
     let byteCount = 0;
 
     async function runTile() {
@@ -115,59 +233,78 @@ function BatchTile({
               id: run.fingerprintId,
               targetPath: run.fingerprintTargetPath,
             }) ?? {}),
+            experimentalRuntime: run.runtime,
             tools: run.interactivity === 'interactive' ? toolPack : undefined,
             agent: { enabled: true },
           }),
           signal: run.signal,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const reader = res.body?.getReader();
-        if (!reader) throw new Error('no body');
+        if (!res.body) throw new Error('no body');
 
-        const decoder = new TextDecoder();
-        let buffer = '';
-        const processLine = (raw: string) => {
-          const parsed = parseProtocolLine(raw);
-          if (!parsed) return;
-          if (parsed.op === 'meta' && parsed.path === '/agent-goal') {
-            setTool({ text: `agent goal: ${summarizeAgentMeta(parsed.value)}` });
+        let firstByteSeen = false;
+        await consumeSurfaceStream(chunksWithByteCounts(res.body, (count) => {
+          if (!firstByteSeen) {
+            firstByteSeen = true;
+            metrics.markFirstByte(elapsedSinceStart());
           }
-          if (parsed.op === 'meta' && parsed.path === '/agent-policy-resolution') {
-            setTool({ text: `agent policy: ${summarizeAgentMeta(parsed.value)}` });
-          }
-          if (parsed.op === 'meta' && parsed.path === '/ghost-token-source') {
-            const value = parsed.value as { css?: unknown } | undefined;
-            if (typeof value?.css === 'string') setTokensSource(value.css);
-          }
-          if (parsed.op === 'artifact' && isArrowSurfaceArtifact(parsed.value)) {
-            surfaceRef.current?.renderArtifact(parsed.value);
-          }
-        };
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (!value) continue;
-          byteCount += value.byteLength;
+          byteCount += count;
+          metrics.setBytes(byteCount);
           setBytes(byteCount);
-          buffer += decoder.decode(value, { stream: true });
-          let nl = buffer.indexOf('\n');
-          while (nl !== -1) {
-            processLine(buffer.slice(0, nl));
-            buffer = buffer.slice(nl + 1);
-            nl = buffer.indexOf('\n');
-          }
-        }
-        const tail = buffer.trim();
-        if (tail) processLine(tail);
+        }), {
+          mode: run.interactivity,
+          shouldApplyLine: () => 'apply',
+          onLine: (line) => {
+            metrics.observeProtocolLine(line, elapsedSinceStart());
+          },
+          onMeta: (line) => {
+            applyBatchMetaLine(line, {
+              setTool,
+              setTokensSource,
+              surfaceRef,
+              setStatus,
+              setStatusClass,
+            });
+          },
+          onArtifact: (artifact) => {
+            surfaceRef.current?.renderArtifact(artifact);
+          },
+          onHtmlPatch: (patch) => {
+            surfaceRef.current?.applyHtmlPatch(patch);
+          },
+          onSurfaceEvent: (event) => {
+            metrics.observeSurfaceEvent(event, elapsedSinceStart());
+            surfaceRef.current?.applyPreviewEvent(event);
+            if (event.type === 'surface.status') {
+              setStatusClass(event.status);
+              setStatus(event.status);
+            }
+          },
+          validationContext: {
+            mode: run.interactivity,
+            allowedTools: toolPack?.tools.map((toolItem) => toolItem.name) ?? [],
+            tools: validationTools ?? [],
+          },
+          validationMode: 'observe',
+        });
 
         const ms = Math.round(performance.now() - start);
+        metrics.markComplete(ms);
+        const finalMetrics = metrics.snapshot();
         if (cancelled) return;
         setStatusClass('done');
         setStatus(`${(ms / 1000).toFixed(1)}s`);
-        onComplete(run.id, { ok: true, bytes: byteCount, ms });
+        onComplete(run.id, {
+          ok: true,
+          bytes: byteCount,
+          ms,
+          runtime: run.runtime,
+          metrics: finalMetrics,
+        });
       } catch (err) {
         const ms = Math.round(performance.now() - start);
+        metrics.markComplete(ms);
+        const finalMetrics = metrics.snapshot();
         if (cancelled) return;
         setStatusClass('error');
         if ((err as Error).name === 'AbortError') {
@@ -176,7 +313,13 @@ function BatchTile({
           const message = err instanceof Error ? err.message : String(err);
           setStatus(`error: ${message.slice(0, 40)}`);
         }
-        onComplete(run.id, { ok: false, bytes: byteCount, ms });
+        onComplete(run.id, {
+          ok: false,
+          bytes: byteCount,
+          ms,
+          runtime: run.runtime,
+          metrics: finalMetrics,
+        });
       }
     }
 
@@ -184,7 +327,7 @@ function BatchTile({
     return () => {
       cancelled = true;
     };
-  }, [toolPack, onComplete, run]);
+  }, [toolPack, validationTools, onComplete, run]);
 
   return (
     <div className={cn(panelClass, 'flex min-w-0 flex-col')}>
@@ -192,7 +335,7 @@ function BatchTile({
         <div className="text-[13px] font-medium tracking-normal text-ink">{run.prompt}</div>
         <div className="flex justify-between gap-2 font-mono text-[11px] text-ink-muted">
           <span className={statusToneClass(statusClass)}>{status}</span>
-          <span>{bytes.toLocaleString()} B</span>
+          <span>{run.runtime} · {bytes.toLocaleString()} B</span>
         </div>
         {tool ? (
           <div className={cn('border-t border-dashed border-line bg-surface px-3.5 py-2 font-mono text-[11px]', tool.err ? 'text-danger' : 'text-good')}>
@@ -226,10 +369,13 @@ export function BatchPage() {
   const [sourceMode, setSourceMode] = useState<SourceMode>('random');
   const [layout, setLayout] = useState<LayoutMode>('grid');
   const [interactivity, setInteractivity] = useState<Interactivity>('static');
+  const [runtimeMode, setRuntimeMode] = useState<RuntimeBatchMode>('single');
+  const [singleRuntime, setSingleRuntime] = useState<SummonOutputRuntime>(DEFAULT_BATCH_RUNTIME);
   const [count, setCount] = useState(4);
   const [seed, setSeed] = useState('');
   const [samePrompt, setSamePrompt] = useState('');
   const [runs, setRuns] = useState<BatchTileRun[]>([]);
+  const [runtimeRows, setRuntimeRows] = useState<RuntimeSummaryRow[]>([]);
   const [summary, setSummary] = useState('No run yet.');
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -272,10 +418,12 @@ export function BatchPage() {
     const avgMs = Math.round(results.reduce((sum, item) => sum + item.ms, 0) / Math.max(1, results.length));
     const seedNote = sourceMode === 'random' ? ` · seed ${seed || 'auto'}` : '';
     const modeNote = interactivity === 'interactive' ? ' · interactive' : '';
-    setSummary(`Done in ${(wall / 1000).toFixed(1)}s wall. ${ok} ok · ${failed} failed · avg per-tile ${(avgMs / 1000).toFixed(1)}s · ${totalBytes.toLocaleString()} bytes total${modeNote}${seedNote}.`);
+    const runtimeNote = runtimeMode === 'matrix' ? ` · ${BATCH_RUNTIME_VALUES.length} runtimes` : ` · ${singleRuntime}`;
+    setRuntimeRows(aggregateRuntimeRows(results));
+    setSummary(`Done in ${(wall / 1000).toFixed(1)}s wall. ${ok} ok · ${failed} failed · avg per-tile ${(avgMs / 1000).toFixed(1)}s · ${totalBytes.toLocaleString()} bytes total${modeNote}${runtimeNote}${seedNote}.`);
     setRunning(false);
     abortRef.current = null;
-  }, [interactivity, runs.length, seed, sourceMode]);
+  }, [interactivity, runtimeMode, runs.length, seed, singleRuntime, sourceMode]);
 
   function runBatch() {
     abortRef.current?.abort();
@@ -283,6 +431,7 @@ export function BatchPage() {
     abortRef.current = nextAbort;
     resultsRef.current = new Map();
     runStartRef.current = performance.now();
+    setRuntimeRows([]);
 
     const safeCount = Math.max(1, Math.min(cap, count || 1));
     if (!fingerprintId) {
@@ -297,23 +446,31 @@ export function BatchPage() {
         return;
       }
       prompts = new Array(safeCount).fill(prompt);
+      const runtimeCount = runtimeMode === 'matrix' ? BATCH_RUNTIME_VALUES.length : 1;
+      setSummary(`Running ${safeCount} prompt(s) × ${runtimeCount} runtime(s) (${interactivity})...`);
     } else {
       const numericSeed = seed.trim() ? Number(seed) : ((Date.now() & 0x7fffffff) | 0);
       prompts = sample(ALL_PROMPTS, safeCount, numericSeed);
-      setSummary(`Running ${safeCount} (${interactivity}) with seed ${numericSeed}...`);
+      const runtimeCount = runtimeMode === 'matrix' ? BATCH_RUNTIME_VALUES.length : 1;
+      setSummary(`Running ${safeCount} prompt(s) × ${runtimeCount} runtime(s) (${interactivity}) with seed ${numericSeed}...`);
     }
 
     setRunning(true);
     const tokensCss = defaultTokensSource;
-    setRuns(prompts.map((prompt, index) => ({
-      id: Date.now() + index,
-      prompt,
-      fingerprintId,
-      fingerprintTargetPath: fingerprintTargetPath.trim() || '.',
-      tokensCss,
-      interactivity,
-      signal: nextAbort.signal,
-    })));
+    const runtimes = runtimeMode === 'matrix' ? BATCH_RUNTIME_VALUES : [singleRuntime];
+    const runStartedAt = Date.now();
+    setRuns(prompts.flatMap((prompt, promptIndex) =>
+      runtimes.map((runtime, runtimeIndex) => ({
+        id: runStartedAt + promptIndex * runtimes.length + runtimeIndex,
+        prompt,
+        runtime,
+        fingerprintId,
+        fingerprintTargetPath: fingerprintTargetPath.trim() || '.',
+        tokensCss,
+        interactivity,
+        signal: nextAbort.signal,
+      })),
+    ));
   }
 
   return (
@@ -354,6 +511,25 @@ export function BatchPage() {
             setCount((value) => Math.min(value, maxInteractiveTiles));
           }} /><span>Interactive</span></label>
         </ModeGroup>
+        <ModeGroup title="Runtime">
+          <label><input type="radio" name="runtime-mode" value="single" checked={runtimeMode === 'single'} onChange={() => setRuntimeMode('single')} /><span>Single</span></label>
+          <label><input type="radio" name="runtime-mode" value="matrix" checked={runtimeMode === 'matrix'} onChange={() => setRuntimeMode('matrix')} /><span>Matrix</span></label>
+        </ModeGroup>
+        {runtimeMode === 'single' ? (
+          <label className="flex items-center gap-2 text-[13px] text-ink-soft">
+            Runtime
+            <select
+              id="batch-runtime"
+              className={cn(compactSelectClass, 'min-w-40')}
+              value={singleRuntime}
+              onChange={(event) => setSingleRuntime(event.target.value as SummonOutputRuntime)}
+            >
+              {BATCH_RUNTIME_VALUES.map((runtime) => (
+                <option key={runtime} value={runtime}>{runtime}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <label className="flex items-center gap-2 text-[13px] text-ink-soft">Count <input id="count" type="number" className={cn(compactInputClass, 'w-16 text-center')} min="1" max={cap} value={count} onChange={(event) => setCount(Number(event.target.value))} /></label>
         {sourceMode === 'random' ? (
           <label id="seed-wrap" className="flex items-center gap-2 text-[13px] text-ink-soft">Seed <input id="seed" type="number" className={cn(compactInputClass, 'w-[90px] text-center')} value={seed} placeholder="auto" onChange={(event) => setSeed(event.target.value)} /></label>
@@ -377,7 +553,92 @@ export function BatchPage() {
       >
         {runs.map((run) => <BatchTile key={run.id} run={run} stacked={layout === 'stacked'} onComplete={onComplete} />)}
       </div>
+      {runtimeRows.length > 0 ? (
+        <div className={cn(pageWidthClass, 'mt-3.5 overflow-x-auto rounded-card border border-line bg-surface')}>
+          <table className="min-w-full border-collapse text-left text-[12px]">
+            <thead className="bg-surface-muted text-[11px] uppercase tracking-normal text-ink-muted">
+              <tr>
+                <th className="px-3 py-2 font-semibold">Runtime</th>
+                <th className="px-3 py-2 font-semibold">Runs</th>
+                <th className="px-3 py-2 font-semibold">Success</th>
+                <th className="px-3 py-2 font-semibold">Block</th>
+                <th className="px-3 py-2 font-semibold">TTFB</th>
+                <th className="px-3 py-2 font-semibold">TTFP</th>
+                <th className="px-3 py-2 font-semibold">TTI</th>
+                <th className="px-3 py-2 font-semibold">Complete</th>
+                <th className="px-3 py-2 font-semibold">Bytes</th>
+                <th className="px-3 py-2 font-semibold">Repairs</th>
+                <th className="px-3 py-2 font-semibold">Safety</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runtimeRows.map((row) => (
+                <tr key={row.runtime} className="border-t border-line text-ink-soft">
+                  <td className="px-3 py-2 font-mono text-[11px] text-ink">{row.runtime}</td>
+                  <td className="px-3 py-2">{row.runs}</td>
+                  <td className="px-3 py-2">{formatRate(row.ok, row.runs)}</td>
+                  <td className="px-3 py-2">{formatRate(row.blocked, row.runs)}</td>
+                  <td className="px-3 py-2">{formatMetricMs(row.avgTtfb)}</td>
+                  <td className="px-3 py-2">{formatMetricMs(row.avgTtfp)}</td>
+                  <td className="px-3 py-2">{formatMetricMs(row.avgTti)}</td>
+                  <td className="px-3 py-2">{formatMetricMs(row.avgComplete)}</td>
+                  <td className="px-3 py-2">{Math.round(row.avgBytes).toLocaleString()} B</td>
+                  <td className="px-3 py-2">{formatAverage(row.avgRepairs)}</td>
+                  <td className="px-3 py-2">{row.safetyViolations}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
       <div className={cn(pageWidthClass, 'mt-3.5 rounded-card border border-line bg-surface-muted px-[18px] py-3 text-[13px] text-ink-soft')} id="summary">{summary}</div>
     </>
   );
+}
+
+function aggregateRuntimeRows(results: TileResult[]): RuntimeSummaryRow[] {
+  return BATCH_RUNTIME_VALUES
+    .map((runtime) => {
+      const runtimeResults = results.filter((result) => result.runtime === runtime);
+      if (runtimeResults.length === 0) return null;
+      return {
+        runtime,
+        runs: runtimeResults.length,
+        ok: runtimeResults.filter((result) => result.ok).length,
+        blocked: runtimeResults.filter((result) => result.metrics.blocked).length,
+        avgTtfb: averageMetric(runtimeResults, (result) => result.metrics.ttfb),
+        avgTtfp: averageMetric(runtimeResults, (result) => result.metrics.ttfp),
+        avgTti: averageMetric(runtimeResults, (result) => result.metrics.tti),
+        avgComplete: averageMetric(runtimeResults, (result) => result.metrics.complete),
+        avgBytes: averageNumber(runtimeResults.map((result) => result.metrics.bytes)),
+        avgRepairs: averageNumber(runtimeResults.map((result) => result.metrics.repairs)),
+        safetyViolations: runtimeResults.reduce((sum, result) => sum + result.metrics.safetyViolations, 0),
+      };
+    })
+    .filter((row): row is RuntimeSummaryRow => row !== null);
+}
+
+function averageMetric<T>(items: T[], getter: (item: T) => number | null): number | null {
+  const values = items.map(getter).filter((value): value is number => typeof value === 'number');
+  if (values.length === 0) return null;
+  return averageNumber(values);
+}
+
+function averageNumber(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function formatMetricMs(value: number | null): string {
+  if (value === null) return 'n/a';
+  return `${Math.round(value).toLocaleString()}ms`;
+}
+
+function formatAverage(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatRate(value: number, total: number): string {
+  if (total <= 0) return '0%';
+  return `${Math.round((value / total) * 100)}%`;
 }
