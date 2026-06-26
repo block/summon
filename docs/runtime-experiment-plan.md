@@ -1,6 +1,18 @@
 # Runtime Experiment Plan
 
-Status: proposal · Owner: TBD · Last updated: 2026-06-23
+Status: partially superseded · Last updated: 2026-06-26
+
+> **Decision (2026-06-26).** The scripted `html-script` and the
+> `unsafe-html-raw-stream` control runtimes have been **removed** from the
+> codebase. After removing the artificial Arrow subset restrictions, first-pass
+> Arrow acceptance was ~100% on the dogfood set, so the secure `arrow-control`
+> sandbox stays the default and no runtime mounts model-authored JavaScript in
+> an iframe. The supported runtimes are now `arrow-control` (default, secure),
+> `html-static` (inert HTML/CSS), and `html-stream` (inert preview + validated
+> patch commits). The `RuntimeTrust` union no longer includes `iframe-script`
+> or `unsafe`. Sections below that describe `html-script`,
+> `unsafe-html-raw-stream`, the unsafe env gate, or `isScriptedHtmlOutputRuntime`
+> are retained for historical context only.
 
 ## Why this exists
 

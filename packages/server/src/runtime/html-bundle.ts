@@ -25,11 +25,11 @@ import {
   type RuntimeContext,
 } from './strategy.js';
 
-type HtmlBundleRuntime = Extract<SummonOutputRuntime, 'html-static' | 'html-script'>;
+type HtmlBundleRuntime = Extract<SummonOutputRuntime, 'html-static'>;
 
 export class HtmlBundleStrategy implements BundleRuntimeStrategy {
   readonly profile;
-  readonly allowScript: boolean;
+  readonly allowScript = false;
   readonly draftLabel = 'Composing HTML bundle';
   readonly receivedLabel = 'Received structured HTML bundle';
   readonly repairLabel = 'Repairing HTML bundle';
@@ -46,7 +46,6 @@ export class HtmlBundleStrategy implements BundleRuntimeStrategy {
 
   constructor(runtime: HtmlBundleRuntime) {
     this.profile = runtimeProfile(runtime);
-    this.allowScript = this.profile.trust === 'iframe-script';
   }
 
   async writeInitialOutputMode(ctx: RuntimeContext): Promise<void> {

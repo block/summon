@@ -469,54 +469,6 @@ test('html-static blocks unsafe HTML before mounting an iframe', async ({ page }
   await expect.poll(async () => page.evaluate(() => (window as typeof window & { __htmlStaticLeak?: boolean }).__htmlStaticLeak ?? false)).toBe(false);
 });
 
-test('html-script runs only inside the sandboxed iframe and blocks unsafe script APIs', async ({ page }) => {
-  let captured: Record<string, unknown> | null = null;
-  await page.route('**/api/generate', async (route) => {
-    captured = route.request().postDataJSON();
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/plain',
-      body: jsonl([
-        htmlArtifact({
-          body: '<section id="script-probe">Waiting</section>',
-          js: 'window.__summonHtmlProbe = "iframe"; document.getElementById("script-probe").textContent = "script ran";',
-        }),
-        streamGraphSummary(),
-      ]),
-    });
-  });
-
-  await page.goto('/generate');
-  await page.evaluate(() => {
-    (window as typeof window & { __summonHtmlProbe?: string }).__summonHtmlProbe = 'parent';
-  });
-  await selectRuntime(page, 'HTML script');
-  await page.locator('#go').click();
-
-  const frame = page.frameLocator('#sandbox iframe.summon-html-surface-frame');
-  await expect(frame.locator('#script-probe')).toContainText('script ran');
-  await expect.poll(() => captured?.experimentalRuntime).toBe('html-script');
-  await expect.poll(async () => page.evaluate(() => (window as typeof window & { __summonHtmlProbe?: string }).__summonHtmlProbe)).toBe('parent');
-
-  await page.unroute('**/api/generate');
-  await page.route('**/api/generate', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'text/plain',
-      body: jsonl([
-        htmlArtifact({
-          body: '<section id="unsafe-script-probe">Unsafe</section>',
-          js: 'localStorage.setItem("leak", "1"); fetch("https://example.test"); window.parent.postMessage("x", "*");',
-        }),
-      ]),
-    });
-  });
-
-  await page.locator('#go').click();
-  await expect(page.locator('#stage-notice')).toBeVisible();
-  await expect(page.locator('#sandbox iframe.summon-html-surface-frame')).toHaveCount(0);
-});
-
 test('html-stream preview remains inert until a validated patch commits', async ({ page }) => {
   await page.route('**/api/generate', async (route) => {
     await route.fulfill({

@@ -165,63 +165,6 @@ test('runSurfaceGeneration blocks unsafe html-static bundles before artifact emi
   assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-blocked'));
 });
 
-test('runSurfaceGeneration accepts safe html-script bundles and blocks unsafe script APIs', async () => {
-  const safeLines: ProtocolLine[] = [];
-  const safeSummary = await runSurfaceGeneration({
-    prompt: 'safe scripted html',
-    experimentalRuntime: 'html-script',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
-    modelProvider: {
-      async generateArrowBundle() {
-        throw new Error('Arrow provider should not be used for html-script');
-      },
-      async generateHtmlBundle(request) {
-        assert.equal(request.runtime, 'html-script');
-        assert.equal(request.allowScript, true);
-        return {
-          schema: 'summon.html-bundle/v0',
-          source: {
-            'body.html': '<section id="hero"><button id="probe">Probe</button></section>',
-            'main.js': 'document.getElementById("probe")?.addEventListener("click", () => window.summon.callTool("noop", {}));',
-          },
-        };
-      },
-    },
-  }, (line) => safeLines.push(line));
-
-  assert.equal(safeSummary.blocked, false);
-  assert.ok(safeLines.some((line) => line.op === 'artifact' && (line.value as { runtime?: unknown }).runtime === 'html'));
-
-  const unsafeLines: ProtocolLine[] = [];
-  const unsafeSummary = await runSurfaceGeneration({
-    prompt: 'unsafe scripted html',
-    experimentalRuntime: 'html-script',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
-    modelProvider: {
-      async generateArrowBundle() {
-        throw new Error('Arrow provider should not be used for html-script');
-      },
-      async generateHtmlBundle() {
-        return {
-          schema: 'summon.html-bundle/v0',
-          source: {
-            'body.html': '<section id="hero">Unsafe script</section>',
-            'main.js': 'localStorage.setItem("leak", "1"); fetch("https://example.test"); window.parent.postMessage("x", "*");',
-          },
-        };
-      },
-    },
-    maxRepairAttempts: 0,
-  }, (line) => unsafeLines.push(line));
-
-  assert.equal(unsafeSummary.blocked, true);
-  assert.ok(unsafeSummary.validationIssues.some((issue) => issue.code === 'unsafe-html-script'));
-  assert.equal(unsafeLines.some((line) => line.op === 'artifact'), false);
-  const metrics = runMetrics(unsafeLines);
-  assert.equal(metrics.blocked, true);
-  assert.deepEqual(metrics.safetyViolationCodes, ['unsafe-html-script']);
-});
-
 test('runSurfaceGeneration streams html-stream preview deltas before validated patch commits', async () => {
   const lines: ProtocolLine[] = [];
   let generatedHtmlBundle = false;
@@ -279,6 +222,7 @@ test('runSurfaceGeneration accepts html-stream scaffold with malformed preview r
     },
     async *streamHtmlSurface() {
       yield '@@summon-html-scaffold\n{"schema":"summon.html-bundle/v0","preview":{"kind":"inform","title":"Stream","regions":["hero",{"id":"content"},null]},"source":{"body.html":"<main><section id=\\"hero\\">Hello</section><section id=\\"content\\"></section></main>"}}\n@@end-summon-html-scaffold\n';
+      yield '@@summon-html-patch target="content" action="replace"\n<section id="content"><p>Stream patch</p></section>\n@@end-summon-html-patch\n';
     },
   };
 
@@ -413,13 +357,13 @@ test('runSurfaceGeneration repairs invalid structured bundle', async () => {
       return {
         schema: 'summon.arrow-bundle/v1',
         source: {
-          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`;',
+          'main.ts': 'import { html } from "@arrow-js/core";\nvoid fetch("https://example.test/track");\nexport default html`<button class="save">Save</button>`;',
         },
       };
     },
     async repairArrowBundle(request) {
       repaired = true;
-      assert.equal(request.issues[0]?.code, 'unsupported-arrow-open-tag-expression');
+      assert.equal(request.issues[0]?.code, 'arrow-network-not-granted');
       assert.ok(request.hints.length > 0);
       return {
         schema: 'summon.arrow-bundle/v1',
@@ -438,7 +382,7 @@ test('runSurfaceGeneration repairs invalid structured bundle', async () => {
 
   assert.equal(repaired, true);
   assert.equal(summary.blocked, false);
-  assert.ok(summary.validationIssues.some((issue) => issue.code === 'unsupported-arrow-open-tag-expression'));
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'arrow-network-not-granted'));
   assert.ok(lines.some((line) => line.op === 'artifact'));
   const metrics = runMetrics(lines);
   assert.equal(metrics.repairs, 1);
@@ -522,7 +466,7 @@ test('runSurfaceGeneration can restrict repair attempts to selected issue codes'
       return {
         schema: 'summon.arrow-bundle/v1',
         source: {
-          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`;',
+          'main.ts': 'import { html } from "@arrow-js/core";\nvoid fetch("https://example.test/track");\nexport default html`<button class="save">Save</button>`;',
         },
       };
     },
@@ -544,7 +488,7 @@ test('runSurfaceGeneration can restrict repair attempts to selected issue codes'
 
   assert.equal(repaired, false);
   assert.equal(summary.blocked, false);
-  assert.ok(summary.validationIssues.some((issue) => issue.code === 'unsupported-arrow-open-tag-expression'));
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'arrow-network-not-granted'));
   assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-observed'));
   assert.ok(lines.some((line) => line.op === 'artifact'));
 });
@@ -688,7 +632,7 @@ test('runSurfaceGeneration observe mode accepts renderable artifacts with valida
       return {
         schema: 'summon.arrow-bundle/v1',
         source: {
-          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`;',
+          'main.ts': 'import { html } from "@arrow-js/core";\nvoid fetch("https://example.test/track");\nexport default html`<button class="save">Save</button>`;',
         },
       };
     },
@@ -708,7 +652,7 @@ test('runSurfaceGeneration observe mode accepts renderable artifacts with valida
 
   assert.equal(summary.blocked, false);
   assert.equal(repaired, false);
-  assert.ok(summary.validationIssues.some((issue) => issue.code === 'unsupported-arrow-open-tag-expression'));
+  assert.ok(summary.validationIssues.some((issue) => issue.code === 'arrow-network-not-granted'));
   assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/validation-observed'));
   assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
 });

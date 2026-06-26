@@ -107,7 +107,6 @@ export {
   RUNTIME_PROFILES,
   SUMMON_OUTPUT_RUNTIME_VALUES,
   isHtmlOutputRuntime,
-  isScriptedHtmlOutputRuntime,
   runtimeProfile,
 } from './output-runtime.js';
 export type {

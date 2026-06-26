@@ -10,7 +10,6 @@ const runtimeValues = [
   'arrow-control',
   'html-static',
   'html-stream',
-  'html-script',
 ];
 const streamRuntimes = new Set(['html-stream']);
 
@@ -261,8 +260,8 @@ function buildReport(runs, options) {
     '## Kill Criteria Notes',
     '',
     '- Keep `html-stream` only if TTFP is at least 40% lower than `html-static` and block rate is at most 1.5x `html-static`.',
-    '- Keep `html-script` only if it unlocks capability `html-static` cannot express and passes the adversarial suite with a documented separate posture.',
-    '- `unsafe-html-raw-stream` is control-only and is intentionally excluded from this default bakeoff.',
+    '- `arrow-control` is the secure default. `html-static` (inert) and `html-stream` remain experiments.',
+    '- The scripted `html-script` and `unsafe-html-raw-stream` runtimes were removed; iframe-script trust is no longer a supported posture.',
     '',
   ].join('\n');
 }

@@ -49,16 +49,6 @@ const runtimeCopy: Record<
     description:
       "Raw model stream framed as scaffold plus validated patch commits.",
   },
-  "html-script": {
-    label: "HTML script",
-    description:
-      "Structured HTML/CSS/JS iframe experiment with sandboxed script behavior.",
-  },
-  "unsafe-html-raw-stream": {
-    label: "Unsafe raw HTML stream",
-    description:
-      "Dev-only raw model tokens streamed directly into a sandboxed iframe.",
-  },
 };
 
 const runtimeGroupDefinitions: Array<{
@@ -73,37 +63,21 @@ const runtimeGroupDefinitions: Array<{
   {
     label: "HTML bundle",
     includes: (profile) =>
-      profile.format === "html" &&
-      profile.delivery === "bundle" &&
-      profile.trust !== "unsafe",
+      profile.format === "html" && profile.delivery === "bundle",
   },
   {
     label: "HTML stream",
     includes: (profile) =>
-      profile.format === "html" &&
-      profile.delivery === "stream" &&
-      profile.trust !== "unsafe",
-  },
-  {
-    label: "Unsafe control",
-    includes: (profile) => profile.trust === "unsafe",
+      profile.format === "html" && profile.delivery === "stream",
   },
 ];
 
-function runtimeGroupsForUnsafeGate(
-  allowUnsafeRuntime: boolean,
-): DropdownSelectGroup[] {
+function runtimeGroups(): DropdownSelectGroup[] {
   return runtimeGroupDefinitions
     .map((group) => ({
       label: group.label,
       options: SUMMON_OUTPUT_RUNTIME_VALUES
-        .filter((runtime) => {
-          const profile = runtimeProfile(runtime);
-          return (
-            group.includes(profile) &&
-            (allowUnsafeRuntime || profile.trust !== "unsafe")
-          );
-        })
+        .filter((runtime) => group.includes(runtimeProfile(runtime)))
         .map((runtime) => ({
           value: runtime,
           label: runtimeCopy[runtime].label,
@@ -122,7 +96,6 @@ export function GenerationStage({
   onSelectFingerprint,
   experimentalRuntime,
   onSelectExperimentalRuntime,
-  allowUnsafeRuntime,
   running,
   onGenerate,
   statusText,
@@ -154,7 +127,6 @@ export function GenerationStage({
   onSelectFingerprint: (id: string | null) => void;
   experimentalRuntime: SummonOutputRuntime;
   onSelectExperimentalRuntime: (runtime: SummonOutputRuntime) => void;
-  allowUnsafeRuntime: boolean;
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
@@ -184,22 +156,17 @@ export function GenerationStage({
 }) {
   const selectedRuntimeProfile = runtimeProfile(experimentalRuntime);
   const isStreamDelivery = selectedRuntimeProfile.delivery === "stream";
-  const isUnsafeRuntime = selectedRuntimeProfile.trust === "unsafe";
-  const runtimeGroups = useMemo(
-    () => runtimeGroupsForUnsafeGate(allowUnsafeRuntime),
-    [allowUnsafeRuntime],
-  );
+  const runtimeGroupOptions = useMemo(() => runtimeGroups(), []);
   const showSamplePills = showWelcome && !running;
   const showHostLoader =
     !isStreamDelivery &&
-    !isUnsafeRuntime &&
     !showWelcome &&
     !stageNotice &&
     !surfaceReady &&
     (running || hasRenderedArtifact);
   const showSandboxFrame =
     !showWelcome &&
-    (surfaceReady || stageNotice !== null || isStreamDelivery || isUnsafeRuntime);
+    (surfaceReady || stageNotice !== null || isStreamDelivery);
   const selectedFingerprint =
     fingerprints.find(
       (fingerprint) => fingerprint.id === selectedFingerprintId,
@@ -207,10 +174,10 @@ export function GenerationStage({
   const fingerprintLabel =
     selectedFingerprint?.name ?? selectedFingerprintId ?? "Fingerprint";
   const selectedRuntimeOption =
-    runtimeGroups
+    runtimeGroupOptions
       .flatMap((group) => group.options)
       .find((option) => option.value === experimentalRuntime) ??
-    runtimeGroups[0]?.options[0];
+    runtimeGroupOptions[0]?.options[0];
   const fingerprintGroups = useMemo<DropdownSelectGroup[]>(() => {
     const options: DropdownSelectGroup["options"] = [];
 
@@ -384,13 +351,6 @@ export function GenerationStage({
           >
             {scenarioPicker}
           </div>
-          {allowUnsafeRuntime ? (
-            <div className="mb-2 rounded-[18px] border border-danger/40 bg-danger/10 px-4 py-3 text-[12px] font-semibold leading-snug text-danger">
-              {isUnsafeRuntime
-                ? "Unsafe raw HTML stream selected. Control-only; also requires SUMMON_ALLOW_UNSAFE_RUNTIME=1 on the server."
-                : "Unsafe runtime controls exposed. Control-only; selection still requires SUMMON_ALLOW_UNSAFE_RUNTIME=1 on the server."}
-            </div>
-          ) : null}
           <div className="rounded-t-[32px] bg-surface-raised/92 p-2 shadow-elevated backdrop-blur-xl">
             <div className="flex items-start gap-2 max-[760px]:grid">
               <label className="min-w-0 flex-1" htmlFor="prompt">
@@ -440,7 +400,7 @@ export function GenerationStage({
                 <DropdownSelect
                   id="stream-type-picker"
                   value={experimentalRuntime}
-                  groups={runtimeGroups}
+                  groups={runtimeGroupOptions}
                   overline="Runtime"
                   placeholder="Arrow control"
                   title={

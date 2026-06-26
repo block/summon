@@ -239,10 +239,10 @@ test('consumeSurfaceStream accepts Uint8Array and ReadableStream sources', async
   assert.equal(streamResult.protocolLines.length, 1);
 });
 
-test('consumeSurfaceStream blocks invalid Arrow artifacts before callback delivery', async () => {
+test('consumeSurfaceStream blocks Arrow artifacts that use ungranted network access before callback delivery', async () => {
   const artifacts: string[] = [];
   const result = await consumeSurfaceStream([
-    artifactLine('import { html } from "@arrow-js/core";\nexport default html`<input .value=${state.title}>`'),
+    artifactLine('import { html } from "@arrow-js/core";\nvoid fetch("https://example.test/track");\nexport default html`<div>Weather</div>`'),
   ], {
     mode: 'interactive',
     onArtifact: (artifact) => artifacts.push(artifact.source['main.ts'] ?? ''),
@@ -251,28 +251,37 @@ test('consumeSurfaceStream blocks invalid Arrow artifacts before callback delive
   assert.deepEqual(artifacts, []);
   assert.equal(result.protocolLines.length, 0);
   assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
-    'unsupported-arrow-idl-binding',
+    'arrow-network-not-granted',
   ]);
   assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
-test('consumeSurfaceStream observe mode delivers artifact-shaped payloads with blocking diagnostics', async () => {
-  const artifacts: string[] = [];
-  const result = await consumeSurfaceStream([
+test('consumeSurfaceStream accepts idiomatic Arrow IDL and open-tag bindings (subset restriction removed)', async () => {
+  // Experiment 2026-06-25: `.value=` IDL bindings and open-tag template
+  // expressions are valid @arrow-js/core and are no longer blocked.
+  const idlArtifacts: string[] = [];
+  const idlResult = await consumeSurfaceStream([
+    artifactLine('import { html } from "@arrow-js/core";\nexport default html`<input .value=${state.title}>`'),
+  ], {
+    mode: 'interactive',
+    onArtifact: (artifact) => idlArtifacts.push(artifact.source['main.ts'] ?? ''),
+  });
+  assert.equal(idlArtifacts.length, 1);
+  assert.match(idlArtifacts[0]!, /\.value=/);
+  assert.deepEqual(idlResult.validationIssues.map((issue) => issue.code), []);
+  assert.equal(idlResult.streamGraph.health.blockedCount, 0);
+
+  const openTagArtifacts: string[] = [];
+  const openTagResult = await consumeSurfaceStream([
     artifactLine('import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`'),
   ], {
     mode: 'interactive',
-    validationMode: 'observe',
-    onArtifact: (artifact) => artifacts.push(artifact.source['main.ts'] ?? ''),
+    onArtifact: (artifact) => openTagArtifacts.push(artifact.source['main.ts'] ?? ''),
   });
-
-  assert.equal(artifacts.length, 1);
-  assert.match(artifacts[0]!, /disabled/);
-  assert.equal(result.protocolLines.length, 1);
-  assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
-    'unsupported-arrow-open-tag-expression',
-  ]);
-  assert.equal(result.streamGraph.health.blockedCount, 1);
+  assert.equal(openTagArtifacts.length, 1);
+  assert.match(openTagArtifacts[0]!, /disabled/);
+  assert.deepEqual(openTagResult.validationIssues.map((issue) => issue.code), []);
+  assert.equal(openTagResult.streamGraph.health.blockedCount, 0);
 });
 
 test('consumeSurfaceStream rejects legacy section protocol at parse boundary', async () => {

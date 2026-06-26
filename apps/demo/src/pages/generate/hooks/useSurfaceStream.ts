@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useRef,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -209,22 +210,6 @@ export function useSurfaceStream({
       logLine('op-meta', `stream diagnostics -> ${JSON.stringify(line.value)}`);
       return;
     }
-    if (line.op === 'meta' && line.path === '/unsafe-html-raw-stream-start') {
-      surfaceRef.current?.beginUnsafeHtmlStream();
-      logLine('op-meta', 'unsafe raw html stream -> start');
-      return;
-    }
-    if (line.op === 'meta' && line.path === '/unsafe-html-raw-stream-chunk') {
-      const chunk = typeof line.value === 'string' ? line.value : String(line.value ?? '');
-      surfaceRef.current?.writeUnsafeHtmlChunk(chunk);
-      logLine('op-meta', `unsafe raw html chunk -> ${chunk.length} chars`);
-      return;
-    }
-    if (line.op === 'meta' && line.path === '/unsafe-html-raw-stream-complete') {
-      surfaceRef.current?.endUnsafeHtmlStream();
-      logLine('op-meta', `unsafe raw html stream -> complete ${JSON.stringify(line.value)}`);
-      return;
-    }
     if (line.op === 'meta' && line.path === '/html-stream-preview') {
       const delta = parseHtmlStreamPreviewDelta(line.value);
       if (delta) {
@@ -340,8 +325,7 @@ export function useSurfaceStream({
       allowedTools: toolPack.tools.map((tool) => tool.name),
       tools: toolPack.tools,
       surfacePlan: active.surfacePlan,
-      experimentalHtmlScript:
-        runtimeProfile(opts.experimentalRuntime).trust === 'iframe-script',
+      experimentalHtmlScript: false,
     };
 
     const modelSelectionPayload = {
@@ -439,15 +423,18 @@ export function useSurfaceStream({
       onSurfaceEvent: (event) => {
         metrics.observeSurfaceEvent(event, elapsedSinceStart());
         noteFirstPaintTiming();
+        const appliedSnapshot = surfaceRef.current?.applyPreviewEvent(event) ?? null;
         setPreviewSnapshot((snapshot) =>
-          reduceSurfacePreviewSnapshot(snapshot, event),
+          appliedSnapshot ?? reduceSurfacePreviewSnapshot(snapshot, event),
         );
-        appendDevEvent({
-          kind: 'surface-preview-event',
-          at: Date.now(),
-          surfaceId: surfaceRef.current?.surfaceId ?? 'pending',
-          event,
-        });
+        if (!appliedSnapshot) {
+          appendDevEvent({
+            kind: 'surface-preview-event',
+            at: Date.now(),
+            surfaceId: surfaceRef.current?.surfaceId ?? 'pending',
+            event,
+          });
+        }
         if (event.type === 'surface.status') {
           setStatus(event.status);
           logLine('op-meta', `preview -> ${event.status}${event.text ? `: ${event.text}` : ''}`);
@@ -478,7 +465,6 @@ export function useSurfaceStream({
     });
     metrics.markComplete(markClientTiming('stream-complete', 'Stream complete'));
     if (
-      runtimeProfile(opts.experimentalRuntime).trust !== 'unsafe' &&
       !result.protocolLines.some((line) => line.op === 'artifact' && line.path === '/artifact')
     ) {
       throw new Error(missingArtifactMessage(result.protocolLines, opts.experimentalRuntime));

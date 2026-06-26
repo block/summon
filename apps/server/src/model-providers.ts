@@ -36,8 +36,8 @@ export type ModelCatalogStatus = 'stable' | 'preview' | 'latest' | 'legacy';
 export type ModelCatalogTier = 'fast' | 'balanced' | 'frontier';
 export type AnthropicThinkingMode = 'adaptive' | 'off';
 export type ModelEffort = 'low' | 'medium' | 'high' | 'max';
-export type ModelProfileKey = 'arrow-control' | 'html-static' | 'html-stream' | 'html-script' | 'utility';
-export const MODEL_PROFILE_KEYS: ModelProfileKey[] = ['arrow-control', 'html-static', 'html-stream', 'html-script', 'utility'];
+export type ModelProfileKey = 'arrow-control' | 'html-static' | 'html-stream' | 'utility';
+export const MODEL_PROFILE_KEYS: ModelProfileKey[] = ['arrow-control', 'html-static', 'html-stream', 'utility'];
 
 export interface ModelCatalogEntry {
   id: string;
@@ -442,7 +442,6 @@ function defaultModelProfiles(generationModel: string, utilityModel: string): Re
     'arrow-control': generationModel,
     'html-static': generationModel,
     'html-stream': generationModel,
-    'html-script': generationModel,
     utility: utilityModel,
   };
 }

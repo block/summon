@@ -39,13 +39,12 @@ artifacts.
 Experimental HTML runtimes use a separate iframe posture and remain research
 targets, not the production default. `html-static` accepts a validated HTML/CSS
 bundle and rejects scripts, external URLs, unsafe tags, inline handlers, and
-legacy Summon bindings before the iframe mounts. `html-script` permits a small
-`main.js` file only for the scripted iframe experiment; validation still blocks
-network, storage, parent/top/opener access, workers, dynamic imports, eval, and
-cookie/service-worker APIs. `html-stream` renders provider patch text first in
-an inert preview iframe with `script-src 'none'`; committed HTML reaches the
-script-capable iframe only after a complete patch frame validates. The unsafe
-raw HTML stream is control-only and requires the explicit unsafe runtime gate.
+legacy Summon bindings before the iframe mounts. `html-stream` renders provider
+patch text first in an inert preview iframe with `script-src 'none'`; committed
+HTML reaches the iframe only after a complete patch frame validates. Generated
+scripts are never accepted: the scripted `html-script` and unsafe raw HTML
+stream runtimes were removed, so no runtime mounts model-authored JavaScript in
+an iframe.
 
 ## Surface Types
 
@@ -127,10 +126,9 @@ The safety harness should cover:
   attempts.
 - Stream validation rejection for malformed Arrow artifacts, legacy section
   protocols, legacy `data-summon-*` bindings, and unsupported Arrow bindings.
-- HTML runtime safety for non-unsafe runtimes: `html-static` blocks scripts and
-  unsafe HTML before mounting, `html-script` stays inside a sandboxed iframe
-  with no parent/network/storage reach, and `html-stream` keeps preview deltas
-  inert until validated patch commits.
+- HTML runtime safety: `html-static` blocks scripts and unsafe HTML before
+  mounting, and `html-stream` keeps preview deltas inert until validated patch
+  commits. No HTML runtime mounts model-authored scripts.
 - Generate-page boot without server credentials.
 
 The manual containment page remains available at

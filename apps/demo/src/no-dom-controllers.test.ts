@@ -37,20 +37,15 @@ test('generate page exposes experimental runtime selection through the UI reques
   const stage = readFileSync(join(srcRoot, 'pages/generate/components/GenerationStage.tsx'), 'utf8');
   const stream = readFileSync(join(srcRoot, 'pages/generate/hooks/useSurfaceStream.ts'), 'utf8');
 
-  assert.match(page, /function unsafeRuntimeGateEnabled/);
-  assert.match(page, /VITE_SUMMON_ALLOW_UNSAFE_RUNTIME/);
-  assert.match(page, /new URLSearchParams\(window\.location\.search\)\.get\("unsafe"\) === "1"/);
-  assert.match(page, /allowUnsafeRuntime=\{allowUnsafeRuntime\}/);
   assert.match(stage, /id="stream-type-picker"/);
   assert.match(stage, /overline="Runtime"/);
   assert.match(stage, /value=\{experimentalRuntime\}/);
-  assert.match(stage, /function runtimeGroupsForUnsafeGate/);
-  assert.match(stage, /allowUnsafeRuntime \|\| profile\.trust !== "unsafe"/);
-  assert.match(stage, /SUMMON_ALLOW_UNSAFE_RUNTIME=1/);
-  assert.match(stage, /!rounded-\[22px\]/);
+  assert.match(stage, /function runtimeGroups/);
   assert.match(stage, /hover:opacity-85/);
   assert.match(stage, /html-static/);
   assert.match(stage, /html-stream/);
+  assert.doesNotMatch(stage, /unsafe/);
+  assert.doesNotMatch(page, /unsafeRuntimeGateEnabled/);
   assert.match(stream, /experimentalRuntime: opts\.experimentalRuntime/);
 });
 

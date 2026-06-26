@@ -212,16 +212,12 @@ export function hintsForContractIssue(
   if (issue.hint) return [issue.hint];
   const profile = runtimeProfile(options.outputRuntime);
   const htmlRuntime = profile.format === 'html';
-  const scriptedHtmlRuntime = profile.trust === 'iframe-script';
   switch (issue.code) {
     case 'external-url':
       return ['Inline assets as data URLs or remove the external reference.'];
     case 'unsafe-tag':
       return ['Use plain HTML elements; remove iframe/object/embed/link/meta/base-like tags.'];
     case 'inline-handler':
-      if (scriptedHtmlRuntime) {
-        return ['Move event handling into source["main.js"] and call granted host tools with `window.summon.callTool()` when needed.'];
-      }
       if (htmlRuntime) {
         return ['Remove inline event handlers; this HTML runtime must be static HTML/CSS without generated event code.'];
       }
@@ -246,9 +242,6 @@ export function hintsForContractIssue(
     case 'tool-trigger-not-granted':
       return ['Use only the granted tools and triggers listed in the Tools block.'];
     case 'invalid-args-json':
-      if (scriptedHtmlRuntime) {
-        return ['Build tool args as plain objects before calling `window.summon.callTool()` from source["main.js"].'];
-      }
       return ['Build tool args as plain objects in the Arrow event handler before calling `callTool()`.'];
     case 'unknown-resource':
     case 'non-resource-tool':
@@ -496,7 +489,8 @@ export function compileSystemContracts(
       tools: tool.validationTools,
       surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
-      experimentalHtmlScript: profile.trust === 'iframe-script',
+      // Scripted HTML runtime was removed; generated scripts are never allowed.
+      experimentalHtmlScript: false,
     },
   };
 }

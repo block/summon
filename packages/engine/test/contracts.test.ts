@@ -263,33 +263,6 @@ test('system compiler uses HTML-static prompt blocks without Arrow bridge leakag
   assert.doesNotMatch(systemText, /Arrow artifact/);
 });
 
-test('system compiler documents the HTML scripted iframe bridge for html-script', () => {
-  const compiled = compileSystemContracts({
-    mode: 'interactive',
-    outputRuntime: 'html-script',
-    tools: {
-      tools: [
-        {
-          name: 'choose',
-          description: 'Pick an option.',
-          argsSchema: '{option: string}',
-          stateShape: '{choice: string}',
-          triggers: ['click'],
-        },
-      ],
-    },
-  });
-
-  assert.equal(compiled.validationContext.experimentalHtmlScript, true);
-  const toolsBlock = compiled.promptBlocks.find((block) => block.id === 'tools');
-  assert.match(toolsBlock?.text ?? '', /HTML scripted iframe experiment/);
-  assert.match(toolsBlock?.text ?? '', /source\["main\.js"\]/);
-  assert.match(toolsBlock?.text ?? '', /window\.summon\.getState/);
-  assert.match(toolsBlock?.text ?? '', /window\.summon\.callTool/);
-  assert.doesNotMatch(toolsBlock?.text ?? '', /host-bridge:summon/);
-  assert.doesNotMatch(toolsBlock?.text ?? '', /@arrow-js\/core/);
-});
-
 test('system compiler includes compact surface contract view without dropping detail blocks', () => {
   const tools: ToolPack = {
     tools: [
@@ -497,8 +470,5 @@ test('contract repair hints are runtime-aware for shared HTML issue codes', () =
   ]);
   assert.deepEqual(hintsForContractIssue(issue, { outputRuntime: 'html-static' }), [
     'Remove inline event handlers; this HTML runtime must be static HTML/CSS without generated event code.',
-  ]);
-  assert.deepEqual(hintsForContractIssue(issue, { outputRuntime: 'html-script' }), [
-    'Move event handling into source["main.js"] and call granted host tools with `window.summon.callTool()` when needed.',
   ]);
 });

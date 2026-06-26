@@ -18,9 +18,6 @@ const DEFAULT_MAX_SOURCE_BYTES = 256 * 1024;
 const ENTRY_FILES = new Set(['main.ts', 'main.js']);
 const OPTIONAL_FILES = new Set(['main.css']);
 const MODULE_RE = /^[A-Za-z0-9_./-]+\.(?:ts|js|mjs|css)$/;
-const UNSUPPORTED_IDL_PROPERTY_BINDING_RE = /(^|[\s`<])\.[A-Za-z_$][A-Za-z0-9_$-]*\s*=/m;
-const UNSUPPORTED_OPEN_TAG_EXPRESSION_RE = /<[^>`]*\s\$\{/m;
-const DATA_SUMMON_ATTR_RE = /\b(data-summon-[a-z0-9-]+)\b/gi;
 const FETCH_USAGE_RE = /\bfetch\s*\(|\bglobalThis\s*(?:\.\s*fetch|\[\s*['"]fetch['"]\s*\])/m;
 
 export function isArrowSurfaceArtifact(value: unknown): value is ArrowSurfaceArtifact {
@@ -113,28 +110,14 @@ export function validateArrowSurfaceArtifact(
         `/artifact/${path}`,
       ));
     }
-    if (UNSUPPORTED_IDL_PROPERTY_BINDING_RE.test(contents)) {
-      issues.push(arrowIssue(
-        'unsupported-arrow-idl-binding',
-        `Arrow sandbox does not support IDL property bindings in "${path}" such as ".value=". Use normal HTML attributes and event target snapshots instead.`,
-        `/artifact/${path}`,
-      ));
-    }
-    if (UNSUPPORTED_OPEN_TAG_EXPRESSION_RE.test(contents)) {
-      issues.push(arrowIssue(
-        'unsupported-arrow-open-tag-expression',
-        `Arrow sandbox does not support standalone template expressions inside opening tags in "${path}". Put expressions in text, node positions, or quoted attribute values only.`,
-        `/artifact/${path}`,
-      ));
-    }
-    const legacyDataSummonAttrs = unsupportedDataSummonAttrs(contents);
-    if (legacyDataSummonAttrs.length > 0) {
-      issues.push(arrowIssue(
-        'unsupported-legacy-data-summon-binding',
-        `Arrow artifacts must use Arrow reactive state and host-bridge:summon instead of legacy Summon binding attributes in "${path}": ${legacyDataSummonAttrs.join(', ')}.`,
-        `/artifact/${path}`,
-      ));
-    }
+    // NOTE (experiment 2026-06-25): The Arrow "subset" restrictions below were
+    // removed to measure the true LLM Arrow failure rate. They rejected
+    // idiomatic Arrow (`.value=` IDL bindings, open-tag expressions) and legacy
+    // Summon attrs that the model produces naturally. They were never verified
+    // as actually-unsupported by the sandbox runtime — only fenced off "until
+    // compatibility is verified". Removing the artificial blocks so validation
+    // reflects whether the bundle truly compiles/runs, not whether it matches a
+    // hand-rolled dialect.
   }
   return issues;
 }
@@ -161,14 +144,4 @@ function arrowIssue(code: string, message: string, path = '/artifact'): Contract
 
 function byteLength(value: string): number {
   return new TextEncoder().encode(value).length;
-}
-
-function unsupportedDataSummonAttrs(contents: string): string[] {
-  const attrs = new Set<string>();
-  for (const match of contents.matchAll(DATA_SUMMON_ATTR_RE)) {
-    const attr = match[1]?.toLowerCase();
-    if (!attr) continue;
-    attrs.add(attr);
-  }
-  return Array.from(attrs).sort();
 }

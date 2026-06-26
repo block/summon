@@ -63,7 +63,6 @@ export type ModelProfileKey =
   | 'arrow-control'
   | 'html-static'
   | 'html-stream'
-  | 'html-script'
   | 'utility';
 
 export type RuntimeModelProfileKey = Exclude<ModelProfileKey, 'utility'>;
@@ -72,7 +71,6 @@ export const MODEL_PROFILE_KEYS: ModelProfileKey[] = [
   'arrow-control',
   'html-static',
   'html-stream',
-  'html-script',
   'utility',
 ];
 

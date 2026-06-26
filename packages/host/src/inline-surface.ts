@@ -64,9 +64,6 @@ export interface InlineSurfaceHandle {
   renderArtifact(artifact: InlineSurfaceArtifact): void;
   applyHtmlPreviewDelta(delta: HtmlStreamPreviewDelta): void;
   applyHtmlPatch(patch: HtmlSurfacePatch): void;
-  beginUnsafeHtmlStream(): void;
-  writeUnsafeHtmlChunk(chunk: string): void;
-  endUnsafeHtmlStream(): void;
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot;
   previewSnapshot(): SurfacePreviewSnapshot;
@@ -202,8 +199,6 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
   let htmlPreviewArtifactCss = '';
   let htmlSandboxId: string | null = null;
   let htmlReady = false;
-  let unsafeHtmlFrame: HTMLIFrameElement | null = null;
-  let unsafeHtmlDocOpen = false;
   const pendingHtmlPatches: HtmlSurfacePatch[] = [];
   const htmlPreviewBuffers = new Map<string, string>();
   let renderRevision = 0;
@@ -251,21 +246,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     return result;
   };
 
-  const teardownUnsafeHtmlStream = () => {
-    if (unsafeHtmlDocOpen) {
-      try {
-        unsafeHtmlFrame?.contentDocument?.close();
-      } catch {
-        // best effort
-      }
-    }
-    unsafeHtmlDocOpen = false;
-    unsafeHtmlFrame?.remove();
-    unsafeHtmlFrame = null;
-  };
-
   const teardownHtmlRuntime = () => {
-    teardownUnsafeHtmlStream();
     if (htmlTeardown) {
       try {
         htmlTeardown();
@@ -522,58 +503,6 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
         return;
       }
       postHtmlMessage(HTML_MESSAGE_PATCH, { patch });
-    },
-    beginUnsafeHtmlStream() {
-      if (disposed) return;
-      teardownHtmlRuntime();
-      if (arrowTeardown) {
-        try {
-          arrowTeardown();
-        } catch {
-          // best effort
-        }
-        arrowTeardown = null;
-      }
-      clearRuntimeChildren(root);
-      renderState = 'rendering';
-      const frame = document.createElement('iframe');
-      frame.className = 'summon-unsafe-html-raw-stream-frame';
-      frame.title = 'Unsafe raw HTML stream preview';
-      frame.setAttribute('sandbox', 'allow-scripts');
-      frame.setAttribute('referrerpolicy', 'no-referrer');
-      root.append(frame);
-      unsafeHtmlFrame = frame;
-      const doc = frame.contentDocument;
-      if (doc) {
-        doc.open();
-        unsafeHtmlDocOpen = true;
-      }
-      options.events?.push({ kind: 'render', at: Date.now(), surfaceId, bytes: 0 });
-    },
-    writeUnsafeHtmlChunk(chunk) {
-      if (disposed) return;
-      if (!unsafeHtmlFrame || !unsafeHtmlDocOpen) handle.beginUnsafeHtmlStream();
-      try {
-        unsafeHtmlFrame?.contentDocument?.write(chunk);
-        if (renderState !== 'rendered') {
-          renderState = 'rendered';
-          options.events?.push({ kind: 'rendered', at: Date.now(), surfaceId, revision: renderRevision });
-        }
-      } catch (err) {
-        const reason = `Unsafe raw HTML stream failed: ${err instanceof Error ? err.message : String(err)}`;
-        renderState = 'failed';
-        reportRuntimeError(options, surfaceId, reason);
-      }
-    },
-    endUnsafeHtmlStream() {
-      if (disposed) return;
-      if (!unsafeHtmlDocOpen) return;
-      try {
-        unsafeHtmlFrame?.contentDocument?.close();
-      } catch {
-        // best effort
-      }
-      unsafeHtmlDocOpen = false;
     },
     applyHtmlPreviewDelta(delta) {
       if (disposed) return;
@@ -1314,14 +1243,6 @@ function defaultPreviewCss(surfaceId: string): string {
   border: 0;
   pointer-events: none;
   background: transparent;
-}
-[data-summon-inline-surface="${surfaceId}"] .summon-unsafe-html-raw-stream-frame {
-  display: block;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
-  border: 0;
-  background: Canvas;
 }
 @keyframes summon-preview-spin {
   to { transform: rotate(360deg); }

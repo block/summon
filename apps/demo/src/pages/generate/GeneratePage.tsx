@@ -5,7 +5,6 @@ import { createSurfaceEnvelope } from "@anarchitecture/summon/envelope";
 import {
   isArrowSurfaceArtifact,
   isHtmlSurfaceArtifact,
-  runtimeProfile,
   type ProtocolLine,
   type SummonOutputRuntime,
   type SummonLayout,
@@ -68,12 +67,6 @@ import type {
 
 const DEFAULT_FINGERPRINT_ID = "editorial-mono";
 const DEFAULT_EXPERIMENTAL_RUNTIME: SummonOutputRuntime = "arrow-control";
-
-function unsafeRuntimeGateEnabled(): boolean {
-  if (import.meta.env.VITE_SUMMON_ALLOW_UNSAFE_RUNTIME === "1") return true;
-  if (typeof window === "undefined") return false;
-  return new URLSearchParams(window.location.search).get("unsafe") === "1";
-}
 
 function profileStateToPayload(
   profile: ModelProfileState,
@@ -191,20 +184,10 @@ export function GeneratePage() {
   const [children, setChildren] = useState<ChildSurfaceModel[]>([]);
   const [running, setRunning] = useState(false);
   const timingEntryIdRef = useRef(0);
-  const allowUnsafeRuntime = useMemo(() => unsafeRuntimeGateEnabled(), []);
 
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
-
-  useEffect(() => {
-    if (
-      !allowUnsafeRuntime &&
-      runtimeProfile(experimentalRuntime).trust === "unsafe"
-    ) {
-      setExperimentalRuntime(DEFAULT_EXPERIMENTAL_RUNTIME);
-    }
-  }, [allowUnsafeRuntime, experimentalRuntime]);
 
   useEffect(() => {
     artifactRevisionRef.current = artifactRevision;
@@ -312,8 +295,7 @@ export function GeneratePage() {
         setSurfaceReady(false);
       } else if (
         event.kind === "rendered" ||
-        event.kind === "surface-runtime-error" ||
-        event.kind === "surface-preview-event"
+        event.kind === "surface-runtime-error"
       ) {
         setSurfaceReady(true);
       }
@@ -961,7 +943,6 @@ export function GeneratePage() {
           }}
           experimentalRuntime={experimentalRuntime}
           onSelectExperimentalRuntime={setExperimentalRuntime}
-          allowUnsafeRuntime={allowUnsafeRuntime}
           running={running}
           onGenerate={generate}
           statusText={statusText}

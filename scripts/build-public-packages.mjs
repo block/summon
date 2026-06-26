@@ -146,7 +146,6 @@ const coreExports = {
           'isArrowSurfaceArtifact',
           'isHtmlOutputRuntime',
           'isHtmlSurfaceArtifact',
-          'isScriptedHtmlOutputRuntime',
           'isProtocolLine',
           'normalizeArrowBundle',
           'normalizeArrowSurfaceArtifact',          'normalizeSurfacePolicy',

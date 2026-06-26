@@ -107,17 +107,13 @@ app.use(cors({ origin: ALLOWED_ORIGIN }));
 
 const LAYOUT_ID_RE = /^[a-z][a-z0-9-]{0,79}$/;
 const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
-const ALLOW_UNSAFE_RUNTIME = process.env.SUMMON_ALLOW_UNSAFE_RUNTIME === '1';
-const EXPERIMENTAL_RUNTIME_VALUES: SummonOutputRuntime[] =
-  SUMMON_OUTPUT_RUNTIME_VALUES.filter((runtime) => (
-    ALLOW_UNSAFE_RUNTIME || runtimeProfile(runtime).trust !== 'unsafe'
-  ));
+const EXPERIMENTAL_RUNTIME_VALUES: SummonOutputRuntime[] = [
+  ...SUMMON_OUTPUT_RUNTIME_VALUES,
+];
 const MODEL_PROFILE_KEY_BY_RUNTIME = {
   'arrow-control': 'arrow-control',
   'html-static': 'html-static',
   'html-stream': 'html-stream',
-  'html-script': 'html-script',
-  'unsafe-html-raw-stream': 'html-stream',
 } satisfies Record<SummonOutputRuntime, ModelProfileKey>;
 
 function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?: string } {
@@ -176,16 +172,6 @@ function parseExperimentalRuntime(raw: unknown): { runtime: SummonOutputRuntime;
   if (raw === undefined || raw === null || raw === '') return { runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME };
   if (typeof raw !== 'string') {
     return { runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME, error: 'experimentalRuntime must be a string' };
-  }
-  if (
-    SUMMON_OUTPUT_RUNTIME_VALUES.includes(raw as SummonOutputRuntime) &&
-    runtimeProfile(raw as SummonOutputRuntime).trust === 'unsafe' &&
-    !ALLOW_UNSAFE_RUNTIME
-  ) {
-    return {
-      runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME,
-      error: `experimentalRuntime "${raw}" requires SUMMON_ALLOW_UNSAFE_RUNTIME=1`,
-    };
   }
   if (!EXPERIMENTAL_RUNTIME_VALUES.includes(raw as SummonOutputRuntime)) {
     return {

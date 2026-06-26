@@ -31,7 +31,7 @@ export const HTML_STREAM_FRAME_PROMPT_BLOCK: ContractPromptBlock = {
     '',
     'Return raw text frames only. Do not call tools and do not return markdown fences.',
     '',
-    'First emit exactly one scaffold frame containing a complete summon.html-bundle/v0 JSON object. The scaffold must contain stable element ids that future patches target. Do not include source["main.js"] or any <script>.',
+    'First emit exactly one scaffold frame containing a complete summon.html-bundle/v0 JSON object. The scaffold must contain stable element ids that future patches target and should render lightweight visible placeholders so the container is never blank while patch frames are still streaming. Do not include source["main.js"] or any <script>.',
     'If you include preview.regions, it must be an array of objects with string id and role fields, for example { "id": "hero", "role": "summary", "label": "Hero" }. Do not use strings in preview.regions.',
     '',
     HTML_STREAM_SCAFFOLD_START,
@@ -45,7 +45,7 @@ export const HTML_STREAM_FRAME_PROMPT_BLOCK: ContractPromptBlock = {
     '}',
     HTML_STREAM_SCAFFOLD_END,
     '',
-    'After the scaffold is complete, emit zero or more patch frames. Each patch frame starts with one marker line. target must be one stable id from the scaffold. action must be append, replace, update, remove, or morph.',
+    'After the scaffold is complete, emit one or more patch frames. Do not stop after the scaffold; this runtime exists to test streamed preview deltas and validated patch commits. Each patch frame starts with one marker line. target must be one stable id from the scaffold. action must be append, replace, update, remove, or morph.',
     '',
     '@@summon-html-patch target="hero" action="replace"',
     '<section id="hero"><h1>Complete validated fragment</h1></section>',
@@ -382,6 +382,7 @@ export class HtmlStreamStrategy implements RuntimeStrategy {
     const counters = {
       previewDeltaCount: 0,
       committedPatchCount: 0,
+      scaffoldCount: 0,
       blockedPatchReasons: [] as string[],
     };
 
@@ -404,6 +405,7 @@ export class HtmlStreamStrategy implements RuntimeStrategy {
           continue;
         }
         if (event.type === 'scaffold') {
+          counters.scaffoldCount += 1;
           const result = await validateAndAcceptHtmlBundle(ctx, event.bundle, 0, false, { strict: true });
           if (!result.accepted) {
             counters.blockedPatchReasons.push(result.blocker.code);
@@ -449,6 +451,24 @@ export class HtmlStreamStrategy implements RuntimeStrategy {
         if (!ctx.isBlocked()) await processEvents(accumulator.finish());
       },
     });
+
+    if (
+      !ctx.isBlocked() &&
+      counters.scaffoldCount > 0 &&
+      counters.previewDeltaCount === 0 &&
+      counters.committedPatchCount === 0
+    ) {
+      const issue = contractIssue({
+        source: 'protocol',
+        severity: 'block',
+        code: 'missing-html-stream-patch',
+        message: 'HTML stream completed after the scaffold without any patch frame. Emit at least one @@summon-html-patch frame so the stream has visible preview and commit output.',
+        path: '/html-stream/patch',
+      });
+      counters.blockedPatchReasons.push(issue.code);
+      await writeHtmlStreamSummary(ctx, counters);
+      await ctx.blockGeneration(issue);
+    }
 
     await ctx.writeTiming(
       'bundle-received',
@@ -625,6 +645,7 @@ async function writeHtmlStreamSummary(
   counters: {
     previewDeltaCount: number;
     committedPatchCount: number;
+    scaffoldCount: number;
     blockedPatchReasons: readonly string[];
   },
 ): Promise<void> {

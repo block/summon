@@ -7,7 +7,6 @@ import {
 } from '@anarchitecture/summon/browser';
 import {
   buildFingerprintSteeringPayload,
-  runtimeProfile,
   SUMMON_OUTPUT_RUNTIME_VALUES,
   type ProtocolLine,
   type SummonOutputRuntime,
@@ -24,9 +23,7 @@ import type { RunMetrics } from './generate/types.js';
 
 const DEFAULT_FINGERPRINT_ID = 'editorial-mono';
 const DEFAULT_BATCH_RUNTIME: SummonOutputRuntime = 'arrow-control';
-const BATCH_RUNTIME_VALUES = SUMMON_OUTPUT_RUNTIME_VALUES.filter(
-  (runtime) => runtimeProfile(runtime).trust !== 'unsafe',
-) as SummonOutputRuntime[];
+const BATCH_RUNTIME_VALUES = [...SUMMON_OUTPUT_RUNTIME_VALUES] as SummonOutputRuntime[];
 
 interface FingerprintInfo {
   id: string;

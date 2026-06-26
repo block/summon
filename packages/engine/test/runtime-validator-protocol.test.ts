@@ -71,7 +71,10 @@ test('accepts valid Arrow artifacts', () => {
   assert.deepEqual(issues, []);
 });
 
-test('blocks legacy data-summon binding attributes in Arrow artifacts', () => {
+test('accepts data-summon attributes in Arrow artifacts (subset restriction removed)', () => {
+  // Experiment 2026-06-25: the legacy-data-summon block was an artificial
+  // dialect restriction, not a real sandbox constraint. data-summon-* attrs are
+  // now treated as ordinary HTML attributes inside Arrow templates.
   const issues = validateProtocolLine(
     {
       op: 'artifact',
@@ -93,16 +96,10 @@ test('blocks legacy data-summon binding attributes in Arrow artifacts', () => {
     },
     baseContext,
   );
-  assert.deepEqual(codes(issues), ['unsupported-legacy-data-summon-binding']);
-  assert.match(issues[0]?.message ?? '', /data-summon-bind/);
-  assert.match(issues[0]?.message ?? '', /data-summon-local/);
-  assert.match(issues[0]?.message ?? '', /data-summon-on-click/);
-  assert.match(issues[0]?.message ?? '', /data-summon-resource/);
-  assert.match(issues[0]?.message ?? '', /data-summon-resource-trigger/);
-  assert.match(issues[0]?.message ?? '', /data-summon-show/);
+  assert.deepEqual(codes(issues), []);
 });
 
-test('blocks trusted component placeholder attributes in Arrow artifacts', () => {
+test('accepts trusted component placeholder attributes in Arrow artifacts (subset restriction removed)', () => {
   const issues = validateProtocolLine(
     {
       op: 'artifact',
@@ -121,8 +118,7 @@ test('blocks trusted component placeholder attributes in Arrow artifacts', () =>
     },
     baseContext,
   );
-  assert.deepEqual(codes(issues), ['unsupported-legacy-data-summon-binding']);
-  assert.match(issues[0]?.message ?? '', /data-summon-component/);
+  assert.deepEqual(codes(issues), []);
 });
 
 test('parser rejects legacy section protocol ops', () => {
@@ -194,6 +190,8 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
     ['arrow-network-not-granted'],
   );
 
+  // Subset restriction removed (experiment 2026-06-25): idiomatic Arrow IDL
+  // property bindings (`.value=`) are now accepted, not blocked.
   assert.deepEqual(
     codes(validateProtocolLine(
       {
@@ -208,9 +206,11 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
       },
       baseContext,
     )),
-    ['unsupported-arrow-idl-binding'],
+    [],
   );
 
+  // Subset restriction removed (experiment 2026-06-25): open-tag template
+  // expressions are now accepted, not blocked.
   assert.deepEqual(
     codes(validateProtocolLine(
       {
@@ -225,6 +225,6 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
       },
       baseContext,
     )),
-    ['unsupported-arrow-open-tag-expression'],
+    [],
   );
 });

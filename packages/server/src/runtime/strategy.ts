@@ -1,6 +1,5 @@
 import {
   contractIssue,
-  runtimeProfile,
   type CompiledSystemContracts,
   type ContractIssue,
   type ProtocolLine,
@@ -62,12 +61,8 @@ export function createRuntimeStrategy(runtime: SummonOutputRuntime): RuntimeStra
       return new ArrowControlStrategy();
     case 'html-static':
       return new HtmlBundleStrategy('html-static');
-    case 'html-script':
-      return new HtmlBundleStrategy('html-script');
     case 'html-stream':
       return new HtmlStreamStrategy();
-    case 'unsafe-html-raw-stream':
-      return new UnsupportedRuntimeStrategy(runtime);
   }
 }
 
@@ -105,30 +100,4 @@ export function nowMs(): number {
 
 export function roundMs(value: number): number {
   return Math.max(0, Math.round(value));
-}
-
-class UnsupportedRuntimeStrategy implements RuntimeStrategy {
-  readonly profile: RuntimeProfile;
-
-  constructor(runtime: Extract<SummonOutputRuntime, 'unsafe-html-raw-stream'>) {
-    this.profile = runtimeProfile(runtime);
-  }
-
-  async writeInitialOutputMode(ctx: RuntimeContext): Promise<void> {
-    await writeInitialOutputMode(ctx);
-  }
-
-  async consume(ctx: RuntimeContext): Promise<void> {
-    await ctx.blockGeneration(contractIssue({
-      source: 'system',
-      severity: 'block',
-      code: 'unsupported-output-runtime',
-      message: `Experimental runtime "${this.profile.runtime}" is not wired in the server strategy layer`,
-      path: '/model-provider',
-    }));
-  }
-
-  missingArtifactIssue(): ContractIssue {
-    return missingArtifactIssueForProfile(this.profile);
-  }
 }

@@ -111,8 +111,7 @@ Arrow entry rules:
 - Use reactive() for local state and wrap live reads as functions so Arrow can track updates.
 - Use quoted Arrow event and attribute bindings for clicks, form events, disabled states, and classes.
 - For boolean attributes, return false to remove the attribute rather than injecting a bare attribute string.
-- Do not use Arrow IDL property bindings such as .value=, .checked=, .selected=, or .disabled=; this Summon sandbox subset rejects them until compatibility is verified.
-- Do not inject standalone expressions inside opening tags to create dynamic attributes. Never write \`<button \${() => "disabled"}>\` or \`<section \${dynamicAttrs}>\`; write named, quoted attributes such as \`disabled="\${() => state.loading}"\`, \`class="\${() => state.active ? 'active' : ''}"\`, or move expressions between tags for content.
+- Write idiomatic @arrow-js/core. Use whatever binding form is natural: IDL property bindings (\`.value="\${...}"\`), quoted attribute bindings, and template expressions are all fine.
 - For host actions and resources, import from host-bridge:summon and call await callTool(toolName, args) for granted host tools only.
 - Use await getState() and onState((state) => ...) to read host-pushed state.
 - Do not use window, document, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, or external URLs.
@@ -167,8 +166,7 @@ Arrow bundle rules:
 - Use \`reactive()\` for local state and wrap live reads as functions, such as \`\${() => state.count}\`.
 - Use quoted Arrow event and attribute bindings, such as \`@click="\${() => state.count++}"\` and \`disabled="\${() => state.loading}"\`.
 - For boolean attributes, return \`false\` to remove the attribute rather than injecting a bare attribute string.
-- Do not use Arrow IDL property bindings such as \`.value=\`, \`.checked=\`, \`.selected=\`, or \`.disabled=\`; this Summon sandbox subset rejects them until compatibility is verified.
-- Do not inject standalone expressions inside opening tags to create dynamic attributes. Never write \`<button \${() => "disabled"}>\` or \`<section \${dynamicAttrs}>\`; write named, quoted attributes such as \`disabled="\${() => state.loading}"\`, \`class="\${() => state.active ? 'active' : ''}"\`, or move expressions between tags for content.
+- Write idiomatic @arrow-js/core. Use whatever binding form is natural: IDL property bindings (\`.value="\${...}"\`), quoted attribute bindings, and template expressions are all fine.
 - For host actions and resources, import from \`host-bridge:summon\` and call \`await callTool(toolName, args)\` for granted host tools only.
 - Use \`await getState()\` and \`onState((state) => { ... })\` to read host-pushed state.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, external URLs, external images, external fonts, or external stylesheets.
@@ -664,8 +662,7 @@ function buildHtmlToolsBlock({
   outputRuntime: SummonOutputRuntime;
   toolSections: string;
 }): string {
-  if (runtimeProfile(outputRuntime).trust !== 'iframe-script') {
-    return `## Tools — host-owned context for static HTML
+  return `## Tools — host-owned context for static HTML
 
 This run returns a structured HTML/CSS bundle for \`${outputRuntime}\`. The generated artifact does not receive a host tool bridge in this runtime, so do not call tools, include scripts, or render controls that imply live host actions.
 
@@ -679,37 +676,6 @@ ${toolSections}
 - Do not render clickable, tappable, or focusable controls that require host execution.
 - Do not fake tool results, loading states, completed actions, approvals, or fetched rows in static markup.
 - If the user request needs live data or a host action, render a clear static state that explains what the host-owned action/data would cover without pretending it has run.`;
-  }
-
-  return `## Tools — HTML scripted iframe experiment
-
-This run returns a structured HTML bundle for \`html-script\`. Static markup goes in \`source["body.html"]\`, styling in \`source["main.css"]\`, and optional generated behavior in \`source["main.js"]\`.
-
-### HTML sandbox bridge
-
-Generated \`main.js\` may use the iframe bridge exposed as \`window.summon\`:
-
-\`\`\`js
-const hostState = window.summon.getState();
-const result = await window.summon.callTool("tool_name", { value: "example" });
-\`\`\`
-
-- \`window.summon.getState()\` returns the latest host-owned state snapshot.
-- \`window.summon.callTool(toolName, args)\` calls a granted host tool and resolves to \`{ ok, state, error? }\`.
-- Use plain DOM event listeners from \`main.js\`; do not use inline event handler attributes in \`body.html\`.
-- Do not use network, storage, workers, eval, dynamic imports, parent/top/opener access, cookies, or external URLs.
-
-### Available tools
-
-${toolSections}
-
-### The interactivity contract — READ THIS
-
-Every clickable, tappable, or focusable element in \`body.html\` MUST be wired in \`main.js\` to one of the declared tools by calling \`await window.summon.callTool("<tool>", args)\`. If you cannot wire an element, do not show it.
-
-Data resources expose host-owned loading/data/error state keys and may expose an empty-state key. Read state with \`window.summon.getState()\`, mirror only declared keys, and never hallucinate fetched rows, profiles, images, or counts before a successful data resource result.
-
-Controlled actions expose host-owned pending/done/error keys when listed under Action state. Use those keys for busy, error, and success UI; do not fake completed, approved, or failed states in local markup.`;
 }
 
 function normalizeTriggers(tool: ToolSpec): ToolTrigger[] {

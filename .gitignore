@@ -7,3 +7,7 @@ dist
 .vite
 test-results
 playwright-report
+
+# Local experiment run output
+apps/server/.arrow-audit/
+apps/server/.bakeoff/

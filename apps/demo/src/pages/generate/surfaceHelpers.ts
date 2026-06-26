@@ -240,10 +240,6 @@ function acceptedArtifactDescription(runtime: SummonOutputRuntime | undefined): 
       return 'a validated HTML artifact';
     case 'html-stream':
       return 'an HTML stream scaffold artifact';
-    case 'html-script':
-      return 'a validated scripted HTML artifact';
-    case 'unsafe-html-raw-stream':
-      return 'an unsafe raw HTML stream';
   }
 }
 
@@ -385,10 +381,6 @@ export function runtimeTargetText(runtime: SummonOutputRuntime | undefined): str
       return 'HTML static';
     case 'html-stream':
       return 'HTML token preview + commits';
-    case 'html-script':
-      return 'HTML scripted iframe';
-    case 'unsafe-html-raw-stream':
-      return 'Unsafe raw HTML stream';
   }
 }
 
