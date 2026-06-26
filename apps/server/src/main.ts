@@ -651,6 +651,72 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// ── THROWAWAY FACEOFF ENDPOINT ──────────────────────────────────────────
+// Dev-only Arrow-vs-raw-HTML comparison. NOT part of the governed product.
+// Reuses the identical fingerprint resolution + surface brief as /api/generate
+// so both arms see the same product direction (fair fight), then asks the model
+// for one self-contained HTML document. No validation, no repair — this is the
+// "ungoverned, just works" baseline. Delete with the /faceoff demo page.
+app.post('/api/faceoff/html', async (req, res) => {
+  const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt.trim() : '';
+  if (!prompt) {
+    res.status(400).json({ error: 'prompt required' });
+    return;
+  }
+  const resolved = modelProviders.resolve(req.body?.modelProvider ?? req.body?.provider, req.body, 'html-static');
+  if (!resolved.ok) {
+    res.status(400).json({ error: resolved.error });
+    return;
+  }
+  const parsedFingerprint = parseFingerprintRequest(req.body?.fingerprint, fingerprintCatalog);
+  if (!parsedFingerprint.ok) {
+    res.status(400).json({ error: parsedFingerprint.error });
+    return;
+  }
+  if (!parsedFingerprint.request) {
+    res.status(400).json({ error: 'faceoff requires a fingerprint' });
+    return;
+  }
+
+  try {
+    const baseContext = await resolveCatalogGhostGenerationContext(
+      parsedFingerprint.request,
+      fingerprintCatalog,
+      null,
+    );
+    const ghostContext = prepareGhostSurfacePrompt(baseContext, {
+      userPrompt: prompt,
+      mode: 'static',
+      surfacePlan: compileSurfacePolicy({ tier: 'static', purpose: 'explore', persistence: 'ephemeral' }, {}).surfacePlan,
+      outputRuntime: 'html-static',
+      tools: null,
+    });
+
+    const tokensCss = ghostContext.tokenSource.css ?? '';
+    const system = [
+      'You generate ONE self-contained HTML document for a side-by-side runtime comparison.',
+      'Return ONLY raw HTML — a complete <!doctype html> document. No markdown fences, no commentary.',
+      'All CSS in a <style> tag and all JS in <script> tags must be inline. No external URLs, no imports, no fetch.',
+      'You MAY use inline <script> for interactivity (this is the raw-HTML arm of an experiment).',
+      'Honor the fingerprint design direction below as the visual and composition authority.',
+      tokensCss ? `\nFingerprint design tokens (CSS variables you should use):\n${tokensCss}` : '',
+    ].filter(Boolean).join('\n');
+
+    const html = await resolved.provider.completeText(
+      {
+        system,
+        prompt: ghostContext.prompt,
+        maxTokens: 8000,
+      },
+      resolved.selection,
+    );
+
+    res.json({ html, fingerprintId: parsedFingerprint.request.id });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 function ghostLogId(context: ResolvedGhostSteer): string {
   return context.source === 'root' ? context.request.rootId : context.request.fingerprintId;
 }

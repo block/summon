@@ -9,18 +9,22 @@ const BatchPage = lazy(() => import('./pages/BatchPage.js').then((module) => ({ 
 const FatalPage = lazy(() => import('./pages/FatalPage.js').then((module) => ({ default: module.FatalPage })));
 const GeneratePage = lazy(() => import('./pages/generate/GeneratePage.js').then((module) => ({ default: module.GeneratePage })));
 const StrictPage = lazy(() => import('./pages/StrictPage.js').then((module) => ({ default: module.StrictPage })));
+// THROWAWAY: Arrow-vs-raw-HTML faceoff research harness. Delete with /api/faceoff/html.
+const FaceoffPage = lazy(() => import('./pages/faceoff/FaceoffPage.js').then((module) => ({ default: module.FaceoffPage })));
 
 function AppRoutes() {
   const { pathname } = useLocation();
   const isLanding = pathname === '/';
   const isGenerate = pathname === '/generate';
+  const isFaceoff = pathname === '/faceoff';
+  const isFullBleed = isGenerate || isFaceoff;
 
   return (
     <div className={cn(
       'min-h-screen bg-surface text-ink transition-colors duration-150',
-      isLanding ? 'flex flex-col' : isGenerate ? 'overflow-hidden' : 'px-10 pb-[72px] pt-12 max-[820px]:px-4 max-[820px]:pb-14 max-[820px]:pt-7',
+      isLanding ? 'flex flex-col' : isFullBleed ? 'overflow-hidden' : 'px-10 pb-[72px] pt-12 max-[820px]:px-4 max-[820px]:pb-14 max-[820px]:pt-7',
     )}>
-      {isGenerate ? null : <ThemeToggle />}
+      {isFullBleed ? null : <ThemeToggle />}
       <Suspense fallback={<div className="mx-auto w-[min(100%,var(--dev-page-width))] text-ink-soft">Loading...</div>}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
@@ -28,6 +32,7 @@ function AppRoutes() {
           <Route path="/batch" element={<BatchPage />} />
           <Route path="/adversarial" element={<AdversarialPage />} />
           <Route path="/strict" element={<StrictPage />} />
+          <Route path="/faceoff" element={<FaceoffPage />} />
           <Route path="/fatal" element={<FatalPage />} />
           <Route path="*" element={<Navigate to="/generate" replace />} />
         </Routes>
