@@ -4,6 +4,11 @@ Summon renders AI-generated UI in an inline Arrow sandbox. The generated UI can
 only use host tools you register, so the host keeps control of data, actions,
 credentials, network access, state, and persistence.
 
+Summon is **governable generative UI**: a Ghost fingerprint is the authority for
+how a surface is composed, why, and whether it conformed. See
+[`docs/positioning.md`](./docs/positioning.md) for the thesis and
+[`docs/roadmap.md`](./docs/roadmap.md) for the build order.
+
 The adopter mental model is intentionally small:
 
 | Term | Meaning |
