@@ -74,9 +74,11 @@ The governance guarantee holds fully only for `arrow-control`. Protect it.
   interactive surface and confirm it behaves, not just validates. Load-bearing
   for the "rich experiences" claim.
 
-- [ ] **G. Vendor-snapshot `@arrow-js/sandbox` + `@arrow-js/core` into `third_party/`.**
-  Cheap insurance for the dependency the security model rides on (MIT, ~10k LOC,
-  ships source). Do it once.
+- [ ] **G. Decide the long-term isolation-primitive stance** (see
+  [`docs/isolation-options.md`](./isolation-options.md)). Do **not** vendor-snapshot
+  or fork yet — premature. The open question is whether Summon should own a thin
+  descriptor/render protocol over a swappable isolation engine. Track it; don't
+  act until the governance core (Tier 1) is proven.
 
 - [ ] **H. Name the trust spectrum in the README.**
   `arrow-control` = fully governed; `html-static` = inert-safe; future scripted =
