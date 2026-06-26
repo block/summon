@@ -74,8 +74,8 @@ the code — it is:
   against),
 - owning the **contract and format** (if the fingerprint + trace schema become
   how people *describe* governed UI, the vocabulary is won),
-- and **ecosystem gravity** — Summon being the surface where intelligence-native
-  cascades actually render.
+- and **ecosystem gravity** — Summon being the surface where fingerprint-driven
+  generation actually renders.
 
 The code is the gift. The standard is the position.
 
@@ -109,16 +109,17 @@ money-moving tools declare a `minTrust` that simply cannot be satisfied from it.
 The trust spectrum becomes "how much of the governance guarantee applies," which
 is a clean way to frame it — not a pile of half-wired experiments.
 
-## Where Summon sits in the larger ecosystem
+## Standalone, and composable
 
-Summon is a citizen of the intelligence-native operating model (see
-`block-as-intelligence`) — the `media/` + `guardrails/` terminus where the
-cascade finally hits a screen and the loop closes. It is also a complete,
-standalone artifact: it can be adopted against a fingerprint authored entirely
-outside that ecosystem.
+Summon is a complete, standalone artifact: point it at a Ghost fingerprint and
+it generates, governs, and accounts for a surface — no surrounding system
+required.
 
-The fingerprint contract is what makes Summon both at once — the citizenship
-papers *and* the independence guarantee.
+It is also composable. Because the fingerprint is the only authority Summon
+needs, any larger system that produces fingerprints can use Summon as its
+rendering terminus — the place where declared product direction finally hits a
+screen and the loop closes. The fingerprint contract is what makes Summon both
+at once: usable on its own, and pluggable into something bigger.
 
 ## Non-goals
 
