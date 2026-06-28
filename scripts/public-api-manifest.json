@@ -171,7 +171,6 @@
         "buildSurfaceContractBlock",
         "buildSurfacePlanBlock",
         "buildToolsBlock",
-        "coerceOpts",
         "compileSurfaceContractView",
         "compileSurfacePolicy",
         "compileSystemContracts",

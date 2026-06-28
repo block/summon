@@ -66,10 +66,3 @@ export function validateDirection(
   }
   return { defined, liveOpportunistic: [], errors: [], warnings };
 }
-
-/**
- * Legacy compatibility. Summon no longer interprets token opt-out groups.
- */
-export function coerceOpts(_raw: unknown): DirectionOpts {
-  return {};
-}

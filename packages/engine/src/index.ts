@@ -167,7 +167,6 @@ export {
   parseDefinedTokens,
   parseTokenValues,
   validateDirection,
-  coerceOpts,
 } from './direction-validator.js';
 export type {
   DirectionOpts,

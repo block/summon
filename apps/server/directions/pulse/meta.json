@@ -1,7 +1,0 @@
-{
-  "name": "Pulse",
-  "description": "High-contrast action and status direction with strong surfaces, crisp controls, and semantic color reserved for operational state.",
-  "opts": {
-    "shadows": "none"
-  }
-}

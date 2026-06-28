@@ -120,7 +120,6 @@ const coreExports = {
         'buildLayoutBlock',
         'buildSurfaceContractBlock',
         'buildSurfacePlanBlock',
-        'coerceOpts',
         'compileToolContract',
         'compileSurfaceContractView',
         'compileSurfacePolicy',

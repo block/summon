@@ -112,7 +112,7 @@ pnpm dev:demos
   surface configs, allowed host tools, token overrides, validation summaries,
   replay, Ghost steering, Devtools, and stream diagnostics.
 - `/batch` - parallel broker harness for prompt coverage, host tool
-  wiring, direction-token visual coverage, throughput, and consistency checks.
+  wiring, Ghost fingerprint token coverage, throughput, and consistency checks.
 - `/adversarial` - sandbox boundary checks for network, storage, parent
   access, and unallowed host tool requests.
 - `/strict` - retired overlay note; the current runtime is the inline Arrow
@@ -138,7 +138,7 @@ pnpm dev:demos
   `packages/sandbox-runtime`, `packages/server`, `packages/react` - private
   implementation workspaces published only through the public facades.
 - `apps/server` - multi-provider demo server for Anthropic, OpenAI, and Gemini,
-  direction loading, Arrow protocol diagnostics, and demo backing routes.
+  Ghost fingerprint loading, Arrow protocol diagnostics, and demo backing routes.
 - `apps/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/demo` - Vite maintainer workbench for generation, batch runs,
   adversarial checks, Ghost steering, diagnostics, and retired iframe-era notes.
@@ -188,8 +188,6 @@ pnpm pack:dry-run
 pnpm dev:gallery
 pnpm dev:workbench
 pnpm dev:demos
-pnpm port-direction <path-to-expression.md> [id]
-pnpm eval-directions [--prompts N] [--directions id,id] [--seed N] [--dry]
 ```
 
 `pnpm test:safety` runs the Playwright Chromium and WebKit smoke suite for
