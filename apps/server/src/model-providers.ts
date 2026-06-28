@@ -1462,7 +1462,9 @@ function repairPrompt(request: ArrowBundleRepairRequest): string {
     JSON.stringify(request.previousBundle, null, 2),
     '',
     'Return a complete replacement bundle using the create_summon_arrow_surface tool. Do not widen host authority, add ungranted tools, add generated network access, or change the schema.',
-    'Important Arrow syntax reminder: never put a bare `${...}` expression directly in an opening tag. Replace patterns like `<button ${() => "disabled"}>` with quoted attributes like `<button disabled="${() => state.loading}">`, and move content expressions between tags.',
+    // Issue-specific guidance (e.g. open-tag expression rewrites) flows through
+    // `Repair hints` above, sourced from the shared hintsForContractIssue table.
+    // No hardcoded per-issue reminders here — that was a drift risk.
   ].join('\n');
 }
 

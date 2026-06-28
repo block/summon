@@ -128,23 +128,45 @@ This is deliberate:
 
 Each step builds + tests + commits on its own. No big-bang rewrite.
 
-1. **Nuke `direction`.** Remove the block, `buildDirectionBlock`,
-   `directions-loader.ts`, and the `direction` field threaded through
-   `session.ts`/`main.ts` (already hardcoded `null`). Verify no test depends on
-   it. *Pure dead-code removal; proves the modular approach.*
-2. **Strip ALL composition + editorial from `summon:runtime`.** Move archetypes,
-   anti-card-grid, density, and item-count guidance into the Ghost layer; leave
-   nothing about shape behind — no floor. *The high-value cut: Ghost becomes the
-   sole composition authority.*
-3. **De-overlap `ghost:brief` vs `ghost:contract`.** Composition direction lives
-   only in the contract; the brief is task + success framing. Remove the brief's
-   duplicated "fingerprint composition rules" list.
-4. **Slim `summon:output`.** Convert from full restatement to a deliberate
-   recency anchor (output shape + top "never" rules). Measure token delta.
-5. **Route `repairPrompt`'s hardcoded open-tag reminder through the shared hint
-   table** (drift fix noted in `prompt-map.md`).
-6. **Gate/flag `playground`** as non-core; keep it but out of the governed path
+### Done
+
+1. ✅ **Nuke `direction`.** Removed the dead legacy block, `buildDirectionBlock`,
+   `directions-loader.ts`, `eval-directions.ts`, and the `direction` field.
+   (`validateDirection` survived — it backs token validation.) — `71cc6ea`
+2. ✅ **Strip ALL composition + editorial from `summon:runtime`.** Archetypes,
+   anti-card-grid, content-quality, and the visual composition floor are gone
+   from every Summon-layer block. Ghost is now the sole composition authority.
+   No fallback floor. — `5916e83`
+
+### Blocked on the Ghost rearchitecture (do NOT touch yet)
+
+Ghost is mid-rearchitecture. Anything inside the Ghost layer would be refactored
+against a moving target, so these are parked until it lands.
+
+- **De-overlap `ghost:brief` vs `ghost:contract`.** Composition direction should
+  live only in the contract; the brief should be task + success framing. Both
+  blocks (and `ghost-adapter.ts`'s surface brief) will be reshaped by the
+  rearchitecture — wait.
+- **Rehome the deleted composition wisdom into Ghost.** The archetypes/anti-
+  patterns removed in step 2 belong somewhere in the Ghost authoring spec. That
+  is a Ghost-side decision the rearchitecture owns.
+
+> **Integration note for the Ghost rearchitecture:** the Summon layer has *fully
+> vacated* composition. New Ghost cannot assume Summon supplies any structural
+> scaffolding or floor — it must carry all of it. Watch this seam when Ghost
+> lands.
+
+### Active track (Summon + Host only — safe now, no Ghost dependency)
+
+A. **Slim `summon:output`.** Convert the structured output-contract blocks from
+   full rule restatement to a deliberate recency anchor (output shape + top
+   "never" rules). Pure Summon layer.
+B. **Route `repairPrompt`'s hardcoded open-tag reminder through the shared hint
+   table** (drift fix noted in `prompt-map.md`). Pure repair/engine plumbing.
+C. **Gate/flag `playground`** as non-core; keep it but out of the governed path
    narrative.
+D. **Regenerate `prompt-map.md`** to match post-step-1/2 reality; mark Ghost
+   sections as pending rearchitecture.
 
 ## Definition of done
 

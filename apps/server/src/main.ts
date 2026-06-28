@@ -88,6 +88,13 @@ if (!defaultModelProvider.configured) {
 const ghostRoots = parseGhostRoots(process.env.SUMMON_GHOST_ROOTS);
 const fingerprintCatalog = loadFingerprintCatalog();
 
+// Playground is a dev-only convenience (relaxed validation, no agent broker),
+// NOT part of the governed generation path. It is enabled by default for local
+// dev but can be fenced off with SUMMON_ENABLE_PLAYGROUND=0 (e.g. in any hosted
+// or governed deployment), in which case `playground: true` requests fall back
+// to a normal governed run.
+const PLAYGROUND_ENABLED = process.env.SUMMON_ENABLE_PLAYGROUND !== '0';
+
 console.log(
   '[summon-server] Ghost fingerprint mode enabled; directions are not used for generation'
 );
@@ -385,7 +392,7 @@ app.post('/api/generate', async (req, res) => {
     ? rawAgentOptions as Record<string, unknown>
     : null;
 
-  const playgroundMode = req.body?.playground === true;
+  const playgroundMode = PLAYGROUND_ENABLED && req.body?.playground === true;
   const hasSurfacePolicy =
     !playgroundMode && req.body?.surfacePolicy !== undefined && req.body.surfacePolicy !== null;
   const toolCeiling = parseToolPack(req.body?.tools);

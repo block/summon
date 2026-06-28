@@ -101,39 +101,20 @@ ${formatTokenContract()}
 The Ghost fingerprint specifies which tokens carry particular meaning and how to deploy them.
 
 Begin. Return one complete structured Arrow bundle through the provided tool/schema.`;
-export const SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS = `## Structured Arrow sandbox bundle
+export const SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS = `## Output contract — final reminder
 
-You are creating an Arrow sandbox payload for Summon. Return a structured object through the provided \`create_summon_arrow_surface\` tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with \`op\`/\`path\` fields, or host-owned meta paths.
-
-The returned object must include:
+Return one structured object through the \`create_summon_arrow_surface\` tool/schema. Not Markdown, code fences, transport records, stream lines, \`op\`/\`path\` objects, or host-owned meta paths.
 
 - \`schema: "summon.arrow-bundle/v1"\`
-- \`source\` with exactly one \`main.ts\` or \`main.js\` entry file
-- optional \`main.css\` for all visual styling
-- optional compact \`preview\` describing the surface kind, title, and regions
+- \`source\` with exactly one \`main.ts\` or \`main.js\` entry file (optional \`main.css\`)
+- optional compact \`preview\`
 
-The server owns streaming, preview events, validation summaries, and artifact delivery. You only author the sandbox source files and optional preview description.
-
-Arrow bundle rules:
-
-- Import Arrow primitives from \`@arrow-js/core\`; do not rely on ambient globals. Use only \`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`watch\`, \`onCleanup\`, and \`nextTick\`.
-- The default export from the entry file must be an Arrow template or component result.
-- Use \`reactive()\` for local state and wrap live reads as functions, such as \`\${() => state.count}\`.
-- Use quoted Arrow event and attribute bindings, such as \`@click="\${() => state.count++}"\` and \`disabled="\${() => state.loading}"\`.
-- For boolean attributes, return \`false\` to remove the attribute rather than injecting a bare attribute string.
+Highest-value reminders (full rules above):
+- Import only from \`@arrow-js/core\` (\`html\`, \`reactive\`, \`component\`, \`props\`, \`pick\`, \`watch\`, \`onCleanup\`, \`nextTick\`); the default export is the Arrow result.
 - ${ARROW_BINDING_RULE_LINE}
-- For host actions and resources, import from \`host-bridge:summon\` and call \`await callTool(toolName, args)\` for granted host tools only.
-- Use \`await getState()\` and \`onState((state) => { ... })\` to read host-pushed state.
-- Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, external URLs, external images, external fonts, or external stylesheets.
-- Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
-- Use plain semantic HTML inside Arrow templates.
-- Put visual styling in \`main.css\`; use class names, not generated inline style strings, for major layout.
-- Token names and the visual vocabulary come from the Ghost fingerprint. You may define local CSS aliases that compose fingerprint tokens, and use calc()/clamp(), responsive units, safe transitions/transforms, and inline SVG.
+- No \`window\`/\`document\`/storage/DOM refs/external imports/timers/URLs. Host behavior goes through \`host-bridge:summon\`.
 
-${ARROW_SANDBOX_SUBSET_PROMPT_BLOCK}
-
-Return a complete structured bundle. The run is incomplete until the bundle contains a valid Arrow entry file`;
-
+The run is incomplete until the bundle contains a valid Arrow entry file.`;
 export const SUMMON_FIXED_HTML_INSTRUCTIONS = `You generate self-contained HTML/CSS web UIs for the experimental Summon HTML bakeoff runtime.
 
 You receive a user request and a Ghost design fingerprint. Render one HTML/CSS artifact that satisfies the request. The Ghost fingerprint is the sole authority for composition, hierarchy, density, tone, structure, and all visual design — follow it. Summon governs only the runtime, safety, and output format described below; it has no opinion about how the surface should look.
@@ -165,41 +146,18 @@ ${formatTokenContract()}
 The Ghost fingerprint specifies which tokens carry particular meaning and how to deploy them.
 
 Begin. Return one complete structured HTML bundle through the provided tool/schema.`;
-export const SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS = `## Structured HTML/CSS sandbox bundle
+export const SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS = `## Output contract — final reminder
 
-You are creating an experimental HTML/CSS sandbox payload for Summon. Return a structured object through the provided \`create_summon_html_surface\` tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with \`op\`/\`path\` fields, host-owned meta paths, or Arrow source.
-
-The returned object must include:
+Return one structured object through the \`create_summon_html_surface\` tool/schema. Not Markdown, code fences, transport records, stream lines, \`op\`/\`path\` objects, host-owned meta paths, or Arrow source.
 
 - \`schema: "summon.html-bundle/v0"\`
-- \`source["body.html"]\` with one complete HTML body fragment
-- optional \`source["main.css"]\` for all visual styling
-- optional compact \`preview\` describing the surface kind, title, and semantic regions
+- \`source["body.html"]\` with one complete HTML body fragment (optional \`source["main.css"]\`)
+- optional compact \`preview\`
 
-The server owns validation, streaming, preview events, and artifact delivery. You only author the static HTML fragment, optional CSS, and optional preview description.
+Highest-value reminders (full rules above): no \`<script>\`, \`<iframe>\`, \`<form>\`, inline event handlers, external URLs/fonts/stylesheets, \`@import\`, or \`data-summon-*\` attributes. This runtime is static HTML/CSS with no host tool bridge.
 
-Rules:
+The run is incomplete until the bundle contains valid \`body.html\`.`;
 
-- Use semantic HTML and rich CSS composition.
-- Do not emit \`<script>\`, \`<iframe>\`, \`<object>\`, \`<embed>\`, \`<link>\`, \`<meta>\`, \`<base>\`, \`<form>\`, external URLs, external fonts, external stylesheets, \`@import\`, inline event handlers, or \`data-summon-*\` attributes.
-- Do not rebuild Summon's old \`data-summon-*\` declarative framework.
-- Token names and the visual vocabulary come from the Ghost fingerprint.
-- Do not fake interactivity. This candidate is static expressive HTML/CSS unless the host explicitly enables a separate scripted iframe experiment.
-
-Return a complete structured bundle. The run is incomplete until the bundle contains valid \`body.html\`.`;
-
-/**
- * Compose the direction-specific block that follows the fixed instructions:
- *
- *   1. The direction's `prompt.md` (Character/Signature/Decisions prose).
- *   2. A "## This direction" addendum that surfaces structured facts the
- *      active design-source details.
- *   3. The "## Style Reference" exemplar block.
- */
-/**
- * Host layout — an optional per-generation slot contract. The model owns the
- * visible composition while honoring the host's semantic regions.
- */
 export function buildLayoutBlock(
   layout: SummonLayout,
   options: PromptRuntimeOptions = {},

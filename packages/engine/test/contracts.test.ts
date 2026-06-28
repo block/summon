@@ -34,11 +34,15 @@ test('fixed prompt describes structured Arrow bundle output', () => {
   assert.match(SUMMON_FIXED_INSTRUCTIONS, /transport records, stream lines/);
 });
 
-test('structured output instructions restate the bundle contract', () => {
+test('structured output instructions are a tight recency anchor', () => {
+  // The output-contract block restates only the shape + highest-value rules;
+  // it must NOT re-teach the full rule list (that lives in the fixed block).
   assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /schema: "summon\.arrow-bundle\/v1"/);
   assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /exactly one `main.ts` or `main.js`/);
-  assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /server owns streaming/);
-  assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /objects with `op`\/`path` fields/);
+  assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /create_summon_arrow_surface/);
+  assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /IDL property bindings/);
+  // It is an anchor, not a restatement: the full subset block is not duplicated.
+  assert.doesNotMatch(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /namespace-style/);
 });
 
 test('token compiler is agnostic to design-source token names', () => {
