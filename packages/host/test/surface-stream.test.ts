@@ -256,9 +256,11 @@ test('consumeSurfaceStream blocks Arrow artifacts that use ungranted network acc
   assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
-test('consumeSurfaceStream accepts idiomatic Arrow IDL and open-tag bindings (subset restriction removed)', async () => {
-  // Experiment 2026-06-25: `.value=` IDL bindings and open-tag template
-  // expressions are valid @arrow-js/core and are no longer blocked.
+test('consumeSurfaceStream blocks IDL bindings (verified sandbox limit) but accepts open-tag bindings', async () => {
+  // IDL property bindings (`.value=`) are a verified @arrow-js/sandbox compiler
+  // limitation, so they are blocked (repairable → rewrite to attribute + event).
+  // Open-tag template expressions, by contrast, were an over-strict Summon
+  // dialect rule and remain removed.
   const idlArtifacts: string[] = [];
   const idlResult = await consumeSurfaceStream([
     artifactLine('import { html } from "@arrow-js/core";\nexport default html`<input .value=${state.title}>`'),
@@ -266,10 +268,11 @@ test('consumeSurfaceStream accepts idiomatic Arrow IDL and open-tag bindings (su
     mode: 'interactive',
     onArtifact: (artifact) => idlArtifacts.push(artifact.source['main.ts'] ?? ''),
   });
-  assert.equal(idlArtifacts.length, 1);
-  assert.match(idlArtifacts[0]!, /\.value=/);
-  assert.deepEqual(idlResult.validationIssues.map((issue) => issue.code), []);
-  assert.equal(idlResult.streamGraph.health.blockedCount, 0);
+  assert.deepEqual(idlArtifacts, []);
+  assert.deepEqual(idlResult.validationIssues.map((issue) => issue.code), [
+    'unsupported-arrow-idl-binding',
+  ]);
+  assert.equal(idlResult.streamGraph.health.blockedCount, 1);
 
   const openTagArtifacts: string[] = [];
   const openTagResult = await consumeSurfaceStream([

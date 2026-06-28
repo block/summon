@@ -190,8 +190,9 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
     ['arrow-network-not-granted'],
   );
 
-  // Subset restriction removed (experiment 2026-06-25): idiomatic Arrow IDL
-  // property bindings (`.value=`) are now accepted, not blocked.
+  // IDL property bindings (`.value=`) are a verified @arrow-js/sandbox compiler
+  // limitation, so the validator blocks them as a repairable issue (rewrite to
+  // attribute + event bindings) rather than letting them crash at runtime.
   assert.deepEqual(
     codes(validateProtocolLine(
       {
@@ -206,7 +207,7 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
       },
       baseContext,
     )),
-    [],
+    ['unsupported-arrow-idl-binding'],
   );
 
   // Subset restriction removed (experiment 2026-06-25): open-tag template

@@ -14,6 +14,60 @@ import { consumeSurfaceStream } from "@anarchitecture/summon/browser";
 
 const API = "http://localhost:3001";
 
+// Curated faceoff prompts. Weighted toward INTERACTIVE, self-contained,
+// client-side-only surfaces — that is the axis where Arrow and raw HTML
+// actually diverge. Static ones are the "both should tie" baseline.
+// Avoid anything needing real data/network/persistence: that is not a fair
+// fight in this harness (HTML arm has no host bridge; Arrow arm has no granted
+// tools here), and would measure plumbing, not the runtime.
+const PROMPT_LIBRARY: Array<{ label: string; kind: "interactive" | "static"; prompt: string }> = [
+  {
+    label: "Habit tracker",
+    kind: "interactive",
+    prompt: "Build an interactive weekly habit tracker: a grid of checkboxes for 5 habits across 7 days, with a live completion percentage that updates as boxes are toggled.",
+  },
+  {
+    label: "Tip calculator",
+    kind: "interactive",
+    prompt: "Build a tip calculator with a bill amount input, a tip-percentage slider (0-30%), a party-size stepper, and live-updating tip, total, and per-person amounts.",
+  },
+  {
+    label: "Pomodoro timer",
+    kind: "interactive",
+    prompt: "Build a Pomodoro timer with start/pause/reset controls, a 25-minute countdown, and a visual progress ring or bar that animates as time elapses.",
+  },
+  {
+    label: "Unit converter",
+    kind: "interactive",
+    prompt: "Build a temperature and length unit converter with input fields and dropdowns; values convert live as the user types or changes units.",
+  },
+  {
+    label: "Filterable list",
+    kind: "interactive",
+    prompt: "Build a filterable, sortable product list from this embedded data: 10 made-up products with name, category, and price. Include a search box, category filter chips, and sort-by-price toggle, all filtering live client-side.",
+  },
+  {
+    label: "Multi-step form",
+    kind: "interactive",
+    prompt: "Build a 3-step onboarding wizard (account, preferences, review) with Next/Back navigation, a progress indicator, and a final review screen that shows the entered values.",
+  },
+  {
+    label: "Quiz",
+    kind: "interactive",
+    prompt: "Build a 5-question multiple-choice quiz with embedded questions, single-select answers, a Submit button, and a results screen showing the score and which answers were correct.",
+  },
+  {
+    label: "Sales report (static)",
+    kind: "static",
+    prompt: "Build a static quarterly sales report with a headline revenue number, a KPI strip, a simple bar chart of monthly revenue (embedded data), and 3 recommended actions.",
+  },
+  {
+    label: "Pricing page (static)",
+    kind: "static",
+    prompt: "Build a static three-tier pricing page (Starter, Pro, Enterprise) with feature lists and a highlighted recommended tier.",
+  },
+];
+
 interface Fingerprint {
   id: string;
   name?: string;
@@ -24,9 +78,7 @@ type ArmStatus = "idle" | "running" | "done" | "error";
 export function FaceoffPage() {
   const [fingerprints, setFingerprints] = useState<Fingerprint[]>([]);
   const [fingerprintId, setFingerprintId] = useState<string>("");
-  const [prompt, setPrompt] = useState<string>(
-    "Build an interactive weekly habit tracker with checkboxes and a live completion percentage.",
-  );
+  const [prompt, setPrompt] = useState<string>(PROMPT_LIBRARY[0]!.prompt);
 
   const [arrowStatus, setArrowStatus] = useState<ArmStatus>("idle");
   const [arrowError, setArrowError] = useState<string>("");
@@ -160,6 +212,29 @@ export function FaceoffPage() {
           </button>
           <button onClick={() => void runArrow()} disabled={!fingerprintId} style={{ background: "#1a1a1a", color: "#eee", border: "1px solid #333", padding: "7px 12px", borderRadius: 6, cursor: "pointer" }}>Arrow only</button>
           <button onClick={() => void runHtml()} disabled={!fingerprintId} style={{ background: "#1a1a1a", color: "#eee", border: "1px solid #333", padding: "7px 12px", borderRadius: 6, cursor: "pointer" }}>HTML only</button>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {PROMPT_LIBRARY.map((p) => {
+            const active = prompt === p.prompt;
+            return (
+              <button
+                key={p.label}
+                onClick={() => setPrompt(p.prompt)}
+                title={p.prompt}
+                style={{
+                  font: "11px ui-monospace, monospace",
+                  padding: "4px 9px",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  border: active ? "1px solid #eee" : "1px solid #333",
+                  background: active ? "#eee" : "#141414",
+                  color: active ? "#111" : p.kind === "interactive" ? "#8cf" : "#999",
+                }}
+              >
+                {p.kind === "interactive" ? "◆ " : "○ "}{p.label}
+              </button>
+            );
+          })}
         </div>
         <textarea
           value={prompt}

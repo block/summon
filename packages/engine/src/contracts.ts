@@ -1,3 +1,4 @@
+import { ARROW_CONTROLLED_INPUT_HINTS } from './arrow-subset.js';
 import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
@@ -262,6 +263,8 @@ export function hintsForContractIssue(
     case 'unsafe-attr-binding':
     case 'bad-attr-binding-placement':
       return ['Use normal quoted Arrow attributes and sanitize dynamic values before rendering them.'];
+    case 'unsupported-arrow-idl-binding':
+      return ARROW_CONTROLLED_INPUT_HINTS;
     case 'unsupported-arrow-open-tag-expression':
       return [
         'Remove bare `${...}` expressions from opening tags. Do not write `<button ${() => "disabled"}>` or `<section ${dynamicAttrs}>`.',

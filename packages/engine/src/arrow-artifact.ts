@@ -1,3 +1,4 @@
+import { ARROW_IDL_BINDING_RE } from './arrow-subset.js';
 import type { ContractIssue } from './contracts.js';
 import { contractIssue } from './contracts.js';
 
@@ -110,14 +111,20 @@ export function validateArrowSurfaceArtifact(
         `/artifact/${path}`,
       ));
     }
-    // NOTE (experiment 2026-06-25): The Arrow "subset" restrictions below were
-    // removed to measure the true LLM Arrow failure rate. They rejected
-    // idiomatic Arrow (`.value=` IDL bindings, open-tag expressions) and legacy
-    // Summon attrs that the model produces naturally. They were never verified
-    // as actually-unsupported by the sandbox runtime — only fenced off "until
-    // compatibility is verified". Removing the artificial blocks so validation
-    // reflects whether the bundle truly compiles/runs, not whether it matches a
-    // hand-rolled dialect.
+    // IDL property bindings (`.value=`, `.checked=`, ...) are a VERIFIED
+    // upstream limitation: @arrow-js/sandbox's compiler throws SandboxCompileError
+    // on them. Without this check the model's natural controlled-input form
+    // crashes at runtime with no repair path. Catch it here as a repairable
+    // block so the repair loop rewrites it to attribute + event bindings.
+    // (The earlier 2026-06-25 experiment removed this along with the genuinely
+    // over-strict data-summon / open-tag blocks; this one was real and is back.)
+    if (ARROW_IDL_BINDING_RE.test(contents)) {
+      issues.push(arrowIssue(
+        'unsupported-arrow-idl-binding',
+        `Arrow source "${path}" uses an IDL property binding (e.g. \`.value=\`), which the Arrow sandbox compiler rejects. Use an attribute binding plus an event binding instead.`,
+        `/artifact/${path}`,
+      ));
+    }
   }
   return issues;
 }

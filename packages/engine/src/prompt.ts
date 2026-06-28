@@ -7,6 +7,7 @@
  * Pass both to the SDK as separate `system` text blocks with `cache_control`.
  */
 
+import { ARROW_BINDING_RULE_LINE, ARROW_SANDBOX_SUBSET_PROMPT_BLOCK } from './arrow-subset.js';
 import { formatTokenContract } from './token-contract.js';
 import type { DirectionOpts } from './direction-validator.js';
 import {
@@ -111,11 +112,13 @@ Arrow entry rules:
 - Use reactive() for local state and wrap live reads as functions so Arrow can track updates.
 - Use quoted Arrow event and attribute bindings for clicks, form events, disabled states, and classes.
 - For boolean attributes, return false to remove the attribute rather than injecting a bare attribute string.
-- Write idiomatic @arrow-js/core. Use whatever binding form is natural: IDL property bindings (\`.value="\${...}"\`), quoted attribute bindings, and template expressions are all fine.
+- ${ARROW_BINDING_RULE_LINE}
 - For host actions and resources, import from host-bridge:summon and call await callTool(toolName, args) for granted host tools only.
 - Use await getState() and onState((state) => ...) to read host-pushed state.
 - Do not use window, document, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, or external URLs.
 - Use fetch() only when the Surface plan network is restricted-fetch; otherwise use host tools.
+
+${ARROW_SANDBOX_SUBSET_PROMPT_BLOCK}
 
 ## Arrow/CSS rules
 
@@ -166,7 +169,7 @@ Arrow bundle rules:
 - Use \`reactive()\` for local state and wrap live reads as functions, such as \`\${() => state.count}\`.
 - Use quoted Arrow event and attribute bindings, such as \`@click="\${() => state.count++}"\` and \`disabled="\${() => state.loading}"\`.
 - For boolean attributes, return \`false\` to remove the attribute rather than injecting a bare attribute string.
-- Write idiomatic @arrow-js/core. Use whatever binding form is natural: IDL property bindings (\`.value="\${...}"\`), quoted attribute bindings, and template expressions are all fine.
+- ${ARROW_BINDING_RULE_LINE}
 - For host actions and resources, import from \`host-bridge:summon\` and call \`await callTool(toolName, args)\` for granted host tools only.
 - Use \`await getState()\` and \`onState((state) => { ... })\` to read host-pushed state.
 - Do not use \`window\`, \`document\`, localStorage, cookies, direct DOM refs, external imports, timers, native bridges, external URLs, external images, external fonts, or external stylesheets.
@@ -175,7 +178,9 @@ Arrow bundle rules:
 - Put visual styling in \`main.css\`; use class names, not generated inline style strings, for major layout.
 - Use the active Ghost fingerprint tokens and any fingerprint-provided renderable primitives as the visual source of truth. Prefer CSS custom properties for colors, spacing, radii, and type, but local CSS aliases, calc()/clamp(), responsive units, safe transitions/transforms, inline SVG, and literal values copied from fingerprint tokens or renderable examples are allowed. Do not introduce unrelated colors, fonts, shadows, gradients, radii, external assets, or decorative motifs.
 
-Return a complete structured bundle. The run is incomplete until the bundle contains a valid Arrow entry file.`;
+${ARROW_SANDBOX_SUBSET_PROMPT_BLOCK}
+
+Return a complete structured bundle. The run is incomplete until the bundle contains a valid Arrow entry file`;
 
 export const SUMMON_FIXED_HTML_INSTRUCTIONS = `You generate self-contained HTML/CSS web UIs for the experimental Summon HTML bakeoff runtime.
 
