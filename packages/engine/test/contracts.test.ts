@@ -212,9 +212,10 @@ test('system compiler uses HTML-static prompt blocks without Arrow bridge leakag
   assert.match(systemText, /Build your HTML bundle/);
   assert.match(systemText, /host-owned context for static HTML/);
   assert.match(systemText, /does not receive a host tool bridge/);
-  assert.match(systemText, /Visual composition floor/);
-  assert.match(systemText, /no fixed artboard dimensions/);
-  assert.match(systemText, /at least three distinct visual zones/);
+  // Composition is Ghost's job: Summon blocks must not carry a composition floor.
+  assert.match(systemText, /sole authority for composition/);
+  assert.doesNotMatch(systemText, /Visual composition floor/);
+  assert.doesNotMatch(systemText, /at least three distinct visual zones/);
   assert.doesNotMatch(systemText, /create_summon_arrow_surface/);
   assert.doesNotMatch(systemText, /host-bridge:summon/);
   assert.doesNotMatch(systemText, /@arrow-js\/core/);

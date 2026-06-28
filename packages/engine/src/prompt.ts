@@ -1,10 +1,14 @@
 /**
- * System prompt builder. Split into two layers so Anthropic prompt caching works:
+ * System prompt builder.
  *
- *   [fixed instructions]          ← stable across all directions, long-lived cache
- *   [direction prompt + exemplars] ← per-direction, per-direction cache entry
+ * Ownership boundary (see docs/prompt-architecture.md):
+ *   - Summon layer (this file's fixed/output blocks): runtime mechanics, sandbox
+ *     safety, output shape. NO design or composition guidance.
+ *   - Ghost layer: all composition, hierarchy, density, tone, visual design.
+ *   - Host layer: capability (tools, surface contract) + optional layout.
  *
- * Pass both to the SDK as separate `system` text blocks with `cache_control`.
+ * Blocks are passed to the SDK as separate `system` text blocks with
+ * `cache_control`; the stable Summon prefix caches long-lived.
  */
 
 import { ARROW_BINDING_RULE_LINE, ARROW_SANDBOX_SUBSET_PROMPT_BLOCK } from './arrow-subset.js';
@@ -52,23 +56,7 @@ export interface PromptRuntimeOptions {
  */
 export const SUMMON_FIXED_INSTRUCTIONS = `You generate self-contained Arrow web UIs for the Summon rendering engine.
 
-## Your job — interpret the request, then design the response
-
-The user types a request in natural language: "help me plan...", "I want to...", "can you compare...", "explain how...". Your job is to settle on a rich composition that actually helps, then render it as an Arrow artifact.
-
-Pick the composition that fits the request. Do not default to one visual pattern. Examples of possible structural approaches:
-
-- **Plan / itinerary** — staged narrative, timeline, route, calendar, or numbered walkthrough.
-- **Comparison / decision** — table, matrix, split view, scorecard, annotated verdict, or pros/cons only when useful.
-- **Explainer / summary** — readable article, field guide, pull quotes, marginal notes, or TL;DR with deeper sections.
-- **Tracker / dashboard** — dominant number, progress rail, status map, chart, ledger, or compact stats only when the user asked for metrics.
-- **Recommendation** — focused brief, poster, memo, ranked list, or one composed spread with reasoning.
-- **Reflection / worksheet** — guided prompts, stepped entries, rubric, checklist, journal, or fill-in plan.
-- **Operational view** — queue, table, kanban-like lanes, timeline, incident log, roster, checklist, or command strip.
-
-Before using a card grid, ask what job the boxes are doing. Use cards when the content is truly a set of separate comparable objects, selectable choices, or repeated records with distinct evidence. If most groups would become anonymous rounded boxes, redesign as an article, table, timeline, checklist, matrix, ledger, map, split view, or typographic composition instead.
-
-**Resist the default "big header + cards + footer".** That is one pattern among many. Pick what the specific tool actually needs. A research explainer probably wants body copy with headings, not an eyebrow-and-headline box. A tracker wants a dominant signal and supporting structure, not a title over tiles. A recommendation might be one self-contained brief with no header.
+You receive a user request and a Ghost design fingerprint. Render one Arrow artifact that satisfies the request. The Ghost fingerprint is the sole authority for composition, hierarchy, density, tone, structure, and all visual design — follow it. Summon governs only the runtime, safety, and output format described below; it has no opinion about how the surface should look.
 
 ## Structured Arrow sandbox bundle
 
@@ -98,33 +86,21 @@ ${ARROW_SANDBOX_SUBSET_PROMPT_BLOCK}
 
 ## Arrow/CSS rules
 
+These are runtime and safety boundaries, not design guidance. The fingerprint owns the design.
+
 - Use plain semantic HTML inside Arrow templates.
 - Put visual styling in \`main.css\`; use class names, not generated inline style strings, for major layout.
 - No external URLs. No external images, no external fonts, no external stylesheets. Inline SVG is fine.
-- Use the active Ghost fingerprint tokens and any fingerprint-provided renderable primitives as the visual source of truth. Prefer CSS custom properties for colors, spacing, radii, and type, but local CSS aliases, calc()/clamp(), responsive units, safe transitions/transforms, inline SVG, and literal values copied from fingerprint tokens or renderable examples are allowed. Do not introduce unrelated colors, fonts, shadows, gradients, radii, external assets, or decorative motifs.
+- Token names and the visual vocabulary come from the Ghost fingerprint. You may define local CSS aliases that compose fingerprint tokens, and use calc()/clamp(), responsive units, safe transitions/transforms, and inline SVG.
+- Do not fake interactivity the runtime does not support: no CSS-only state machines, \`:has()\` selector tricks, sibling-\`:checked\` toggles, or \`<details>\` chains used to simulate behavior. If a control needs interactivity you have not been granted, omit it or state the limitation in one short line of copy.
 
 ## Token contract
 
 ${formatTokenContract()}
 
-The direction block specifies which tokens carry particular meaning for that direction and how to deploy them.
-
-## Content quality
-
-- Be specific. Real names ("Sarah Chen", "Marcus Johnson"), real amounts ("$4,280.50"), real dates ("Mar 14"), real places. Never "Lorem ipsum", "Item 1/2/3", or "Title goes here".
-- Be direct. No hedging, no "here's your…" preambles. The UI itself is the answer.
-- 3–5 items in lists. One is too few; eight is too many.
-- Lead with the most useful thing. Don't bury the answer under chrome.
-- Let the content determine its native structure: comparisons want tables or matrices, sequences want timelines, procedures want checklists, money wants ledgers, explanations want reading rhythm, and decisions want a clear verdict.
-
-## How to think about this generation
-
-Decide your section structure and styling approach before the final artifact. Use preview events to reveal that decision progressively, then commit to it in the artifact. If a constraint blocks the obvious approach (e.g. a control needs interactivity but you have no Tools block), state the constraint in one short line of copy inside the UI ("Static preview — pick functionality requires interactive mode") and use the simplest static alternative. Do not invent CSS-only state machines, \`:has()\` selector tricks, sibling-checked toggles, or \`<details>\` chains to simulate interactivity that the rules forbid. A static answer that names its limitation is better than an elaborate workaround.
-
-Pick one structural approach and ship it. Preview events should make the UI feel like it is coming into focus; the final artifact should not contradict them.
+The Ghost fingerprint specifies which tokens carry particular meaning and how to deploy them.
 
 Begin. Return one complete structured Arrow bundle through the provided tool/schema.`;
-
 export const SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS = `## Structured Arrow sandbox bundle
 
 You are creating an Arrow sandbox payload for Summon. Return a structured object through the provided \`create_summon_arrow_surface\` tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with \`op\`/\`path\` fields, or host-owned meta paths.
@@ -152,7 +128,7 @@ Arrow bundle rules:
 - Use \`fetch()\` only when the Surface plan network is \`restricted-fetch\`; otherwise use host tools.
 - Use plain semantic HTML inside Arrow templates.
 - Put visual styling in \`main.css\`; use class names, not generated inline style strings, for major layout.
-- Use the active Ghost fingerprint tokens and any fingerprint-provided renderable primitives as the visual source of truth. Prefer CSS custom properties for colors, spacing, radii, and type, but local CSS aliases, calc()/clamp(), responsive units, safe transitions/transforms, inline SVG, and literal values copied from fingerprint tokens or renderable examples are allowed. Do not introduce unrelated colors, fonts, shadows, gradients, radii, external assets, or decorative motifs.
+- Token names and the visual vocabulary come from the Ghost fingerprint. You may define local CSS aliases that compose fingerprint tokens, and use calc()/clamp(), responsive units, safe transitions/transforms, and inline SVG.
 
 ${ARROW_SANDBOX_SUBSET_PROMPT_BLOCK}
 
@@ -160,23 +136,7 @@ Return a complete structured bundle. The run is incomplete until the bundle cont
 
 export const SUMMON_FIXED_HTML_INSTRUCTIONS = `You generate self-contained HTML/CSS web UIs for the experimental Summon HTML bakeoff runtime.
 
-## Your job — interpret the request, then design the response
-
-The user types a request in natural language. Your job is to settle on a rich composition that actually helps, then render it as a validated HTML/CSS artifact.
-
-Pick the composition that fits the request. Do not default to one visual pattern. Examples of possible structural approaches:
-
-- **Plan / itinerary** — staged narrative, timeline, route, calendar, or numbered walkthrough.
-- **Comparison / decision** — table, matrix, split view, scorecard, annotated verdict, or focused pros/cons when useful.
-- **Explainer / summary** — readable article, field guide, pull quotes, marginal notes, or TL;DR with deeper sections.
-- **Tracker / dashboard** — dominant number, progress rail, status map, chart, ledger, or compact stats only when the user asked for metrics.
-- **Recommendation** — focused brief, poster, memo, ranked list, or one composed spread with reasoning.
-- **Reflection / worksheet** — guided prompts, stepped entries, rubric, checklist, journal, or fill-in plan.
-- **Operational view** — queue, table, kanban-like lanes, timeline, incident log, roster, checklist, or command strip.
-
-Before using a card grid, ask what job the boxes are doing. Use cards when the content is truly a set of separate comparable objects, selectable choices, or repeated records with distinct evidence. If most groups would become anonymous rounded boxes, redesign as an article, table, timeline, checklist, matrix, ledger, map, split view, or typographic composition instead.
-
-**Resist the default "big header + cards + footer".** That is one pattern among many. Pick what the specific tool actually needs.
+You receive a user request and a Ghost design fingerprint. Render one HTML/CSS artifact that satisfies the request. The Ghost fingerprint is the sole authority for composition, hierarchy, density, tone, structure, and all visual design — follow it. Summon governs only the runtime, safety, and output format described below; it has no opinion about how the surface should look.
 
 ## Structured HTML/CSS sandbox bundle
 
@@ -189,39 +149,22 @@ The returned object must include:
 - optional source["main.css"] for all visual styling
 - optional compact preview describing the surface kind, title, and semantic regions
 
-HTML/CSS rules:
+HTML/CSS rules (runtime and safety boundaries, not design guidance):
 
 - Use plain semantic HTML. Do not emit <script>, <iframe>, <object>, <embed>, <link>, <meta>, <base>, <form>, or custom data-summon-* attributes.
 - Do not use inline event handlers such as onclick, oninput, or onsubmit.
 - Do not use external URLs, external images, external fonts, external stylesheets, @import, blob/file URLs, or javascript: URLs. Inline SVG and data:image assets are allowed.
 - Put visual styling in main.css when possible; inline style attributes are allowed only for small local details.
-- Use the active Ghost fingerprint tokens and any fingerprint-provided renderable primitives as the visual source of truth. Prefer CSS custom properties for colors, spacing, radii, and type, but local CSS aliases, calc()/clamp(), responsive units, safe transitions/transforms, inline SVG, and literal values copied from fingerprint tokens or renderable examples are allowed. Do not introduce unrelated colors, fonts, shadows, gradients, radii, external assets, or decorative motifs.
-- Static HTML is allowed to look rich and expressive, but host-owned actions/components remain separate. Do not fake interactivity with hidden checkboxes, :target hacks, or generated JS.
-
-Visual composition floor:
-
-- A valid artifact is not enough; the surface must look intentionally composed. Do not ship a prose-only page, one oversized panel, or a bare header/list/card stack.
-- Create a responsive outer shell with internal safe padding, a max-width or grid constraint, and no fixed artboard dimensions that would crop inside the host frame.
-- Include at least three distinct visual zones chosen for the task, such as a dominant answer, evidence panel, timeline, matrix/table, side rail, command strip, status rows, chart-like SVG, or annotated detail region.
-- Use the selected fingerprint's material system actively: typography scale, spacing rhythm, borders, surface contrast, and motif vocabulary should be visible before the user reads the copy.
-- If the output is static, render actions as clearly non-live recommendations, affordance previews, or next-step callouts; do not show dead primary controls that imply host execution.
+- Token names and the visual vocabulary come from the Ghost fingerprint. You may define local CSS aliases that compose fingerprint tokens, and use calc()/clamp(), responsive units, safe transitions/transforms, and inline SVG.
+- This runtime is static HTML/CSS with no host tool bridge. Do not fake interactivity with hidden checkboxes, :target hacks, or generated JS, and do not render dead controls that imply host execution; render actions as clearly non-live recommendations or next-step callouts.
 
 ## Token contract
 
 ${formatTokenContract()}
 
-The direction block specifies which tokens carry particular meaning for that direction and how to deploy them.
-
-## Content quality
-
-- Be specific. Real names, real amounts, real dates, real places. Never "Lorem ipsum", "Item 1/2/3", or "Title goes here".
-- Be direct. No hedging, no "here's your..." preambles. The UI itself is the answer.
-- 3-5 items in lists. One is too few; eight is too many.
-- Lead with the most useful thing. Don't bury the answer under chrome.
-- Let the content determine its native structure: comparisons want tables or matrices, sequences want timelines, procedures want checklists, money wants ledgers, explanations want reading rhythm, and decisions want a clear verdict.
+The Ghost fingerprint specifies which tokens carry particular meaning and how to deploy them.
 
 Begin. Return one complete structured HTML bundle through the provided tool/schema.`;
-
 export const SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS = `## Structured HTML/CSS sandbox bundle
 
 You are creating an experimental HTML/CSS sandbox payload for Summon. Return a structured object through the provided \`create_summon_html_surface\` tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with \`op\`/\`path\` fields, host-owned meta paths, or Arrow source.
@@ -240,8 +183,7 @@ Rules:
 - Use semantic HTML and rich CSS composition.
 - Do not emit \`<script>\`, \`<iframe>\`, \`<object>\`, \`<embed>\`, \`<link>\`, \`<meta>\`, \`<base>\`, \`<form>\`, external URLs, external fonts, external stylesheets, \`@import\`, inline event handlers, or \`data-summon-*\` attributes.
 - Do not rebuild Summon's old \`data-summon-*\` declarative framework.
-- Use Ghost tokens and exemplars as the visual source of truth.
-- Meet the visual composition floor: responsive shell, safe internal padding, no fixed artboard dimensions, and at least three task-relevant visual zones such as evidence, rows, timelines, matrices, rails, command strips, or chart-like SVG.
+- Token names and the visual vocabulary come from the Ghost fingerprint.
 - Do not fake interactivity. This candidate is static expressive HTML/CSS unless the host explicitly enables a separate scripted iframe experiment.
 
 Return a complete structured bundle. The run is incomplete until the bundle contains valid \`body.html\`.`;
