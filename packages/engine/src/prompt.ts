@@ -132,7 +132,7 @@ The returned object must include:
 
 HTML/CSS rules (runtime and safety boundaries, not design guidance):
 
-- Use plain semantic HTML. Do not emit <script>, <iframe>, <object>, <embed>, <link>, <meta>, <base>, <form>, or custom data-summon-* attributes.
+- Use plain semantic HTML. Do not emit <script>, <iframe>, <object>, <embed>, <link>, <meta>, <base>, or <form> elements.
 - Do not use inline event handlers such as onclick, oninput, or onsubmit.
 - Do not use external URLs, external images, external fonts, external stylesheets, @import, blob/file URLs, or javascript: URLs. Inline SVG and data:image assets are allowed.
 - Put visual styling in main.css when possible; inline style attributes are allowed only for small local details.
@@ -154,7 +154,7 @@ Return one structured object through the \`create_summon_html_surface\` tool/sch
 - \`source["body.html"]\` with one complete HTML body fragment (optional \`source["main.css"]\`)
 - optional compact \`preview\`
 
-Highest-value reminders (full rules above): no \`<script>\`, \`<iframe>\`, \`<form>\`, inline event handlers, external URLs/fonts/stylesheets, \`@import\`, or \`data-summon-*\` attributes. This runtime is static HTML/CSS with no host tool bridge.
+Highest-value reminders (full rules above): no \`<script>\`, \`<iframe>\`, \`<form>\`, inline event handlers, or external URLs/fonts/stylesheets/\`@import\`. This runtime is static HTML/CSS with no host tool bridge.
 
 The run is incomplete until the bundle contains valid \`body.html\`.`;
 
@@ -342,9 +342,7 @@ export function buildToolsBlock(
   }
 
   const promptPatterns = (pack.patterns ?? []).filter(
-    (pattern) =>
-      !/<\s*script\b/i.test(pattern.code) &&
-      !/\bdata-summon-(?!(?:component|component-id|props)\b)[a-z0-9-]+/i.test(pattern.code),
+    (pattern) => !/<\s*script\b/i.test(pattern.code),
   );
   const patternsBlock =
     promptPatterns.length > 0

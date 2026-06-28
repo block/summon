@@ -71,10 +71,9 @@ test('accepts valid Arrow artifacts', () => {
   assert.deepEqual(issues, []);
 });
 
-test('accepts data-summon attributes in Arrow artifacts (subset restriction removed)', () => {
-  // Experiment 2026-06-25: the legacy-data-summon block was an artificial
-  // dialect restriction, not a real sandbox constraint. data-summon-* attrs are
-  // now treated as ordinary HTML attributes inside Arrow templates.
+test('accepts arbitrary inert data-* attributes in Arrow artifacts', () => {
+  // data-* attributes are ordinary inert HTML attributes; the renderer reads
+  // none of them, so they carry no risk and must not be rejected.
   const issues = validateProtocolLine(
     {
       op: 'artifact',
@@ -85,10 +84,10 @@ test('accepts data-summon attributes in Arrow artifacts (subset restriction remo
           'main.ts': [
             'import { html } from "@arrow-js/core";',
             'export default html`',
-            '<section data-summon-local="{&quot;open&quot;:false}">',
-            '<button data-summon-on-click="save" data-summon-bind="label">Save</button>',
-            '<p data-summon-show="saveError"></p>',
-            '<div data-summon-resource="search" data-summon-resource-trigger="submit"></div>',
+            '<section data-state="{&quot;open&quot;:false}">',
+            '<button data-role="save" data-label="label">Save</button>',
+            '<p data-error="saveError"></p>',
+            '<div data-region="search"></div>',
             '</section>`;',
           ].join('\n'),
         },
@@ -99,7 +98,7 @@ test('accepts data-summon attributes in Arrow artifacts (subset restriction remo
   assert.deepEqual(codes(issues), []);
 });
 
-test('accepts trusted component placeholder attributes in Arrow artifacts (subset restriction removed)', () => {
+test('accepts data-* component metadata attributes in Arrow artifacts', () => {
   const issues = validateProtocolLine(
     {
       op: 'artifact',
@@ -110,7 +109,7 @@ test('accepts trusted component placeholder attributes in Arrow artifacts (subse
           'main.ts': [
             'import { html } from "@arrow-js/core";',
             'export default html`',
-            '<div data-summon-component="MetricCard" data-summon-component-id="metric-1" data-summon-props="{&quot;label&quot;:&quot;Revenue&quot;}"></div>',
+            '<div data-component="MetricCard" data-component-id="metric-1" data-props="{&quot;label&quot;:&quot;Revenue&quot;}"></div>',
             '`;',
           ].join('\n'),
         },
@@ -121,7 +120,7 @@ test('accepts trusted component placeholder attributes in Arrow artifacts (subse
   assert.deepEqual(codes(issues), []);
 });
 
-test('parser rejects legacy section protocol ops', () => {
+test('parser rejects unsupported section protocol ops', () => {
   assert.throws(
     () => parseProtocolLineStrict(JSON.stringify({ op: 'set', path: '/screen', value: { sections: ['hero'] } })),
     (err) => err instanceof ProtocolParseError && err.code === 'invalid-op',

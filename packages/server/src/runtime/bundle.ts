@@ -221,7 +221,6 @@ function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[])
     'arrow-network-not-granted',
     'unsupported-arrow-idl-binding',
     'unsupported-arrow-open-tag-expression',
-    'unsupported-legacy-data-summon-binding',
     'invalid-arrow-source-syntax',
     'invalid-arrow-network',
     'invalid-arrow-bundle',
@@ -245,7 +244,6 @@ function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[])
     'inline-handler',
     'external-url',
     'unsupported-html-attribute',
-    'unsupported-legacy-data-summon-binding',
     'html-script-not-enabled',
     'unsafe-html-script',
   ]);

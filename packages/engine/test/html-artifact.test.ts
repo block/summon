@@ -65,12 +65,12 @@ test('coerces malformed HTML preview regions without blocking the artifact', () 
   assert.deepEqual(htmlArtifactFromBundle(normalized.bundle!).runtime, 'html');
 });
 
-test('blocks unsafe HTML, external URLs, inline handlers, and legacy bindings', () => {
+test('blocks unsafe HTML, external URLs, inline handlers, and unsupported attributes', () => {
   const issues = validateHtmlSurfaceArtifact({
     runtime: 'html',
     source: {
       'body.html': [
-        '<section id="hero" onclick="save()" data-summon-bind="title" style="background:url(javascript:evil)">',
+        '<section id="hero" onclick="save()" aria-bogus="title" style="background:url(javascript:evil)">',
         '<a href="javascript:alert(1)">Bad link</a>',
         '<img src="https://example.test/pixel.png" alt="pixel">',
         '<iframe srcdoc="<p>x</p>"></iframe>',
@@ -87,7 +87,6 @@ test('blocks unsafe HTML, external URLs, inline handlers, and legacy bindings', 
     'static-script',
     'unsafe-tag',
     'unsupported-html-attribute',
-    'unsupported-legacy-data-summon-binding',
   ]);
 });
 

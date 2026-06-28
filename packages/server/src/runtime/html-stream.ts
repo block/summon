@@ -52,7 +52,7 @@ export const HTML_STREAM_FRAME_PROMPT_BLOCK: ContractPromptBlock = {
     HTML_STREAM_PATCH_END,
     '',
     'Patch body text may stream gradually, but the server treats it as preview-only until the end marker arrives. Patch bodies must start directly with HTML markup (`<...>`). Do not include reasoning, commentary, markdown, or labels before or inside the patch body.',
-    'Every committed patch fragment must be complete safe HTML: no scripts, external URLs, forms, iframes, inline event handlers, data-summon-* attributes, or parent/window/storage/network behavior.',
+    'Every committed patch fragment must be complete safe HTML: no scripts, external URLs, forms, iframes, inline event handlers, or parent/window/storage/network behavior.',
   ].join('\n'),
 };
 

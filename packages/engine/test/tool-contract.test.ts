@@ -15,9 +15,6 @@ test('tool protocol contract documents Arrow host bridge', () => {
   assert.match(text, /getState/);
   assert.match(text, /onState/);
   assert.match(text, /reactive\(\)/);
-  assert.doesNotMatch(text, /data-summon-on-click/);
-  assert.doesNotMatch(text, /data-summon-resource-trigger/);
-  assert.doesNotMatch(text, /data-summon-bind/);
 });
 
 test('tool compiler returns prompt, pack, tool names, and validation metadata', () => {
@@ -105,10 +102,6 @@ test('tools block renders Arrow-native protocol docs', () => {
         code: '<button id="go">Go</button><script>document.getElementById("go")?.addEventListener("click", () => sandbox.emit("search", {query:"boots"}))</script>',
       },
       {
-        name: 'legacy declarative search',
-        code: '<form data-summon-resource="search" data-summon-resource-trigger="submit"></form>',
-      },
-      {
         name: 'arrow search',
         code: 'import { callTool, onState } from "host-bridge:summon";\nconst run = () => callTool("search", { query: "boots" });\nonState(() => {});',
       },
@@ -128,11 +121,7 @@ test('tools block renders Arrow-native protocol docs', () => {
   assert.match(text, /State keys: loading=searching, data=results, error=searchError, empty=noResults/);
   assert.match(text, /Action state: pending=savePending, done=saveDone, error=saveError/);
   assert.match(text, /Controlled actions expose host-owned pending\/done\/error keys/);
-  assert.doesNotMatch(text, /data-summon-on-click="counter"/);
-  assert.doesNotMatch(text, /data-summon-on-submit="submit"/);
-  assert.doesNotMatch(text, /data-summon-on-click="log"/);
   assert.doesNotMatch(text, /document\.getElementById/);
-  assert.doesNotMatch(text, /data-summon-resource="search"/);
   assert.match(text, /arrow search/);
 });
 

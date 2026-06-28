@@ -116,8 +116,8 @@ export function validateArrowSurfaceArtifact(
     // on them. Without this check the model's natural controlled-input form
     // crashes at runtime with no repair path. Catch it here as a repairable
     // block so the repair loop rewrites it to attribute + event bindings.
-    // (The earlier 2026-06-25 experiment removed this along with the genuinely
-    // over-strict data-summon / open-tag blocks; this one was real and is back.)
+    // (An earlier experiment removed this along with some genuinely over-strict
+    // open-tag blocks; the IDL-binding check is a real sandbox constraint.)
     if (ARROW_IDL_BINDING_RE.test(contents)) {
       issues.push(arrowIssue(
         'unsupported-arrow-idl-binding',

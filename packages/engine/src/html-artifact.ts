@@ -448,7 +448,7 @@ export function createHtmlBundleJsonSchema(options: { allowScript?: boolean } = 
   const sourceProperties: Record<string, unknown> = {
     'body.html': {
       type: 'string',
-      description: 'Required HTML body fragment. No scripts, external URLs, inline handlers, forms, iframes, or data-summon-* attributes.',
+      description: 'Required HTML body fragment. No scripts, external URLs, inline handlers, forms, or iframes.',
     },
     'main.css': {
       type: 'string',
@@ -734,10 +734,6 @@ function validateElementNode(
       issues.push(htmlIssue('inline-handler', `Inline event handler "${name}" is not allowed`, path));
       continue;
     }
-    if (name.startsWith('data-summon-')) {
-      issues.push(htmlIssue('unsupported-legacy-data-summon-binding', `Legacy Summon attribute "${name}" is not allowed in HTML artifacts`, path));
-      continue;
-    }
     if (!isSupportedAttribute(name)) {
       issues.push(htmlIssue('unsupported-html-attribute', `HTML attribute "${name}" is not supported in generated HTML`, path));
       continue;
@@ -868,7 +864,7 @@ function isSupportedAttribute(name: string): boolean {
     URL_ATTRS.has(name) ||
     SRCSET_ATTRS.has(name) ||
     name.startsWith('aria-') ||
-    (name.startsWith('data-') && !name.startsWith('data-summon-'))
+    name.startsWith('data-')
   );
 }
 

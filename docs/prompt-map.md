@@ -180,7 +180,7 @@ only provides runtime + safety.
   tools exist; data resources start at default/null; never hallucinate fetched
   data; controlled actions expose pending/done/error.
 - **Initial state** — defensive rendering rules.
-- **Patterns** — owner-filtered tool patterns (script/data-summon patterns
+- **Patterns** — owner-filtered tool patterns (`<script>` patterns
   stripped).
 
 ### HTML variant

@@ -349,7 +349,6 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.match(systemText, /Structured Arrow sandbox bundle/);
   assert.match(systemText, /create_summon_arrow_surface/);
   assert.doesNotMatch(systemText, /Rules for scripts/);
-  assert.doesNotMatch(systemText, /data-summon-on-click/);
   assert.doesNotMatch(systemText, /\bchoose\b/);
 
   const lines = body

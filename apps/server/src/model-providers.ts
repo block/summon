@@ -1490,7 +1490,7 @@ function repairHtmlPrompt(request: HtmlBundleRepairRequest): string {
     'Previous bundle:',
     JSON.stringify(request.previousBundle, null, 2),
     '',
-    'Return a complete replacement bundle using the create_summon_html_surface tool. Do not widen host authority, add external URLs, add scripts, add forms, add data-summon-* attributes, or change the schema.',
+    'Return a complete replacement bundle using the create_summon_html_surface tool. Do not widen host authority, add external URLs, add scripts, add forms, or change the schema.',
     'Required schema: "summon.html-bundle/v0". Required source key: "body.html". Optional source key: "main.css". source["main.js"] is forbidden unless this request explicitly sets allowScript=true.',
     request.allowScript
       ? 'This run is the scripted iframe experiment; even then, main.js must not use network, storage, workers, eval, dynamic imports, parent/top/opener access, or cookies.'

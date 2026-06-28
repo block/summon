@@ -400,10 +400,6 @@ test('system compiler can produce Arrow-native interactive contracts', () => {
           code: '<button id="x">Pick</button><script>document.getElementById("x")?.addEventListener("click", () => sandbox.emit("choose", {option:"A"}))</script>',
         },
         {
-          name: 'legacy declarative pattern',
-          code: '<button data-summon-on-click="choose" data-summon-args=\'{"option":"A"}\'>Pick</button>',
-        },
-        {
           name: 'arrow pattern',
           code: 'import { callTool } from "host-bridge:summon";\nconst choose = () => callTool("choose", { option: "A" });',
         },
@@ -417,7 +413,6 @@ test('system compiler can produce Arrow-native interactive contracts', () => {
   assert.match(toolsBlock?.text ?? '', /onState/);
   assert.match(toolsBlock?.text ?? '', /Do not emit `<script>` tags/);
   assert.doesNotMatch(toolsBlock?.text ?? '', /document\.getElementById/);
-  assert.doesNotMatch(toolsBlock?.text ?? '', /data-summon-on-click="choose"/);
   assert.match(toolsBlock?.text ?? '', /arrow pattern/);
 });
 

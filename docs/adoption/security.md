@@ -125,7 +125,7 @@ The safety harness should cover:
 - Rejection of unallowed host tool requests and generated permission-escalation
   attempts.
 - Stream validation rejection for malformed Arrow artifacts, transport/section
-  protocols, `data-summon-*` bindings, and unsupported Arrow bindings.
+  protocols, and unsupported Arrow bindings.
 - HTML runtime safety: `html-static` blocks scripts and unsafe HTML before
   mounting, and `html-stream` keeps preview deltas inert until validated patch
   commits. No HTML runtime mounts model-authored scripts.
