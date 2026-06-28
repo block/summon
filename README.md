@@ -115,10 +115,6 @@ pnpm dev:demos
   wiring, Ghost fingerprint token coverage, throughput, and consistency checks.
 - `/adversarial` - sandbox boundary checks for network, storage, parent
   access, and unallowed host tool requests.
-- `/strict` - retired overlay note; the current runtime is the inline Arrow
-  sandbox.
-- `/fatal` - retired boot note; current errors surface through the inline Arrow
-  handle and Devtools events.
 
 ## Public Packages
 
@@ -141,7 +137,7 @@ pnpm dev:demos
   Ghost fingerprint loading, Arrow protocol diagnostics, and demo backing routes.
 - `apps/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/demo` - Vite maintainer workbench for generation, batch runs,
-  adversarial checks, Ghost steering, diagnostics, and retired iframe-era notes.
+  adversarial checks, Ghost steering, and diagnostics.
 
 ## Adoption Docs
 

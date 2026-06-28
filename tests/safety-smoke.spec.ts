@@ -544,18 +544,6 @@ test('adversarial inline Arrow boundary rejects ambient browser globals and ungr
   await expect(results).toContainText('tool="escalate"');
 });
 
-test('retired strict and fatal routes describe the current inline runtime', async ({ page }) => {
-  await page.goto('/strict');
-  await expect(page.getByRole('heading', { name: 'Retired overlay notes' })).toBeVisible();
-  await expect(page.locator('body')).toContainText('inline Arrow sandbox');
-  await expect(page.locator('[data-strict-slot], iframe#sandbox')).toHaveCount(0);
-
-  await page.goto('/fatal');
-  await expect(page.getByRole('heading', { name: 'Retired boot notes' })).toBeVisible();
-  await expect(page.locator('body')).toContainText('Arrow VM isolation');
-  await expect(page.locator('#case-a-result, #case-b-result, iframe#sandbox')).toHaveCount(0);
-});
-
 test('unknown demo routes redirect to the current generate workbench', async ({ page }) => {
   await page.goto('/unknown-route');
 

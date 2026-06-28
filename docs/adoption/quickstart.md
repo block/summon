@@ -75,11 +75,10 @@ Canonical Ghost packages use this layout:
         └── composition.yml
 ```
 
-Only canonical split fingerprint packages are supported. By default, roots must
+Only canonical split fingerprint packages are supported. Roots must
 include `.ghost/fingerprint/manifest.yml`; host wrappers can set
 `GHOST_MEMORY_DIR` when the package directory lives somewhere else, and an
-explicit `ghost.memoryDir` request value overrides that process default. Legacy
-`.ghost/fingerprint.yml` files are not accepted.
+explicit `ghost.memoryDir` request value overrides that process default.
 
 Then start the gallery or the workbench:
 
@@ -93,9 +92,9 @@ Open `http://localhost:5174` for the adopter-facing gallery preset, or
 `http://localhost:5173/generate` for the diagnostic fingerprint scenario and
 `Fingerprint · <id>` option. **Fingerprint target** is a relative path inside
 the configured repo root; use `.` for the root package or a nested surface path.
-**Token fallback** is legacy UI language for base-direction CSS; Ghost-first
-generation expects token/style CSS from the selected fingerprint package or
-catalog bundle, and does not require contract-complete Summon token names.
+Ghost-first generation expects token/style CSS from the selected fingerprint
+package or catalog bundle, and does not require contract-complete Summon token
+names.
 
 When the run starts, the Stream drawer should show `/ghost-context`,
 `/ghost-token-source`, `/ghost-ingestion-contract`, and `/ghost-review-packet`
@@ -169,10 +168,6 @@ token overrides, layout constraints, sibling summon, Ghost steering when
 configured, and validation diagnostics.
 
 To run the gallery and workbench side by side, use `pnpm dev:demos`.
-
-Open `http://localhost:5173/strict` or `http://localhost:5173/fatal` only when
-you need the retired overlay or boot notes. The current runtime path is the
-inline Arrow sandbox exercised by `/generate` and `/adversarial`.
 
 ## Troubleshooting
 

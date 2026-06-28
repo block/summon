@@ -2,13 +2,13 @@
  * Token vocabulary helpers.
  *
  * Summon does not own product/design token semantics. Active design sources
- * (Ghost fingerprints, host directions, or app-provided stylesheets) may define
- * any valid CSS custom-property vocabulary. Summon only surfaces the vocabulary
- * to models and validates runtime safety elsewhere; it must not require tokens
- * like `--color-bg` or `--space-4`.
+ * (Ghost fingerprints or app-provided stylesheets) may define any valid CSS
+ * custom-property vocabulary. Summon only surfaces the vocabulary to models and
+ * validates runtime safety elsewhere; it must not require tokens like
+ * `--color-bg` or `--space-4`.
  *
- * The legacy exported constants remain for API compatibility, but they are empty
- * and must not be used as product requirements.
+ * The empty exported token constants are retained only for public-API
+ * stability; they carry no product requirements.
  */
 
 export type TokenKind =

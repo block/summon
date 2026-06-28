@@ -261,7 +261,6 @@ function buildReport(runs, options) {
     '',
     '- Keep `html-stream` only if TTFP is at least 40% lower than `html-static` and block rate is at most 1.5x `html-static`.',
     '- `arrow-control` is the secure default. `html-static` (inert) and `html-stream` remain experiments.',
-    '- The scripted `html-script` and `unsafe-html-raw-stream` runtimes were removed; iframe-script trust is no longer a supported posture.',
     '',
   ].join('\n');
 }

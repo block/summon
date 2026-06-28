@@ -373,7 +373,7 @@ app.post('/api/generate', async (req, res) => {
     return;
   }
   const layout = parsedLayout.layout;
-  const legacyGenerationFields = [
+  const unsupportedGenerationFields = [
     'edit',
     'fragmentMode',
     'repair',
@@ -382,9 +382,9 @@ app.post('/api/generate', async (req, res) => {
     'surfacePlan',
     'surfaceCeiling',
   ];
-  const legacyField = legacyGenerationFields.find((field) => req.body?.[field] !== undefined && req.body?.[field] !== null);
-  if (legacyField) {
-    res.status(400).json({ error: `${legacyField} is not supported in Arrow-only policy mode` });
+  const unsupportedField = unsupportedGenerationFields.find((field) => req.body?.[field] !== undefined && req.body?.[field] !== null);
+  if (unsupportedField) {
+    res.status(400).json({ error: `${unsupportedField} is not supported in Arrow-only policy mode` });
     return;
   }
   const rawAgentOptions = req.body?.agent;

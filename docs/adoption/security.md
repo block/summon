@@ -39,7 +39,7 @@ artifacts.
 Experimental HTML runtimes use a separate iframe posture and remain research
 targets, not the production default. `html-static` accepts a validated HTML/CSS
 bundle and rejects scripts, external URLs, unsafe tags, inline handlers, and
-legacy Summon bindings before the iframe mounts. `html-stream` renders provider
+unsupported Summon bindings before the iframe mounts. `html-stream` renders provider
 patch text first in an inert preview iframe with `script-src 'none'`; committed
 HTML reaches the iframe only after a complete patch frame validates. Generated
 scripts are never accepted: the scripted `html-script` and unsafe raw HTML
@@ -61,7 +61,7 @@ for this choice is `SurfacePolicy.tier`.
 Declarative interactive surfaces support clicks, submits, mount-triggered reads,
 data resources, loading/error/data bindings, foreach templates, text binding,
 safe image/data attributes, local ephemeral state, and host-owned motion
-recipes. Generated `<script>` tags, legacy section protocols, raw HTML
+recipes. Generated `<script>` tags, transport/section protocols, raw HTML
 streaming, and component island placeholders are not public artifact tools.
 
 ## Advanced Safety Details
@@ -70,8 +70,8 @@ Summon compiles the host-selected `SurfacePolicy` into a stricter `SurfacePlan`
 with Arrow runtime diagnostics, data, authority, persistence, and network
 metadata for validation and diagnostics. Shape describes visual composition;
 posture describes the act; the surface config describes the public host
-decision. Generated artifacts are always Arrow sandbox source trees; legacy
-scripted-plan request fields are rejected before generation.
+decision. Generated artifacts are always Arrow sandbox source trees; scripted-plan
+request fields are rejected before generation.
 
 Summon also derives a `SurfaceContractView` from the compiled policy. It is a
 compact diagnostic and prompt-facing view of the selected policy, narrowed host
@@ -106,7 +106,7 @@ Generated UI must not emit or widen `/surface-policy`, `/surface-plan`, or
   validated state and data URLs, not credentials or network endpoints.
 - Use Arrow local state and motion primitives for tabs, disclosures, selection,
   staged reveal, and visual feedback.
-- Do not grant custom generated scripts; legacy script-control request fields
+- Do not grant custom generated scripts; script-control request fields
   are rejected before generation.
 - Run the adversarial browser harness before changing inline runtime, Arrow
   bridge, generated network policy, or tool-dispatch behavior.
@@ -124,8 +124,8 @@ The safety harness should cover:
 - Generated `fetch()` unavailability for no-network surfaces.
 - Rejection of unallowed host tool requests and generated permission-escalation
   attempts.
-- Stream validation rejection for malformed Arrow artifacts, legacy section
-  protocols, legacy `data-summon-*` bindings, and unsupported Arrow bindings.
+- Stream validation rejection for malformed Arrow artifacts, transport/section
+  protocols, `data-summon-*` bindings, and unsupported Arrow bindings.
 - HTML runtime safety: `html-static` blocks scripts and unsafe HTML before
   mounting, and `html-stream` keeps preview deltas inert until validated patch
   commits. No HTML runtime mounts model-authored scripts.

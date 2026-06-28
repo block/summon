@@ -6,9 +6,7 @@ import { ThemeProvider, ThemeToggle } from './theme.js';
 
 const AdversarialPage = lazy(() => import('./pages/AdversarialPage.js').then((module) => ({ default: module.AdversarialPage })));
 const BatchPage = lazy(() => import('./pages/BatchPage.js').then((module) => ({ default: module.BatchPage })));
-const FatalPage = lazy(() => import('./pages/FatalPage.js').then((module) => ({ default: module.FatalPage })));
 const GeneratePage = lazy(() => import('./pages/generate/GeneratePage.js').then((module) => ({ default: module.GeneratePage })));
-const StrictPage = lazy(() => import('./pages/StrictPage.js').then((module) => ({ default: module.StrictPage })));
 // THROWAWAY: Arrow-vs-raw-HTML faceoff research harness. Delete with /api/faceoff/html.
 const FaceoffPage = lazy(() => import('./pages/faceoff/FaceoffPage.js').then((module) => ({ default: module.FaceoffPage })));
 
@@ -31,9 +29,7 @@ function AppRoutes() {
           <Route path="/generate" element={<GeneratePage />} />
           <Route path="/batch" element={<BatchPage />} />
           <Route path="/adversarial" element={<AdversarialPage />} />
-          <Route path="/strict" element={<StrictPage />} />
           <Route path="/faceoff" element={<FaceoffPage />} />
-          <Route path="/fatal" element={<FatalPage />} />
           <Route path="*" element={<Navigate to="/generate" replace />} />
         </Routes>
       </Suspense>
