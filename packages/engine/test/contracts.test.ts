@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
-  compileDirectionContract,
   compileSurfaceContractView,
   compileSystemContracts,
   compileTokenContract,
@@ -77,38 +76,6 @@ test('system compiler ignores component island metadata in V2', () => {
   assert.equal('components' in compiled.validationContext, false);
 });
 
-test('direction compiler is token-agnostic and ships all style references', () => {
-  const contract = compileDirectionContract({
-    id: 'test',
-    prompt: 'Use sharp editorial cards.',
-    tokensCss: defaultTokens,
-    opts: {},
-    exemplars: [
-      {
-        name: 'button',
-        kind: 'atom',
-        content: '<button>Continue</button>',
-      },
-      {
-        name: 'card-reference',
-        kind: 'reference',
-        content: '<article>Card exemplar</article>',
-      },
-      {
-        name: 'comparison-reference',
-        kind: 'reference',
-        content: '<section>Comparison exemplar</section>',
-      },
-    ],
-  });
-
-  assert.equal(contract.issues.length, 0);
-  assert.equal(contract.promptBlock.id, 'direction:test');
-  assert.match(contract.promptBlock.text, /Card exemplar/);
-  assert.match(contract.promptBlock.text, /Comparison exemplar/);
-  assert.match(contract.promptBlock.text, /Continue/);
-});
-
 test('system compiler returns deterministic prompt block order and validation context', () => {
   const layout: SummonLayout = {
     id: 'two-slot',
@@ -130,14 +97,7 @@ test('system compiler returns deterministic prompt block order and validation co
   };
   const compiled = compileSystemContracts({
     mode: 'interactive',
-    direction: {
-      id: 'demo',
-      prompt: 'Use the demo direction.',
-      tokensCss: defaultTokens,
-      exemplars: [],
-      opts: {},
-      layout,
-    },
+    activeTokensCss: defaultTokens,
     ghost: {
       source: 'root',
       prompt: 'Ghost context block.',
@@ -151,7 +111,6 @@ test('system compiler returns deterministic prompt block order and validation co
     compiled.promptBlocks.map((block) => block.id),
     [
       'fixed',
-      'direction:demo',
       'ghost',
       'layout:two-slot',
       'tools',

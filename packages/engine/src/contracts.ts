@@ -6,11 +6,9 @@ import {
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
   buildToolsBlock,
-  buildDirectionBlock,
   buildLayoutBlock,
   buildSurfaceContractBlock,
   type ToolPack,
-  type DirectionInput,
   type SummonLayout,
 } from './prompt.js';
 import {
@@ -151,17 +149,6 @@ export interface TokenContractInput {
   opts?: DirectionOpts;
 }
 
-export interface DirectionContractInput extends DirectionInput {
-  id?: string;
-  tokensCss: string;
-}
-
-export interface CompiledDirectionContract {
-  promptBlock: ContractPromptBlock;
-  tokenContract: CompiledTokenContract;
-  issues: ContractIssue[];
-}
-
 export interface CompiledToolContract {
   pack: ToolPack;
   promptBlock: ContractPromptBlock | null;
@@ -174,7 +161,6 @@ export interface CompiledToolContract {
 export interface SystemContractInput {
   mode: ValidationContext['mode'];
   outputRuntime?: SummonOutputRuntime;
-  direction?: DirectionContractInput | null;
   ghost?: GhostGenerationContext | null;
   layout?: SummonLayout | null;
   editBlock?: string | null;
@@ -322,34 +308,6 @@ export function compileTokenContract(input: TokenContractInput = {}): CompiledTo
   };
 }
 
-export function compileDirectionContract(
-  input: DirectionContractInput,
-): CompiledDirectionContract {
-  const tokenContract = compileTokenContract({
-    css: input.tokensCss,
-    opts: input.opts,
-  });
-  const issues = tokenContract.issues.map((issue) => ({
-    ...issue,
-    source: issue.severity === 'block' ? 'direction' as const : issue.source,
-  }));
-  return {
-    tokenContract,
-    issues,
-    promptBlock: {
-      id: input.id ? `direction:${input.id}` : 'direction',
-      text: buildDirectionBlock({
-        prompt: input.prompt,
-        exemplars: input.exemplars,
-        opts: input.opts,
-        liveOpportunistic: tokenContract.liveOpportunistic,
-        layout: input.layout,
-      }),
-      cache: 'ephemeral',
-    },
-  };
-}
-
 export function compileToolContract(
   pack: ToolPack | null | undefined,
   options: { outputRuntime?: SummonOutputRuntime } = {},
@@ -414,16 +372,7 @@ export function compileSystemContracts(
   const startupLines: ProtocolLine[] = [];
   const activeSurfacePlan = input.surfaceContract?.surface.plan ?? input.surfacePlan ?? null;
 
-  let activeTokensCss = input.activeTokensCss ?? null;
-  if (input.direction) {
-    activeTokensCss = input.activeTokensCss ?? input.direction.tokensCss;
-    const direction = compileDirectionContract({
-      ...input.direction,
-      tokensCss: activeTokensCss,
-    });
-    promptBlocks.push(direction.promptBlock);
-    issues.push(...direction.issues);
-  }
+  const activeTokensCss = input.activeTokensCss ?? null;
 
   const ghostBlockText = input.ghost?.prompt;
   if (ghostBlockText) {

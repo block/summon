@@ -572,7 +572,6 @@ app.post('/api/generate', async (req, res) => {
       let usage: ProviderUsageSnapshot | null = null;
       const commonGenerationInput = {
         prompt,
-        direction: null,
         ghost: ghostContext ?? null,
         activeTokensCss: ghostContext?.tokenSource.css ?? null,
         layout,

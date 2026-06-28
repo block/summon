@@ -86,14 +86,11 @@ export {
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS as SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
-  buildDirectionBlock,
   buildLayoutBlock,
   buildToolsBlock,
   buildSurfaceContractBlock,
 } from './prompt.js';
 export type {
-  Exemplar,
-  DirectionInput,
   SummonLayout,
   SummonLayoutSlot,
   PromptRuntimeOptions,
@@ -118,7 +115,6 @@ export type {
 } from './output-runtime.js';
 export {
   compileTokenContract,
-  compileDirectionContract,
   compileToolContract,
   compileSystemContracts,
   contractIssue,
@@ -127,14 +123,12 @@ export {
 } from './contracts.js';
 export type {
   CompiledToolContract,
-  CompiledDirectionContract,
   CompiledSystemContracts,
   CompiledTokenContract,
   ContractIssue,
   ContractIssueSeverity,
   ContractIssueSource,
   ContractPromptBlock,
-  DirectionContractInput,
   GhostGenerationContext,
   GhostGenerationSource,
   GhostIngestionContract,

@@ -9,7 +9,6 @@
 
 import { ARROW_BINDING_RULE_LINE, ARROW_SANDBOX_SUBSET_PROMPT_BLOCK } from './arrow-subset.js';
 import { formatTokenContract } from './token-contract.js';
-import type { DirectionOpts } from './direction-validator.js';
 import {
   type ActionStateKeys,
   defaultTriggersForKind,
@@ -24,29 +23,6 @@ import {
   runtimeProfile,
   type SummonOutputRuntime,
 } from './output-runtime.js';
-
-export interface Exemplar {
-  name: string;
-  content: string;
-  /** atom = vocabulary primitive (button, badge, list-row), ship verbatim.
-   *  reference = larger composition/material sample from the design source. */
-  kind?: 'atom' | 'reference';
-}
-
-export interface DirectionInput {
-  /** Markdown contents of the direction's prompt.md — Character/Signature/Decisions. */
-  prompt: string;
-  /** Hand-translated HTML exemplars. Atoms and references all ship; Summon no
-   *  longer filters examples through generic response shapes. */
-  exemplars: Exemplar[];
-  /** Per-family opt-outs from meta.json (e.g., shadows: 'none'). */
-  opts?: DirectionOpts;
-  /** Legacy compatibility field; no Summon-owned opportunistic token slots exist. */
-  liveOpportunistic?: string[];
-  /** Host-supplied slot contract for this generation. When present, style
-   *  exemplars are visual references only; the host layout owns structure. */
-  layout?: SummonLayout | null;
-}
 
 export interface SummonLayoutSlot {
   /** Lowercase kebab-case slot id, e.g. `next-steps`. */
@@ -278,44 +254,6 @@ Return a complete structured bundle. The run is incomplete until the bundle cont
  *      active design-source details.
  *   3. The "## Style Reference" exemplar block.
  */
-export function buildDirectionBlock(input: DirectionInput): string {
-  const parts: string[] = [input.prompt.trim()];
-
-  const addendum = buildDirectionAddendum(input.opts, input.liveOpportunistic);
-  if (addendum) parts.push(`\n\n${addendum}`);
-
-  const atoms = input.exemplars.filter((e) => e.kind === 'atom');
-  const references = input.exemplars.filter((e) => e.kind !== 'atom');
-
-  if (atoms.length > 0) {
-    parts.push('\n\n## Vocabulary');
-    parts.push(
-      'These are direct quotes — the design language\'s atomic vocabulary. When you need a primary button, a badge, a text input, or a list row in your output, copy the exact markup and only change the text content. Do NOT restyle (do not change padding, radius, font weight, or color tokens) — the variance is the bug, not the feature. If a variant is needed (secondary button, danger badge), the exemplar shows that variant inline.'
-    );
-    for (const ex of atoms) {
-      parts.push(`\n\n### ${ex.name}\n\n\`\`\`html\n${ex.content.trim()}\n\`\`\``);
-    }
-  }
-
-  if (references.length > 0) {
-    parts.push('\n\n## Style Reference');
-    if (input.layout) {
-      parts.push(
-        `The host has supplied the **${input.layout.id}** layout for this generation. Use these examples only for visual language — spacing rhythm, typography, color usage, borders, and emphasis. Do NOT copy their section structure; the host layout block owns the allowed slots.`
-      );
-    } else {
-      parts.push(
-        'These are hand-crafted snippets demonstrating the design language. Study their spacing rhythm, typography, color usage, borders, hierarchy, and emphasis. They are not generic templates; let the selected design source, user request, host policy, and any Ghost composition refs determine the final structure.'
-      );
-    }
-    for (const ex of references) {
-      parts.push(`\n\n### ${ex.name}\n\n\`\`\`html\n${ex.content.trim()}\n\`\`\``);
-    }
-  }
-
-  return parts.join('\n');
-}
-
 /**
  * Host layout — an optional per-generation slot contract. The model owns the
  * visible composition while honoring the host's semantic regions.
@@ -404,13 +342,6 @@ ${layoutLines}
 ### Compile issues
 
 ${issueLine}`;
-}
-
-function buildDirectionAddendum(
-  _opts: DirectionOpts | undefined,
-  _liveOpportunistic: string[] | undefined
-): string {
-  return '';
 }
 
 /**

@@ -59,7 +59,6 @@ export class SurfaceGenerationSession {
     this.systemContracts = compileSystemContracts({
       mode: this.surfacePolicy?.mode ?? 'static',
       outputRuntime: runtimeTarget,
-      direction: input.direction ?? null,
       ghost: input.ghost ?? null,
       layout: input.layout ?? null,
       experimentalPromptBlock: input.experimentalPromptBlock ?? null,

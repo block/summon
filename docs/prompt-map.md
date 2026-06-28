@@ -14,7 +14,6 @@ The system blocks are assembled by `compileSystemContracts()`
 | # | Block id | Source | Cache | When present |
 | --- | --- | --- | --- | --- |
 | 1 | `fixed` | `SUMMON_FIXED_INSTRUCTIONS` (or `_HTML_`) | ephemeral | always |
-| 2 | `direction` | `buildDirectionBlock()` | ephemeral | legacy direction packs only |
 | 3 | `ghost` | `ResolvedGhostSteer.prompt` (relay brief + surface brief) | ephemeral | fingerprint/ghost run |
 | 4 | `ghost:<id>` | Ghost ingestion prompt blocks incl. `ghost:contract`, `ghost:surface-brief` | ephemeral | fingerprint run |
 | 5 | `layout:<id>` | `buildLayoutBlock()` | ephemeral | host supplies a layout |
@@ -79,12 +78,12 @@ interactivity.
 
 ---
 
-## 2. Direction block (legacy)
+## 2. Direction block (REMOVED 2026-06-27)
 
-`buildDirectionBlock()` — only for legacy direction packs (not the Ghost path).
-Emits the direction's `prompt.md`, a **Vocabulary** section (atoms: copy markup
-verbatim, do not restyle), and a **Style Reference** section (references: study
-spacing/typography, do not copy structure).
+The legacy `direction` block (`buildDirectionBlock`, `directions-loader`,
+`compileDirectionContract`, `eval-directions`) was dead in the server
+(`main.ts` hardcoded `direction: null`) and has been removed entirely. Token
+validation (`validateDirection`) survives — it backs `compileTokenContract`.
 
 ---
 

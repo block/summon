@@ -31,7 +31,6 @@
     "version-packages": "changeset version",
     "release": "pnpm check:release && changeset publish",
     "port-direction": "tsx scripts/port-direction.ts",
-    "eval-directions": "tsx scripts/eval-directions.ts",
     "eval:runtime-bakeoff:fixtures": "node scripts/runtime-bakeoff-fixtures.mjs",
     "runtime-bakeoff": "node scripts/runtime-bakeoff.mjs"
   },

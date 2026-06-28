@@ -2,7 +2,6 @@ import type {
   ToolPack,
   ContractIssue,
   ContractPromptBlock,
-  DirectionContractInput,
   GhostGenerationContext,
   ProtocolLine,
   StreamGraphSnapshot,
@@ -59,7 +58,6 @@ export interface SurfaceModelProvider {
 export interface SurfaceGenerationInput {
   prompt: string;
   modelProvider: SurfaceModelProvider;
-  direction?: DirectionContractInput | null;
   ghost?: GhostGenerationContext | null;
   layout?: SummonLayout | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
