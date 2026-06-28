@@ -7,26 +7,20 @@ Status: provisional
 
 ## Sources Read
 
-- `https://www.webdesignmuseum.org/gallery/nintendo-2001`
-- `https://www.webdesignmuseum.org/uploaded/timeline/nintendo/nintendo-2001.png`
-- `https://www.webdesignmuseum.org/gallery/nintendo-in-2000`
-- `https://www.webdesignmuseum.org/uploaded/timeline/nintendo/nintendo-2000.png`
-- `https://www.webdesignmuseum.org/gallery/nintendo-2002`
-- `https://www.webdesignmuseum.org/uploaded/timeline/nintendo/nintendo-2002.png`
-- `https://www.webdesignmuseum.org/gallery/nintendo-in-2003`
-- `https://www.webdesignmuseum.org/uploaded/timeline/nintendo/nintendo-2003.png`
-- `https://web.archive.org/web/20010611070409/http://www.nintendo.com/index.jsp`
-- Web searches for Nintendo-inspired retro web/UI design, Game Boy Advance-era web design, Y2K game-console UI, and modern retro game portal aesthetics.
+- Public web-design archives and wayback captures of early-2000s game-console web portals (circa 2000-2003).
+- Web searches for retro game-console web/UI design, handheld-console-era web design, Y2K game-console UI, and modern retro game-portal aesthetics.
+
+Real brand names, marks, characters, and assets encountered during research are treated as research-only context and are never reusable.
 
 ## Source Classification
 
 | Source | Classification | Evidence Strength | Scope | Notes |
 | --- | --- | --- | --- | --- |
-| Web Design Museum Nintendo 2001 page and screenshot | historical reference | supporting | historical-research | Confirms the fixed 830px-ish periwinkle faceplate, mascot masthead, dual command nav, hero, lists, poll, right rail, left tabs, and footer. |
-| Web Design Museum Nintendo 2002/2003 pages and screenshots | historical reference | supporting | historical-research | Confirms that the 2001 chrome shell persisted across adjacent years with varied hero campaigns and rail content. |
-| Web Design Museum Nintendo 2000 page and screenshot | historical reference / contrast | supporting | historical-research | Shows a looser pre-faceplate portal with playful blobs and right link stacks; useful as boundary context, not the target grammar. |
-| Wayback 2001 Nintendo archive | provenance only | supporting | historical-research | Useful as original context when accessible; not a reusable artwork source. |
-| Modern search results for Nintendo-inspired retro aesthetics | candidate discovery | uncurated | generated-exemplars | Search results skew heavily toward official/product pages or fan/IP work. Use only to identify recurring safe motifs; do not copy assets. |
+| Public archive of an early-2000s console portal (peak year) and screenshot | historical reference | supporting | historical-research | Confirms the fixed 830px-ish periwinkle faceplate, mascot masthead, dual command nav, hero, lists, poll, right rail, left tabs, and footer. |
+| Public archives of adjacent-year console portals and screenshots | historical reference | supporting | historical-research | Confirms that the chrome shell persisted across adjacent years with varied hero campaigns and rail content. |
+| Public archive of an earlier-year console portal and screenshot | historical reference / contrast | supporting | historical-research | Shows a looser pre-faceplate portal with playful blobs and right link stacks; useful as boundary context, not the target grammar. |
+| Wayback archive of an early-2000s console portal | provenance only | supporting | historical-research | Useful as original context when accessible; not a reusable artwork source. |
+| Modern search results for retro game-console aesthetics | candidate discovery | uncurated | generated-exemplars | Search results skew heavily toward official/product pages or fan/IP work. Use only to identify recurring safe motifs; do not copy assets. |
 
 ## Durable Signals Promoted
 
@@ -41,8 +35,8 @@ Status: provisional
 
 ## Signals Not Promoted
 
-- Nintendo, Mario, Pokémon, Game Boy, Kirby, Metroid, ESRB, official screenshots, exact copyright copy, exact navigation labels, and campaign images are not promoted as reusable assets.
-- The 2000 page's looser white background, giant playful blobs, and official character imagery are not the target; they are useful only as historical contrast.
+- Any real brand names, mascots, characters, console product names, rating-authority marks, official screenshots, exact copyright copy, exact navigation labels, and campaign images are not promoted as reusable assets.
+- The earlier portal's looser white background, giant playful blobs, and official character imagery are not the target; they are useful only as historical contrast.
 - Modern fan-art or portfolio work found through search is uncurated unless license and source-agnostic value are reviewed.
 - Pixel-art alone is not sufficient. The target requires console chrome, command bars, bevels, and dense modules.
 - CRT scanline, cyberpunk neon, vaporwave gradients, and glassmorphism are adjacent retro tropes but not part of this fingerprint.

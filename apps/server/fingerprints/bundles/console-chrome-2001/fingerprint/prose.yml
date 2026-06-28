@@ -9,9 +9,9 @@ summary:
     - "Use warm amber and signal orange only for navigation, tools, and forward motion so action is visible in a dense interface."
     - "Blend practical modules, search, lists, polls, promos, and rails into a packed fixed-canvas composition."
     - "Use web-safe Arial, small uppercase labels, halftone texture, and outlined display type to evoke Y2K game hardware and box art."
-    - "Translate the retro Nintendo-era aesthetic into generic generated products without reusing Nintendo names, characters, logos, screenshots, or slogans."
+    - "Translate the retro game-console aesthetic into generic generated products without reusing any real brand's names, characters, logos, screenshots, or slogans."
   anti_goals:
-    - "Literal Nintendo reproduction: no Nintendo wordmark, Mario/Pikachu/Game Boy imagery, console product names, ESRB marks, exact nav labels, copied screenshots, or source copy unless supplied by the user as content to transform."
+    - "Literal brand reproduction: no real game-company wordmarks, mascot/character imagery, real console product names, rating-authority marks, exact nav labels, copied screenshots, or source copy unless supplied by the user as content to transform."
     - "Modern airy SaaS pages, glassmorphism, soft gradient dashboards, material shadows, or uniformly rounded card grids."
     - "Pastel nostalgia without hardware structure; the signature is machined chrome, not soft retro color alone."
     - "Warm accent color used decoratively; amber and orange must mean tool, nav, badge, commit, or forward motion."
@@ -227,14 +227,14 @@ principles:
       - "Rename nav, badges, product panels, and hero copy to match the user's prompt rather than the historical site."
       - "Use public research as inspiration for composition, not as permission to reuse protected characters or wordmarks."
     counterexamples:
-      - "Nintendo, Mario, Pikachu, Game Boy, Pokémon, ESRB, or exact 2001 screenshot elements in generated surfaces without explicit user-provided content."
+      - "Real game-company brand names, mascots, characters, console product names, rating-authority marks, or exact period screenshot elements in generated surfaces without explicit user-provided content."
       - "Parody so literal that it reads as a clone."
     evidence:
       - path: fingerprint/sources/curation/source-study-2026-06-22.md
 
 experience_contracts:
   - id: source-agnostic-retro
-    contract: "Generated surfaces preserve the retro console composition language without reusing Nintendo names, characters, logos, screenshots, slogans, exact navigation, or proprietary marks unless the user explicitly supplies them as content to handle."
+    contract: "Generated surfaces preserve the retro console composition language without reusing any real brand names, characters, logos, screenshots, slogans, exact navigation, or proprietary marks unless the user explicitly supplies them as content to handle."
     applies_to:
       paths: ["."]
       surface_types: ["landing", "directory", "workflow", "brief", "mobile-adaptation"]

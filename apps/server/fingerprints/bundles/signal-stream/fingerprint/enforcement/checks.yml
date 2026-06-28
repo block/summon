@@ -48,14 +48,14 @@ checks:
         - examples/dogfood/prompts.md
       surface_types: [feed, digest, review, brief]
     detector:
-      type: forbidden-regex
-      pattern: '(The Verge|theverge|Verge Score|Vox Media|Read this before you vibe-code another app|vibe-code another app|Yael|Dominic Preston|Emma Roth|Ring home security)'
+      type: forbidden-source-brand
+      note: "Reject any real publisher brand name, wordmark, masthead, real author/byline name, or verbatim source headline copy. Host applications supply the concrete brand terms to forbid; this fingerprint ships no real-brand strings."
     evidence:
       support: 0.95
       observed_count: 0
       examples:
-        - fingerprint/sources/curation/theverge-homepage-2026-06-22.md
-    repair: "Replace source-brand copy with fictional, user-supplied, or abstract signal-stream content. Source names may remain in curation notes when used as provenance."
+        - fingerprint/sources/curation/public-editorial-homepage-study.md
+    repair: "Replace any real publisher brand copy with fictional, user-supplied, or abstract signal-stream content." 
 
   - id: shadows-remain-flat-tokens
     title: "Shadow tokens preserve flat graphic depth"

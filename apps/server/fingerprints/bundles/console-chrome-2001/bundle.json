@@ -6,6 +6,6 @@
   "status": "published",
   "version": "0.1.0",
   "fingerprint": "fingerprint",
-  "tags": ["retro", "y2k", "console", "game", "beveled", "periwinkle", "fixed-canvas", "nintendo-inspired"],
+  "tags": ["retro", "y2k", "console", "game", "beveled", "periwinkle", "fixed-canvas", "retro-console-inspired"],
   "tokens": "tokens.css"
 }

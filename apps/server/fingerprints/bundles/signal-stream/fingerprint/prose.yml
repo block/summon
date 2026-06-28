@@ -212,7 +212,7 @@ principles:
       - "A portable exemplar that contains raw ad creative or a real article title."
       - "Using a public source screenshot as if it were an approved product asset."
     evidence:
-      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+      - path: fingerprint/sources/curation/public-editorial-homepage-study.md
 
 experience_contracts:
   - id: stream-order-is-visible
@@ -301,5 +301,5 @@ experience_contracts:
       - path: examples/core/signal-lead-stack-desktop.png
       - path: examples/core/latest-signal-rail-desktop.png
       - path: examples/core/mobile-top-story-stack.png
-      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+      - path: fingerprint/sources/curation/public-editorial-homepage-study.md
 

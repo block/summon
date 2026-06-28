@@ -245,7 +245,7 @@ patterns:
       - "Make the art original, abstract, or prompt-specific; avoid protected game characters and exact source poses."
       - "Let the bubble overlap the chrome slightly to contrast with the rigid plate grid."
     anti_patterns:
-      - "Literal Nintendo-era characters or source mascot art."
+      - "Literal real-brand characters or source mascot art."
       - "Large illustration hero that replaces the console UI composition."
       - "Cute mascot chatter that distracts from actions and scanning."
     evidence:
@@ -261,7 +261,7 @@ patterns:
       - "Use amber rectangles for trust/certification/tool marks and white squares for ratings or categorical stamps."
       - "Keep badge text micro-scale and uppercase, with hard borders."
       - "Use badges to clarify state, category, compliance, recommendation, or availability."
-      - "Make all rating/trust language generic unless user-provided; do not reuse ESRB marks."
+      - "Make all rating/trust language generic unless user-provided; do not reuse real rating-authority marks."
     anti_patterns:
       - "Friendly rounded status pills."
       - "Large decorative badges with no information value."

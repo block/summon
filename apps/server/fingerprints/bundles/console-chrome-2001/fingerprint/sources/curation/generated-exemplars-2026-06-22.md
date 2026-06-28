@@ -24,7 +24,7 @@ Status: provisional; needs human final review
 
 ## Durable Signals Promoted
 
-- Original generated examples should teach the fingerprint's visual grammar without copying Nintendo-owned content.
+- Original generated examples should teach the fingerprint's visual grammar without copying any real brand-owned content.
 - The homepage exemplar demonstrates the minimum full-shell read: clipped chassis, carbon command layer, pale strip, hero plate, update rows, thumbnail grid, poll, rail, and footer.
 - The catalog exemplar demonstrates browsing density: utility filter cluster, tight thumbnail frames, stacked rows, selected detail panel, amber tool chips, and orange open affordances.
 - The form exemplar demonstrates workflow viability: platinum form body, periwinkle label bar, hard-bordered fields, dotted divider, amber utility, orange submit, carbon support rail, and useful status copy.
@@ -35,7 +35,7 @@ Status: provisional; needs human final review
 
 - The exact fictional content in exemplars is not canonical. Future outputs should use prompt-derived copy.
 - The SVG drawing style is not a required implementation technology; future generated surfaces may use HTML/CSS, SVG, canvas, or framework markup when policy allows.
-- The examples are not permission to include Nintendo, Mario, Pokémon, Game Boy, ESRB, historical campaign images, official screenshots, or exact historical copy.
+- The examples are not permission to include any real brand names, mascots, characters, rating-authority marks, historical campaign images, official screenshots, or exact historical copy.
 - The mobile exemplar is experimental; do not treat it as proof that every narrow surface needs every desktop module.
 
 ## Layer Uses

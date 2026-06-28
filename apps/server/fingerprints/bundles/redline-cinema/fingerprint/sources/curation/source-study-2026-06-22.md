@@ -2,22 +2,22 @@
 
 Date: 2026-06-22
 
-This curation note distills a user-provided luxury-performance automotive design analysis plus public Ferrari web research into an agnostic Ghost fingerprint for generated Summon surfaces. The fingerprint must preserve composition signals, not Ferrari identity. It intentionally avoids generation guidance that would reuse Ferrari names, Cavallino/shield marks, Scuderia/F1 team identifiers, model names, slogans, proprietary photography, or licensed typeface claims.
+This curation note distills a user-provided luxury-performance automotive design analysis plus public automotive web research into an agnostic Ghost fingerprint for generated Summon surfaces. The fingerprint must preserve composition signals, not any real brand's identity. It intentionally avoids generation guidance that would reuse real automotive brand names, emblem/shield marks, racing-team identifiers, model names, slogans, proprietary photography, or licensed typeface claims.
 
 ## Sources read
 
-- `/Users/nahiyan/Downloads/DESIGN-ferrari.md` — user-provided design analysis; primary token/component/style extraction source.
-- `https://www.ferrari.com/en-EN/auto` — official Range / line-up page; public composition corroboration. Text extraction returned title `Ferrari Range: All the Models on Sale - Ferrari.com`, line-up heading, navigation taxonomy, and many image-led model entries.
-- `https://preowned.ferrari.com/en-US` — official Approved / preowned page; public composition corroboration for catalog and listing surfaces. Text extraction returned hero copy, listing imagery, `in the foreground in USA`, dealer and genuine-accessory CTA blocks.
-- `https://www.ferrari.com/en-EN/history` — official History page; public composition corroboration for heritage/editorial storytelling. Text extraction returned title `The Ferrari History`, cinematic introductory imagery, and an origins/legend section.
-- `https://www.ferrari.com/en-EN/auto/dealers` — official Dealers and service page; public composition corroboration for dense directory/service content. Text extraction returned regional headings and many dealer/service rows.
-- `https://www.ferrari.com/en-EN/news` — official News page; public composition corroboration for editorial index/navigation taxonomy.
+- A user-provided luxury-performance automotive design-analysis file — primary token/component/style extraction source.
+- A real automotive brand's official range/line-up page — public composition corroboration for a cinematic, image-led line-up heading, navigation taxonomy, and many image-led model entries.
+- A real automotive brand's official approved/preowned page — public composition corroboration for catalog and listing surfaces: hero copy, listing imagery, dealer and genuine-accessory CTA blocks.
+- A real automotive brand's official history page — public composition corroboration for heritage/editorial storytelling: cinematic introductory imagery and an origins/legend section.
+- A real automotive brand's official dealers/service page — public composition corroboration for dense directory/service content: regional headings and many dealer/service rows.
+- A real automotive brand's official news page — public composition corroboration for editorial index/navigation taxonomy.
 
 ## Sources attempted but blocked or incomplete
 
-- `https://www.ferrari.com/en-EN` returned CloudFront 403 through CLI extraction.
-- `https://www.ferrari.com/en-EN/formula1` returned CloudFront 403 through CLI extraction.
-- `https://www.ferrari.com/en-EN/formula1/races` and related Formula 1 pages returned 403 or timed out through CLI extraction.
+- The brand's homepage returned a CDN 403 through CLI extraction.
+- The brand's racing section returned a CDN 403 through CLI extraction.
+- The brand's racing-calendar and related pages returned 403 or timed out through CLI extraction.
 - Individual model pages may require browser/manual research; use them only for observation unless explicit approval exists to store screenshots or assets.
 
 ## Classification
@@ -47,15 +47,15 @@ This curation note distills a user-provided luxury-performance automotive design
 
 ## Curation cautions
 
-- Ferrari identity is research-only. Generated surfaces must not reuse Ferrari names, Cavallino/shield marks, Scuderia/F1 team identifiers, model names, slogans, proprietary photography, or licensed typeface claims unless the user's prompt independently supplies them.
+- Real brand identity is research-only. Generated surfaces must not reuse any real automotive brand's names, emblem/shield marks, racing-team identifiers, model names, slogans, proprietary photography, or licensed typeface claims unless the user's prompt independently supplies them.
 - Public pages are useful for composition signals, but official screenshots and source imagery are not included as portable exemplars in this bundle.
 - Text extraction can miss CSS, viewport behavior, and image choreography. Browser/manual research should confirm visual claims before treating this as Tier 4 reference evidence.
 - The attached design analysis includes brand-specific names for color and type. The fingerprint translates those into generic roles such as race-red accent, restrained sans, and near-black canvas.
-- Race/event patterns in this bundle are composition guidance, not official Formula 1 or Scuderia identity guidance.
+- Race/event patterns in this bundle are composition guidance, not any official racing-series or team identity guidance.
 
 ## Derived exemplars
 
-The portable exemplars in `examples/core/` were produced specifically for this bundle. They lean on public research into Ferrari.com composition but remain agnostic and original.
+The portable exemplars in `examples/core/` were produced specifically for this bundle. They lean on public research into luxury-performance automotive composition but remain agnostic and original.
 
 - `cinematic-launch-hero.png` — supports full-bleed cinematic hero, scarce red CTA, restrained nav, and source-agnostic naming.
 - `performance-spec-grid.png` — supports large spec numerals, labels/units, hairline grid alignment, and one decisive red value.

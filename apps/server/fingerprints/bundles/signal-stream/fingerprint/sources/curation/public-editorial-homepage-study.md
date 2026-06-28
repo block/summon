@@ -1,7 +1,7 @@
 # Source Study: Public Technology Editorial Homepage
 
 Date: 2026-06-22
-Source inspected: `https://www.theverge.com/`
+Source inspected: a public technology editorial homepage
 Bundle: Signal Stream
 
 ## Curation stance

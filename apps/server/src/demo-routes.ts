@@ -28,7 +28,7 @@ export function registerDemoRoutes(app: Express, modelProviders: ModelProviderRe
       const raw = await modelProvider.completeText({
         maxTokens: 800,
         system:
-          'Generate 4-5 realistic-but-fictional search results for the given query. Return ONLY a JSON array, no markdown fences, no prose. Shape: [{"title": "...", "snippet": "...", "source": "..."}]. Titles: 4-10 words, specific and plausible. Snippets: 1-2 sentences, 20-40 words, useful-sounding. Sources: realistic domain names like "nytimes.com", "seriouseats.com", "theverge.com". Vary the tone across results.',
+          'Generate 4-5 realistic-but-fictional search results for the given query. Return ONLY a JSON array, no markdown fences, no prose. Shape: [{"title": "...", "snippet": "...", "source": "..."}]. Titles: 4-10 words, specific and plausible. Snippets: 1-2 sentences, 20-40 words, useful-sounding. Sources: realistic-looking but fictional domain names. Vary the tone across results.',
         prompt: query,
       });
       // Utility models often wrap JSON in ```json fences. Strip them, plus any leading prose.

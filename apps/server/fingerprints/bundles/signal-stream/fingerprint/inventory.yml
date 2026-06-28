@@ -13,7 +13,7 @@ topology:
         - "fingerprint/prose.yml"
         - "fingerprint/composition.yml"
         - "fingerprint/sources/curation/source-study-2026-06-22.md"
-        - "fingerprint/sources/curation/theverge-homepage-2026-06-22.md"
+        - "fingerprint/sources/curation/public-editorial-homepage-study.md"
         - "examples/core/signal-lead-stack-desktop.png"
         - "examples/core/latest-signal-rail-desktop.png"
         - "examples/core/mobile-top-story-stack.png"
@@ -32,7 +32,7 @@ topology:
     - id: "source-abstraction"
       paths:
         - "fingerprint/memory/intent.md"
-        - "fingerprint/sources/curation/theverge-homepage-2026-06-22.md"
+        - "fingerprint/sources/curation/public-editorial-homepage-study.md"
       surface_types:
         - "feed"
         - "digest"
@@ -111,7 +111,7 @@ building_blocks:
     - "examples/core/section-digest-module.png"
   files:
     - "fingerprint/sources/curation/source-study-2026-06-22.md"
-    - "fingerprint/sources/curation/theverge-homepage-2026-06-22.md"
+    - "fingerprint/sources/curation/public-editorial-homepage-study.md"
     - "fingerprint/sources/curation/dogfood-review-rubric-2026-06-22.md"
     - "fingerprint/memory/intent.md"
     - "examples/dogfood/prompts.md"
@@ -202,7 +202,7 @@ sources:
 
   - id: "public-homepage-study"
     kind: "file"
-    ref: "sources/curation/theverge-homepage-2026-06-22.md"
+    ref: "sources/curation/public-editorial-homepage-study.md"
     note: "Source classification and abstraction boundary for a public technology editorial homepage; promotes neutral redraws, excludes publisher identity."
 
   - id: "dogfood-review-rubric"

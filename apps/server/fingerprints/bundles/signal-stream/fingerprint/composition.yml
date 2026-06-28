@@ -247,7 +247,7 @@ patterns:
       - "Using real article titles or author names in exemplar screenshots."
       - "Treating ad creative as a reusable content module."
     evidence:
-      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+      - path: fingerprint/sources/curation/public-editorial-homepage-study.md
       - path: examples/core/signal-lead-stack-desktop.png
 
   - id: segmented-stream-tabs
@@ -268,7 +268,7 @@ patterns:
     evidence:
       - path: examples/core/latest-signal-rail-desktop.png
       - path: examples/core/mobile-top-story-stack.png
-      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+      - path: fingerprint/sources/curation/public-editorial-homepage-study.md
 
   - id: lead-image-headline-slab
     kind: "layout"
@@ -288,7 +288,7 @@ patterns:
     evidence:
       - path: examples/core/signal-lead-stack-desktop.png
       - path: examples/core/mobile-top-story-stack.png
-      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+      - path: fingerprint/sources/curation/public-editorial-homepage-study.md
 
   - id: compact-supporting-story-grid
     kind: "layout"
@@ -308,7 +308,7 @@ patterns:
     evidence:
       - path: examples/core/signal-lead-stack-desktop.png
       - path: examples/core/section-digest-module.png
-      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+      - path: fingerprint/sources/curation/public-editorial-homepage-study.md
 
   - id: mobile-tabs-preserve-mode
     kind: "layout"
@@ -327,5 +327,5 @@ patterns:
       - "Shrinking display type until it loses the editorial lead role."
     evidence:
       - path: examples/core/mobile-top-story-stack.png
-      - path: fingerprint/sources/curation/theverge-homepage-2026-06-22.md
+      - path: fingerprint/sources/curation/public-editorial-homepage-study.md
 

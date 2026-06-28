@@ -15,16 +15,16 @@ Score each output on a 1-5 scale for:
 5. **Typography/label voice** — small uppercase Arial-like labels and outlined display treatment appear where appropriate.
 6. **Usefulness** — the surface answers the prompt and provides practical actions or information.
 7. **Accessibility/usability** — controls and copy are legible; narrow surfaces do not require unsafe tiny targets.
-8. **IP safety** — no Nintendo, Mario, Pokémon, Game Boy, ESRB, protected screenshots, or exact source copy unless explicitly supplied by the prompt.
+8. **IP safety** — no real brand names, mascots/characters, console product names, rating-authority marks, protected screenshots, or exact source copy unless explicitly supplied by the prompt.
 
 ## Prompt 1: console-homepage-launch
 
-- **Exact prompt:** Create a retro console-style homepage for a fictional handheld puzzle game club called Puzzle Port. Include a hero, search/finder utility, official updates, featured community links, a player poll, and a sign-up rail. Do not use Nintendo, Mario, Pokémon, Game Boy, or ESRB names or imagery.
+- **Exact prompt:** Create a retro console-style homepage for a fictional handheld puzzle game club called Puzzle Port. Include a hero, search/finder utility, official updates, featured community links, a player poll, and a sign-up rail. Do not use any real brand names, mascots, console product names, or rating-authority imagery.
 - **Eval axis:** generation
 - **Suggested loop:** fingerprint-iteration comparing current bundle vs upgraded bundle after exemplars.
 - **Claims under test:** faceplate shell, dual command nav, dense modules, right rail, IP safety.
 - **Expected strong-output traits:** periwinkle chassis, carbon command bar, pale secondary strip, box-art hero, orange forward arrows, amber utility chips, compact list rows, original mascot/bubble or no mascot.
-- **Likely failure modes:** generic SaaS cards, literal Nintendo leakage, pixel-art-only styling, orange used decoratively, no rail.
+- **Likely failure modes:** generic SaaS cards, literal real-brand leakage, pixel-art-only styling, orange used decoratively, no rail.
 
 ## Prompt 2: retro-cartridge-catalog
 
