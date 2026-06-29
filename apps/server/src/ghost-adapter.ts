@@ -66,6 +66,8 @@ export interface GhostBaseDirection {
 
 interface BaseGhostSteer {
   surface: string;
+  /** The resolved `.ghost` package dir — routing input for step-5 conformance. */
+  packageDir: string;
   graph: GhostGraph;
   slice: GraphSlice;
   prompt: string;
@@ -256,6 +258,7 @@ export async function resolveGhostGenerationContext(
     request,
     root,
     surface: 'core',
+    packageDir: paths.packageDir,
     graph,
     slice,
     prompt: renderSlicePrompt(slice),
@@ -294,6 +297,7 @@ export async function resolveCatalogGhostGenerationContext(
     catalogEntry: entry,
     root: entry.root,
     surface: 'core',
+    packageDir: paths.packageDir,
     graph,
     slice,
     prompt: renderSlicePrompt(slice),

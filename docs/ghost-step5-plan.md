@@ -128,12 +128,31 @@ verdict. Step 6 (the receipt) consumes this. Step 5 just emits the meta + logs.
 - Live smoke: signal-stream (has 2 checks) generates → `/ghost-conformance` emits
   2 verdicts; console-chrome-2001 (0 checks) → `evaluated:false`, no model call.
 
+## Latency budget (HARD requirements)
+
+The verdict is a post-pass on the *accepted* artifact, so it cannot delay the
+artifact — but only if we enforce ordering structurally:
+
+| Scenario | Added perceived | Added total |
+| --- | --- | --- |
+| Fingerprint with no checks (4 of 7 fixtures) | 0 | 0 (no model call) |
+| Fingerprint with checks (3 of 7) | ~0 (artifact already rendered) | +1-3s tail (timeout-capped) |
+| Utility model hangs | ~0 | +timeout cap, then inconclusive |
+
+Two requirements that turn this from a possible 3s regression into a free tail:
+
+1. **Artifact + run-metrics + review-packet flush BEFORE the verdict call starts.**
+   The user's UI has already rendered; the verdict is purely additive tail meta.
+   The live smoke MUST confirm the artifact line precedes `/ghost-conformance` in
+   the stream.
+2. **Hard timeout on the verdict call** (reuse the broker's, ~5-8s); timeout →
+   `inconclusive`. The tail can never hang the response beyond the cap.
+
 ## Risks
 
-- **Latency/cost:** one extra utility call per ghost generation that has checks.
-  Acceptable (utility model, post-pass, off the stream's critical path) — but emit
-  the artifact/stream FIRST, then the conformance meta, so perceived latency is
-  unchanged.
+- **Cost:** one extra utility call per ghost generation *that has checks* (the
+  4 check-less fixtures incur zero). Utility model, post-pass, off the critical
+  path — perceived latency ~0.
 - **Verdict reliability:** an LLM judging conformance is inherently soft. Keep it
   ADVISORY in v1, require structured output, and treat `inconclusive` as the safe
   default on any doubt. This is why it is not a gate yet.

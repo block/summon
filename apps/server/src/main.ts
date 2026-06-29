@@ -37,6 +37,7 @@ import {
   resolveGhostGenerationContext,
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
+import { evaluateConformance } from './ghost-conformance.js';
 import {
   loadFingerprintCatalog,
   parseFingerprintRequest,
@@ -617,6 +618,36 @@ app.post('/api/generate', async (req, res) => {
         };
         writeGenerateLine(res, reviewLine);
       }
+
+      // Step 5 — conformance verdict (advisory, post-pass on the accepted
+      // artifact). Emitted AFTER the review packet so artifact + run-metrics +
+      // review-packet have already flushed; the verdict is purely additive tail
+      // meta and a failure here must never fail the generation response.
+      if (
+        ghostContext &&
+        !summary.blocked &&
+        process.env.SUMMON_GHOST_CONFORMANCE !== '0'
+      ) {
+        try {
+          const artifactSource = extractArtifactSource(summary.emittedLines);
+          const verdict = await evaluateConformance({
+            packageDir: ghostContext.packageDir,
+            graph: ghostContext.graph,
+            surface: ghostContext.surface,
+            artifactSource,
+            completeText: (request) =>
+              utilityModelProvider.completeText(request, utilityModelSelection),
+          });
+          writeGenerateLine(res, {
+            op: 'meta',
+            path: '/ghost-conformance',
+            value: verdict,
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('[generate] conformance skipped:', msg);
+        }
+      }
       const finalUsage = usage ?? {
         input_tokens: 0,
         output_tokens: 0,
@@ -651,6 +682,33 @@ app.post('/api/generate', async (req, res) => {
 
 function ghostLogId(context: ResolvedGhostSteer): string {
   return context.source === 'root' ? context.request.rootId : context.request.fingerprintId;
+}
+
+/**
+ * Extract the accepted Arrow artifact source from the emitted protocol lines:
+ * the last `artifact` line whose `value.runtime === 'arrow'`, returning its
+ * `value.source` map ({ "main.ts": string, "main.css"?: string }) or null.
+ */
+function extractArtifactSource(lines: ProtocolLine[]): Record<string, string> | null {
+  for (let index = lines.length - 1; index >= 0; index--) {
+    const line = lines[index];
+    if (line?.op !== 'artifact') continue;
+    const value = line.value as { runtime?: unknown; source?: unknown } | undefined;
+    if (
+      value?.runtime !== 'arrow' ||
+      !value.source ||
+      typeof value.source !== 'object' ||
+      Array.isArray(value.source)
+    ) {
+      continue;
+    }
+    const source: Record<string, string> = {};
+    for (const [file, content] of Object.entries(value.source as Record<string, unknown>)) {
+      if (typeof content === 'string') source[file] = content;
+    }
+    return source;
+  }
+  return null;
 }
 
 const playgroundPromptBlock: ContractPromptBlock = {
