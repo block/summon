@@ -140,14 +140,31 @@ Ordered, each independently shippable:
    and migrate or re-author the in-repo `apps/server/fingerprints/bundles/*` to
    the node-graph layout (or drop them for fresh node-model samples).
 
-## Open questions to close before building
+## Resolved decisions
 
-- **Token node convention:** one canonical visual node, or token CSS allowed on
-  any corridor node? (Plan assumes: any node; merge in provenance order.)
-- **Surface naming:** how does Summon choose the node id to gather from a freeform
-  prompt? (Agent broker already classifies intent — extend it to pick a node id
-  from `buildGraphMenu`, fall back to `core`.)
-- **Sample bundles:** migrate the 7 existing bundles via `ghost migrate`, or
-  author fresh node-model fixtures? (Affects test fixtures + the demo.)
-- **Incarnation:** does Summon ever pass `--as` (web/mobile/etc.), or always
-  essence? (Likely essence for v1.)
+- **Token node convention → CSS on any corridor node.** Summon extracts fenced
+  ```css blocks from *every* node in the gathered slice and merges them in
+  corridor/provenance order (ancestors → own → edge). A surface node can thus
+  override a base token; no single "canonical" visual node is required.
+- **Surface naming → extend the agent broker.** Summon names the node (Ghost
+  does not infer it). Feed `buildGraphMenu(graph)` (each node's `id` +
+  `description`) to the existing broker, which already classifies prompt intent;
+  it selects the best-matching node id exactly as it selects a tool from a tool
+  list. Fall back to `core` (true everywhere) when no node matches confidently.
+- **Sample bundles → author fresh node-model fixtures.** Re-author the existing
+  bundles' design intent as new node-graph fixtures rather than running
+  `ghost migrate` on the legacy YAML. Cleaner fixtures, no migration cruft, and
+  it doubles as a dogfood of authoring against the new model.
+- **Incarnation → essence for v1.** Summon does not pass `--as`. It gathers
+  essence (untagged) nodes plus any `any`-tagged nodes — the medium-agnostic
+  intent. Medium-bound incarnations (email/voice/billboard) are out of scope for
+  v1; revisit if Summon ever targets non-web surfaces.
+
+### Background: essence vs incarnation
+
+A node's `incarnation` frontmatter marks medium-bound prose. **Essence** =
+untagged (or `any`): intent that holds in any medium. A tagged node
+(`incarnation: email`) only applies to that form. At gather, `--as <x>` passes
+essence always + tagged nodes matching `x`. Summon stays essence-only in v1, so
+every gathered tagged node would be filtered — fixtures should author intent as
+essence, not medium-bound.
