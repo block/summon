@@ -140,16 +140,16 @@ Each step builds + tests + commits on its own. No big-bang rewrite.
 
 ### Blocked on the Ghost rearchitecture (do NOT touch yet)
 
-Ghost is mid-rearchitecture. Anything inside the Ghost layer would be refactored
-against a moving target, so these are parked until it lands.
+Ghost is mid-rearchitecture (now a node-graph of prose, not YAML files). The
+integration plan lives in [`integration-with-ghost.md`](./integration-with-ghost.md).
+These prompt-layer items are subsumed by it:
 
-- **De-overlap `ghost:brief` vs `ghost:contract`.** Composition direction should
-  live only in the contract; the brief should be task + success framing. Both
-  blocks (and `ghost-adapter.ts`'s surface brief) will be reshaped by the
-  rearchitecture — wait.
-- **Rehome the deleted composition wisdom into Ghost.** The archetypes/anti-
-  patterns removed in step 2 belong somewhere in the Ghost authoring spec. That
-  is a Ghost-side decision the rearchitecture owns.
+- **De-overlap `ghost:brief` vs `ghost:contract`.** Resolved by the new model:
+  there is no `composition.yml` to overlap with. The brief becomes "frame the
+  task + name the surface"; the contract *is* the `resolveGraphSlice` output.
+- **Rehome the deleted composition wisdom into Ghost.** It becomes prose in the
+  node graph (core/surface nodes), authored via the composition lens — a
+  Ghost-side authoring concern, not Summon's.
 
 > **Integration note for the Ghost rearchitecture:** the Summon layer has *fully
 > vacated* composition. New Ghost cannot assume Summon supplies any structural
