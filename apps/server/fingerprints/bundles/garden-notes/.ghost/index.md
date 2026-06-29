@@ -1,5 +1,5 @@
 ---
-description: Garden Notes — a soft planning language for personal tasks, low-pressure comparisons, concrete next steps, and humane pacing.
+description: Garden Notes core — a soft planning language that turns messy personal tasks, low-stakes choices, and tiny routines into a manageable plan; warm cream field, rounded note panels, gentle green emphasis, friendly state badges, humane pacing.
 ---
 
 ## Intent
@@ -120,17 +120,22 @@ these custom properties rather than inventing values):
 ```
 
 Body sits on the soft cream-on-field gradient in the sans planning voice; `strong`
-emphasis takes the green accent. The recurring building blocks are note panels,
-staged checklists, gentle badges, context headers, a next-small-step callout, prep
-baskets, now/next/later stacks, good-enough choice notes, fit/friction/timing
-comparisons, can-wait notes, readiness chips, tiny routine checklists, gentle
-reminder rows, and half-finished-plan resume blocks. Copy atoms stay small and
-human — Tiny start, Now, Next, Later, Can wait, Gather, Check first, Good enough,
-Low effort, Ready, Needs one thing, Energy, Season, Timing.
+emphasis takes the green accent. The recurring copy atoms stay small and human —
+Tiny start, Now, Next, Later, Can wait, Gather, Check first, Good enough, Low
+effort, Ready, Needs one thing, Energy, Season, Timing.
+
+The shared building blocks every surface draws on live in the root nodes that
+reach everywhere: the [note-panel and soft-shell system](note-panels) that shapes
+every plan, the [gentle depth rules](gentle-depth) that keep layering from
+becoming a card pile, the [badge and state system](badges) that carries planning
+state, and the [good-enough choice and can-wait notes](good-enough) that lower
+pressure. The surfaces — [planner](planner), [staged-plan](staged-plan),
+[comparison](comparison), and [routine](routine) — compose this material for their
+own job.
 
 ## Composition
 
-Four principles carry the language:
+Four principles carry the language and are true on every surface:
 
 1. **Humane pacing is the structure.** Break tasks into steps that feel doable
    now, next, and later, with soft context preserved around each step. Keep the
@@ -155,59 +160,19 @@ Four principles carry the language:
    task itself is about gardening or seasonal prep, and never let warm filler copy
    replace a concrete recommendation.
 
-The recurring patterns that make a Garden Notes surface feel intentional:
-
-- **Planner note stack:** a bounded note stack — context header, one visibly
-  primary next small step, supporting notes for prep, constraints, and reminders,
-  and optional now/next/later pacing. Open with a short context line that reflects
-  the real task; never lead with introductory advice before the first action.
-- **Staged plan through soft panels:** when a task has sequence, show a staged
-  path through soft cream note panels rather than a pile of generic cards — large
-  rounded panels, green accents, soft shadows, garden-bed groupings, tactile
-  note-card layers, and visibly gentle badges. Airy but anchored in a bounded
-  rounded shell.
-- **Now/next/later only when needed:** now/next/later is a pressure-release device,
-  not a required template. Use it when the task has sequence or overload, skip it
-  for tiny one-step tasks, and make Later explicitly reassuring when it appears —
-  never hide the actual first action under process labels.
-- **Prep basket before checklist:** when readiness matters, group materials,
-  timing, constraints, and conditions in a compact prep basket before the action
-  checklist, and keep the action list short enough to start today.
-- **Fit/friction/timing comparison:** life-admin comparisons use fit, friction,
-  timing, materials, confidence, and emotional load — human, practical criteria
-  instead of false precision. Use soft columns or stacked notes, give the
-  recommended option a warmer note or friendly badge (never a severe winner
-  label), and name the accepted tradeoff in one sentence. No numeric scorecards or
-  hard red/green winners and losers.
-- **Good-enough choice note:** highlight one kind recommendation and the tradeoff
-  it accepts in a soft rounded callout, explaining why it is enough for this
-  moment.
-- **Can-wait note:** lower pressure by naming what can wait without hiding useful
-  context — separate urgent, useful, and deferrable work only when the task has
-  multiple parts.
-- **Badges carry state:** badges carry planning state — time, effort, readiness,
-  season, confidence, energy, or waiting — to reduce reading, not to decorate
-  every note. Keep labels short and practical; use soft green, clay, muted blue,
-  or warning tones only when the state calls for it. Never badge-as-confetti.
-- **Gentle depth without a card pile:** depth comes from one bounded outer rounded
-  shell and a few layered notes, not cards inside cards. Layer only the notes that
-  need separation, keep shadows soft and purposeful, and let whitespace create
-  breathing room around the first action.
-- **Tiny routine checklist:** keep repeatable routines short, tactile, and easy to
-  begin; no habit dashboards, analytics, or gamified productivity.
-
-**Surface obligations.** Every planning surface must make the next small step
-obvious and emotionally easy to begin, highlighting one kind good-enough choice or
-first action in a soft rounded callout and using gentle badges for time, effort,
-confidence, readiness, or seasonality. Keep the user's concrete context visible
-near the plan — reuse meaningful details from the prompt rather than replacing
-them with generic labels, and name relevant materials, timing, constraints, or
-uncertainty. Gentle surfaces still end in concrete action: use verbs the user can
-do today (gather, pick, check, text, set aside, start, wait), avoid productivity
-verbs (crush, optimize, maximize, perfect, hack, dominate, hustle), and make the
-first action visible without requiring the whole plan to be read. Comparisons name
-one kind recommendation and the tradeoff it accepts, avoiding hard verdict
-language when stakes are personal and low. Lower pressure by naming what can wait,
-but do not hide all non-immediate work if showing it helps the user trust the
-plan. Full-screen compositions leave at least 72px of top breathing room for host
-chrome and keep important headings away from the extreme top-left edge.
+**Surface obligations (true everywhere).** Every planning surface must make the
+next small step obvious and emotionally easy to begin, highlighting one kind
+good-enough choice or first action in a soft rounded callout and using gentle
+badges for time, effort, confidence, readiness, or seasonality. Keep the user's
+concrete context visible near the plan — reuse meaningful details from the prompt
+rather than replacing them with generic labels, and name relevant materials,
+timing, constraints, or uncertainty. Gentle surfaces still end in concrete action:
+use verbs the user can do today (gather, pick, check, text, set aside, start,
+wait), avoid productivity verbs (crush, optimize, maximize, perfect, hack,
+dominate, hustle), and make the first action visible without requiring the whole
+plan to be read. Comparisons name one kind recommendation and the tradeoff it
+accepts, avoiding hard verdict language when stakes are personal and low. Lower
+pressure by naming what can wait, but do not hide all non-immediate work if
+showing it helps the user trust the plan. Full-screen compositions leave at least
+72px of top breathing room for host chrome and keep important headings away from
+the extreme top-left edge.

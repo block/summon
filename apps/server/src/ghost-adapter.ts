@@ -28,6 +28,7 @@ import type {
   ConformanceVerdict,
   ConformanceVerdictValue,
 } from './ghost-conformance.js';
+import type { TextCompletionRequest } from './model-providers.js';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
@@ -103,6 +104,13 @@ export interface GhostSurfacePromptOptions {
   surfacePlan: SurfacePlan;
   tools?: ToolPack | null;
   outputRuntime?: SummonOutputRuntime;
+  /**
+   * Utility-model completion for semantic surface selection. When omitted, the
+   * slice stays anchored at `core` (selection is an optional refinement).
+   */
+  completeText?: (request: TextCompletionRequest) => Promise<string>;
+  surfaceSelectTimeoutMs?: number;
+  signal?: AbortSignal;
 }
 
 export interface GhostReceiptValidation {
@@ -347,16 +355,20 @@ export async function resolveCatalogGhostGenerationContext(
   };
 }
 
-export function prepareGhostSurfacePrompt(
+export async function prepareGhostSurfacePrompt(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
-): ResolvedGhostSteer {
+): Promise<ResolvedGhostSteer> {
   // Surface selection happens at prepare-time (both prompt + graph are
   // available here). The resolve fns default to `core`; this refines the choice
-  // once the user prompt is known. For the common single-`core` fixture, the
-  // chosen surface equals `context.surface` and no re-resolve is needed.
+  // once the user prompt is known. Selection is semantic (model-driven over the
+  // gather menu) and optional — without a `completeText` it stays at `core`.
   let resolved = context;
-  const chosen = selectGhostSurface(context.graph, options.userPrompt);
+  const chosen = await selectGhostSurface(context.graph, options.userPrompt, {
+    completeText: options.completeText,
+    timeoutMs: options.surfaceSelectTimeoutMs,
+    signal: options.signal,
+  });
   if (chosen !== context.surface) {
     const slice = resolveGraphSlice(context.graph, chosen);
     // Rebuild the token CSS from the new slice, but preserve the kind/source/
@@ -386,34 +398,89 @@ export function prepareGhostSurfacePrompt(
   };
 }
 
-/**
- * Deterministic surface selection (no LLM). Ghost's principle: the agent names
- * the node; Ghost does not infer it from paths. For single-`core` fixtures this
- * always returns `core`. When the package offers multiple real surfaces, score
- * each menu entry by word overlap between the prompt and the entry's
- * description + id, and return the best match (ties / zero score fall back to
- * `core`). This is the minimal seam — a heavyweight classifier is deferred until
- * multi-surface fingerprints exist.
- */
-export function selectGhostSurface(graph: GhostGraph, prompt: string): string {
-  const menu = buildGraphMenu(graph);
-  const realSurfaces = menu.filter((entry) => entry.id !== GHOST_GRAPH_ROOT_ID);
-  if (realSurfaces.length <= 1) return GHOST_GRAPH_ROOT_ID;
+export interface SelectGhostSurfaceOptions {
+  /**
+   * Utility-model text completion (same path conformance uses). When absent,
+   * selection is skipped entirely and the slice stays anchored at `core` —
+   * surface choice is an optional refinement, never a required gate.
+   */
+  completeText?: (request: TextCompletionRequest) => Promise<string>;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
 
-  const promptWords = new Set(
-    prompt.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2),
-  );
-  const scored = realSurfaces.map((entry) => {
-    const text = `${entry.id} ${entry.description ?? ''}`.toLowerCase();
-    const words = new Set(text.split(/[^a-z0-9]+/).filter((word) => word.length > 2));
-    let score = 0;
-    for (const word of words) if (promptWords.has(word)) score++;
-    return { id: entry.id, score };
-  });
-  const top = Math.max(...scored.map((entry) => entry.score));
-  const leaders = scored.filter((entry) => entry.score === top);
-  if (top === 0 || leaders.length !== 1) return GHOST_GRAPH_ROOT_ID;
-  return leaders[0]!.id;
+const SURFACE_SELECT_TIMEOUT_MS = 4000;
+
+const SURFACE_SELECT_SYSTEM_PROMPT = [
+  'You route a UI generation request to the single best-fitting surface of a',
+  'design fingerprint. You are given the user request and a menu of candidate',
+  'surfaces (id + a one-line "reach when" description). Pick the one id whose',
+  'description best matches what the user is asking to build. If none clearly',
+  'fits, or several fit equally, answer "core" to let the generator use the',
+  'shared base. Answer with ONLY the chosen id, nothing else.',
+].join(' ');
+
+/**
+ * Semantic surface selection — the host hands Ghost's gather menu to the model
+ * and lets it pick the anchoring surface, exactly as Ghost intends ("the agent
+ * matches a natural-language ask against descriptions and picks; Ghost does no
+ * NLP"). Summon does not re-implement that matching in code.
+ *
+ * Selection is an *optional refinement*, never a gate:
+ * - single-surface (only `core`) graphs always return `core` with no model call;
+ * - no `completeText` provided → no model call, returns `core`;
+ * - any timeout, error, empty, or out-of-menu answer → falls back to `core`.
+ *
+ * Falling back to `core` is safe by construction: `core` is always on the spine,
+ * so its slice carries the full shared material and spoke pointers to every
+ * surface — the model still sees everything, just unfocused. The directory
+ * walls do the slice composition; this only chooses where to anchor.
+ */
+export async function selectGhostSurface(
+  graph: GhostGraph,
+  prompt: string,
+  options: SelectGhostSurfaceOptions = {},
+): Promise<string> {
+  const menu = buildGraphMenu(graph);
+  const candidates = menu.filter((entry) => entry.id !== GHOST_GRAPH_ROOT_ID);
+  if (candidates.length === 0) return GHOST_GRAPH_ROOT_ID;
+
+  const { completeText } = options;
+  if (!completeText) return GHOST_GRAPH_ROOT_ID;
+
+  const menuText = candidates
+    .map((entry) => `- ${entry.id}: ${entry.description ?? '(no description)'}`)
+    .join('\n');
+  const userPrompt = [
+    `User request:\n${prompt.trim()}`,
+    '',
+    `Candidate surfaces:\n${menuText}\n- core: the shared base; pick this when no surface clearly fits.`,
+    '',
+    'Chosen id:',
+  ].join('\n');
+
+  const timeoutMs = options.timeoutMs ?? SURFACE_SELECT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  options.signal?.addEventListener('abort', onAbort, { once: true });
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const raw = await completeText({
+      system: SURFACE_SELECT_SYSTEM_PROMPT,
+      prompt: userPrompt,
+      maxTokens: 32,
+      temperature: 0,
+      signal: controller.signal,
+    });
+    const chosen = raw.trim().toLowerCase().split(/[^a-z0-9._-]+/)[0] ?? '';
+    if (chosen === GHOST_GRAPH_ROOT_ID || chosen === '') return GHOST_GRAPH_ROOT_ID;
+    return candidates.some((entry) => entry.id === chosen) ? chosen : GHOST_GRAPH_ROOT_ID;
+  } catch {
+    return GHOST_GRAPH_ROOT_ID;
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener('abort', onAbort);
+  }
 }
 
 export function ghostContextMeta(ctx: ResolvedGhostContext) {

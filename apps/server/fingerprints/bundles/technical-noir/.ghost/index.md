@@ -1,5 +1,5 @@
 ---
-description: Technical Noir — a restrained warm-dark developer surface language for terminal-like workspaces, quiet product narrative, and hairline-separated operational content.
+description: Technical Noir core — a restrained warm-dark developer surface language where commands, agent activity, logs, and workflow evidence are the material, carried by off-white-on-near-charcoal, hairline depth, and quiet technical hierarchy.
 ---
 
 ## Intent
@@ -22,15 +22,16 @@ is available, and what action comes next.
 **Stance — what this is not:** no literal recreation of a specific
 developer-tool website, brand, product names, partner names, logos, screenshots,
 or customer quotes. No re-skinning of a researched source site's light-page
-expression as the Technical Noir default. No cinematic noir styling — spotlights,
-fog, film grain, smoked-glass panels, dramatic shadows, detective-board
-metaphors, or mood detached from task evidence. No neon cyberpunk terminal
-aesthetics, gradient backdrops, glassmorphism, pure-black-with-neon-green
-nostalgia, or colorful accent systems. No generic SaaS card grids where every
-panel has equal weight. No soft lifestyle warmth, oversized rounded cards,
-friendly pill CTAs, or pastel productivity styling. No heavy billboard
-typography, excessive uppercase shouting, or hero layouts that overpower task
-content. No decorative terminal mockups with fake or irrelevant text.
+expression as the Technical Noir default. No cinematic noir styling —
+spotlights, fog, film grain, smoked-glass panels, dramatic shadows,
+detective-board metaphors, or mood detached from task evidence. No neon
+cyberpunk terminal aesthetics, gradient backdrops, glassmorphism,
+pure-black-with-neon-green nostalgia, or colorful accent systems. No generic
+SaaS card grids where every panel has equal weight. No soft lifestyle warmth,
+oversized rounded cards, friendly pill CTAs, or pastel productivity styling. No
+heavy billboard typography, excessive uppercase shouting, or hero layouts that
+overpower task content. No decorative terminal mockups with fake or irrelevant
+text.
 
 **Tradeoffs:** prefer readable technical density over spacious marketing gloss;
 off-white emphasis, alignment, and hairlines over color-coded hierarchy; tight
@@ -128,24 +129,22 @@ these custom properties rather than inventing values):
 }
 ```
 
-Component vocabulary: a warm-canvas shell and reading-mode header; terminal
-evidence panels, agent activity panels, and command-output blocks; hairline
-content cards, download/setup tiles, and monochrome integration tiles; press-like
-information rows and job/task rows; a compact almost-rectangular primary button
-(off-white fill, warm-dark text), a ghost secondary button, and dark text inputs;
-mono metadata labels and muted-beige captions; and composite blocks — the
-two-panel terminal hero, the brief summary→evidence→action stack, shared-criteria
-comparison rows, the tab-rail evidence frame, and the command-action pair. Copy
-atoms stay calm and operational (Run, Review, Output, Status, Model, Harness,
-Self-hosted, Connected, Own your data). State variants cover running agents,
-queued tasks, completed steps, blocked commands, selected setup paths, muted
-semantic warnings, and empty terminal states. Terminal panels always show
-plausible task-relevant traces, off-white actions sit on warm-dark with 3–4px
-radius, and hairline rows carry updates, task lists, and operational timelines.
+Off-white is both the primary text and the primary action fill, warm beige is
+muted secondary copy and metadata, and warm hairlines carry depth. Sans carries
+paragraphs, headings, navigation, and button labels; monospace is reserved for
+commands, logs, code, paths, model names, statuses, and short technical chips;
+the serif italic is a rare editorial emphasis, never the core UI voice.
+
+The shared material every surface draws on lives in the root nodes that reach
+everywhere: the [control and metadata system](controls), the
+[terminal evidence panels](terminal-evidence) that prove technical claims, and
+the [tile and row system](tiles) that carries repeating units. The surfaces —
+[landing](landing), [workspace](workspace), [comparison](comparison), and
+[brief](brief) — compose this material for their own job.
 
 ## Composition
 
-Six principles carry the language:
+Six principles carry the language and are true on every surface:
 
 1. **Warm-dark is the material.** The defining surface is a brown-warmed
    near-charcoal canvas with off-white text; warmth replaces chromatic branding.
@@ -181,87 +180,13 @@ Six principles carry the language:
    silence, and proof instead of fog, glow, spotlight, grain, or dramatic shadow,
    and keep every atmospheric choice tied to task clarity.
 
-The recurring patterns that make a Technical Noir surface feel intentional:
-
-- **Warm-dark reading-mode shell:** developer workspaces use a single continuous
-  warm near-charcoal canvas with clear zones for summary, active work, evidence,
-  and next action, framed inside a bounded shell or wide content band aligned to a
-  shared width and compact spacing rhythm — never a generic equal-weight dashboard
-  grid.
-- **Statement-plus-evidence hero:** technical landings pair a quiet light-weight
-  sans value statement (tight tracking, restrained scale) with one or two
-  terminal-like evidence panels placed close enough to prove the claim. Use
-  two-panel splits to contrast modes, inputs/outputs, local/cloud, or human/agent
-  handoff; keep the background flat warm-dark and lean on surface contrast and
-  hairlines, never gradients.
-- **Terminal panels anchor evidence:** render panels on a slightly lifted warm-dark
-  fill with a 1px warm hairline and 3–6px radius, monospace commands/logs/agent
-  steps/outputs, restrained status color only when it clarifies real state, and a
-  small muted or mono metadata label so the user knows what the evidence
-  represents.
-- **Single-canvas content bands:** sections stay on one warm-dark canvas separated
-  by spacing (64–96px major desktop padding), typography, rows, and hairlines
-  rather than background changes; canvas-soft fills appear only for contained
-  tiles, mockups, forms, or cards.
-- **Tight CTA geometry:** primary and secondary controls use compact almost-
-  rectangular geometry (3–4px button radii), an off-white fill with warm-dark text
-  for one primary action, transparent/canvas-matching secondary actions with
-  off-white text, and circular or pill geometry only for icon containers, status
-  chips, or minimum mobile touch targets.
-- **Hairline depth on tiles:** cards, tiles, inputs, and mockups use a slightly
-  lighter warm-dark fill plus a subtle 1px warm hairline for depth, tight 3–6px
-  radii, and no drop shadows unless a host runtime requires a minimal modal or
-  popover affordance.
-- **Mono metadata labels:** monospace marks commands, paths, model names,
-  statuses, permission labels, timestamps, platform names, and short technical
-  chips, while sans carries paragraphs, headings, navigation, and button labels;
-  keep mono compact and purposeful, with muted beige for metadata unless the value
-  is selected or primary.
-- **Shared-criteria comparison:** technical comparisons use rows or compact tiles
-  with shared operational criteria (control, setup effort, data boundary, model
-  support, runtime, cost, risk, speed) and a calm recommendation marked by
-  off-white border, fill, or button placement rather than saturated color.
-- **Compact setup/download tiles:** platform, environment, or setup choices appear
-  as 2-up or 3-up compact warm-dark tiles (stacking on mobile), each with a label,
-  a short compatibility/detail line, and one clear action, using tight radius,
-  hairline border, muted captions, and monochrome or off-white icons.
-- **Hairline information rows:** updates, tasks, command history, incident steps,
-  and release notes use full-width or panel-contained rows separated by 1px warm
-  hairlines with ~16px vertical padding, each scan-friendly (label, short title,
-  muted detail, optional compact action) — never equal rounded cards.
-- **Summary→evidence→action briefs:** technical briefs open with current state or
-  recommendation in quiet sans, place logs, agent steps, diffs, or findings
-  immediately after, and end with one calm off-white next action; failure,
-  warning, or blocked states stay muted unless severity truly demands stronger
-  semantic color.
-- **Command-action pairs:** when setup, launch, install, or handoff is the task,
-  place an off-white primary button beside a warm-dark command strip with
-  plausible, copyable-looking command text — never command snippets as decoration
-  or competing primary commands.
-- **Tab-rail evidence frame:** product, workflow, or setup alternatives use a
-  compact muted selector rail with one high-contrast active option and give most
-  space to a materially larger active evidence frame — used for comparing modes,
-  not simple one-path tasks.
-- **Muted trust signals:** integration, ecosystem, and trust signals stay
-  monochrome, secondary, and subordinate to technical proof, kept below the main
-  claim/proof area, preferring generic integration categories over copied partner
-  logos.
-
-**Surface obligations.** Every surface makes the next action, recommendation, or
-setup choice visible without shouting — one primary off-white action when an
-action is expected, follow-up actions placed near the relevant panel, row, or
-tile, and calm labels instead of urgency language. Generated surfaces must not
-introduce a dominant chromatic brand accent when neutral emphasis can solve
-hierarchy; warm neutrals and off-white carry primary hierarchy, semantic color
-stays muted and tied to real status, and gradients or colorful badges are not
-default decoration. Every code, terminal, log, or agent panel must contain
-plausible, labeled, task-relevant technical material — no filler strings,
-decorative code, or copied source screenshots. Interactive chrome stays compact
-and nearly rectangular (2–6px radii) with pills reserved for icons or compact
-state, compact desktop button height while preserving accessible mobile touch
-targets. Research-source composition may inform the fingerprint, but generated
-surfaces must rewrite exemplar copy into generic technical scenarios and must not
-reproduce source branding, copy, screenshots, navigation, or proprietary names.
-Full-screen compositions leave at least 72px of top breathing room for host
-chrome and keep important headings, panel controls, and primary actions away from
-the extreme top-left edge.
+**Surface obligations (true everywhere).** Every surface keeps the
+off-white-on-warm-dark relationship — a warm near-charcoal canvas (never pure
+black), off-white primary text and primary action fill, warmth instead of a
+chromatic brand accent. Terminal, code, and agent panels carry plausible,
+task-relevant material, never decorative filler. Large type stays light, tracked
+tight, and calm; monospace is reserved for technical content. Depth comes from
+hairlines and surface contrast, not drop shadows. Generated surfaces never
+recreate a specific developer-tool's brand, product names, logos, screenshots,
+or customer quotes — name the product from the user's prompt and let the
+composition, not a copied source, carry the credibility.

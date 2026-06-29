@@ -181,6 +181,7 @@ test('api generate rejects the removed unsafe raw runtime as an unknown runtime 
       GOOGLE_API_KEY: '',
       SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -302,6 +303,7 @@ test('api generate sends narrowed contract and stream meta shape through package
       GOOGLE_API_KEY: '',
       SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -653,6 +655,7 @@ test('api generate playground repairs invalid entry-file bundles', async (t) => 
       GOOGLE_API_KEY: '',
       SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -773,6 +776,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
       SUMMON_GHOST_ROOTS: `checkout=${root}`,
       SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -969,6 +973,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
       SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -1082,6 +1087,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
       GOOGLE_API_KEY: '',
       SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -1216,6 +1222,7 @@ test('api generate can stream with Gemini provider', async (t) => {
       GEMINI_BASE_URL: `http://127.0.0.1:${geminiPort}`,
       SUMMON_AGENT_GOAL_MODEL: '0',
       SUMMON_INFER_SHAPE: '0',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -1375,6 +1382,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

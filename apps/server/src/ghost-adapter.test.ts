@@ -123,7 +123,7 @@ describe('Ghost adapter', () => {
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
     const ctx = await resolveGhostContext(parsed.request, roots);
-    const prepared = prepareGhostSurfacePrompt(ctx, {
+    const prepared = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
       surfacePlan: {
@@ -149,13 +149,23 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /Gathered nodes: core \(own\)/);
   });
 
-  it('selects core for single-surface graphs and matches by menu for multi-surface', () => {
+  it('selects a surface semantically via the model, falling back to core safely', async () => {
     const single = assembleGraph({
       placedNodes: [
         { id: 'core', folder: '', doc: { frontmatter: {}, body: 'root prose' } },
       ],
     });
-    assert.equal(selectGhostSurface(single, 'anything goes here'), 'core');
+    // Single-surface graph: no candidates, no model call, always core.
+    let calls = 0;
+    const neverCalled = async () => {
+      calls += 1;
+      return 'dashboard';
+    };
+    assert.equal(
+      await selectGhostSurface(single, 'anything goes here', { completeText: neverCalled }),
+      'core',
+    );
+    assert.equal(calls, 0, 'single-surface graphs must not call the model');
 
     const multi = assembleGraph({
       placedNodes: [
@@ -180,12 +190,58 @@ describe('Ghost adapter', () => {
         },
       ],
     });
-    // prompt overlaps "dashboard" / "queue" → dashboard wins
-    assert.equal(selectGhostSurface(multi, 'build a queue dashboard'), 'dashboard');
-    // prompt overlaps "editor" / "document" → editor wins
-    assert.equal(selectGhostSurface(multi, 'a document editor surface'), 'editor');
-    // no overlap → fall back to core
-    assert.equal(selectGhostSurface(multi, 'completely unrelated zzz'), 'core');
+
+    // No completeText → selection is skipped entirely, anchor stays at core.
+    assert.equal(await selectGhostSurface(multi, 'build a queue dashboard'), 'core');
+
+    // The model's chosen id (when it is a real candidate) is honored verbatim.
+    assert.equal(
+      await selectGhostSurface(multi, 'build a queue dashboard', {
+        completeText: async () => 'dashboard',
+      }),
+      'dashboard',
+    );
+    // Tolerates surrounding whitespace / casing.
+    assert.equal(
+      await selectGhostSurface(multi, 'a document editor', {
+        completeText: async () => '  Editor\n',
+      }),
+      'editor',
+    );
+    // Model explicitly declines → core.
+    assert.equal(
+      await selectGhostSurface(multi, 'something ambiguous', {
+        completeText: async () => 'core',
+      }),
+      'core',
+    );
+    // Out-of-menu hallucination → core (never trust an id not on the menu).
+    assert.equal(
+      await selectGhostSurface(multi, 'x', {
+        completeText: async () => 'nonexistent',
+      }),
+      'core',
+    );
+    // Model throws → core (selection never gates generation).
+    assert.equal(
+      await selectGhostSurface(multi, 'x', {
+        completeText: async () => {
+          throw new Error('model down');
+        },
+      }),
+      'core',
+    );
+    // Timeout → core.
+    assert.equal(
+      await selectGhostSurface(multi, 'x', {
+        timeoutMs: 5,
+        completeText: (req) =>
+          new Promise((resolve, reject) => {
+            req.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+          }),
+      }),
+      'core',
+    );
   });
 
   it('uses HTML output wording in the Summon surface brief when requested', async () => {
@@ -196,7 +252,7 @@ describe('Ghost adapter', () => {
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
     const ctx = await resolveGhostContext(parsed.request, roots);
-    const prepared = prepareGhostSurfacePrompt(ctx, {
+    const prepared = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
       outputRuntime: 'html-static',

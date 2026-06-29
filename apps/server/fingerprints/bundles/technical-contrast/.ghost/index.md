@@ -1,5 +1,5 @@
 ---
-description: "Technical Contrast — a restrained technical-platform surface language: contrast planes, white data sheets, midnight proof sections, uppercase mono labels, tight geometric type, hairline structure, and optional large signal artwork."
+description: "Technical Contrast core — a restrained technical-platform surface language: contrast planes, white data sheets, midnight proof sections, uppercase mono labels, tight geometric type, hairline structure, and optional large signal artwork. Reach when the question is 'what is true on every Technical Contrast surface?'"
 ---
 
 ## Intent
@@ -144,9 +144,18 @@ geometric sans; buttons, inputs, and controls are mono. Depth is border-led:
 `--shadow-card` and `--shadow-elevated` are `none`, with shadow reserved only for
 truly floating host controls or transient overlays.
 
+The shared material every surface draws on lives in the root nodes that reach
+everywhere: the [contrast-plane system](contrast-planes) that bands the page, the
+[mono eyebrow and label system](mono-labels), the
+[rectangular CTA system](cta-system), the
+[pricing-table and data-sheet system](data-sheets), and the
+[proof-card system](proof-cards). The surfaces —
+[landing](landing), [pricing](pricing), [proof](proof), and
+[workflow](workflow) — compose this material for their own job.
+
 ## Composition
 
-Five principles carry the language:
+Five principles carry the language and are true on every surface:
 
 1. **Contrast planes carry the drama.** Distinct planes — pale technical landings,
    white data sheets, and midnight proof planes — create rhythm through contrast,
@@ -182,83 +191,25 @@ Five principles carry the language:
    floating host controls or transient overlays. Use border weight, fill
    polarity, or placement to emphasize the chosen option.
 
-The recurring patterns that make a Technical Contrast surface feel intentional:
+**Surface obligations (true everywhere).** The first major region must state the
+technical claim, comparison frame, or recommended action before details — a
+sentence-case headline and concise lead before grids or tables, with CTAs near
+the claim when action is expected. Comparisons must expose shared criteria in
+aligned rows, columns, table headers, or side-navigation categories using the
+same criteria names across options; never make the user infer comparable facts
+from differently structured cards. Metrics, proof cards, research snippets, and
+code/configuration panels must explain why the primary claim is credible — pair
+large numbers with labels and implications, and avoid orphaned stats or
+testimonial fragments. Primary actions stay small-radius rectangular with
+uppercase mono labels and clear contrast, never full pills. Generated surfaces
+preserve the composition language without reusing source names, domains, slogans,
+logos, wordmarks, proprietary copy, or proprietary artwork — name the product
+from the user's prompt and treat signal artwork as an abstract composition. On
+mobile, preserve claim-first order, the rectangular action system, comparison
+criteria, and contrast-safe mono labels.
 
-- **Technical plane landing:** open as a contrast plane — pale or midnight canvas,
-  sentence-case claim, mono eyebrow, compact rectangular CTA cluster, muted proof
-  rail, and optional large signal artwork. Pale when the surface should feel open
-  and product-led; midnight when it should feel research-led or proof-led. On
-  narrow screens, crop the large artwork below the CTAs or omit it.
-- **Banded technical narrative:** long surfaces move between pale landing planes,
-  white technical sheets, and midnight proof planes so each band has a clear job.
-  Keep section padding generous at plane boundaries and tighter inside rows; do
-  not introduce many tinted bands or stack grey on grey with no polarity change.
-- **Mono eyebrow system:** uppercase monospace labels form the technical
-  navigation system — eyebrows, buttons, tabs, table headers, badges, and compact
-  metadata. Positive tracking, compact sizes, short and parallel; labels orient,
-  they never decorate empty chips.
-- **Left-sidebar pricing navigation:** dense pricing and capacity pages pair a
-  quiet left category rail with a main white data sheet; active category bold or
-  darker, inactive muted, hairline dividers between groups. On mobile, collapse
-  groups into large plain accordions before the table.
-- **Pricing table sheet:** pricing, model, capacity, and capability comparisons
-  read as crisp white sheets with uppercase-mono muted headers on a pale rail,
-  geometric-sans body cells with aligned numeric columns, and 1px hairline
-  separators — no shadows, winner badges, or decorative artwork inside the sheet.
-- **Segmented technical tabs:** compact segmented tabs on a hairline rail or white
-  sheet, small-radius active pills with mono labels, black fill or stronger border
-  for active state on light surfaces; preserve comparison context across tab
-  changes. No oversized full-pill tabs or per-category colors.
-- **Midnight proof plane + dark proof-card grid:** research or proof sections use a
-  midnight plane with a strong display claim, mono eyebrow, muted recognition
-  rail, and dark-on-dark proof cards bounded by dark-soft hairlines. Each card
-  starts with a mono tag, then a sentence-case title and concise body, and pairs
-  the proof point with an operational implication — never bright cards floating on
-  the dark plane or neon glows.
-- **Tinted stat tiles:** pastel tiles give rare relief on white planes — large
-  number in display type, label in mono caps, a restrained mint or periwinkle
-  fill, small corners, no shadow. Used sparingly, never a rainbow metric grid.
-- **Rectangular CTA system + small-radius rectangles:** actions are small-radius
-  rectangular buttons with uppercase mono labels — black fill as primary on light
-  surfaces; white, mint, or dark-soft on midnight planes; outline for secondary.
-  Radius near 4px (8px only for larger tab rails); circular geometry reserved for
-  isolated icon controls. One primary action per region.
-- **Technical form sheet:** workflows use white form sheets with mono labels,
-  hairline field groups, small-radius inputs, and one black primary action; show
-  technical state near the controls it affects, and simplify any product-UI proof
-  into neutral configuration state rather than copying source screenshots.
-- **Code editor breakout:** a compact dark code or configuration mockup can break
-  up a white plane — midnight panel, mono-caption code, small radius, no elaborate
-  window chrome, limited syntax accents — paired with a nearby claim as a proof or
-  implementation break, never the landing's main decoration.
-- **Low-contrast terminal sign-off:** long surfaces may close with an oversized,
-  low-contrast terminal phrase tinted close to the hairline surface color as a
-  quiet stencil sign-off — derived from the user's prompt, never a source
-  wordmark, domain, or slogan; omit it on short or task-like surfaces.
-- **Technical update card:** benchmark, certification, model-serving, and research
-  updates appear as compact flat proof cards — short uppercase mono category badge
-  (BENCHMARK, SECURITY, RESEARCH, CAPABILITY), bold sentence-case headline, one
-  short implication sentence, optional neutral graphic plane, hairline bounds,
-  small radius, and a quiet next-step action. Connect the update to a capability,
-  risk, cost, or decision.
-- **Mobile technical collapse:** collapse by preserving claim-first order,
-  rectangular actions, cropped large signal art, and visible comparison criteria
-  (row labels, sticky labels, horizontal scroll, or grouped accordions). Never
-  squeeze a table until criteria disappear, miniaturize artwork into repeated
-  badges, or swap to full-pill mobile CTAs.
-
-**Surface obligations.** The first major region must state the technical claim,
-comparison frame, or recommended action before details — a sentence-case headline
-and concise lead before grids or tables, with CTAs near the claim when action is
-expected. Comparisons must expose shared criteria in aligned rows, columns, table
-headers, or side-navigation categories using the same criteria names across
-options; never make the user infer comparable facts from differently structured
-cards. Metrics, proof cards, research snippets, and code/configuration panels must
-explain why the primary claim is credible — pair large numbers with labels and
-implications, and avoid orphaned stats or testimonial fragments. Primary actions
-stay small-radius rectangular with uppercase mono labels and clear contrast, never
-full pills. Generated surfaces preserve the composition language without reusing
-source names, domains, slogans, logos, wordmarks, proprietary copy, or proprietary
-artwork — name the product from the user's prompt and treat signal artwork as an
-abstract composition. On mobile, preserve claim-first order, the rectangular action
-system, comparison criteria, and contrast-safe mono labels.
+**Mobile technical collapse.** Collapse by preserving claim-first order,
+rectangular actions, cropped large signal art, and visible comparison criteria
+(row labels, sticky labels, horizontal scroll, or grouped accordions). Never
+squeeze a table until criteria disappear, miniaturize artwork into repeated
+badges, or swap to full-pill mobile CTAs.

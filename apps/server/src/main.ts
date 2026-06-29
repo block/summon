@@ -486,7 +486,7 @@ app.post('/api/generate', async (req, res) => {
     if (ghostContext) {
       writeGeneratePhase(res, seedLines, 'contract', 'Preparing Ghost surface brief');
       const startedAt = performance.now();
-      ghostContext = prepareGhostSurfacePrompt(ghostContext, {
+      ghostContext = await prepareGhostSurfacePrompt(ghostContext, {
         userPrompt: prompt,
         mode,
         surfacePlan,
@@ -496,6 +496,15 @@ app.post('/api/generate', async (req, res) => {
           : agentPlan
             ? agentPlan.compiledPolicy.tools
             : pack,
+        // Semantic surface selection is an optional pre-generation refinement
+        // (default-on, `SUMMON_GHOST_SURFACE_SELECT=0` to disable). It only
+        // calls the model for multi-surface fingerprints; single-`core`
+        // packages skip it. Omitting completeText keeps the anchor at `core`.
+        completeText:
+          process.env.SUMMON_GHOST_SURFACE_SELECT === '0'
+            ? undefined
+            : (request) =>
+                utilityModelProvider.completeText(request, utilityModelSelection),
       });
       writeGenerateTiming(
         res,

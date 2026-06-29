@@ -127,20 +127,30 @@ these custom properties rather than inventing values):
 }
 ```
 
-The component vocabulary built from these tokens: cinematic heroes and image-led
-mastheads, dark and light top navigation, a red primary button paired with dark or
-light outline buttons and uppercase tertiary links, full-bleed photo bands, dark
-editorial sections, one single red accent band, image-first feature cards, dark
-elevated profile/driver/spec plates, large-number spec cells, race-or-event
-position cells and hairline event rows, premium directory sheets, white catalog
-sheets with image-first listing cards, rectangular form controls, badge pills, dark
-CTA bands, and dark footers. Copy atoms stay terse and commanding — Performance,
-Craft, Motion, Specification, Availability, Configuration, Event, Position, Detail,
-Reserve, Explore, Compare, Next session, Directory, Region, Service.
+The component vocabulary is built from these tokens — cinematic heroes and
+image-led mastheads, dark and light top navigation, a red primary button paired
+with dark or light outline buttons and uppercase tertiary links, dark editorial
+sections, image-first feature cards, large-number spec cells, hairline event
+rows, premium directory sheets, white catalog sheets, rectangular form controls,
+badge pills, dark CTA bands, and dark footers. Copy atoms stay terse and
+commanding — Performance, Craft, Motion, Specification, Availability,
+Configuration, Event, Position, Detail, Reserve, Explore, Compare, Next session,
+Directory, Region, Service.
+
+The shared material every surface draws on lives in the root nodes that reach
+everywhere: the [cinematic image system](cinematic-image) that carries the drama
+and disciplines placeholders, the [scarce-red CTA and control system](controls)
+that supplies voltage and machined inputs, the [large-number spec
+system](spec-system) that reads data as specification, the [dark elevated plate
+and hairline depth system](depth) that builds presence without shadow, and the
+[single red livery band](livery-band) reserved for one dramatic interruption. The
+surfaces — [launch](launch), [spec](spec), [catalog](catalog),
+[directory](directory), and [lineup](lineup) — compose this material for their
+own job.
 
 ## Composition
 
-Seven principles carry the language:
+Seven principles carry the language and are true on every surface:
 
 1. **Cinema is the chrome.** Full-bleed cinematic imagery or image placeholders
    carry the drama; navigation, headings, and CTAs stay quiet. When no real
@@ -174,66 +184,19 @@ Seven principles carry the language:
    above the canvas; overlays make image text legible, not decorative glass;
    shadows are reserved for transient overlays only.
 
-The recurring patterns that make a Redline Cinema surface feel intentional:
-
-- **Full-bleed cinematic hero:** a viewport-scale dark image field with overlay,
-  restrained display headline near the lower edge or in a tight dark band below, a
-  compact deck, and at most two sharp actions; minimal nav so the image is the
-  event. On mobile, crop vertically while preserving the cinematic frame.
-- **Scarce red CTA cluster:** 48px-class rectangular buttons with square corners,
-  uppercase tracked labels, one red fill primary per region, and outline/white/
-  text secondaries. Copy stays short and commanding — Explore, Reserve, Configure,
-  Compare, View details.
-- **Editorial dark-to-body pacing:** long pages move from a dark cinematic opening
-  into tighter editorial body sections with large 96–128px breaks between acts,
-  a broad editorial container, and tighter 24–48px spacing inside cards and rows.
-- **Image-first feature card:** edge-to-edge media occupying the top/majority,
-  square corners, no shadow, tight title/body copy beneath, in two-up or three-up
-  grids rather than crowded masonry.
-- **Large-number spec grid:** oversized numerals for meaningful values, each
-  paired with a compact uppercase label and unit, aligned in a grid or row with
-  hairline dividers, red on only one decisive value.
-- **Race-or-event row system:** hairline-separated rows with date/sequence at
-  left, name/context in the middle, status/result/action at right, uppercase
-  labels and muted metadata, and red only for the active position or primary row
-  action.
-- **White catalog sheet & image-first listing card:** dense listings, tables,
-  filters, and forms on sharp white sheets framed by dark sections; near-black
-  text, hairline dividers, red or ink rectangular CTAs; listing cards with
-  top edge-to-edge images, aligned metadata, square corners, and no shadows.
-- **Rectangular form-and-control system:** 48px-class inputs and buttons, 4px
-  radius for inputs only where required (CTAs stay square), hairline borders,
-  high-contrast text, and disciplined filter rows that stack cleanly on mobile.
-- **Dark elevated plates:** dark-grey panels one brightness step above the canvas,
-  separated by 1px hairlines rather than shadow, with concise copy and images or
-  large numerals as the focal point.
-- **Single red livery band:** at most one full-width red accent band as a dramatic
-  interruption for a major statement, event status, or transition — white,
-  large, restrained text and no extra colors — omitted on compact task surfaces.
-- **Premium directory sheet:** grouped sheets and compact hairline rows by region,
-  service type, availability, or tier with uppercase section labels and one clear
-  rectangular action per row, framed by a dark masthead or footer — never generic
-  map-app chrome or undifferentiated link lists.
-- **Lineup category browse:** image-led category plates for product families,
-  collections, sessions, or chapters with sparse uppercase (optionally numbered)
-  labels, delaying dense filters until after the first image-led browse moment.
-- **Derived image-placeholder discipline:** when prompt imagery is absent, use
-  dark gradients, cropped light streaks, abstract silhouettes, material detail, or
-  generic performance photography descriptions — never invented source-branded
-  vehicles, marks, or model photography. Prefer no image over a fake brand image.
-
-**Surface obligations.** Generated surfaces preserve the luxury-performance
-composition language without reusing actual source names, logos, marks, model
-names, slogans, proprietary images, or licensed font names; name the generated
-product, event, category, or task from the user's prompt, using generic labels
-such as performance marque, private collection, track session, studio archive, or
-service directory. The first major region establishes cinematic atmosphere and a
-concise editorial claim — eyebrow, headline, one deck, at most two actions —
-before dense detail. Oversized numerals must carry meaningful performance,
-ranking, event, availability, or comparison information, each with a label and
-unit and aligned with comparable metrics. Red highlights are limited to the
-primary action or the one value/state the user must notice first — one red focal
-role per region. Listings, forms, and tables stay dense enough to act while
-remaining visually connected to the cinematic editorial frame: white sheets only
-for transactional regions, uppercase labels, hairline-separated rows, and a return
-to dark framing for transitions, CTA bands, and footers.
+**Surface obligations (true everywhere).** Generated surfaces preserve the
+luxury-performance composition language without reusing actual source names,
+logos, marks, model names, slogans, proprietary images, or licensed font names;
+name the generated product, event, category, or task from the user's prompt,
+using generic labels such as performance marque, private collection, track
+session, studio archive, or service directory. The first major region
+establishes cinematic atmosphere and a concise editorial claim — eyebrow,
+headline, one deck, at most two actions — before dense detail. Oversized numerals
+must carry meaningful performance, ranking, event, availability, or comparison
+information, each with a label and unit and aligned with comparable metrics. Red
+highlights are limited to the primary action or the one value/state the user must
+notice first — one red focal role per region. Listings, forms, and tables stay
+dense enough to act while remaining visually connected to the cinematic editorial
+frame: white sheets only for transactional regions, uppercase labels,
+hairline-separated rows, and a return to dark framing for transitions, CTA bands,
+and footers.

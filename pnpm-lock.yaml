@@ -10,7 +10,7 @@ importers:
     devDependencies:
       '@anthropic-ai/sdk':
         specifier: ^0.88.0
-        version: 0.88.0(zod@3.25.76)
+        version: 0.88.0(zod@4.4.3)
       '@changesets/changelog-github':
         specifier: ^0.6.0
         version: 0.6.0
@@ -82,8 +82,8 @@ importers:
   apps/server:
     dependencies:
       '@anarchitecture/ghost':
-        specifier: link:../../../ghost/packages/ghost
-        version: link:../../../ghost/packages/ghost
+        specifier: 0.0.0-next-20260629145600
+        version: 0.0.0-next-20260629145600
       '@anarchitecture/summon':
         specifier: workspace:*
         version: link:../../packages/summon
@@ -92,7 +92,7 @@ importers:
         version: link:../../packages/summon-server
       '@anthropic-ai/sdk':
         specifier: ^0.88.0
-        version: 0.88.0(zod@3.25.76)
+        version: 0.88.0(zod@4.4.3)
       '@summon-internal/engine':
         specifier: workspace:*
         version: link:../../packages/engine
@@ -294,6 +294,10 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@anarchitecture/ghost@0.0.0-next-20260629145600':
+    resolution: {integrity: sha512-R+kvSM1A/iZqUoDmtK6DQPxmmLW/FK/Da12FJ3uN6lUKD0T1VK2MdFm9JmdGGc0/qyhJeJW+kHlqFLFN8LJnTA==}
+    hasBin: true
 
   '@anthropic-ai/sdk@0.88.0':
     resolution: {integrity: sha512-QQOtB5U9ZBJQj6y1ICmDZl14LWa4JCiJRoihI+0yuZ4OjbONrakP0yLwPv4DJFb3VYCtQM31bTOpCBMs2zghPw==}
@@ -1220,6 +1224,10 @@ packages:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
 
+  cac@6.7.14:
+    resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
+    engines: {node: '>=8'}
+
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
     engines: {node: '>= 0.4'}
@@ -2122,13 +2130,22 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
 snapshots:
 
-  '@anthropic-ai/sdk@0.88.0(zod@3.25.76)':
+  '@anarchitecture/ghost@0.0.0-next-20260629145600':
+    dependencies:
+      cac: 6.7.14
+      yaml: 2.8.3
+      zod: 4.4.3
+
+  '@anthropic-ai/sdk@0.88.0(zod@4.4.3)':
     dependencies:
       json-schema-to-ts: 3.1.1
     optionalDependencies:
-      zod: 3.25.76
+      zod: 4.4.3
 
   '@arrow-js/core@1.0.6': {}
 
@@ -2899,6 +2916,8 @@ snapshots:
       update-browserslist-db: 1.2.3(browserslist@4.28.2)
 
   bytes@3.1.2: {}
+
+  cac@6.7.14: {}
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
@@ -3754,3 +3773,5 @@ snapshots:
   yaml@2.8.3: {}
 
   zod@3.25.76: {}
+
+  zod@4.4.3: {}

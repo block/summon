@@ -1,5 +1,5 @@
 ---
-description: A monochrome editorial surface language for decisive briefs, aligned comparisons, and evidence-led recommendations.
+description: Editorial Mono core — a monochrome editorial surface language where the verdict reads first and aligned evidence justifies it, carried by cream paper, black ink, hairline rules, serif display type, and mono metadata.
 ---
 
 ## Intent
@@ -121,19 +121,25 @@ these custom properties rather than inventing values):
 The body sits on a faint ruled paper grid, sets type in the serif workhorse, and
 routes controls, inputs, labels, and metadata through the mono family; `strong`
 emphasis goes heavy rather than colored. The component vocabulary is editorial
-furniture: an editorial shell and masthead, verdict headline, deck, folio,
-comparison rows and a criteria matrix, ruled evidence bands, compact metadata and
-a metadata rail, a recommendation label, a single inverse-ink panel, a ruled
-footer and editorial close, a data-verdict number, and risk/caveat rows. The copy
-atoms are exact — Verdict, Evidence, Risk, Caveat, Recommendation, Accepted
-tradeoff, What changed, What to watch, Rank, Criteria — and state variants cover
-selected option, recommended path, waiting, blocked risk, ready evidence, empty
-data, error, and incomplete comparison. The serif fallback is intentional:
-generated UI should read editorial even when it uses generic element names.
+furniture, and the copy atoms are exact — Verdict, Evidence, Risk, Caveat,
+Recommendation, Accepted tradeoff, What changed, What to watch, Rank, Criteria —
+while state variants cover selected option, recommended path, waiting, blocked
+risk, ready evidence, empty data, error, and incomplete comparison. The serif
+fallback is intentional: generated UI should read editorial even when it uses
+generic element names.
+
+The shared material every surface draws on lives in the root nodes that reach
+everywhere through the spine: the [masthead / deck / folio shell](masthead) that
+frames a composed page, the [mono metadata system](metadata) of folios, labels,
+ranks, and timestamps, the [ruled evidence bands](evidence) that justify the
+claim, the [single inverse-ink panel](inverse-panel) reserved for the verdict,
+and the [editorial close](close) that lands the decision. The surfaces —
+[brief](brief), [comparison](comparison), and [report](report) — compose this
+material for their own job.
 
 ## Composition
 
-Four principles carry the language:
+Four principles carry the language and are true on every surface:
 
 1. **Editorial hierarchy leads.** Open with a strong typographic claim, then
    support it with measured evidence, compact labels, and visible editorial
@@ -156,49 +162,16 @@ Four principles carry the language:
    sparingly or not at all and rely on borders and contrast; keep pill radius for
    compact controls and labels, never broad panels.
 
-The recurring patterns that make an Editorial Mono surface feel intentional:
-
-- **Masthead / deck / folio shell:** a composed surface opens with a masthead-like
-  frame — compact metadata, an oversized serif verdict headline with tight
-  line-height as the visual event, a deck for interpretation rather than filler, a
-  strong rule, a strict body grid, and a restrained close.
-- **Claim-first brief:** a compact brief starts with a dominant newspaper-like
-  claim, then short evidence bands, a matrix, numbered findings, or a ranked list
-  on black ink, cream paper, hairline rules, and square corners.
-- **Comparison spread / criteria matrix over cards:** comparisons make tradeoffs
-  visible across shared criteria like a compact editorial spread — the same rows
-  or columns for every option, terse parallel labels (Cost, Risk, Timing, Fit,
-  Evidence, Caveat), and the winning path anchored by position, border weight, or
-  an inverse label. Weak or empty cells stay visible; gaps are part of the
-  comparison. Never use staggered cards, color-coded winners, score bubbles, or
-  per-option layouts that hide the tradeoff.
-- **Ruled evidence bands:** evidence reads as tight horizontal bands — label,
-  fact, interpretation, implication — separated by hairline rules, with mono
-  uppercase or compact labels and a so-what beside every fact. No orphaned stats.
-- **Single inverse ink panel:** at most one inverse black panel, reserved for the
-  recommendation, verdict, or strongest contrast moment; the rest of the surface
-  stays on paper neutrals with ruled structure and crisp square corners.
-- **Mono metadata system:** folios, issue labels, timestamps, ranks, criteria
-  labels, and compact captions as a disciplined uppercase mono system with
-  measured tracking, kept useful rather than decorative.
-- **Data-verdict report:** metric-heavy surfaces turn data into a verdict through
-  one large number, rank, or delta, followed by aligned facts, deltas, caveats,
-  or criteria bands — never four equal KPI cards, rainbow status palettes, or a
-  dashboard that asks the reader to infer the claim.
-- **Editorial close:** the closing region is short, decisive, and framed as a
-  recommendation, accepted tradeoff, risk, or next action — made visible by
-  border weight, rule placement, or a small inverse label, never a passive recap
-  or competing CTA buttons.
-
-**Surface obligations.** A reader should understand the verdict, criteria, and
-next action before reading paragraph detail. The headline, recommendation, or
-metric verdict appears in the first major visual region, and evidence justifies
-the claim rather than postponing it — avoid neutral titles like Overview,
-Summary, or Dashboard unless paired with a real claim. Comparisons must share
-visible criteria rows, columns, or bands using the same labels for every option.
-Emphasis is made from ink, rules, inverse panels, type, spacing, and alignment
-before color; avoid gradients, soft chromatic backgrounds, and mood badges. The
-surface closes with a decision, risk, next action, or editorial implication kept
-shorter and stronger than the evidence. Large display type must wrap cleanly with
-responsive line breaks, leave at least 72px of top breathing room for host
-chrome, and reduce scale before words overlap, clip, or crowd the edges.
+**Surface obligations (true everywhere).** A reader should understand the
+verdict, criteria, and next action before reading paragraph detail. The headline,
+recommendation, or metric verdict appears in the first major visual region, and
+evidence justifies the claim rather than postponing it — avoid neutral titles
+like Overview, Summary, or Dashboard unless paired with a real claim. Comparisons
+must share visible criteria rows, columns, or bands using the same labels for
+every option. Emphasis is made from ink, rules, inverse panels, type, spacing,
+and alignment before color; avoid gradients, soft chromatic backgrounds, and mood
+badges. The surface closes with a decision, risk, next action, or editorial
+implication kept shorter and stronger than the evidence. Large display type must
+wrap cleanly with responsive line breaks, leave at least 72px of top breathing
+room for host chrome, and reduce scale before words overlap, clip, or crowd the
+edges.

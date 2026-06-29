@@ -1,5 +1,5 @@
 ---
-description: Console Chrome 2001 — a retro Y2K game-console web language of periwinkle beveled plates, carbon command bars, amber/orange wayfinding, dense fixed-canvas modules, outlined box-art display type, and halftone hardware texture.
+description: Console Chrome 2001 core — a retro Y2K game-console web language of periwinkle beveled plates, carbon command bars, amber/orange wayfinding, dense fixed-canvas modules, outlined box-art display type, and halftone hardware texture.
 ---
 
 ## Intent
@@ -146,9 +146,18 @@ side-rail commands. Inputs are white inset fields with hard borders and
 native-select geometry. Body copy stays small, plain, and subordinate to the
 panel chrome; controls, labels, and metadata are bold uppercase Arial.
 
+The shared material every surface draws on lives in the root nodes that reach
+everywhere: the [command and navigation system](command-nav) that frames the
+top of every faceplate, the [beveled plate and chrome system](plates) that gives
+the chassis its molded depth and texture, the [control system](controls) for
+amber and orange buttons and inset inputs, and the
+[badge and section-label system](badges) that labels every dense module. The
+surfaces — [launch](launch), [dashboard](dashboard), [directory](directory), and
+[utility](utility) — compose this material for their own job.
+
 ## Composition
 
-Six principles carry the language:
+Six principles carry the language and are true on every surface:
 
 1. **A surface is an assembled console faceplate.** Treat the root shell as a
    molded plastic console faceplate, not a neutral webpage background. Build major
@@ -194,93 +203,30 @@ Six principles carry the language:
    historical site. Public research informs composition, never permission to reuse
    protected characters or wordmarks.
 
-The recurring patterns that make a Console Chrome surface feel intentional:
+**The universal shell.** Every Console Chrome surface is built inside one fixed
+console shell: a central fixed-canvas chassis (~780–900px when the viewport
+allows, or an explicitly bounded max-width shell on modern screens) — grey
+browser field outside, periwinkle molded body inside, chamfered outer corners,
+hard indigo lower edge, and dense modules bolted into the faceplate rather than
+floating independently. Narrow or mobile surfaces stack command bars, hero
+plates, rows, forms, and rail modules inside one bounded machine frame rather
+than forcing a desktop clone, compressing dual nav into a carbon command header
+plus a pale secondary row while keeping orange forward cues and amber utility
+chips visible.
 
-- **Fixed console shell:** a central fixed-canvas chassis (~780–900px when the
-  viewport allows, or an explicitly bounded max-width shell on modern screens) —
-  grey browser field outside, periwinkle molded body inside, chamfered outer
-  corners, hard indigo lower edge, and dense modules bolted into the faceplate
-  rather than floating independently.
-- **Dual command navigation:** a carbon primary command bar with subtle halftone
-  dot texture and nav-gold uppercase Arial Bold words over a quieter pale-sky
-  secondary strip, with amber tool chips for search, finder, code, filter, or go
-  utilities. No clean modern top nav with large spacing and no texture.
-- **Box-art hero plate:** a beveled photographic or textured plate clipped inside
-  the chassis, with an outlined box-art wordmark (white fill, dark stroke, hard
-  offset shadow), a short bold tagline, and one signal-orange circular arrow or
-  chevron. No flat text over a gradient hero; no competing hero panels.
-- **Beveled plate system:** every module reads as a hard beveled plate or inset
-  field — periwinkle and pale-sky for raised plates, platinum and white for inset
-  content, sharp or chamfered corners for large modules, 2–6px radius only for
-  small inset panels, with dotted dividers and pixel-like edge texture.
-- **Halftone carbon command layer:** carbon command slabs use dot-matrix or grille
-  texture to feel like hardware controls distinct from light content plates, with
-  white or pale-sky text and nav-gold reserved for primary nav words. Carbon is for
-  controls and system framing, not every content panel.
-- **Right action rail:** a narrow right rail stacks carbon action slabs above a
-  white explainer box, amber tab, poll, promo plate, calendar, or compact form,
-  making secondary actions feel like console-side controls. On mobile it moves
-  below primary content but keeps the command-slab styling.
-- **Side-mounted vertical tabs:** optional left-edge vertical carbon tabs clip into
-  the chassis as rotated or stacked labels for rankings, archives, categories, or
-  ratings — secondary navigation or status, never primary reading content.
-- **Stacked news / list rows:** compact platinum rows with a leading icon or
-  category stamp, a bold chrome-indigo or carbon headline, hard 1px bevel
-  separators, and a trailing signal-orange chevron chip. Use rows, not large cards,
-  when scanning several updates or options; keep row text short.
-- **Thumbnail tile grid:** tiny framed thumbnail tiles in tight two-up or three-up
-  grids, clipped into dark or periwinkle frames with captions and orange arrows
-  only for actionable tile moves. Use generated abstract art, icons, or
-  task-supplied imagery — never borrowed historical assets.
-- **Tool-chip search cluster:** search and filter controls grouped like hardware
-  utilities — white inset input, compact native-style select, amber Go chip, and
-  small tips/link text inside or near the command layer, with controls labeled
-  directly rather than by placeholder alone.
-- **Chrome form panels:** forms live in platinum or white inset panels capped by
-  periwinkle section-label bars, with compact hard-bordered inputs, native-select
-  dropdowns, dotted dividers for notes and recovery links, signal-orange submit,
-  and amber or carbon support actions.
-- **Amber tool and submit buttons:** amber beveled chips for tools, utilities, and
-  badges; signal-orange fills or discs (often with a white chevron) for submit,
-  go-forward, continue, launch, or open; carbon slabs for rail actions. Pressed
-  states are hard and darker, never soft or lifted. No gradient CTAs.
-- **Section-label bars:** every dense module earns a small uppercase section-label
-  bar (Official, Featured, Poll, Finder, Archive, Login, Status, Help…) in Arial
-  Bold uppercase at 10–12px with slight tracking and strong contrast. No unlabeled
-  content islands.
-- **Badge and rating stamps:** small trust, rating, status, and category marks
-  read as stamped amber or white squares with hard borders and micro uppercase
-  text — generic unless user-supplied, never real rating-authority marks or
-  friendly rounded pills.
-- **Mascot bubble masthead:** a small original mascot, helper icon, or speech
-  bubble may break the masthead grid sparingly with short useful copy, overlapping
-  the chrome slightly — never literal real-brand characters or a large illustration
-  that replaces the console UI.
-- **Dotted technical dividers:** 1px dotted indigo rules, halftone seams, and pixel
-  perforations provide Y2K chrome detail between compact modules as machine texture,
-  not page-wide wallpaper — kept readable, never CRT-scanline overload.
-- **Chrome footer slab:** the page closes with a carbon or indigo footer slab
-  nested inside the chassis carrying micro practical copy, status marks, and hard
-  chamfered edges — not a spacious modern multi-column footer.
-- **Stacked faceplate adaptation:** narrow or mobile surfaces stack command bars,
-  hero plates, rows, forms, and rail modules inside one bounded machine frame
-  rather than forcing a desktop clone, compressing dual nav into a carbon command
-  header plus a pale secondary row while keeping orange forward cues and amber
-  utility chips visible.
-
-**Surface obligations.** The first visible impression must be a composed console
-faceplate — an outer chassis, bevels, a command layer, and plate seams — with at
-least one signature hardware motif (halftone command slab, chamfered panel,
-outlined box-art title, side rail, or orange arrow controls), never unframed
-generic header-card layouts. Forward, submit, continue, open, and launch actions
-must read as signal orange while amber stays reserved for utility and badge-like
-tools; orange must never be passive decoration. Dense modules must still reveal
-what can be clicked, searched, read, or advanced at a glance — pair rows with
-compact labels, icons, or trailing arrow chips, and give every list, poll, form,
-and promo a visible section-label job. Controls may feel desktop-era compact but
-must stay usable: routine controls at 11–12px or larger, 10px only for micro
-captions, with visible focus outlines or dotted rings and enlarged invisible
-padding when touch use is likely. Generated surfaces must stay source-agnostic —
-generic product naming from the user's prompt, original or abstract mascot and
-hardware motifs, and new layouts generated from the patterns rather than traced
-from historical screenshots.
+**Surface obligations (true everywhere).** The first visible impression must be a
+composed console faceplate — an outer chassis, bevels, a command layer, and plate
+seams — with at least one signature hardware motif (halftone command slab,
+chamfered panel, outlined box-art title, side rail, or orange arrow controls),
+never unframed generic header-card layouts. Forward, submit, continue, open, and
+launch actions must read as signal orange while amber stays reserved for utility
+and badge-like tools; orange must never be passive decoration. Dense modules must
+still reveal what can be clicked, searched, read, or advanced at a glance — pair
+rows with compact labels, icons, or trailing arrow chips, and give every list,
+poll, form, and promo a visible section-label job. Controls may feel desktop-era
+compact but must stay usable: routine controls at 11–12px or larger, 10px only
+for micro captions, with visible focus outlines or dotted rings and enlarged
+invisible padding when touch use is likely. Generated surfaces must stay
+source-agnostic — generic product naming from the user's prompt, original or
+abstract mascot and hardware motifs, and new layouts generated from the patterns
+rather than traced from historical screenshots.
