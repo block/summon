@@ -131,14 +131,23 @@ typecheck. **Open risk:** these are re-exported from `packages/server` and
 6. Fix tests (`ghost-adapter.test.ts`, `generate-route.test.ts`) to the new shape.
 7. typecheck + test + build + check:public-api → green.
 
-## Risks / decisions to confirm
+## Resolved decisions
 
-- **`GhostIngestionContract` retirement:** confirms the rich ingestion artifact is
-  gone, replaced by the flatter slice. This is the right call (matches Ghost's
-  reduction) but it is a public-API change — fine, we're beta.
-- **`buildGhostReviewPacket`:** is `ghost review` still part of Summon's runtime,
-  or was it only ever relay-era scaffolding? Likely defer/stub in step 2, decide
-  its fate in step 5/6 (it overlaps the conformance-verdict work).
+- **`GhostIngestionContract` → RETIRED.** Confirmed. The rich relay ingestion
+  artifact (`summon.ghost-ingestion/v1`) is gone, replaced by the flatter
+  `GraphSlice`. Public-API change — fine, we're beta. The `packages/server/src/ghost/`
+  relay modules (`compile.ts`, `signals.ts`, relay-shaped `types.ts`) and the
+  `RawGhostFingerprintBundle`/`GhostIngestionContract` exports are deleted.
+
+- **`GhostReviewPacket` → REDUCED, not deleted.** It is relay-era and ~12 of its
+  ~16 fields are pure relay structure (`fingerprintProvenance.layers`,
+  `taskContract`, `suggestedReads`, `match`, `memoryDir`) that the UI ignores and
+  that cannot survive the model change. BUT the demo UI's `useSurfaceStream`
+  *does* read 4 fields off `/ghost-review-packet` for a diagnostic log line:
+  `baseDirectionId`, `styleSource`, `artifactFiles`, `validation.{blocked,warnings}`.
+  So: keep the `/ghost-review-packet` meta path, slim `GhostReviewPacket` to the
+  fields the UI uses plus graph/slice provenance (surface, gathered node ids),
+  drop every relay-derived field. Net: a small, honest packet, not a deletion.
+
 - **Token source in step 2:** placeholder empty css is acceptable *only* because
-  step 4 immediately follows. If step 4 slips, generated surfaces lose their
-  visual vocabulary — so steps 2-4 should land close together.
+  step 4 immediately follows. Steps 2-4 land close together.
