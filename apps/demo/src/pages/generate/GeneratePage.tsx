@@ -280,11 +280,6 @@ export function GeneratePage() {
     }
   }, [fingerprintId, fingerprintTargetPath, fingerprints]);
 
-  const tokensFor = useCallback(
-    (_id: string | null): string => defaultTokensSource,
-    [],
-  );
-
   const logLine = useCallback((cls: string, text: string) => {
     setLogs((items) => [...items, { cls, text }]);
   }, []);
@@ -572,7 +567,7 @@ export function GeneratePage() {
             fingerprintId,
             fingerprintTargetPath: fingerprintTargetPath.trim() || ".",
             tokensSource:
-              activeTokensSourceOverrideRef.current ?? tokensFor(fingerprintId),
+              activeTokensSourceOverrideRef.current ?? defaultTokensSource,
             modelSelection: readModelSelectionRef.current(),
             agentBroker: activeContract.agentBroker === true,
           };
@@ -597,7 +592,6 @@ export function GeneratePage() {
     fingerprintTargetPath,
     logLine,
     requestHostApproval,
-    tokensFor,
   ]);
 
   const toolContract = useMemo(
@@ -691,7 +685,7 @@ export function GeneratePage() {
           mode,
           validationMode: "observe",
         },
-        tokenCss: activeTokensSourceOverride ?? tokensFor(fingerprintId),
+        tokenCss: activeTokensSourceOverride ?? defaultTokensSource,
       });
       updateSavedSurfaces([
         envelope,
@@ -705,7 +699,6 @@ export function GeneratePage() {
       fingerprintId,
       mode,
       readLayout,
-      tokensFor,
       updateSavedSurfaces,
     ],
   );
@@ -722,7 +715,6 @@ export function GeneratePage() {
     fingerprintId,
     experimentalRuntime,
     fingerprintTargetPath,
-    tokensFor,
     clearApprovals,
     clearRuntimeState,
     streamGenerationInto,

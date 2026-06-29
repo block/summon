@@ -32,13 +32,11 @@ test('buildGhostSteeringPayload emits the server ghost contract', () => {
     buildGhostSteeringPayload({
       rootId: 'retail-dashboard',
       targetPath: 'apps/demo',
-      baseDirectionId: 'legacy-base',
     }),
     {
       ghost: {
         rootId: 'retail-dashboard',
         targetPath: 'apps/demo',
-        baseDirectionId: 'legacy-base',
       },
     },
   );

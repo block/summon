@@ -293,7 +293,6 @@ app.get('/api/ghost-roots', (_req, res) => {
       tags: [],
       previewColors: [],
       defaultTargetPath: '.',
-      defaultBaseDirectionId: null,
       source: 'external',
     })),
   );
@@ -356,9 +355,9 @@ app.post('/api/generate', async (req, res) => {
   let ghostContext: ResolvedGhostSteer | null = null;
   try {
     ghostContext = fingerprintRequest
-      ? await resolveCatalogGhostGenerationContext(fingerprintRequest, fingerprintCatalog, null)
+      ? await resolveCatalogGhostGenerationContext(fingerprintRequest, fingerprintCatalog)
       : ghostRequest
-        ? await resolveGhostGenerationContext(ghostRequest, ghostRoots, null)
+        ? await resolveGhostGenerationContext(ghostRequest, ghostRoots)
         : null;
   } catch (err) {
     res.status(400).json({

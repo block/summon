@@ -71,7 +71,6 @@ export interface GhostGenerationContext {
   source?: GhostGenerationSource;
   prompt: string;
   product?: string;
-  baseDirectionId?: string | null;
   tokenSource?: {
     kind: GhostTokenSourceKind;
     source: string;

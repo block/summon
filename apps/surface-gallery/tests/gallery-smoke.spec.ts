@@ -635,7 +635,6 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
       body: JSON.stringify([{
         id: 'checkout',
         defaultTargetPath: '.',
-        defaultBaseDirectionId: 'ghost',
       }]),
     });
   });
@@ -655,15 +654,14 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
             surface: 'core',
             gatheredNodes: ['core'],
             styleSource: 'ghost-config',
-            baseDirectionId: 'ghost',
           },
         },
         {
           op: 'meta',
           path: '/ghost-token-source',
           value: {
-            kind: 'base-direction',
-            source: 'direction:ghost/tokens.css',
+            kind: 'ghost-config',
+            source: 'fingerprint:core',
             css: ':root { --color-bg: #ffffff; --color-text: #111111; }',
             warnings: [],
           },
@@ -694,7 +692,7 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
               cascade: ['core'],
               gatheredNodes: [{ id: 'core', provenance: 'own' }],
               tokenSource: { kind: 'ghost-config', source: 'fingerprint:core', definedTokenCount: 0, warnings: [] },
-              routedChecks: [],
+              routedChecks: [{ name: 'token-contrast', severity: 'medium' }],
             },
             capability: { mode: 'static', grantedTools: [], layoutId: null },
             generation: {
@@ -707,9 +705,9 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
               safetyViolations: [],
             },
             conformance: {
-              evaluated: false,
-              summary: { pass: 0, fail: 0, inconclusive: 0, failedHigh: 0, failedMedium: 0, failedLow: 0 },
-              checks: [],
+              evaluated: true,
+              summary: { pass: 1, fail: 0, inconclusive: 0, failedHigh: 0, failedMedium: 0, failedLow: 0 },
+              checks: [{ name: 'token-contrast', severity: 'medium', verdict: 'pass', reason: 'ok' }],
             },
           },
         },
@@ -738,11 +736,18 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
   expect(captured.ghost).toEqual({
     rootId: 'checkout',
     targetPath: '.',
-    baseDirectionId: 'ghost',
   });
   expect(captured.surfacePolicy).toEqual({
     tier: 'declarative',
     purpose: 'review',
     grants: ['choose'],
   });
+
+  // Node-graph provenance + conformance readout from /ghost-receipt.
+  const eventLog = page.locator('#event-log');
+  await expect(eventLog).toContainText('ghost cascade core');
+  await expect(eventLog).toContainText('ghost nodes core(own)');
+  await expect(eventLog).toContainText('ghost tokens ghost-config · fingerprint:core');
+  await expect(eventLog).toContainText('ghost conformance pass=1 fail=0 inconclusive=0');
+  await expect(eventLog).toContainText('conformance token-contrast [medium] pass');
 });

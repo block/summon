@@ -37,14 +37,12 @@ export interface GhostRootRequest {
   rootId: string;
   targetPath: string;
   memoryDir: string | null;
-  baseDirectionId: string | null;
 }
 
 export interface GhostCatalogRequest {
   source: 'catalog';
   fingerprintId: string;
   targetPath: string;
-  baseDirectionId: string | null;
 }
 
 export type GhostRequest = GhostRootRequest | GhostCatalogRequest;
@@ -61,12 +59,6 @@ export interface GhostTokenSource {
   source: string;
   css: string;
   warnings: string[];
-  baseDirectionId?: string | null;
-}
-
-export interface GhostBaseDirection {
-  id: string;
-  tokensCss: string;
 }
 
 interface BaseGhostSteer {
@@ -78,7 +70,6 @@ interface BaseGhostSteer {
   prompt: string;
   product: string;
   tokenSource: GhostTokenSource;
-  baseDirectionId: string | null;
 }
 
 export interface ResolvedRootGhostSteer extends BaseGhostSteer {
@@ -224,9 +215,6 @@ export function parseGhostRequest(
     };
   }
 
-  const baseDirectionId = parseBaseDirectionId(obj.baseDirectionId);
-  if (!baseDirectionId.ok) return { ok: false, error: baseDirectionId.error };
-
   if (typeof obj.rootId !== 'string' || !ROOT_ID_RE.test(obj.rootId)) {
     return { ok: false, error: 'ghost.rootId must be a configured root id' };
   }
@@ -259,7 +247,6 @@ export function parseGhostRequest(
       rootId: obj.rootId,
       targetPath: target.path,
       memoryDir,
-      baseDirectionId: baseDirectionId.value,
     },
   };
 }
@@ -271,18 +258,9 @@ export async function resolveGhostContext(
   return resolveGhostGenerationContext(request, roots);
 }
 
-export async function resolveGhostSteer(
-  request: GhostRootRequest,
-  roots: GhostRoots,
-  baseDirection: GhostBaseDirection | null = null,
-): Promise<ResolvedRootGhostSteer> {
-  return resolveGhostGenerationContext(request, roots, baseDirection);
-}
-
 export async function resolveGhostGenerationContext(
   request: GhostRootRequest,
   roots: GhostRoots,
-  baseDirection: GhostBaseDirection | null = null,
 ): Promise<ResolvedRootGhostSteer> {
   const root = roots.get(request.rootId);
   if (!root) throw new Error(`unknown Ghost root "${request.rootId}"`);
@@ -298,7 +276,7 @@ export async function resolveGhostGenerationContext(
 
   const product = request.rootId;
   const css = extractSliceCss(slice);
-  const tokenSource = resolveGraphTokenSource(css, baseDirection);
+  const tokenSource = resolveGraphTokenSource(css);
 
   return {
     source: 'root',
@@ -311,14 +289,12 @@ export async function resolveGhostGenerationContext(
     prompt: renderSlicePrompt(slice),
     product,
     tokenSource,
-    baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
   };
 }
 
 export async function resolveCatalogGhostGenerationContext(
   request: FingerprintRequest,
   catalog: FingerprintCatalog,
-  baseDirection: GhostBaseDirection | null = null,
 ): Promise<ResolvedCatalogGhostSteer> {
   const entry = catalog.byId.get(request.id);
   if (!entry) throw new Error(`unknown fingerprint "${request.id}"`);
@@ -329,7 +305,7 @@ export async function resolveCatalogGhostGenerationContext(
 
   const product = entry.name || request.id;
   const css = extractSliceCss(slice);
-  const tokenSource = resolveGraphTokenSource(css, baseDirection);
+  const tokenSource = resolveGraphTokenSource(css);
   if (!css.trim()) {
     tokenSource.warnings.push(`Fingerprint "${request.id}" .ghost has no token css block`);
   }
@@ -340,7 +316,6 @@ export async function resolveCatalogGhostGenerationContext(
       source: 'catalog',
       fingerprintId: request.id,
       targetPath: request.targetPath,
-      baseDirectionId: request.baseDirectionId,
     },
     catalogEntry: entry,
     root: entry.root,
@@ -351,7 +326,6 @@ export async function resolveCatalogGhostGenerationContext(
     prompt: renderSlicePrompt(slice),
     product,
     tokenSource,
-    baseDirectionId: baseDirection?.id ?? request.baseDirectionId ?? null,
   };
 }
 
@@ -371,10 +345,9 @@ export async function prepareGhostSurfacePrompt(
   });
   if (chosen !== context.surface) {
     const slice = resolveGraphSlice(context.graph, chosen);
-    // Rebuild the token CSS from the new slice, but preserve the kind/source/
-    // baseDirectionId already resolved at load-time (baseDirection is not in
-    // scope here). This keeps the token plumbing stable while the slice/prose
-    // follow the selected surface.
+    // Rebuild the token CSS from the new slice, but preserve the kind/source
+    // already resolved at load-time. This keeps the token plumbing stable while
+    // the slice/prose follow the selected surface.
     const tokenSource: GhostTokenSource = {
       ...context.tokenSource,
       css: extractSliceCss(slice),
@@ -497,7 +470,6 @@ export function ghostContextMeta(ctx: ResolvedGhostContext) {
     product: ctx.product,
     surface: ctx.surface,
     gatheredNodes: sliceNodeIds(ctx.slice),
-    baseDirectionId: ctx.baseDirectionId,
     styleSource: ctx.tokenSource.kind,
   };
 }
@@ -508,7 +480,6 @@ export function ghostTokenSourceMeta(tokenSource: GhostTokenSource) {
     source: tokenSource.source,
     css: tokenSource.css,
     warnings: tokenSource.warnings,
-    baseDirectionId: tokenSource.baseDirectionId ?? null,
   };
 }
 
@@ -723,16 +694,12 @@ function extractSliceCss(slice: GraphSlice): string {
   return blocks.join('\n\n');
 }
 
-function resolveGraphTokenSource(
-  css: string,
-  baseDirection: GhostBaseDirection | null,
-): GhostTokenSource {
+function resolveGraphTokenSource(css: string): GhostTokenSource {
   return {
     kind: 'ghost-config',
     source: 'fingerprint:core',
     css,
     warnings: [],
-    baseDirectionId: baseDirection?.id ?? null,
   };
 }
 
@@ -747,18 +714,6 @@ function normalizeGhostMemoryDir(raw: string): string {
     throw new Error('ghost.memoryDir must not contain path traversal segments');
   }
   return segments.join('/');
-}
-
-function parseBaseDirectionId(raw: unknown):
-  | { ok: true; value: string | null }
-  | { ok: false; error: string } {
-  if (raw === undefined || raw === null || raw === '') {
-    return { ok: true, value: null };
-  }
-  if (typeof raw !== 'string' || !ROOT_ID_RE.test(raw)) {
-    return { ok: false, error: 'ghost.baseDirectionId must be a valid direction id' };
-  }
-  return { ok: true, value: raw };
 }
 
 function normalizeTargetPath(raw: unknown):

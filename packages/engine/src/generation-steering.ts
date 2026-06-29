@@ -8,7 +8,6 @@ export interface GenerationFingerprintSteeringInput {
 export interface GenerationGhostSteeringInput {
   rootId: string | null | undefined;
   targetPath?: string | null | undefined;
-  baseDirectionId?: string | null | undefined;
 }
 
 export interface GenerationFingerprintSteeringPayload {
@@ -22,7 +21,6 @@ export interface GenerationGhostSteeringPayload {
   ghost: {
     rootId: string;
     targetPath?: string;
-    baseDirectionId?: string;
   };
 }
 
@@ -64,12 +62,10 @@ export function buildGhostSteeringPayload(
   const rootId = normalizeOptionalString(input.rootId);
   if (!rootId) return null;
   const targetPath = normalizeOptionalString(input.targetPath);
-  const baseDirectionId = normalizeOptionalString(input.baseDirectionId);
   return {
     ghost: {
       rootId,
       ...(targetPath ? { targetPath } : {}),
-      ...(baseDirectionId ? { baseDirectionId } : {}),
     },
   };
 }

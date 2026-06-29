@@ -4,6 +4,12 @@
 > relay-based load with `loadFingerprintPackage` → `resolveGraphSlice`. Scoped
 > against the actual code after linking local Ghost 0.18.0.
 
+> **Superseded note (2026-06-29):** the `baseDirectionId` field referenced below
+> was carried through this migration as a vestigial no-op and has since been
+> fully removed from the engine, server adapter, fingerprint catalog, and both
+> clients. Mentions of it here are historical; the live contract has no
+> `baseDirectionId` / `defaultBaseDirectionId` / `defaultTokenFallback`.
+
 ## The breakage is deeper than two imports
 
 Linking 0.18.0 broke two imports in `ghost-adapter.ts`, but the *model* change

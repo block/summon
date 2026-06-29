@@ -18,7 +18,6 @@ export interface FingerprintCatalogEntry {
   root: string;
   ghostDir: string;
   defaultTargetPath: string;
-  defaultTokenFallback: string | null;
 }
 
 export interface PublicFingerprintInfo {
@@ -30,13 +29,11 @@ export interface PublicFingerprintInfo {
   tags: string[];
   previewColors: string[];
   defaultTargetPath: string;
-  defaultTokenFallback: string | null;
 }
 
 export interface FingerprintRequest {
   id: string;
   targetPath: string;
-  baseDirectionId: string | null;
 }
 
 export type ParseFingerprintRequestResult =
@@ -54,7 +51,6 @@ interface RawCatalogEntry {
   path: string;
   enabled?: boolean;
   defaultTargetPath?: string;
-  defaultTokenFallback?: string | null;
 }
 
 export function defaultFingerprintCatalogRoot(): string {
@@ -95,7 +91,6 @@ export function publicFingerprints(catalog: FingerprintCatalog): PublicFingerpri
       tags: [...entry.tags],
       previewColors: [...entry.previewColors],
       defaultTargetPath: entry.defaultTargetPath,
-      defaultTokenFallback: entry.defaultTokenFallback,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -115,14 +110,11 @@ export function parseFingerprintRequest(
   }
   const target = normalizeTargetPath(raw.targetPath, 'fingerprint.targetPath');
   if (!target.ok) return { ok: false, error: target.error };
-  const base = parseBaseDirectionId(raw.baseDirectionId, 'fingerprint.baseDirectionId');
-  if (!base.ok) return { ok: false, error: base.error };
   return {
     ok: true,
     request: {
       id,
       targetPath: target.path,
-      baseDirectionId: base.value,
     },
   };
 }
@@ -150,8 +142,6 @@ function loadBundle(catalogRoot: string, item: RawCatalogEntry): FingerprintCata
   }
   const target = normalizeTargetPath(item.defaultTargetPath, `defaultTargetPath for ${item.id}`);
   if (!target.ok) throw new Error(target.error);
-  const fallback = parseBaseDirectionId(item.defaultTokenFallback, `defaultTokenFallback for ${item.id}`);
-  if (!fallback.ok) throw new Error(fallback.error);
   const indexPath = join(ghostDir, 'index.md');
   const previewCss = existsSync(indexPath) && statSync(indexPath).isFile()
     ? extractGhostCss(readFileSync(indexPath, 'utf-8'))
@@ -168,7 +158,6 @@ function loadBundle(catalogRoot: string, item: RawCatalogEntry): FingerprintCata
     root: bundleRoot,
     ghostDir,
     defaultTargetPath: target.path,
-    defaultTokenFallback: fallback.value,
   };
 }
 
@@ -187,8 +176,7 @@ function isRawCatalogEntry(value: unknown): value is RawCatalogEntry {
     typeof value.id === 'string' && ID_RE.test(value.id) &&
     typeof value.path === 'string' && value.path.trim().length > 0 &&
     (value.enabled === undefined || typeof value.enabled === 'boolean') &&
-    (value.defaultTargetPath === undefined || typeof value.defaultTargetPath === 'string') &&
-    (value.defaultTokenFallback === undefined || value.defaultTokenFallback === null || typeof value.defaultTokenFallback === 'string');
+    (value.defaultTargetPath === undefined || typeof value.defaultTargetPath === 'string');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -226,16 +214,6 @@ function normalizeTargetPath(raw: unknown, label: string):
     return { ok: false, error: `${label} must not contain path traversal segments` };
   }
   return { ok: true, path: segments.join('/') };
-}
-
-function parseBaseDirectionId(raw: unknown, label: string):
-  | { ok: true; value: string | null }
-  | { ok: false; error: string } {
-  if (raw === undefined || raw === null || raw === '') return { ok: true, value: null };
-  if (typeof raw !== 'string' || !ID_RE.test(raw)) {
-    return { ok: false, error: `${label} must be a valid direction id` };
-  }
-  return { ok: true, value: raw };
 }
 
 function stringField(value: unknown, fallback: string): string {

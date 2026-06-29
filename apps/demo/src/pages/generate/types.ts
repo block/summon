@@ -12,8 +12,6 @@ export interface GhostRootInfo {
   tags?: string[];
   previewColors?: string[];
   defaultTargetPath?: string;
-  defaultBaseDirectionId?: string | null;
-  defaultTokenFallback?: string | null;
   source?: string;
 }
 

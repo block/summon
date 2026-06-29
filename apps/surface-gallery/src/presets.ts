@@ -25,7 +25,6 @@ export interface GalleryPreset {
   ghost?: {
     rootId: string;
     targetPath: string;
-    baseDirectionId?: string | null;
   };
 }
 
@@ -33,7 +32,6 @@ export interface GhostRootInfo {
   id: string;
   previewColors?: string[];
   defaultTargetPath?: string;
-  defaultBaseDirectionId?: string | null;
 }
 
 export const GALLERY_PRESETS: GalleryPreset[] = [
@@ -247,18 +245,12 @@ export function createGhostGalleryPreset(root: GhostRootInfo): GalleryPreset {
     ghost: {
       rootId: root.id,
       targetPath: root.defaultTargetPath ?? '.',
-      baseDirectionId: root.defaultBaseDirectionId ?? null,
     },
   };
 }
 
 export function policyGrants(policy: SurfacePolicy): string[] {
   return policy.grants ?? [];
-}
-
-export function policyComponents(policy: SurfacePolicy): string[] {
-  void policy;
-  return [];
 }
 
 export function policyText(policy: SurfacePolicy): string {

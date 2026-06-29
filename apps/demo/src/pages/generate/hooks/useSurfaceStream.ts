@@ -162,7 +162,7 @@ export function useSurfaceStream({
         source?: unknown;
         targetPath?: unknown;
         layers?: unknown;
-        baseDirectionId?: unknown;
+        gatheredNodes?: unknown;
         styleSource?: unknown;
         taskContract?: { preserve?: unknown; validate?: unknown };
       } | undefined;
@@ -170,31 +170,62 @@ export function useSurfaceStream({
       const source = typeof value?.source === 'string' ? value.source : 'root';
       const targetPath = typeof value?.targetPath === 'string' ? value.targetPath : '.';
       const layers = Array.isArray(value?.layers) ? value.layers.filter((layer): layer is string => typeof layer === 'string') : [];
-      const base = typeof value?.baseDirectionId === 'string' ? value.baseDirectionId : 'none';
+      const gatheredNodes = Array.isArray(value?.gatheredNodes)
+        ? value.gatheredNodes.filter((node): node is string => typeof node === 'string')
+        : [];
       const style = typeof value?.styleSource === 'string' ? value.styleSource : 'unknown';
       const preserveCount = Array.isArray(value?.taskContract?.preserve) ? value.taskContract.preserve.length : 0;
       const validateCount = Array.isArray(value?.taskContract?.validate) ? value.taskContract.validate.length : 0;
       const task = preserveCount || validateCount ? `; task=${preserveCount}/${validateCount}` : '';
-      logLine('op-meta', `fingerprint context -> ${product}; source=${source}; target=${targetPath}; layers=${layers.join(' > ') || '.'}; token fallback=${base}; style=${style}${task}`);
+      const nodes = gatheredNodes.length ? `; nodes=${gatheredNodes.join(',')}` : '';
+      logLine('op-meta', `fingerprint context -> ${product}; source=${source}; target=${targetPath}; layers=${layers.join(' > ') || '.'}; style=${style}${nodes}${task}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/ghost-token-source') {
-      const value = line.value as { kind?: unknown; source?: unknown; css?: unknown; warnings?: unknown; baseDirectionId?: unknown } | undefined;
+      const value = line.value as { kind?: unknown; source?: unknown; css?: unknown; warnings?: unknown } | undefined;
       if (typeof value?.css === 'string') {
         setActiveTokensSourceOverride(value.css);
         setSurfaceTokensSource(value.css);
       }
       const source = typeof value?.source === 'string' ? value.source : 'unknown';
       const kind = typeof value?.kind === 'string' ? value.kind : 'unknown';
-      const base = typeof value?.baseDirectionId === 'string' ? `; base=${value.baseDirectionId}` : '';
-      logLine('op-meta', `fingerprint tokens -> ${kind} (${source})${base}`);
+      const warnings = Array.isArray(value?.warnings)
+        ? value.warnings.filter((warning): warning is string => typeof warning === 'string')
+        : [];
+      const warn = warnings.length ? `; warnings=${warnings.length}` : '';
+      logLine('op-meta', `fingerprint tokens -> ${kind} (${source})${warn}`);
+      return;
+    }
+    if (line.op === 'meta' && line.path === '/ghost-conformance') {
+      const value = line.value as {
+        surface?: unknown;
+        evaluated?: unknown;
+        checks?: unknown;
+        summary?: { pass?: unknown; fail?: unknown; inconclusive?: unknown };
+      } | undefined;
+      const evaluated = value?.evaluated === true;
+      const summary = value?.summary;
+      const pass = typeof summary?.pass === 'number' ? summary.pass : 0;
+      const fail = typeof summary?.fail === 'number' ? summary.fail : 0;
+      const inconclusive = typeof summary?.inconclusive === 'number' ? summary.inconclusive : 0;
+      logLine('op-meta', `fingerprint conformance -> ${evaluated ? 'evaluated' : 'not evaluated'}; ${pass}p/${fail}f/${inconclusive}i`);
+      const checks = parseConformanceChecks(value?.checks);
+      for (const check of checks) {
+        const reason = check.reason ? `: ${check.reason}` : '';
+        logLine('op-meta', `  check ${check.name} [${check.severity}] -> ${check.verdict}${reason}`);
+      }
       return;
     }
     if (line.op === 'meta' && line.path === '/ghost-receipt') {
       const value = line.value as {
-        fingerprint?: { tokenSource?: { kind?: unknown } };
+        fingerprint?: {
+          tokenSource?: { kind?: unknown };
+          cascade?: unknown;
+          gatheredNodes?: unknown;
+          routedChecks?: unknown;
+        };
         generation?: { artifactFiles?: unknown; validation?: { blocked?: unknown; warnings?: unknown } };
-        conformance?: { summary?: { pass?: unknown; fail?: unknown; inconclusive?: unknown } };
+        conformance?: { evaluated?: unknown; summary?: { pass?: unknown; fail?: unknown; inconclusive?: unknown }; checks?: unknown };
       } | undefined;
       const style = typeof value?.fingerprint?.tokenSource?.kind === 'string' ? value.fingerprint.tokenSource.kind : 'unknown';
       const artifactFiles = Array.isArray(value?.generation?.artifactFiles)
@@ -207,6 +238,31 @@ export function useSurfaceStream({
       const fail = typeof conf?.fail === 'number' ? conf.fail : 0;
       const inconclusive = typeof conf?.inconclusive === 'number' ? conf.inconclusive : 0;
       logLine('op-meta', `fingerprint receipt -> style=${style}; artifact=${artifactFiles.join(', ') || 'none'}; validation=${blocked}/${warnings}; conformance=${pass}p/${fail}f/${inconclusive}i`);
+
+      const cascade = Array.isArray(value?.fingerprint?.cascade)
+        ? value.fingerprint.cascade.filter((layer): layer is string => typeof layer === 'string')
+        : [];
+      if (cascade.length) logLine('op-meta', `  cascade -> ${cascade.join(' > ')}`);
+
+      const gatheredNodes = parseGatheredNodes(value?.fingerprint?.gatheredNodes);
+      if (gatheredNodes.length) {
+        const rendered = gatheredNodes
+          .map((node) => `${node.id}${node.provenance ? `(${node.provenance})` : ''}`)
+          .join(', ');
+        logLine('op-meta', `  gathered nodes -> ${rendered}`);
+      }
+
+      const routedChecks = parseRoutedChecks(value?.fingerprint?.routedChecks);
+      if (routedChecks.length) {
+        const rendered = routedChecks.map((check) => `${check.name}[${check.severity}]`).join(', ');
+        logLine('op-meta', `  routed checks -> ${rendered}`);
+      }
+
+      const checks = parseConformanceChecks(value?.conformance?.checks);
+      for (const check of checks) {
+        const reason = check.reason ? `: ${check.reason}` : '';
+        logLine('op-meta', `  conformance ${check.name} [${check.severity}] -> ${check.verdict}${reason}`);
+      }
       return;
     }
     if (line.op === 'meta' && line.path === '/validation-summary') {
@@ -514,6 +570,60 @@ function parseTimingEntry(value: unknown): Omit<TimingEntry, 'id' | 'at'> | null
     ...(durationMs === undefined ? {} : { durationMs }),
     source,
   };
+}
+
+interface ConformanceCheckSummary {
+  name: string;
+  severity: string;
+  verdict: string;
+  reason?: string;
+}
+
+function parseConformanceChecks(value: unknown): ConformanceCheckSummary[] {
+  if (!Array.isArray(value)) return [];
+  const checks: ConformanceCheckSummary[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue;
+    const item = entry as Record<string, unknown>;
+    if (typeof item.name !== 'string') continue;
+    checks.push({
+      name: item.name,
+      severity: typeof item.severity === 'string' ? item.severity : 'unknown',
+      verdict: typeof item.verdict === 'string' ? item.verdict : 'unknown',
+      ...(typeof item.reason === 'string' && item.reason ? { reason: item.reason } : {}),
+    });
+  }
+  return checks;
+}
+
+function parseGatheredNodes(value: unknown): Array<{ id: string; provenance?: string }> {
+  if (!Array.isArray(value)) return [];
+  const nodes: Array<{ id: string; provenance?: string }> = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue;
+    const item = entry as Record<string, unknown>;
+    if (typeof item.id !== 'string') continue;
+    nodes.push({
+      id: item.id,
+      ...(typeof item.provenance === 'string' ? { provenance: item.provenance } : {}),
+    });
+  }
+  return nodes;
+}
+
+function parseRoutedChecks(value: unknown): Array<{ name: string; severity: string }> {
+  if (!Array.isArray(value)) return [];
+  const checks: Array<{ name: string; severity: string }> = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') continue;
+    const item = entry as Record<string, unknown>;
+    if (typeof item.name !== 'string') continue;
+    checks.push({
+      name: item.name,
+      severity: typeof item.severity === 'string' ? item.severity : 'unknown',
+    });
+  }
+  return checks;
 }
 
 function roundMs(value: number): number {

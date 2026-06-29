@@ -29,7 +29,6 @@ export function useGenerationRuns({
   fingerprintId,
   experimentalRuntime,
   fingerprintTargetPath,
-  tokensFor,
   clearApprovals,
   clearRuntimeState,
   streamGenerationInto,
@@ -69,7 +68,6 @@ export function useGenerationRuns({
   fingerprintId: string | null;
   experimentalRuntime: SummonOutputRuntime;
   fingerprintTargetPath: string;
-  tokensFor: (id: string | null) => string;
   clearApprovals: (reason: string) => void;
   clearRuntimeState: () => void;
   streamGenerationInto: (opts: StreamOptions) => Promise<StreamResult>;
@@ -101,7 +99,7 @@ export function useGenerationRuns({
   const generate = useCallback(async (runPrompt: string) => {
     abortRef.current?.abort();
     const abort = new AbortController();
-    const runTokensSource = activeTokensSourceOverride ?? tokensFor(fingerprintId);
+    const runTokensSource = activeTokensSourceOverride ?? defaultTokensSource;
     abortRef.current = abort;
     clearApprovals('Approval request was replaced');
     setChildren([]);
@@ -178,7 +176,6 @@ export function useGenerationRuns({
     setSurfaceTokensSource,
     streamGenerationInto,
     summonedCountRef,
-    tokensFor,
   ]);
 
   const replaySurface = useCallback((envelope: SurfaceEnvelope) => {

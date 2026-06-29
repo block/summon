@@ -10,7 +10,6 @@ import {
   parseGhostRoots,
   prepareGhostSurfacePrompt,
   resolveGhostContext,
-  resolveGhostSteer,
   selectGhostSurface,
 } from './ghost-adapter.js';
 import { assembleGraph } from '@anarchitecture/ghost/core';
@@ -57,26 +56,19 @@ describe('Ghost adapter', () => {
       rootId: 'checkout',
       targetPath: '.',
       memoryDir: null,
-      baseDirectionId: null,
     });
 
-    const withBase = parseGhostRequest({
+    const withTarget = parseGhostRequest({
       rootId: 'checkout',
       targetPath: 'app',
       memoryDir: '.ghost',
-      baseDirectionId: 'ghost',
     }, roots);
-    assert.equal(withBase.ok, true);
-    assert.deepEqual(withBase.ok ? withBase.request : null, {
+    assert.equal(withTarget.ok, true);
+    assert.deepEqual(withTarget.ok ? withTarget.request : null, {
       source: 'root',
       rootId: 'checkout',
       targetPath: 'app',
       memoryDir: '.ghost',
-      baseDirectionId: 'ghost',
-    });
-    assert.deepEqual(parseGhostRequest({ rootId: 'checkout', baseDirectionId: '../ghost' }, roots), {
-      ok: false,
-      error: 'ghost.baseDirectionId must be a valid direction id',
     });
   });
 
@@ -288,23 +280,6 @@ describe('Ghost adapter', () => {
     assert.match(ctx.tokenSource.css, /--paper: #faf7ed/);
     assert.match(ctx.tokenSource.css, /--soft-corner: 18px/);
     assert.match(ctx.tokenSource.css, /--moss: #718c5a/);
-  });
-
-  it('carries base direction id through the resolved context', async () => {
-    const root = await makeGhostFixture();
-    const roots = parseGhostRoots(`checkout=${root}`);
-    const parsed = parseGhostRequest({ rootId: 'checkout', baseDirectionId: 'ghost' }, roots);
-    assert.equal(parsed.ok, true);
-    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
-
-    const ctx = await resolveGhostSteer(parsed.request, roots, {
-      id: 'ghost',
-      tokensCss: ':root { --color-bg: #000; }',
-    });
-
-    assert.equal(ctx.baseDirectionId, 'ghost');
-    assert.equal(ctx.tokenSource.kind, 'ghost-config');
-    assert.equal(ctx.tokenSource.source, 'fingerprint:core');
   });
 
   it('builds the receipt from the slice, accepted Arrow artifacts, and the conformance verdict', async () => {

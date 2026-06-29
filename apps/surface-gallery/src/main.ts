@@ -418,7 +418,6 @@ function steeringPayloadForSelectedPreset() {
     return buildGhostSteeringPayload({
       rootId: selectedPreset.ghost.rootId,
       targetPath: selectedPreset.ghost.targetPath,
-      baseDirectionId: selectedPreset.ghost.baseDirectionId,
     });
   }
   const fingerprint = selectedCatalogFingerprint();
@@ -508,6 +507,15 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
       activeTokensSourceOverride = value.css;
       remountSurface();
     }
+  }
+  if (line.path === '/ghost-context') {
+    surfaceGhostContext(line.value);
+  }
+  if (line.path === '/ghost-receipt') {
+    surfaceGhostReceipt(line.value);
+  }
+  if (line.path === '/ghost-conformance') {
+    surfaceGhostConformance(line.value);
   }
   warningCountEl.textContent = String(warningLines);
   blockedCountEl.textContent = String(blockedLines);
@@ -966,6 +974,92 @@ function pushHostMessage(message: string, opts: { attention?: boolean } = {}): v
   if (hostMessages.length > 30) hostMessages.splice(0, hostMessages.length - 30);
   if (opts.attention) selectInspectorTab('stream');
   renderEvents();
+}
+
+function surfaceGhostContext(value: unknown): void {
+  if (!value || typeof value !== 'object') return;
+  const ctx = value as {
+    source?: unknown;
+    rootId?: unknown;
+    product?: unknown;
+    surface?: unknown;
+    gatheredNodes?: unknown;
+    styleSource?: unknown;
+  };
+  const nodes = Array.isArray(ctx.gatheredNodes)
+    ? ctx.gatheredNodes.filter((node): node is string => typeof node === 'string')
+    : [];
+  const parts = [
+    typeof ctx.source === 'string' ? `source=${ctx.source}` : null,
+    typeof ctx.rootId === 'string' ? `root=${ctx.rootId}` : null,
+    typeof ctx.product === 'string' && typeof ctx.surface === 'string'
+      ? `${ctx.product}/${ctx.surface}`
+      : null,
+    typeof ctx.styleSource === 'string' ? `style=${ctx.styleSource}` : null,
+    nodes.length ? `nodes=${nodes.join(',')}` : null,
+  ].filter((part): part is string => Boolean(part));
+  pushHostMessage(`ghost context ${parts.join(' · ')}`);
+}
+
+function conformanceSummaryText(summary: unknown): string | null {
+  if (!summary || typeof summary !== 'object') return null;
+  const s = summary as { pass?: unknown; fail?: unknown; inconclusive?: unknown };
+  const pass = typeof s.pass === 'number' ? s.pass : 0;
+  const fail = typeof s.fail === 'number' ? s.fail : 0;
+  const inconclusive = typeof s.inconclusive === 'number' ? s.inconclusive : 0;
+  return `pass=${pass} fail=${fail} inconclusive=${inconclusive}`;
+}
+
+function surfaceGhostConformance(value: unknown): void {
+  if (!value || typeof value !== 'object') return;
+  const conformance = value as { evaluated?: unknown; summary?: unknown; checks?: unknown };
+  if (!conformance.evaluated) {
+    pushHostMessage('ghost conformance not evaluated');
+    return;
+  }
+  const summaryText = conformanceSummaryText(conformance.summary);
+  if (summaryText) pushHostMessage(`ghost conformance ${summaryText}`);
+  const checks = Array.isArray(conformance.checks) ? conformance.checks : [];
+  for (const check of checks) {
+    if (!check || typeof check !== 'object') continue;
+    const c = check as { name?: unknown; severity?: unknown; verdict?: unknown };
+    const name = typeof c.name === 'string' ? c.name : 'check';
+    const severity = typeof c.severity === 'string' ? c.severity : 'unknown';
+    const verdict = typeof c.verdict === 'string' ? c.verdict : 'unknown';
+    const attention = verdict === 'fail';
+    pushHostMessage(`conformance ${name} [${severity}] ${verdict}`, { attention });
+  }
+}
+
+function surfaceGhostReceipt(value: unknown): void {
+  if (!value || typeof value !== 'object') return;
+  const receipt = value as { fingerprint?: unknown; conformance?: unknown };
+  const fingerprint = (receipt.fingerprint ?? {}) as {
+    cascade?: unknown;
+    gatheredNodes?: unknown;
+    tokenSource?: unknown;
+  };
+  const cascade = Array.isArray(fingerprint.cascade)
+    ? fingerprint.cascade.filter((node): node is string => typeof node === 'string')
+    : [];
+  if (cascade.length) pushHostMessage(`ghost cascade ${cascade.join(' → ')}`);
+  const gatheredNodes = Array.isArray(fingerprint.gatheredNodes) ? fingerprint.gatheredNodes : [];
+  const nodeText = gatheredNodes
+    .map((node) => {
+      if (!node || typeof node !== 'object') return null;
+      const n = node as { id?: unknown; provenance?: unknown };
+      const id = typeof n.id === 'string' ? n.id : null;
+      if (!id) return null;
+      const provenance = typeof n.provenance === 'string' ? n.provenance : 'unknown';
+      return `${id}(${provenance})`;
+    })
+    .filter((entry): entry is string => Boolean(entry));
+  if (nodeText.length) pushHostMessage(`ghost nodes ${nodeText.join(', ')}`);
+  const tokenSource = (fingerprint.tokenSource ?? {}) as { kind?: unknown; source?: unknown };
+  if (typeof tokenSource.kind === 'string' && typeof tokenSource.source === 'string') {
+    pushHostMessage(`ghost tokens ${tokenSource.kind} · ${tokenSource.source}`);
+  }
+  surfaceGhostConformance(receipt.conformance);
 }
 
 function requestHostApproval(request: ApprovalRequest): Promise<ApprovalDecision> {
