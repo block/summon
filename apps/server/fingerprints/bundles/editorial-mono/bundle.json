@@ -5,7 +5,12 @@
   "summary": "A monochrome editorial surface language for decisive briefs, aligned comparisons, and evidence-led recommendations.",
   "status": "published",
   "version": "0.2.0",
-  "fingerprint": "fingerprint",
-  "tags": ["editorial", "monochrome", "comparison", "decision-brief", "scorecard", "austere"],
-  "tokens": "tokens.css"
+  "tags": [
+    "editorial",
+    "monochrome",
+    "comparison",
+    "decision-brief",
+    "scorecard",
+    "austere"
+  ]
 }

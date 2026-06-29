@@ -5,7 +5,14 @@
   "summary": "A source-agnostic luxury performance editorial language: near-black cinematic bands, full-bleed photography, scarce race-red voltage, sharp rectangular controls, uppercase tracked labels, and generous 8px-paced sections.",
   "status": "review",
   "version": "0.1.0",
-  "fingerprint": "fingerprint",
-  "tags": ["luxury", "automotive", "editorial", "dark", "cinematic", "performance", "sharp", "red-accent"],
-  "tokens": "tokens.css"
+  "tags": [
+    "luxury",
+    "automotive",
+    "editorial",
+    "dark",
+    "cinematic",
+    "performance",
+    "sharp",
+    "red-accent"
+  ]
 }

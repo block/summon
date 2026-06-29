@@ -19,7 +19,6 @@ import {
 } from '@anarchitecture/ghost/core';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
-  resolveCatalogTokenSource,
   type FingerprintCatalog,
   type FingerprintCatalogEntry,
   type FingerprintRequest,
@@ -322,9 +321,10 @@ export async function resolveCatalogGhostGenerationContext(
 
   const product = entry.name || request.id;
   const css = extractSliceCss(slice);
-  const tokenSource = css.trim()
-    ? resolveGraphTokenSource(css, baseDirection)
-    : resolveCatalogTokenSource(entry, baseDirection);
+  const tokenSource = resolveGraphTokenSource(css, baseDirection);
+  if (!css.trim()) {
+    tokenSource.warnings.push(`Fingerprint "${request.id}" .ghost has no token css block`);
+  }
 
   return {
     source: 'catalog',

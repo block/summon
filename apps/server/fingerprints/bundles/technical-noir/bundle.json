@@ -5,7 +5,13 @@
   "summary": "A restrained warm-dark developer surface language for terminal-like workspaces, quiet product narrative, and hairline-separated operational content.",
   "status": "review",
   "version": "0.1.0",
-  "fingerprint": "fingerprint",
-  "tags": ["developer", "terminal", "warm-dark", "mono", "hairline", "restrained", "agent-workspace"],
-  "tokens": "tokens.css"
+  "tags": [
+    "developer",
+    "terminal",
+    "warm-dark",
+    "mono",
+    "hairline",
+    "restrained",
+    "agent-workspace"
+  ]
 }

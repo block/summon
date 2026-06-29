@@ -1,7 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { GhostBaseDirection, GhostTokenSource } from './ghost-adapter.js';
 
 const ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 const CATALOG_SCHEMA = 'summon.fingerprint-catalog/v1';
@@ -17,9 +16,7 @@ export interface FingerprintCatalogEntry {
   tags: string[];
   previewColors: string[];
   root: string;
-  fingerprintDir: string;
   ghostDir: string;
-  tokenCssPath: string | null;
   defaultTargetPath: string;
   defaultTokenFallback: string | null;
 }
@@ -130,33 +127,6 @@ export function parseFingerprintRequest(
   };
 }
 
-export function resolveCatalogTokenSource(
-  entry: FingerprintCatalogEntry,
-  baseDirection: GhostBaseDirection | null,
-): GhostTokenSource {
-  const warnings: string[] = [];
-  if (entry.tokenCssPath) {
-    const css = readFileSync(entry.tokenCssPath, 'utf-8');
-    return {
-      kind: 'fingerprint-catalog',
-      source: displayPath(entry.root, entry.tokenCssPath),
-      css,
-      baseDirectionId: baseDirection?.id ?? null,
-      warnings,
-    };
-  }
-  if (baseDirection) {
-    warnings.push(
-      `Ignoring requested fallback direction "${baseDirection.id}" because Summon generation is Ghost-fingerprint-only.`,
-    );
-  }
-  throw new Error([
-    `Catalog fingerprint "${entry.id}" token CSS is required for Summon generation.`,
-    'No catalog fingerprint token/style CSS was found.',
-    ...warnings,
-  ].join(' '));
-}
-
 function emptyCatalog(root: string): FingerprintCatalog {
   return { root: resolve(root), entries: [], byId: new Map() };
 }
@@ -173,27 +143,20 @@ function loadBundle(catalogRoot: string, item: RawCatalogEntry): FingerprintCata
     throw new Error(`Fingerprint bundle ${item.id} has unsupported schema`);
   }
   if (meta.id !== item.id) throw new Error(`Fingerprint bundle id mismatch: ${item.id}`);
-  const fingerprintRef = typeof meta.fingerprint === 'string' ? meta.fingerprint : 'fingerprint';
-  const fingerprintDir = safeResolve(bundleRoot, fingerprintRef, `fingerprint directory for ${item.id}`);
-  for (const file of ['manifest.yml', 'prose.yml', 'inventory.yml', 'composition.yml']) {
-    const full = join(fingerprintDir, file);
-    if (!existsSync(full) || !statSync(full).isFile()) {
-      throw new Error(`Fingerprint bundle ${item.id} is missing fingerprint/${file}`);
-    }
+  const ghostDir = join(bundleRoot, '.ghost');
+  const ghostManifest = join(ghostDir, 'manifest.yml');
+  if (!existsSync(ghostManifest) || !statSync(ghostManifest).isFile()) {
+    throw new Error(`Fingerprint bundle ${item.id} is missing .ghost/manifest.yml`);
   }
   const target = normalizeTargetPath(item.defaultTargetPath, `defaultTargetPath for ${item.id}`);
   if (!target.ok) throw new Error(target.error);
   const fallback = parseBaseDirectionId(item.defaultTokenFallback, `defaultTokenFallback for ${item.id}`);
   if (!fallback.ok) throw new Error(fallback.error);
-  const tokenCssPath = typeof meta.tokens === 'string' && meta.tokens.trim()
-    ? safeResolve(bundleRoot, meta.tokens, `token CSS for ${item.id}`)
-    : null;
-  if (tokenCssPath && (!existsSync(tokenCssPath) || !statSync(tokenCssPath).isFile())) {
-    throw new Error(`Fingerprint bundle ${item.id} token CSS not found`);
-  }
-  const previewColors = tokenCssPath
-    ? extractPreviewColors(readFileSync(tokenCssPath, 'utf-8'))
-    : [];
+  const indexPath = join(ghostDir, 'index.md');
+  const previewCss = existsSync(indexPath) && statSync(indexPath).isFile()
+    ? extractGhostCss(readFileSync(indexPath, 'utf-8'))
+    : '';
+  const previewColors = previewCss ? extractPreviewColors(previewCss) : [];
   return {
     id: item.id,
     name: stringField(meta.name, item.id),
@@ -203,12 +166,16 @@ function loadBundle(catalogRoot: string, item: RawCatalogEntry): FingerprintCata
     tags: Array.isArray(meta.tags) ? meta.tags.filter((tag): tag is string => typeof tag === 'string') : [],
     previewColors,
     root: bundleRoot,
-    fingerprintDir,
-    ghostDir: join(bundleRoot, '.ghost'),
-    tokenCssPath,
+    ghostDir,
     defaultTargetPath: target.path,
     defaultTokenFallback: fallback.value,
   };
+}
+
+/** Extract the first fenced ```css block from a `.ghost/index.md` document. */
+function extractGhostCss(text: string): string {
+  const match = /```css\n([\s\S]*?)```/.exec(text);
+  return match?.[1] ?? '';
 }
 
 function readJson(path: string): unknown {
@@ -286,10 +253,6 @@ function isWithinOrEqual(root: string, child: string): boolean {
   return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
 }
 
-function displayPath(root: string, absPath: string): string {
-  const rel = relative(root, absPath);
-  return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : absPath;
-}
 
 const PREVIEW_COLOR_TOKENS = [
   '--color-bg',

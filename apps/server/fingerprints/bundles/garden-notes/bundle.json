@@ -5,7 +5,13 @@
   "summary": "A soft planning language for personal tasks, low-pressure comparisons, concrete next steps, and humane pacing.",
   "status": "published",
   "version": "0.2.0",
-  "fingerprint": "fingerprint",
-  "tags": ["planning", "personal", "soft", "notes", "life-admin", "checklist", "low-pressure"],
-  "tokens": "tokens.css"
+  "tags": [
+    "planning",
+    "personal",
+    "soft",
+    "notes",
+    "life-admin",
+    "checklist",
+    "low-pressure"
+  ]
 }
