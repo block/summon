@@ -7,15 +7,11 @@ import { ThemeProvider, ThemeToggle } from './theme.js';
 const AdversarialPage = lazy(() => import('./pages/AdversarialPage.js').then((module) => ({ default: module.AdversarialPage })));
 const BatchPage = lazy(() => import('./pages/BatchPage.js').then((module) => ({ default: module.BatchPage })));
 const GeneratePage = lazy(() => import('./pages/generate/GeneratePage.js').then((module) => ({ default: module.GeneratePage })));
-// THROWAWAY: Arrow-vs-raw-HTML faceoff research harness. Delete with /api/faceoff/html.
-const FaceoffPage = lazy(() => import('./pages/faceoff/FaceoffPage.js').then((module) => ({ default: module.FaceoffPage })));
-
 function AppRoutes() {
   const { pathname } = useLocation();
   const isLanding = pathname === '/';
   const isGenerate = pathname === '/generate';
-  const isFaceoff = pathname === '/faceoff';
-  const isFullBleed = isGenerate || isFaceoff;
+  const isFullBleed = isGenerate;
 
   return (
     <div className={cn(
@@ -29,7 +25,6 @@ function AppRoutes() {
           <Route path="/generate" element={<GeneratePage />} />
           <Route path="/batch" element={<BatchPage />} />
           <Route path="/adversarial" element={<AdversarialPage />} />
-          <Route path="/faceoff" element={<FaceoffPage />} />
           <Route path="*" element={<Navigate to="/generate" replace />} />
         </Routes>
       </Suspense>

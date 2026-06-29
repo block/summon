@@ -174,5 +174,5 @@ D. **Regenerate `prompt-map.md`** to match post-step-1/2 reality; mark Ghost
 - `prompt-map.md` regenerated to match.
 - No composition/design language in any Summon-layer block. None. Not even a
   fallback floor.
-- Full suite green; faceoff re-run confirms no quality regression on the
-  interactive prompts.
+- Full suite green; a generate-page spot check confirms no quality regression on
+  the interactive prompts.
