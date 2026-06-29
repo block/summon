@@ -11,9 +11,11 @@ import {
 } from '@anarchitecture/ghost/fingerprint';
 import {
   GHOST_GRAPH_ROOT_ID,
+  buildGraphMenu,
   resolveGraphSlice,
   type GhostGraph,
   type GraphSlice,
+  type GraphSliceProvenance,
 } from '@anarchitecture/ghost/core';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
@@ -63,7 +65,7 @@ export interface GhostBaseDirection {
 }
 
 interface BaseGhostSteer {
-  surface: 'core';
+  surface: string;
   graph: GhostGraph;
   slice: GraphSlice;
   prompt: string;
@@ -104,7 +106,7 @@ export interface GhostReviewPacket {
   catalogId?: string;
   catalogName?: string;
   product: string;
-  surface: 'core';
+  surface: string;
   gatheredNodes: string[];
   baseDirectionId: string | null;
   styleSource: GhostTokenSource['kind'];
@@ -305,14 +307,69 @@ export function prepareGhostSurfacePrompt(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): ResolvedGhostSteer {
-  const surfaceBrief = buildSummonFingerprintSurfaceBrief(context, options);
+  // Surface selection happens at prepare-time (both prompt + graph are
+  // available here). The resolve fns default to `core`; this refines the choice
+  // once the user prompt is known. For the common single-`core` fixture, the
+  // chosen surface equals `context.surface` and no re-resolve is needed.
+  let resolved = context;
+  const chosen = selectGhostSurface(context.graph, options.userPrompt);
+  if (chosen !== context.surface) {
+    const slice = resolveGraphSlice(context.graph, chosen);
+    // Rebuild the token CSS from the new slice, but preserve the kind/source/
+    // baseDirectionId already resolved at load-time (baseDirection is not in
+    // scope here). This keeps the token plumbing stable while the slice/prose
+    // follow the selected surface.
+    const tokenSource: GhostTokenSource = {
+      ...context.tokenSource,
+      css: extractSliceCss(slice),
+    };
+    resolved = {
+      ...context,
+      surface: chosen,
+      slice,
+      tokenSource,
+      prompt: renderSlicePrompt(slice),
+    };
+  }
+
+  const surfaceBrief = buildSummonFingerprintSurfaceBrief(resolved, options);
   return {
-    ...context,
+    ...resolved,
     prompt: [
-      context.prompt.trim(),
+      resolved.prompt.trim(),
       surfaceBrief,
     ].filter(Boolean).join('\n\n'),
   };
+}
+
+/**
+ * Deterministic surface selection (no LLM). Ghost's principle: the agent names
+ * the node; Ghost does not infer it from paths. For single-`core` fixtures this
+ * always returns `core`. When the package offers multiple real surfaces, score
+ * each menu entry by word overlap between the prompt and the entry's
+ * description + id, and return the best match (ties / zero score fall back to
+ * `core`). This is the minimal seam — a heavyweight classifier is deferred until
+ * multi-surface fingerprints exist.
+ */
+export function selectGhostSurface(graph: GhostGraph, prompt: string): string {
+  const menu = buildGraphMenu(graph);
+  const realSurfaces = menu.filter((entry) => entry.id !== GHOST_GRAPH_ROOT_ID);
+  if (realSurfaces.length <= 1) return GHOST_GRAPH_ROOT_ID;
+
+  const promptWords = new Set(
+    prompt.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2),
+  );
+  const scored = realSurfaces.map((entry) => {
+    const text = `${entry.id} ${entry.description ?? ''}`.toLowerCase();
+    const words = new Set(text.split(/[^a-z0-9]+/).filter((word) => word.length > 2));
+    let score = 0;
+    for (const word of words) if (promptWords.has(word)) score++;
+    return { id: entry.id, score };
+  });
+  const top = Math.max(...scored.map((entry) => entry.score));
+  const leaders = scored.filter((entry) => entry.score === top);
+  if (top === 0 || leaders.length !== 1) return GHOST_GRAPH_ROOT_ID;
+  return leaders[0]!.id;
 }
 
 export function ghostContextMeta(ctx: ResolvedGhostContext) {
@@ -390,8 +447,8 @@ function buildSummonFingerprintSurfaceBrief(
     : '- This generation succeeds only if the final Arrow artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.';
   const details = [
     `Product: ${context.product}`,
-    `Fingerprint surface: ${context.surface}`,
-    `Gathered fingerprint nodes: ${sliceNodeIds(context.slice).join(', ') || 'core'}`,
+    `Fingerprint surface: ${context.surface} (cascade: ${sliceCascade(context.slice)})`,
+    `Gathered nodes: ${sliceProvenanceList(context.slice) || 'core'}`,
     `User request: ${oneLine(options.userPrompt, 600)}`,
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
     `Output runtime: ${outputRuntime}`,
@@ -433,18 +490,70 @@ function buildSummonFingerprintSurfaceBrief(
   ].join('\n');
 }
 
+const PROVENANCE_RANK: Record<GraphSliceProvenance['kind'], number> = {
+  own: 0,
+  ancestor: 1,
+  edge: 2,
+};
+
+function provenanceLabel(provenance: GraphSliceProvenance): string {
+  switch (provenance.kind) {
+    case 'own':
+      return 'own';
+    case 'ancestor':
+      return `from \`${provenance.from}\``;
+    case 'edge':
+      return provenance.via
+        ? `${provenance.via} \`${provenance.from}\``
+        : `relates \`${provenance.from}\``;
+  }
+}
+
+function sliceCascade(slice: GraphSlice): string {
+  return slice.surface === GHOST_GRAPH_ROOT_ID && slice.ancestors.length === 0
+    ? slice.surface
+    : [slice.surface, ...slice.ancestors].join(' → ');
+}
+
+// Strip the fenced ```css block(s) from a node body: the token VALUES are
+// already extracted into tokenSource.css / injected as activeTokensCss, so the
+// prose should carry only the intent (no duplication). Tidy trailing blanks.
 function renderSlicePrompt(slice: GraphSlice): string {
-  const blocks: string[] = ['# Ghost Fingerprint'];
-  for (const node of slice.nodes) {
+  const blocks: string[] = [
+    '# Ghost Fingerprint',
+    `Cascade: ${sliceCascade(slice)}`,
+  ];
+  // Provenance-ordered: own first, then ancestors, then edges (mirrors Ghost's
+  // gather formatter). Spokes are omitted for Summon v1 (decision 2) — the model
+  // cannot call back to expand them in a single generation.
+  const ordered = [...slice.nodes].sort(
+    (a, b) => PROVENANCE_RANK[a.provenance.kind] - PROVENANCE_RANK[b.provenance.kind],
+  );
+  for (const node of ordered) {
+    // Keep the node body verbatim — including any fenced ```css token block.
+    // The fingerprint prose is the ONLY place the model sees the token CSS:
+    // activeTokensCss is consumed solely for validation (parseDefinedTokens) and
+    // sandbox injection at render time, never rendered into the system prompt.
+    // Stripping it here blinds the model to the token *names* and it invents its
+    // own (e.g. --canvas instead of --color-bg). So the prose carries the values.
     const body = node.body.trim();
     if (!body) continue;
-    blocks.push(`## ${node.id}`, body);
+    blocks.push(`## ${node.id} — ${provenanceLabel(node.provenance)}`, body);
   }
   return blocks.join('\n\n');
 }
 
 function sliceNodeIds(slice: GraphSlice): string[] {
   return slice.nodes.map((node) => node.id);
+}
+
+function sliceProvenanceList(slice: GraphSlice): string {
+  const ordered = [...slice.nodes].sort(
+    (a, b) => PROVENANCE_RANK[a.provenance.kind] - PROVENANCE_RANK[b.provenance.kind],
+  );
+  return ordered
+    .map((node) => `${node.id} (${node.provenance.kind})`)
+    .join(', ');
 }
 
 const CSS_BLOCK_RE = /```css\n([\s\S]*?)```/g;

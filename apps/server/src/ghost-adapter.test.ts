@@ -11,7 +11,9 @@ import {
   prepareGhostSurfacePrompt,
   resolveGhostContext,
   resolveGhostSteer,
+  selectGhostSurface,
 } from './ghost-adapter.js';
+import { assembleGraph } from '@anarchitecture/ghost/core';
 
 const fixtureRoots: string[] = [];
 
@@ -97,11 +99,20 @@ describe('Ghost adapter', () => {
     assert.ok(ctx.slice.nodes.some((node) => node.id === 'core'));
     assert.equal(ctx.product, 'checkout');
     assert.match(ctx.prompt, /# Ghost Fingerprint/);
+    // cascade line + provenance-labeled core node
+    assert.match(ctx.prompt, /Cascade: core/);
+    assert.match(ctx.prompt, /## core — own/);
     assert.match(ctx.prompt, /Preserve quiet density/);
     // token CSS comes from the fenced css block in the core node body
     assert.equal(ctx.tokenSource.kind, 'ghost-config');
     assert.equal(ctx.tokenSource.source, 'fingerprint:core');
     assert.match(ctx.tokenSource.css, /--color-bg/);
+    // The fingerprint prose is the ONLY place the model sees the token CSS:
+    // activeTokensCss is consumed for validation + sandbox injection, never
+    // rendered into the system prompt. So the fenced css block stays in the
+    // rendered fingerprint prose, and the values also flow via tokenSource.css.
+    assert.match(ctx.prompt, /```css/);
+    assert.match(ctx.prompt, /--color-bg/);
   });
 
   it('appends a Summon surface brief to the slice prompt', async () => {
@@ -134,7 +145,47 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /The agent broker controls host authority and tools/);
     assert.match(prepared.prompt, /The user request is the semantic and task authority/);
     assert.match(prepared.prompt, /The Ghost fingerprint is the visual and composition authority/);
-    assert.match(prepared.prompt, /Fingerprint surface: core/);
+    assert.match(prepared.prompt, /Fingerprint surface: core \(cascade: core\)/);
+    assert.match(prepared.prompt, /Gathered nodes: core \(own\)/);
+  });
+
+  it('selects core for single-surface graphs and matches by menu for multi-surface', () => {
+    const single = assembleGraph({
+      placedNodes: [
+        { id: 'core', folder: '', doc: { frontmatter: {}, body: 'root prose' } },
+      ],
+    });
+    assert.equal(selectGhostSurface(single, 'anything goes here'), 'core');
+
+    const multi = assembleGraph({
+      placedNodes: [
+        { id: 'core', folder: '', doc: { frontmatter: {}, body: 'root prose' } },
+        {
+          id: 'dashboard',
+          parent: 'core',
+          folder: 'dashboard',
+          doc: {
+            frontmatter: { description: 'Operational dashboard for queue metrics' },
+            body: 'dashboard prose',
+          },
+        },
+        {
+          id: 'editor',
+          parent: 'core',
+          folder: 'editor',
+          doc: {
+            frontmatter: { description: 'Document editor with rich text composition' },
+            body: 'editor prose',
+          },
+        },
+      ],
+    });
+    // prompt overlaps "dashboard" / "queue" → dashboard wins
+    assert.equal(selectGhostSurface(multi, 'build a queue dashboard'), 'dashboard');
+    // prompt overlaps "editor" / "document" → editor wins
+    assert.equal(selectGhostSurface(multi, 'a document editor surface'), 'editor');
+    // no overlap → fall back to core
+    assert.equal(selectGhostSurface(multi, 'completely unrelated zzz'), 'core');
   });
 
   it('uses HTML output wording in the Summon surface brief when requested', async () => {
