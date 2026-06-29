@@ -356,7 +356,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -365,7 +365,6 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-ingestion-contract',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -411,7 +410,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -420,7 +419,6 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-ingestion-contract',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -466,7 +464,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 15), [
+  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 14), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -475,7 +473,6 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-ingestion-contract',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
@@ -803,8 +800,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   const request = anthropicRequests[0] as { system?: Array<{ text?: string }>; stream?: boolean; tools?: unknown[] };
   assert.ok(Array.isArray(request.tools));
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
-  assert.match(systemText, /Ghost Relay Brief/);
-  assert.match(systemText, /Identity Capsule/);
+  assert.match(systemText, /Ghost Fingerprint/);
   assert.match(systemText, /Summon Surface Brief/);
   assert.match(systemText, /product design direction package/);
   assert.match(systemText, /Status surfaces must foreground current state/);
@@ -815,7 +811,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 16), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 15), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -824,7 +820,6 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-ingestion-contract',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
@@ -841,39 +836,29 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   const contextMeta = ghostContext.value as {
     source?: unknown;
     product?: unknown;
-    taskContract?: { preserve?: unknown; validate?: unknown };
-    suggestedReads?: unknown;
-    provenance?: { merge?: unknown; layers?: Array<{ relativeRoot?: unknown; memoryDir?: unknown; dir?: unknown }> };
+    surface?: unknown;
+    gatheredNodes?: unknown;
+    styleSource?: unknown;
   };
   assert.equal(contextMeta.source, 'root');
-  assert.equal(contextMeta.product, 'Checkout');
-  const contextPreserve = contextMeta.taskContract?.preserve;
-  const contextValidate = contextMeta.taskContract?.validate;
-  assert.ok(Array.isArray(contextPreserve));
-  assert.ok(contextPreserve.some((entry) => typeof entry === 'string' && entry.includes('Keep operator status legible')));
-  assert.ok(Array.isArray(contextValidate));
-  assert.ok(Array.isArray(contextMeta.suggestedReads));
-  assert.equal(contextMeta.provenance?.merge, 'child-wins-by-id');
-  assert.deepEqual(contextMeta.provenance?.layers, [
-    { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
-  ]);
+  assert.equal(contextMeta.product, 'checkout');
+  assert.equal(contextMeta.surface, 'core');
+  assert.ok(Array.isArray(contextMeta.gatheredNodes));
+  assert.ok((contextMeta.gatheredNodes as unknown[]).includes('core'));
+  assert.equal(contextMeta.styleSource, 'ghost-config');
+
   const ghostReviewPacket = lines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
   const reviewPacket = ghostReviewPacket.value as {
     source?: unknown;
-    taskContract?: { preserve?: unknown };
-    suggestedReads?: unknown;
-    fingerprintProvenance?: { merge?: unknown; layers?: unknown };
+    surface?: unknown;
+    gatheredNodes?: unknown;
     artifactRuntime?: unknown;
     artifactFiles?: unknown;
   };
   assert.equal(reviewPacket.source, 'root');
-  const reviewPreserve = reviewPacket.taskContract?.preserve;
-  assert.ok(Array.isArray(reviewPreserve));
-  assert.ok(Array.isArray(reviewPacket.suggestedReads));
-  assert.equal(reviewPacket.fingerprintProvenance?.merge, 'child-wins-by-id');
-  assert.deepEqual(reviewPacket.fingerprintProvenance?.layers, [
-    { relativeRoot: '.', memoryDir: '.ghost', dir: '.ghost' },
-  ]);
+  assert.equal(reviewPacket.surface, 'core');
+  assert.ok(Array.isArray(reviewPacket.gatheredNodes));
+  assert.ok((reviewPacket.gatheredNodes as unknown[]).includes('core'));
   assert.equal(reviewPacket.artifactRuntime, 'arrow');
   assert.deepEqual(reviewPacket.artifactFiles, ['main.css', 'main.ts']);
 });
@@ -1136,7 +1121,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1145,7 +1130,6 @@ test('api generate can stream with OpenAI provider', async (t) => {
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-ingestion-contract',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -1256,7 +1240,7 @@ test('api generate can stream with Gemini provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1265,7 +1249,6 @@ test('api generate can stream with Gemini provider', async (t) => {
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-ingestion-contract',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -1424,7 +1407,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1433,7 +1416,6 @@ test('api generate streams planning preview before slow preflight finishes', asy
     'meta /status',
     'meta /ghost-context',
     'meta /ghost-token-source',
-    'meta /ghost-ingestion-contract',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
@@ -1455,103 +1437,36 @@ test('api generate streams planning preview before slow preflight finishes', asy
 
 async function makeRouteGhostFixture(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'summon-ghost-route-'));
-  await mkdir(join(root, '.ghost', 'fingerprint', 'enforcement'), { recursive: true });
-  await mkdir(join(root, '.ghost', 'fingerprint', 'memory'), { recursive: true });
+  const ghostDir = join(root, '.ghost');
+  await mkdir(ghostDir, { recursive: true });
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'manifest.yml'),
+    join(ghostDir, 'manifest.yml'),
     `schema: ghost.fingerprint-package/v1
 id: checkout
 `,
   );
+  const css = await readDefaultTokensCss();
   await writeFile(
-    join(root, '.ghost', 'fingerprint', 'prose.yml'),
-    `summary:
-  product: Checkout
-  tone: [quiet, exacting workflows]
-situations:
-  - id: queue-status
-    title: Queue status
-    user_intent: Show the current checkout queue state.
-    product_obligation: Keep operator status legible before secondary detail.
-    surface_type: dashboard
-    principles: [prose.principle:calm-density]
-    experience_contracts: [prose.experience_contract:queue-trust]
-    patterns: [composition.pattern:measured-surfaces]
-principles:
-  - id: calm-density
-    principle: Preserve quiet density and clear hierarchy.
-    applies_to:
-      paths: [.]
-      surface_types: [dashboard]
-    guidance:
-      - Favor compact hierarchy over decorative chrome.
-    check_refs: [check:no-rainbow]
-experience_contracts:
-  - id: queue-trust
-    contract: Status surfaces must foreground current state.
-    obligations:
-      - Show current queue state before secondary context.
-    check_refs: [check:no-rainbow]
+    join(ghostDir, 'index.md'),
+    `---
+description: Checkout — quiet operational density for queue surfaces.
+---
+
+## Intent
+
+Preserve quiet density and clear hierarchy. Keep operator status legible before
+secondary detail. Status surfaces must foreground current state.
+Surfaces are compact, rectangular, and information-first, built for exacting workflows.
+
+## Inventory
+
+The material is a calm token system for checkout queues.
+
+\`\`\`css
+${css.trim()}
+\`\`\`
 `,
   );
-  await writeFile(
-    join(root, '.ghost', 'fingerprint', 'inventory.yml'),
-    `topology:
-  scopes:
-    - id: app
-      paths: [.]
-      surface_types: [dashboard]
-building_blocks:
-  tokens: [--color-bg, --color-text, --space-2]
-  components: [QueueCard]
-`,
-  );
-  await writeFile(
-    join(root, '.ghost', 'fingerprint', 'composition.yml'),
-    `patterns:
-  - id: measured-surfaces
-    kind: structure
-    pattern: Surfaces are compact, rectangular, and information-first.
-    guidance:
-      - Use one clear status block before supporting details.
-    anti_patterns:
-      - Avoid marketing-style hero copy.
-    check_refs: [check:no-rainbow]
-`,
-  );
-  await writeFile(
-    join(root, '.ghost', 'fingerprint', 'enforcement', 'checks.yml'),
-    `schema: ghost.checks/v1
-id: checkout
-checks:
-  - id: no-rainbow
-    title: Avoid rainbow decorative color
-    status: active
-    severity: serious
-    applies_to:
-      paths: [.]
-    detector:
-      type: forbidden-regex
-      pattern: rainbow
-    evidence:
-      support: 1
-      observed_count: 1
-      examples:
-        - checkout fixture avoids rainbow decorative color
-`,
-  );
-  await writeFile(
-    join(root, '.ghost', 'config.yml'),
-    `schema: ghost.config/v1
-targets:
-  - id: web
-    platform: web
-    roots: [.]
-    tokens: [tokens.css]
-libraries: []
-`,
-  );
-  await writeFile(join(root, 'tokens.css'), await readDefaultTokensCss());
   return root;
 }
 

@@ -131,7 +131,6 @@ export type {
   ContractPromptBlock,
   GhostGenerationContext,
   GhostGenerationSource,
-  GhostIngestionContract,
   GhostTokenSourceKind,
   SystemContractInput,
   TokenContractInput,

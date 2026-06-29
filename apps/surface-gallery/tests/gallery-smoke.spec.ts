@@ -651,9 +651,11 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
           value: {
             source: 'root',
             rootId: 'checkout',
-            product: 'Checkout',
-            targetPath: '.',
-            layers: ['.'],
+            product: 'checkout',
+            surface: 'core',
+            gatheredNodes: ['core'],
+            styleSource: 'ghost-config',
+            baseDirectionId: 'ghost',
           },
         },
         {
@@ -684,7 +686,9 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
           path: '/ghost-review-packet',
           value: {
             source: 'root',
-            product: 'Checkout',
+            product: 'checkout',
+            surface: 'core',
+            gatheredNodes: ['core'],
             artifactRuntime: 'arrow',
             artifactFiles: ['main.ts'],
           },

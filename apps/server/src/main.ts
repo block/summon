@@ -28,7 +28,6 @@ import { registerDemoRoutes } from './demo-routes.js';
 import {
   buildGhostReviewPacket,
   ghostContextMeta,
-  ghostIngestionContractMeta,
   ghostTokenSourceMeta,
   parseGhostRequest,
   parseGhostRoots,
@@ -544,13 +543,6 @@ app.post('/api/generate', async (req, res) => {
         path: '/ghost-token-source',
         value: ghostTokenSourceMeta(ghostContext.tokenSource),
       });
-      if (ghostContext.ingestion) {
-        preludeLines.push({
-          op: 'meta',
-          path: '/ghost-ingestion-contract',
-          value: ghostIngestionContractMeta(ghostContext.ingestion),
-        });
-      }
     }
     if (agentPlan) {
       preludeLines.push({

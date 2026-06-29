@@ -18,6 +18,7 @@ export interface FingerprintCatalogEntry {
   previewColors: string[];
   root: string;
   fingerprintDir: string;
+  ghostDir: string;
   tokenCssPath: string | null;
   defaultTargetPath: string;
   defaultTokenFallback: string | null;
@@ -203,6 +204,7 @@ function loadBundle(catalogRoot: string, item: RawCatalogEntry): FingerprintCata
     previewColors,
     root: bundleRoot,
     fingerprintDir,
+    ghostDir: join(bundleRoot, '.ghost'),
     tokenCssPath,
     defaultTargetPath: target.path,
     defaultTokenFallback: fallback.value,

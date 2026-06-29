@@ -67,61 +67,6 @@ export type GhostTokenSourceKind =
   | 'ghost-config'
   | 'fingerprint-catalog';
 
-export interface GhostIngestionContract {
-  schema: 'summon.ghost-ingestion/v1';
-  product: string;
-  source: {
-    kind: GhostGenerationSource;
-    id: string;
-    targetPath: string | null;
-    memoryDir?: string | null;
-  };
-  relay: {
-    taskContract: {
-      preserve: string[];
-      inspect: Array<{ path: string; reason: string }>;
-      avoid: string[];
-      validate: string[];
-    };
-    selectedRefs: {
-      prose: string[];
-      composition: string[];
-      inventory: string[];
-      checks: string[];
-    };
-    suggestedReads: Array<{ path: string; reason: string }>;
-    omissions: Array<{ label: string; omitted: number; source: string }>;
-  };
-  fingerprint: {
-    identity: {
-      audience: string[];
-      goals: string[];
-      tone: string[];
-      antiGoals: string[];
-      tradeoffs: string[];
-    };
-    prose: Array<{ ref: string; summary: string; details: string[] }>;
-    composition: Array<{ ref: string; summary: string; details: string[] }>;
-    inventory: {
-      refs: string[];
-      buildingBlocks: string[];
-      tokens: string[];
-      components: string[];
-      libraries: string[];
-    };
-    checks: Array<{ ref: string; summary: string; details: string[] }>;
-    antiPatterns: string[];
-  };
-  style: {
-    tokenSource: GhostTokenSourceKind;
-    source: string;
-    definedTokens: string[];
-    customTokens: string[];
-    warnings: string[];
-  };
-  promptBlocks: Array<{ id: string; text: string }>;
-}
-
 export interface GhostGenerationContext {
   source?: GhostGenerationSource;
   prompt: string;
@@ -134,7 +79,6 @@ export interface GhostGenerationContext {
     warnings: string[];
   };
   provenance?: unknown;
-  ingestion?: GhostIngestionContract | null;
 }
 
 export interface CompiledTokenContract {
@@ -382,15 +326,6 @@ export function compileSystemContracts(
       cache: 'ephemeral',
     });
   }
-  for (const block of input.ghost?.ingestion?.promptBlocks ?? []) {
-    if (!block.text.trim()) continue;
-    promptBlocks.push({
-      id: `ghost:${block.id}`,
-      text: block.text,
-      cache: 'ephemeral',
-    });
-  }
-
   if (input.layout) {
     promptBlocks.push({
       id: `layout:${input.layout.id}`,

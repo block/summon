@@ -6,8 +6,6 @@ export {
   runAgentSurfaceGeneration,
   runSurfaceGeneration,
   summarizeContractIssues,
-  compileGhostIngestionContract,
-  ghostIngestionContractMeta,
 } from '@summon-internal/server';
 export type {
   AgentGoalProvider,
@@ -22,11 +20,8 @@ export type {
   AgentSurfacePlanningOptions,
   ContractIssue,
   ContractPromptBlock,
-  GhostIngestionContract,
   GenerateSurfaceInput,
   GenerationSummary,
-  GhostCompileInput,
-  RawGhostFingerprintBundle,
   GhostGenerationContext,
   HostPolicyResolutionRequest,
   HostPolicyResolver,
