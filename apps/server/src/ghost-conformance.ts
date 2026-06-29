@@ -64,6 +64,11 @@ function emptyVerdict(surface: string): ConformanceVerdict {
   return { schema: SCHEMA, surface, evaluated: false, checks: [], summary: zeroSummary() };
 }
 
+/** Public helper: an unevaluated verdict (gated off or blocked generation). */
+export function emptyConformanceVerdict(surface: string): ConformanceVerdict {
+  return emptyVerdict(surface);
+}
+
 /**
  * Extract a JSON array from a possibly fenced model response. Strips ```json /
  * ``` fences, then matches the first `[ ... ]` span. Returns null on failure

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  buildGhostReviewPacket,
+  buildGhostReceipt,
   parseGhostRequest,
   parseGhostRoots,
   prepareGhostSurfacePrompt,
@@ -251,7 +251,7 @@ describe('Ghost adapter', () => {
     assert.equal(ctx.tokenSource.source, 'fingerprint:core');
   });
 
-  it('builds review packet metadata from the slice and accepted Arrow artifacts', async () => {
+  it('builds the receipt from the slice, accepted Arrow artifacts, and the conformance verdict', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -259,12 +259,40 @@ describe('Ghost adapter', () => {
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
     const ctx = await resolveGhostContext(parsed.request, roots);
 
-    const packet = buildGhostReviewPacket({
+    const receipt = buildGhostReceipt({
       context: ctx,
       mode: 'static',
       layoutId: 'card-structured',
-      prompt: 'show the state of the queue',
+      grantedTools: ['host_action'],
       validation: { blocked: 0, warnings: 1, codes: { 'unknown-token': 1 } },
+      runtime: 'arrow-control',
+      repairs: 2,
+      blocked: false,
+      safetyViolations: [],
+      conformance: {
+        schema: 'summon.ghost-conformance/v1',
+        surface: 'core',
+        evaluated: true,
+        checks: [
+          {
+            name: 'density',
+            severity: 'high',
+            relevance: 'own',
+            verdict: 'pass',
+            reason: 'compact rhythm preserved',
+            evidence: 'gap: var(--space-2)',
+          },
+          {
+            name: 'hierarchy',
+            severity: 'medium',
+            relevance: 'ancestor',
+            verdict: 'fail',
+            reason: 'heading lost emphasis',
+            evidence: 'h1 { font-weight: 400 }',
+          },
+        ],
+        summary: { pass: 1, fail: 1, inconclusive: 0, failedHigh: 0, failedMedium: 1, failedLow: 0 },
+      },
       acceptedLines: [
         {
           op: 'artifact',
@@ -280,22 +308,103 @@ describe('Ghost adapter', () => {
       ],
     });
 
-    assert.equal(packet.schema, 'summon.ghost-fingerprint-generation/v1');
-    assert.equal(packet.source, 'root');
-    assert.equal(packet.rootId, 'checkout');
-    assert.equal(packet.product, 'checkout');
-    assert.equal(packet.surface, 'core');
-    assert.ok(packet.gatheredNodes.includes('core'));
-    assert.equal(packet.baseDirectionId, null);
-    assert.equal(packet.styleSource, 'ghost-config');
-    assert.equal(packet.artifactRuntime, 'arrow');
-    assert.deepEqual(packet.artifactFiles, ['main.css', 'main.ts']);
-    // reduced packet drops every relay-derived field
-    assert.equal('fingerprintProvenance' in packet, false);
-    assert.equal('taskContract' in packet, false);
-    assert.equal('suggestedReads' in packet, false);
-    assert.equal('layers' in packet, false);
-    assert.equal('tokenSource' in packet, false);
+    assert.equal(receipt.schema, 'summon.ghost-receipt/v1');
+
+    // --- fingerprint (spec-in) ---
+    assert.equal(receipt.fingerprint.source, 'root');
+    assert.equal(receipt.fingerprint.id, 'checkout');
+    assert.equal(receipt.fingerprint.product, 'checkout');
+    assert.equal(receipt.fingerprint.surface, 'core');
+    assert.ok(Array.isArray(receipt.fingerprint.cascade));
+    assert.ok(receipt.fingerprint.cascade.includes('core'));
+    // gatheredNodes carry provenance (own/ancestor/edge)
+    assert.ok(receipt.fingerprint.gatheredNodes.some((node) => node.id === 'core'));
+    for (const node of receipt.fingerprint.gatheredNodes) {
+      assert.ok(['own', 'ancestor', 'edge'].includes(node.provenance));
+    }
+    assert.equal(receipt.fingerprint.tokenSource.kind, 'ghost-config');
+    assert.equal(receipt.fingerprint.tokenSource.source, 'fingerprint:core');
+    assert.equal(typeof receipt.fingerprint.tokenSource.definedTokenCount, 'number');
+    assert.ok(receipt.fingerprint.tokenSource.definedTokenCount >= 0);
+    // routedChecks == the evaluated check set
+    assert.deepEqual(receipt.fingerprint.routedChecks, [
+      { name: 'density', severity: 'high' },
+      { name: 'hierarchy', severity: 'medium' },
+    ]);
+
+    // --- capability ---
+    assert.equal(receipt.capability.mode, 'static');
+    assert.deepEqual(receipt.capability.grantedTools, ['host_action']);
+    assert.equal(receipt.capability.layoutId, 'card-structured');
+
+    // --- generation (what-happened) ---
+    assert.equal(receipt.generation.runtime, 'arrow-control');
+    assert.equal(receipt.generation.artifactRuntime, 'arrow');
+    assert.deepEqual(receipt.generation.artifactFiles, ['main.css', 'main.ts']);
+    assert.equal(receipt.generation.repairs, 2);
+    assert.equal(receipt.generation.blocked, false);
+    assert.deepEqual(receipt.generation.validation, {
+      blocked: 0,
+      warnings: 1,
+      codes: { 'unknown-token': 1 },
+    });
+    assert.deepEqual(receipt.generation.safetyViolations, []);
+
+    // --- conformance folded in (verdict + reason, NO evidence) ---
+    assert.equal(receipt.conformance.evaluated, true);
+    assert.deepEqual(receipt.conformance.summary, {
+      pass: 1,
+      fail: 1,
+      inconclusive: 0,
+      failedHigh: 0,
+      failedMedium: 1,
+      failedLow: 0,
+    });
+    assert.equal(receipt.conformance.checks.length, 2);
+    assert.deepEqual(receipt.conformance.checks[0], {
+      name: 'density',
+      severity: 'high',
+      verdict: 'pass',
+      reason: 'compact rhythm preserved',
+    });
+    // evidence is dropped from the receipt (decision 4)
+    assert.equal('evidence' in receipt.conformance.checks[0]!, false);
+    assert.equal('relevance' in receipt.conformance.checks[0]!, false);
+  });
+
+  it('builds a receipt with an unevaluated conformance verdict (empty routedChecks)', async () => {
+    const root = await makeGhostFixture();
+    const roots = parseGhostRoots(`checkout=${root}`);
+    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+    const ctx = await resolveGhostContext(parsed.request, roots);
+
+    const receipt = buildGhostReceipt({
+      context: ctx,
+      mode: 'static',
+      layoutId: null,
+      grantedTools: [],
+      validation: { blocked: 0, warnings: 0, codes: {} },
+      runtime: 'arrow-control',
+      repairs: 0,
+      blocked: false,
+      safetyViolations: [],
+      conformance: {
+        schema: 'summon.ghost-conformance/v1',
+        surface: 'core',
+        evaluated: false,
+        checks: [],
+        summary: { pass: 0, fail: 0, inconclusive: 0, failedHigh: 0, failedMedium: 0, failedLow: 0 },
+      },
+      acceptedLines: [],
+    });
+
+    assert.equal(receipt.conformance.evaluated, false);
+    assert.deepEqual(receipt.conformance.checks, []);
+    assert.deepEqual(receipt.fingerprint.routedChecks, []);
+    assert.equal(receipt.generation.artifactRuntime, null);
+    assert.deepEqual(receipt.generation.artifactFiles, []);
   });
 });
 

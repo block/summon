@@ -190,14 +190,23 @@ export function useSurfaceStream({
       logLine('op-meta', `fingerprint tokens -> ${kind} (${source})${base}`);
       return;
     }
-    if (line.op === 'meta' && line.path === '/ghost-review-packet') {
-      const value = line.value as { baseDirectionId?: unknown; styleSource?: unknown; artifactFiles?: unknown; validation?: { blocked?: unknown; warnings?: unknown } } | undefined;
-      const base = typeof value?.baseDirectionId === 'string' ? value.baseDirectionId : 'none';
-      const style = typeof value?.styleSource === 'string' ? value.styleSource : 'unknown';
-      const artifactFiles = Array.isArray(value?.artifactFiles) ? value.artifactFiles.filter((file): file is string => typeof file === 'string') : [];
-      const blocked = typeof value?.validation?.blocked === 'number' ? value.validation.blocked : 0;
-      const warnings = typeof value?.validation?.warnings === 'number' ? value.validation.warnings : 0;
-      logLine('op-meta', `fingerprint review packet -> base=${base}; style=${style}; artifact=${artifactFiles.join(', ') || 'none'}; validation=${blocked}/${warnings}`);
+    if (line.op === 'meta' && line.path === '/ghost-receipt') {
+      const value = line.value as {
+        fingerprint?: { tokenSource?: { kind?: unknown } };
+        generation?: { artifactFiles?: unknown; validation?: { blocked?: unknown; warnings?: unknown } };
+        conformance?: { summary?: { pass?: unknown; fail?: unknown; inconclusive?: unknown } };
+      } | undefined;
+      const style = typeof value?.fingerprint?.tokenSource?.kind === 'string' ? value.fingerprint.tokenSource.kind : 'unknown';
+      const artifactFiles = Array.isArray(value?.generation?.artifactFiles)
+        ? value.generation.artifactFiles.filter((file): file is string => typeof file === 'string')
+        : [];
+      const blocked = typeof value?.generation?.validation?.blocked === 'number' ? value.generation.validation.blocked : 0;
+      const warnings = typeof value?.generation?.validation?.warnings === 'number' ? value.generation.validation.warnings : 0;
+      const conf = value?.conformance?.summary;
+      const pass = typeof conf?.pass === 'number' ? conf.pass : 0;
+      const fail = typeof conf?.fail === 'number' ? conf.fail : 0;
+      const inconclusive = typeof conf?.inconclusive === 'number' ? conf.inconclusive : 0;
+      logLine('op-meta', `fingerprint receipt -> style=${style}; artifact=${artifactFiles.join(', ') || 'none'}; validation=${blocked}/${warnings}; conformance=${pass}p/${fail}f/${inconclusive}i`);
       return;
     }
     if (line.op === 'meta' && line.path === '/validation-summary') {

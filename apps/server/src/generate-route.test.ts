@@ -847,20 +847,37 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   assert.ok((contextMeta.gatheredNodes as unknown[]).includes('core'));
   assert.equal(contextMeta.styleSource, 'ghost-config');
 
-  const ghostReviewPacket = lines.find((line) => line.path === '/ghost-review-packet') as Extract<ProtocolLine, { op: 'meta' }>;
-  const reviewPacket = ghostReviewPacket.value as {
-    source?: unknown;
-    surface?: unknown;
-    gatheredNodes?: unknown;
-    artifactRuntime?: unknown;
-    artifactFiles?: unknown;
+  const ghostReceiptLine = lines.find((line) => line.path === '/ghost-receipt') as Extract<ProtocolLine, { op: 'meta' }>;
+  const receipt = ghostReceiptLine.value as {
+    schema?: unknown;
+    fingerprint?: {
+      source?: unknown;
+      surface?: unknown;
+      gatheredNodes?: Array<{ id?: unknown; provenance?: unknown }>;
+      tokenSource?: { kind?: unknown };
+      routedChecks?: unknown;
+    };
+    generation?: { artifactRuntime?: unknown; artifactFiles?: unknown };
+    conformance?: { evaluated?: unknown };
   };
-  assert.equal(reviewPacket.source, 'root');
-  assert.equal(reviewPacket.surface, 'core');
-  assert.ok(Array.isArray(reviewPacket.gatheredNodes));
-  assert.ok((reviewPacket.gatheredNodes as unknown[]).includes('core'));
-  assert.equal(reviewPacket.artifactRuntime, 'arrow');
-  assert.deepEqual(reviewPacket.artifactFiles, ['main.css', 'main.ts']);
+  assert.equal(receipt.schema, 'summon.ghost-receipt/v1');
+  assert.equal(receipt.fingerprint?.source, 'root');
+  assert.equal(receipt.fingerprint?.surface, 'core');
+  assert.ok(Array.isArray(receipt.fingerprint?.gatheredNodes));
+  assert.ok(receipt.fingerprint?.gatheredNodes?.some((node) => node.id === 'core'));
+  for (const node of receipt.fingerprint?.gatheredNodes ?? []) {
+    assert.ok(['own', 'ancestor', 'edge'].includes(node.provenance as string));
+  }
+  assert.equal(receipt.fingerprint?.tokenSource?.kind, 'ghost-config');
+  assert.ok(Array.isArray(receipt.fingerprint?.routedChecks));
+  assert.equal(receipt.generation?.artifactRuntime, 'arrow');
+  assert.deepEqual(receipt.generation?.artifactFiles, ['main.css', 'main.ts']);
+
+  // /ghost-receipt is the LAST ghost meta — emitted after the artifact line.
+  const artifactIndex = lines.findIndex((line) => line.op === 'artifact');
+  const receiptIndex = lines.findIndex((line) => line.path === '/ghost-receipt');
+  assert.ok(artifactIndex >= 0);
+  assert.ok(receiptIndex > artifactIndex);
 });
 
 test('api generate forwards Anthropic model overrides and speed options', async (t) => {

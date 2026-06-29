@@ -26,7 +26,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerDemoRoutes } from './demo-routes.js';
 import {
-  buildGhostReviewPacket,
+  buildGhostReceipt,
   ghostContextMeta,
   ghostTokenSourceMeta,
   parseGhostRequest,
@@ -37,7 +37,7 @@ import {
   resolveGhostGenerationContext,
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
-import { evaluateConformance } from './ghost-conformance.js';
+import { evaluateConformance, emptyConformanceVerdict, type ConformanceVerdict } from './ghost-conformance.js';
 import {
   loadFingerprintCatalog,
   parseFingerprintRequest,
@@ -604,40 +604,29 @@ app.post('/api/generate', async (req, res) => {
       });
 
       if (ghostContext) {
-        const reviewLine: ProtocolLine = {
-          op: 'meta',
-          path: '/ghost-review-packet',
-          value: buildGhostReviewPacket({
-            context: ghostContext,
-            mode,
-            layoutId: layout?.id ?? null,
-            validation: summarizeContractIssues(summary.validationIssues),
-            acceptedLines: summary.emittedLines,
-            prompt,
-          }),
-        };
-        writeGenerateLine(res, reviewLine);
-      }
-
-      // Step 5 — conformance verdict (advisory, post-pass on the accepted
-      // artifact). Emitted AFTER the review packet so artifact + run-metrics +
-      // review-packet have already flushed; the verdict is purely additive tail
-      // meta and a failure here must never fail the generation response.
-      if (
-        ghostContext &&
-        !summary.blocked &&
-        process.env.SUMMON_GHOST_CONFORMANCE !== '0'
-      ) {
+        // Step 5 — conformance verdict (advisory, post-pass on the accepted
+        // artifact). Computed FIRST so it can be folded into the receipt. The
+        // granular /ghost-conformance line still streams (live diagnostics);
+        // the verdict is purely additive and a failure here must never fail the
+        // generation response.
+        let verdict: ConformanceVerdict = emptyConformanceVerdict(ghostContext.surface);
+        if (!summary.blocked && process.env.SUMMON_GHOST_CONFORMANCE !== '0') {
+          try {
+            const artifactSource = extractArtifactSource(summary.emittedLines);
+            verdict = await evaluateConformance({
+              packageDir: ghostContext.packageDir,
+              graph: ghostContext.graph,
+              surface: ghostContext.surface,
+              artifactSource,
+              completeText: (request) =>
+                utilityModelProvider.completeText(request, utilityModelSelection),
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error('[generate] conformance skipped:', msg);
+          }
+        }
         try {
-          const artifactSource = extractArtifactSource(summary.emittedLines);
-          const verdict = await evaluateConformance({
-            packageDir: ghostContext.packageDir,
-            graph: ghostContext.graph,
-            surface: ghostContext.surface,
-            artifactSource,
-            completeText: (request) =>
-              utilityModelProvider.completeText(request, utilityModelSelection),
-          });
           writeGenerateLine(res, {
             op: 'meta',
             path: '/ghost-conformance',
@@ -645,7 +634,35 @@ app.post('/api/generate', async (req, res) => {
           });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          console.error('[generate] conformance skipped:', msg);
+          console.error('[generate] conformance line skipped:', msg);
+        }
+
+        // Step 6 — the receipt. The LAST ghost meta emitted: it consolidates
+        // spec-in + what-happened + the folded conformance verdict, built after
+        // generation (artifact + run-metrics already flushed) so it can include
+        // everything. A failure here must never fail the response.
+        try {
+          const runMetrics = readRunMetrics(summary.emittedLines);
+          writeGenerateLine(res, {
+            op: 'meta',
+            path: '/ghost-receipt',
+            value: buildGhostReceipt({
+              context: ghostContext,
+              mode,
+              layoutId: layout?.id ?? null,
+              grantedTools: toolCeiling?.tools?.map((tool) => tool.name) ?? [],
+              validation: summarizeContractIssues(summary.validationIssues),
+              acceptedLines: summary.emittedLines,
+              runtime: runMetrics.runtime ?? experimentalRuntime,
+              repairs: runMetrics.repairs ?? 0,
+              blocked: summary.blocked,
+              safetyViolations: runMetrics.safetyViolationCodes ?? [],
+              conformance: verdict,
+            }),
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error('[generate] receipt skipped:', msg);
         }
       }
       const finalUsage = usage ?? {
@@ -709,6 +726,31 @@ function extractArtifactSource(lines: ProtocolLine[]): Record<string, string> | 
     return source;
   }
   return null;
+}
+
+interface RunMetricsView {
+  runtime?: string;
+  repairs?: number;
+  safetyViolationCodes?: string[];
+}
+
+/** Pull the already-emitted /run-metrics meta to source the receipt's
+ * runtime/repairs/safety fields (single source of truth — no re-plumbing). */
+function readRunMetrics(lines: ProtocolLine[]): RunMetricsView {
+  for (let index = lines.length - 1; index >= 0; index--) {
+    const line = lines[index];
+    if (line?.op !== 'meta' || line.path !== '/run-metrics') continue;
+    const value = line.value as Record<string, unknown> | undefined;
+    if (!value || typeof value !== 'object') continue;
+    return {
+      runtime: typeof value.runtime === 'string' ? value.runtime : undefined,
+      repairs: typeof value.repairs === 'number' ? value.repairs : undefined,
+      safetyViolationCodes: Array.isArray(value.safetyViolationCodes)
+        ? value.safetyViolationCodes.filter((code): code is string => typeof code === 'string')
+        : undefined,
+    };
+  }
+  return {};
 }
 
 const playgroundPromptBlock: ContractPromptBlock = {

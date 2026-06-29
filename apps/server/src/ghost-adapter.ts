@@ -24,6 +24,11 @@ import {
   type FingerprintCatalogEntry,
   type FingerprintRequest,
 } from './fingerprint-catalog.js';
+import type {
+  ConformanceSummary,
+  ConformanceVerdict,
+  ConformanceVerdictValue,
+} from './ghost-conformance.js';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
@@ -101,26 +106,61 @@ export interface GhostSurfacePromptOptions {
   outputRuntime?: SummonOutputRuntime;
 }
 
-export interface GhostReviewPacket {
-  schema: 'summon.ghost-fingerprint-generation/v1';
-  source: 'root' | 'catalog';
-  rootId: string;
-  catalogId?: string;
-  catalogName?: string;
-  product: string;
-  surface: string;
-  gatheredNodes: string[];
-  baseDirectionId: string | null;
-  styleSource: GhostTokenSource['kind'];
-  mode: 'static' | 'interactive';
-  layoutId: string | null;
-  validation: {
-    blocked: number;
-    warnings: number;
-    codes: Record<string, number>;
+export interface GhostReceiptValidation {
+  blocked: number;
+  warnings: number;
+  codes: Record<string, number>;
+}
+
+export interface GhostReceiptGatheredNode {
+  id: string;
+  provenance: GraphSliceProvenance['kind'];
+}
+
+export interface GhostReceipt {
+  schema: 'summon.ghost-receipt/v1';
+  // --- spec-in ---
+  fingerprint: {
+    source: 'root' | 'catalog';
+    id: string;
+    name?: string;
+    product: string;
+    surface: string;
+    cascade: string[];
+    gatheredNodes: GhostReceiptGatheredNode[];
+    tokenSource: {
+      kind: GhostTokenSource['kind'];
+      source: string;
+      definedTokenCount: number;
+      warnings: string[];
+    };
+    routedChecks: Array<{ name: string; severity: string }>;
   };
-  artifactRuntime: 'arrow' | null;
-  artifactFiles: string[];
+  capability: {
+    mode: 'static' | 'interactive';
+    grantedTools: string[];
+    layoutId: string | null;
+  };
+  // --- what-happened ---
+  generation: {
+    runtime: string;
+    artifactRuntime: 'arrow' | null;
+    artifactFiles: string[];
+    repairs: number;
+    blocked: boolean;
+    validation: GhostReceiptValidation;
+    safetyViolations: string[];
+  };
+  conformance: {
+    evaluated: boolean;
+    summary: ConformanceSummary;
+    checks: Array<{
+      name: string;
+      severity: string;
+      verdict: ConformanceVerdictValue;
+      reason: string;
+    }>;
+  };
 }
 
 export type ParseGhostRequestResult =
@@ -405,34 +445,77 @@ export function ghostTokenSourceMeta(tokenSource: GhostTokenSource) {
   };
 }
 
-export function buildGhostReviewPacket(input: {
+const DEFINED_TOKEN_RE = /--[a-z0-9-]+\s*:/gi;
+
+function countDefinedTokens(css: string): number {
+  const matches = css.match(DEFINED_TOKEN_RE);
+  return matches ? matches.length : 0;
+}
+
+export function buildGhostReceipt(input: {
   context: ResolvedGhostContext;
   mode: 'static' | 'interactive';
   layoutId: string | null;
-  validation: GhostReviewPacket['validation'];
+  grantedTools: string[];
+  validation: GhostReceiptValidation;
   acceptedLines: ProtocolLine[];
-  prompt: string;
-}): GhostReviewPacket {
+  runtime: string;
+  repairs: number;
+  blocked: boolean;
+  safetyViolations: string[];
+  conformance: ConformanceVerdict;
+}): GhostReceipt {
   const artifactFiles = artifactFilesFromLines(input.acceptedLines);
   const ctx = input.context;
+  const conformance = input.conformance;
   return {
-    schema: 'summon.ghost-fingerprint-generation/v1',
-    source: ctx.source,
-    rootId: ctx.source === 'root' ? ctx.request.rootId : ctx.request.fingerprintId,
-    ...(ctx.source === 'catalog' ? {
-      catalogId: ctx.request.fingerprintId,
-      catalogName: ctx.catalogEntry.name,
-    } : {}),
-    product: ctx.product,
-    surface: ctx.surface,
-    gatheredNodes: sliceNodeIds(ctx.slice),
-    baseDirectionId: ctx.baseDirectionId,
-    styleSource: ctx.tokenSource.kind,
-    mode: input.mode,
-    layoutId: input.layoutId,
-    validation: input.validation,
-    artifactRuntime: artifactFiles.length > 0 ? 'arrow' : null,
-    artifactFiles,
+    schema: 'summon.ghost-receipt/v1',
+    fingerprint: {
+      source: ctx.source,
+      id: ctx.source === 'root' ? ctx.request.rootId : ctx.request.fingerprintId,
+      ...(ctx.source === 'catalog' ? { name: ctx.catalogEntry.name } : {}),
+      product: ctx.product,
+      surface: ctx.surface,
+      cascade: [ctx.surface, ...ctx.slice.ancestors],
+      gatheredNodes: ctx.slice.nodes.map((node) => ({
+        id: node.id,
+        provenance: node.provenance.kind,
+      })),
+      tokenSource: {
+        kind: ctx.tokenSource.kind,
+        source: ctx.tokenSource.source,
+        definedTokenCount: countDefinedTokens(ctx.tokenSource.css),
+        warnings: ctx.tokenSource.warnings,
+      },
+      routedChecks: conformance.checks.map((check) => ({
+        name: check.name,
+        severity: check.severity,
+      })),
+    },
+    capability: {
+      mode: input.mode,
+      grantedTools: input.grantedTools,
+      layoutId: input.layoutId,
+    },
+    generation: {
+      runtime: input.runtime,
+      artifactRuntime: artifactFiles.length > 0 ? 'arrow' : null,
+      artifactFiles,
+      repairs: input.repairs,
+      blocked: input.blocked,
+      validation: input.validation,
+      safetyViolations: input.safetyViolations,
+    },
+    conformance: {
+      evaluated: conformance.evaluated,
+      summary: conformance.summary,
+      checks: conformance.checks.map((check) => ({
+        name: check.name,
+        severity: check.severity,
+        verdict: check.verdict,
+        reason: check.reason,
+      })),
+    },
   };
 }
 
