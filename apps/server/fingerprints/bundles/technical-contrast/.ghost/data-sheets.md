@@ -1,5 +1,5 @@
 ---
-description: The pricing-table and data-sheet system — crisp white sheets with mono headers, aligned numeric columns, hairline separators, and tinted stat tiles for cost, model, capacity, and capability comparison. Reach when structuring dense data.
+description: The pricing-table and data-sheet system — crisp white sheets with uppercase mono headers, aligned tabular numeric columns, hairline border separators, and contained signal-tinted stat tiles for cost, model, capacity, and capability comparison. Reach for how dense quantitative data is structured.
 relates:
   - to: mono-labels
     as: reinforces
@@ -18,9 +18,13 @@ collapse into category accordions instead of being replaced by unrelated cards.
 
 **Pricing table sheet.** Pricing, model, capacity, and capability comparisons read
 as crisp white sheets with uppercase-mono muted headers on a pale rail
-(`--color-surface-muted`), geometric-sans body cells with aligned numeric columns,
-and 1px hairline separators — no shadows, winner badges, or decorative artwork
-inside the sheet.
+(`--color-surface-muted`), geometric-sans body cells, and `--contrast-edge-hairline`
+separators — no shadows, winner badges, or decorative artwork inside the sheet.
+Numbers stack in `--contrast-num-font` tabular figures, set
+`--contrast-num-align` right-aligned with `--contrast-num-variant` so digits line
+up decimal-for-decimal under the mono headers, separated by
+`--contrast-num-col-gap` — comparison reads down a column, not across scattered
+cards.
 
 **Tinted stat tiles.** Pastel tiles give rare relief on white planes — large
 number in display type, label in mono caps, a restrained mint or periwinkle fill

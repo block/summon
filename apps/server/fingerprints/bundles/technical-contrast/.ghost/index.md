@@ -40,6 +40,56 @@ readily as midnight landing planes — choose approachability or proof gravity b
 task, and translate public technical-platform research into source-agnostic
 generated surfaces without brand mimicry.
 
+## Signature look & feel
+
+If you stripped every label off a Technical Contrast surface and left only the
+shapes, you would still know it by these moves — they belong to this language and
+no other in the catalog:
+
+- **Stark plane polarity that flips the page.** The eye travels across three
+  named planes — a pale technical landing (`--contrast-plane-pale-bg`), a crisp
+  white data sheet (`--contrast-plane-sheet-bg`), and a near-black midnight proof
+  plane (`--contrast-plane-midnight-bg`) that inverts everything via
+  `--contrast-plane-invert`: black ink becomes white, hairlines become dark-soft.
+  Each plane carries its own fg/bg pair, so the swap reads as a deliberate change
+  of register, not a theme toggle.
+- **Claim-first banded narrative.** Sections are full-bleed edge-to-edge bands
+  (`--contrast-band-inset: 0`) with generous vertical air
+  (`--contrast-band-pad-y`) and a contained reading measure
+  (`--contrast-band-max`). The headline and its claim land at the top of every
+  band before any grid, table, or artwork — the band is the unit of thought.
+- **Uppercase mono eyebrows.** One all-caps voice runs the labels: eyebrows,
+  tabs, table headers, and button text set in `--contrast-eyebrow-font` at
+  `--contrast-eyebrow-size` with `--contrast-eyebrow-tracking` open spacing. The
+  narrative itself stays sentence-case geometric sans — mono is a label system,
+  never a paragraph.
+- **A contained warm-to-cool signal trio, used once.** Orange → magenta →
+  periwinkle (`--contrast-signal-warm`, `--contrast-signal-mid`,
+  `--contrast-signal-cool`, bound in `--contrast-signal-gradient`) appears as one
+  large optional artwork and nowhere else — never bleeding into buttons, badges,
+  or category swatches.
+- **Border-led depth — borders are the elevation.** Hairlines do the lifting:
+  `--contrast-edge-hairline` on white sheets, `--contrast-edge-dark` on midnight
+  panels, `--contrast-edge-strong` to mark the chosen option. There is no
+  floating shadow — `--contrast-elevation` is `none`, so cards sit flat and
+  structural, defined by their edges.
+- **Small square-ish rectangular CTAs.** Primary actions are tight rectangles at
+  `--contrast-cta-radius` (barely rounded) with `--contrast-cta-font` uppercase
+  mono labels and compact `--contrast-cta-pad-*` padding — crisp and clickable,
+  never a full pill.
+- **Aligned numeric columns in the data sheets.** Numbers stack in
+  `--contrast-num-font` tabular figures, `--contrast-num-align` right-aligned with
+  `--contrast-num-variant` so digits line up decimal-for-decimal under mono
+  headers, separated by `--contrast-num-col-gap` — comparison reads down a column,
+  not across scattered cards. Every surface is source-agnostic, named from the
+  prompt, never from any brand.
+
+What holds the identity is the discipline: three polar planes, hairline edges
+instead of shadows, one all-caps mono label voice, and a single contained signal
+object. It collapses the moment those soften into generic SaaS card grids with
+drop shadows and full-pill buttons, or the contained trio spreads into neon AI
+glow and rainbow accents.
+
 ## Inventory
 
 The material is a restrained light-rooted technical token system: white and pale
@@ -129,6 +179,55 @@ these custom properties rather than inventing values):
   --shadow-elevated: none;
   --shadow-popover: 0 24px 70px rgba(1, 1, 32, 0.16);
   --shadow-modal: 0 32px 90px rgba(1, 1, 32, 0.22);
+
+  /* SIGNATURE — the moves that belong to Technical Contrast alone. Reference these, do not reinvent them. */
+
+  /* Three-plane polarity: each plane carries its own fg/bg pair, and the midnight plane inverts the page. */
+  --contrast-plane-pale-bg: #ebebeb;
+  --contrast-plane-pale-fg: #000000;
+  --contrast-plane-sheet-bg: #ffffff;
+  --contrast-plane-sheet-fg: #000000;
+  --contrast-plane-midnight-bg: #010120;
+  --contrast-plane-midnight-fg: #ffffff;
+  --contrast-plane-invert: invert(1);
+
+  /* Banded full-width narrative sections: edge-to-edge bleed with generous vertical air, no side gutters on the band itself. */
+  --contrast-band-inset: 0;
+  --contrast-band-pad-y: var(--space-10);
+  --contrast-band-pad-x: var(--space-7);
+  --contrast-band-max: 1200px;
+
+  /* Uppercase mono eyebrow/label treatment — the one all-caps voice on the page. */
+  --contrast-eyebrow-font: var(--font-mono);
+  --contrast-eyebrow-transform: uppercase;
+  --contrast-eyebrow-size: var(--text-sm);
+  --contrast-eyebrow-tracking: var(--tracking-label);
+  --contrast-eyebrow-weight: 500;
+
+  /* Contained warm-to-cool signal trio — a tight 3-color set for one large artwork, used sparingly, never as UI palette. */
+  --contrast-signal-warm: #fc4c02;
+  --contrast-signal-mid: #ef2cc1;
+  --contrast-signal-cool: #bdbbff;
+  --contrast-signal-gradient: linear-gradient(120deg, #fc4c02 0%, #ef2cc1 55%, #bdbbff 100%);
+
+  /* Border-led depth — borders ARE the elevation; no floating shadows. */
+  --contrast-edge-hairline: 1px solid rgba(0, 0, 0, 0.08);
+  --contrast-edge-strong: 1px solid #000000;
+  --contrast-edge-dark: 1px solid #313641;
+  --contrast-elevation: none;
+
+  /* Small-radius rectangular CTAs — square-ish, never pills. */
+  --contrast-cta-radius: var(--radius-sm);
+  --contrast-cta-pad-y: var(--space-3);
+  --contrast-cta-pad-x: var(--space-5);
+  --contrast-cta-font: var(--font-mono);
+  --contrast-cta-transform: uppercase;
+
+  /* Aligned numeric data columns — tabular figures, right-aligned, mono headers. */
+  --contrast-num-font: var(--font-mono);
+  --contrast-num-align: right;
+  --contrast-num-variant: tabular-nums;
+  --contrast-num-col-gap: var(--space-6);
 }
 ```
 

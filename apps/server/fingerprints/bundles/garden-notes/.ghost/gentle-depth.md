@@ -1,5 +1,5 @@
 ---
-description: Gentle depth rules — depth from one bounded outer shell and a few soft-shadowed layered notes, never cards inside cards or a pile of equal rounded boxes.
+description: Gentle depth rules — depth from one bounded outer rounded shell and a single gentle outer lift, layering only the few notes that need separating, never cards inside cards or a pile of equal rounded boxes. Reach for how much elevation a plan may carry and where the one soft shadow belongs.
 relates:
   - to: note-panels
     as: reinforces
@@ -17,11 +17,13 @@ everything else flat on the panel. Avoid arbitrary rounded card piles where ever
 note carries the same weight; equal-weight piles flatten the plan and hide the
 first action.
 
-**Soft shadows, used sparingly.** Use the soft shadow tokens to give note layers
-gentle depth, but reach for them only when a layer needs to lift off the page.
-Keep shadows soft and purposeful so the surface stays calm; let whitespace create
-breathing room around the first action rather than stacking more elevation. The
-airy spacing ladder is itself a depth tool — separation by space reads gentler
+**One gentle outer lift, used sparingly.** Note panels rest on a single soft
+`--garden-note-lift` — one quiet green-tinted shadow that suggests a page set down
+on the field — reached for only when a layer needs to lift off the page. No stacked
+elevations and no drop-shadow theatrics: depth is a whisper, and every note that
+matters equally lifts equally on the same `--garden-note-lift`. Let whitespace
+create breathing room around the first action rather than stacking more elevation;
+the airy spacing ladder is itself a depth tool — separation by space reads gentler
 than separation by shadow.
 
 These rules govern how the [note panels](note-panels) layer, and they keep the

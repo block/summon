@@ -1,5 +1,5 @@
 ---
-description: The good-enough choice and can-wait notes — soft rounded callouts that highlight one kind recommendation and the tradeoff it accepts, and that lower pressure by naming what can wait.
+description: The good-enough choice and can-wait notes — soft `--garden-panel-radius` callouts where exactly one kind recommendation wears the chlorophyll-green `--garden-chosen-dot` and names the tradeoff it accepts, while a paired note lowers pressure by naming what can wait. Reach for how a plan points to one easy move and quiets the rest.
 relates:
   - to: badges
     as: reinforces
@@ -14,17 +14,22 @@ context: one names the easiest acceptable move, the other names what does not ne
 doing now.
 
 **Good-enough choice note.** Highlight one kind recommendation and the tradeoff it
-accepts in a soft rounded callout, explaining in a sentence or two why it is enough
-for this moment. Good-enough is a design value: name the easiest acceptable option
-when stakes are low rather than maximizing every variable, and explain the accepted
-tradeoff gently and briefly. Avoid scoring systems, false precision, and
+accepts in a soft rounded callout — round it to `--garden-panel-radius` and mark it
+with the `--garden-chosen-dot` (sized at `--garden-chosen-marker`, haloed by
+`--garden-chosen-ring`) so exactly one good-enough move wears the chlorophyll
+spotlight. Explain in a sentence or two why it is enough for this moment.
+Good-enough is a design value: name the easiest acceptable option when stakes are
+low rather than maximizing every variable, and explain the accepted tradeoff gently
+and briefly. Avoid scoring systems, false precision, and
 winner-take-all rankings for personal choices — the note is a kind nudge toward
 action, not a verdict.
 
 **Can-wait note.** Lower pressure by naming what can wait without hiding useful
-context. Separate urgent, useful, and deferrable work only when the task actually
-has multiple parts, and make any Later or deferred work explicitly reassuring when
-it appears. Do not hide all non-immediate work if showing it helps the user trust
+context. A can-wait note never wears the `--garden-chosen-dot` — reserve that green
+marker for the single chosen step so naming what can wait stays visibly unhurried.
+Separate urgent, useful, and deferrable work only when the task actually has
+multiple parts, and make any Later or deferred work explicitly reassuring when it
+appears. Do not hide all non-immediate work if showing it helps the user trust
 the plan — the goal is a lighter plan the user believes, not a shorter one that
 omits what they were worried about.
 

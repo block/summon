@@ -1,5 +1,5 @@
 ---
-description: The proof-card system — dark-on-dark proof cards on midnight planes and compact flat technical update cards, each pairing a mono category tag with a claim and an operational implication. Reach when proving credibility.
+description: The proof-card system — dark-on-dark cards on the midnight plane and compact flat technical update cards bordered without shadow, each pairing an uppercase mono category tag with a claim and an operational implication. Reach for how credibility and evidence are carried.
 relates:
   - to: contrast-planes
     as: reinforces
@@ -14,13 +14,15 @@ configuration panels must explain why the primary claim is true — pair large
 numbers with labels and implications, and avoid orphaned stats or testimonial
 fragments.
 
-**Midnight proof plane + dark proof-card grid.** Research or proof sections use a
-midnight plane (`--color-surface-dark`) with a strong display claim, mono eyebrow,
-muted recognition rail, and dark-on-dark proof cards bounded by dark-soft
-hairlines (`--color-surface-dark-soft`). Each card starts with a mono tag, then a
-sentence-case title and concise body, and pairs the proof point with an
-operational implication — never bright cards floating on the dark plane or neon
-glows.
+**Midnight proof plane + dark proof-card grid.** Research or proof sections use the
+midnight plane (`--contrast-plane-midnight-bg`/`--contrast-plane-midnight-fg`),
+inverting the page through `--contrast-plane-invert` so ink turns white and
+hairlines turn dark-soft. A strong display claim, mono eyebrow, muted recognition
+rail, and dark-on-dark proof cards are bounded by `--contrast-edge-dark` rather
+than shadow (`--contrast-elevation` is `none`), with `--contrast-edge-strong` to
+mark a highlighted card. Each card starts with a mono tag, then a sentence-case
+title and concise body, and pairs the proof point with an operational
+implication — never bright cards floating on the dark plane or neon glows.
 
 **Technical update card.** Benchmark, certification, model-serving, and research
 updates appear as compact flat proof cards — short uppercase mono category badge

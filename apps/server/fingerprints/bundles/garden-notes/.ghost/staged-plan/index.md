@@ -1,5 +1,5 @@
 ---
-description: The staged-plan surface — a sequenced path through soft cream note panels with prep baskets and now/next/later pacing. Reach when the first question is "this has several steps — how do I move through it without feeling overwhelmed?"
+description: The staged-plan surface — a sequenced path through soft cream `--garden-note-paper` panels with prep baskets, now/next/later pill state-chips, and the chlorophyll `--garden-chosen-dot` resting on the one step to do now. Reach when the first question is "this has several steps — how do I move through it without feeling overwhelmed?"
 relates:
   - to: note-panels
     as: reinforces
@@ -21,10 +21,14 @@ plan to resume — not when one clear next move is enough (that is the
 
 **Staged plan through soft panels.** When a task has sequence, show a staged path
 through soft cream [note panels](../note-panels) rather than a pile of generic
-cards — large rounded panels, green accents, soft shadows, garden-bed groupings,
-tactile note-card layers, and visibly gentle badges. Keep it airy but anchored in a
-bounded rounded shell, and let the pacing do the reassurance work: a staged path
-should feel like steps you can take one at a time, not a project plan.
+cards — panels filled with `--garden-note-paper` and rounded to
+`--garden-panel-radius-lg`, a single `--garden-note-lift`, garden-bed groupings,
+tactile note-card layers, and visibly gentle chips. Mark only the one current step
+with the `--garden-chosen-dot` (sized at `--garden-chosen-marker`, haloed by
+`--garden-chosen-ring`) so the staged path always points at a single beginnable
+action — never green on every stage. Keep it airy but anchored in a bounded rounded
+shell, and let the pacing do the reassurance work: a staged path should feel like
+steps you can take one at a time, not a project plan.
 
 **Prep basket before checklist.** When readiness matters, group materials, timing,
 constraints, and conditions in a compact prep basket before the action checklist,
@@ -38,7 +42,9 @@ never hide the actual first action under process labels. A half-finished plan
 resumes by surfacing where the user left off and the single next step, not by
 re-presenting the whole sequence.
 
-Staged badges and readiness chips follow the [badge system](../badges); any
+Staged badges and readiness chips follow the [badge system](../badges) — built from
+`--garden-chip-face`, `--garden-chip-ink`, and `--garden-chip-edge` at
+`--garden-chip-radius`; any
 good-enough shortcut or can-wait deferral follows the
 [good-enough and can-wait notes](../good-enough). Every stage still ends in a
 concrete verb the user can do today.

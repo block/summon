@@ -37,6 +37,49 @@ brand-neutral mascot or playful signoff moment over pervasive character
 decoration. Modern ports may stack columns on narrow screens, but should
 preserve the faceplate metaphor and command hierarchy.
 
+## Signature look & feel
+
+If you stripped every label off a Console Chrome 2001 surface and left only the
+shapes, you would still know it by these moves — they belong to this language and
+no other in the catalog:
+
+- **Hard pixel bevels with no blur.** Every plate, chip, and slab wears a
+  one-pixel light edge top-left and a chrome-indigo dark edge bottom-right via
+  `--chrome-bevel-hard` (and `--chrome-bevel-deep` for hero plates). The depth is
+  machined, not blurred — there is never a soft material drop shadow, only the
+  crisp two-tone seam that makes a module look injection-molded into the chassis.
+- **Beveled periwinkle faceplates.** Major regions are molded plates, not floating
+  cards: `--chrome-faceplate` lays a cool periwinkle top-to-bottom mold and
+  `--chrome-faceplate-rim` rings it with a hard machined edge so the whole surface
+  reads as a console body with content bolted in.
+- **Halftone carbon command slabs.** Nav bars, rails, and footers are dark carbon
+  dusted with the fine dot-matrix grain of `--chrome-halftone-carbon` — a Y2K
+  injection-texture you feel before you read, with `--chrome-halftone-dot` available
+  to stipple lighter plates. Flat solid-black bars are the tell of a counterfeit.
+- **Rationed amber/orange wayfinding LEDs.** Warmth is never decoration — it is a
+  lit signal. `--chrome-led-glow` and `--chrome-led-amber` ring forward, submit,
+  open, and launch cues, while `--chrome-led-pip` is the molded amber bead on
+  tools, tabs, and Go buttons. Everything steady-state stays cool; the warm color
+  is the eye's wayfinding beacon.
+- **Dotted silkscreen dividers.** Modules and rows are separated by the stitched
+  dot seam of `--chrome-divider-dotted` (and its vertical twin
+  `--chrome-divider-dotted-v`), like legend printing on a controller — never a
+  plain hairline rule, never luxury whitespace doing the dividing.
+- **Chrome inset inputs.** Fields are pressed into the faceplate with
+  `--chrome-inset-input`: a recessed white well with a hard pressed-in rim and
+  native-select geometry, so every input looks like a recessed slot in the machine
+  rather than an outlined modern textbox.
+- **Box-art hero on a dense, dual-command chassis.** An outlined heavy box-art
+  wordmark with a hard offset shadow anchors a top carbon command bar plus a pale
+  secondary command row, all packed at desktop-era density inside the fixed canvas
+  — often topped by a brand-neutral mascot speech-bubble masthead.
+
+What holds the identity: hard zero-blur bevels, halftone carbon, rationed warm
+LEDs, dotted seams, and dense faceplate density assembled into one bounded
+chassis. What collapses it into generic flat SaaS: soft blurred shadows, airy
+whitespace, decorative warm color, uniform rounded cards, and a single roomy
+column floating on a flat gradient.
+
 ## Inventory
 
 The material is a cool molded-plastic console token system: a neutral desktop-era
@@ -137,6 +180,34 @@ these custom properties rather than inventing values):
   --shadow-elevated: inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -3px 0 #3d4f97, 0 2px 0 rgba(33,36,46,0.45);
   --shadow-popover: 4px 4px 0 rgba(33,36,46,0.45), inset 0 1px 0 rgba(255,255,255,0.72);
   --shadow-modal: 6px 6px 0 rgba(33,36,46,0.50), inset 0 1px 0 rgba(255,255,255,0.72);
+
+  /* SIGNATURE — the moves that belong to Console Chrome 2001 alone. Reference these, do not reinvent them. */
+
+  /* Hard pixel bevel: bright light edge top-left, chrome-indigo dark edge bottom-right, ZERO blur. */
+  --chrome-bevel-hard: inset 1px 1px 0 rgba(255,255,255,0.85), inset -2px -2px 0 #3d4f97;
+  --chrome-bevel-deep: inset 2px 2px 0 rgba(255,255,255,0.9), inset -3px -3px 0 #2a3877, 1px 1px 0 rgba(33,36,46,0.5);
+  --chrome-bevel-light-edge: #ffffff;
+  --chrome-bevel-dark-edge: #3d4f97;
+
+  /* Beveled chrome faceplate: molded periwinkle plate with a hard machined rim. */
+  --chrome-faceplate: linear-gradient(180deg, #8ba1d4 0%, #7a8aba 100%);
+  --chrome-faceplate-rim: inset 1px 1px 0 rgba(255,255,255,0.8), inset -2px -2px 0 #3d4f97, 0 1px 0 rgba(33,36,46,0.45);
+
+  /* Halftone / dotted carbon texture: a fine dot-matrix grain over the command slabs. */
+  --chrome-halftone-carbon: radial-gradient(circle at center, rgba(255,255,255,0.07) 0.5px, transparent 0.5px) 0 0 / 4px 4px, #21242e;
+  --chrome-halftone-dot: radial-gradient(circle at center, rgba(33,36,46,0.18) 0.5px, transparent 0.5px) 0 0 / 3px 3px;
+
+  /* Amber/orange wayfinding LED: a rationed warm glow that means tool, nav, or forward. */
+  --chrome-led-amber: 0 0 0 1px #e48600, inset 0 1px 0 rgba(255,255,255,0.55);
+  --chrome-led-glow: 0 0 6px rgba(246,141,31,0.65), 0 0 0 1px #f68d1f;
+  --chrome-led-pip: radial-gradient(circle at 35% 30%, #ffd089 0%, #f68d1f 55%, #c96a00 100%);
+
+  /* Dotted dividers: silkscreened seams between dense modules and rows. */
+  --chrome-divider-dotted: repeating-linear-gradient(90deg, #5a5f8c 0 2px, transparent 2px 5px);
+  --chrome-divider-dotted-v: repeating-linear-gradient(180deg, #5a5f8c 0 2px, transparent 2px 5px);
+
+  /* Chrome inset input: recessed white field with a hard pressed-in rim. */
+  --chrome-inset-input: inset 1px 1px 0 #9aa0c4, inset -1px -1px 0 #ffffff, inset 0 0 0 1px #5a5f8c;
 }
 ```
 

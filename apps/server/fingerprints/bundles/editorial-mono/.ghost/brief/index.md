@@ -1,5 +1,5 @@
 ---
-description: The brief surface — a claim-first decision brief that leads with a dominant verdict and justifies it with short evidence bands. Reach when the first question is "what is the recommendation, and why?"
+description: The brief surface — a claim-first decision brief that leads with a dominant serif verdict headline opened by an `--editorial-dropcap` initial, then justifies it with short `--editorial-hairline` evidence bands and the single inverse-ink verdict slab. Reach for the surface that commits to one recommendation and proves it when the first question is "what is the recommendation, and why?"
 relates:
   - to: masthead
     as: reinforces
@@ -18,13 +18,15 @@ the [report](../report)).
 
 **Claim-first brief.** Start with a dominant newspaper-like claim: the verdict
 headline in serif display at the top of the [masthead / deck / folio shell](../masthead),
-the recommendation reading first and largest. Follow it with short evidence bands, a
-small matrix, numbered findings, or a ranked list on black ink, cream paper, hairline
-rules, and square corners. State the recommendation, ranking, risk, or outcome before
-supporting detail; give the verdict the largest type or the
-[single inverse-ink panel](../inverse-panel), and demote caveats into
-[ruled evidence bands](../evidence) so they support the decision rather than competing
-with it.
+opened by an `--editorial-dropcap-size` serif initial over
+`--editorial-dropcap-lines` lines, the recommendation reading first and largest.
+Follow it with short evidence bands, a small matrix, numbered findings, or a ranked
+list separated by `--editorial-hairline` rules on cream paper with square corners.
+State the recommendation, ranking, risk, or outcome before supporting detail; give
+the verdict the largest type or the [single inverse-ink panel](../inverse-panel) —
+`--editorial-verdict-bg` on `--editorial-verdict-fg` — and demote caveats into
+[ruled evidence bands](../evidence) so they support the decision rather than
+competing with it.
 
 **Decisive close.** End with the [editorial close](../close) — the decision, accepted
 tradeoff, residual risk, or single next action, marked by a [mono metadata](../metadata)

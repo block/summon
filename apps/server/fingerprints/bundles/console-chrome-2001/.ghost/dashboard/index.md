@@ -1,5 +1,5 @@
 ---
-description: The dashboard surface — a dense console faceplate of stacked rows, rails, polls, and status modules bolted into one chassis. Reach when the first question is "what is happening across this system right now?"
+description: The dashboard surface — a dense console faceplate of stacked rows, carbon rails, polls, and amber-LED status modules bolted into one beveled chassis. Reach for this when the first question is "what is happening across this system right now?"
 relates:
   - to: command-nav
     as: reinforces
@@ -26,14 +26,17 @@ seams between modules. Let labels and bevels prevent clutter — do not create
 luxury whitespace to solve hierarchy.
 
 **Stacked news / list rows.** Use compact platinum rows with a leading icon or
-category stamp, a bold chrome-indigo or carbon headline, hard 1px bevel
-separators, and a trailing signal-orange chevron chip. Use rows, not large cards,
-when scanning several updates or options; keep row text short.
+category stamp, a bold chrome-indigo or carbon headline, and a trailing
+signal-orange chevron chip lit by `--chrome-led-glow`. Part the rows with
+`--chrome-divider-dotted` rather than a plain hairline, and give each row plate
+the hard `--chrome-bevel-hard` seam so it reads as bolted in. Use rows, not large
+cards, when scanning several updates or options; keep row text short.
 
-**Right action rail.** Stack carbon action slabs above a white explainer box,
-amber tab, poll, promo plate, calendar, or compact form in a narrow right rail,
-making secondary actions feel like console-side controls. The whole page must
-reveal what can be clicked, searched, read, or advanced at a glance.
+**Right action rail.** Stack carbon action slabs textured by
+`--chrome-halftone-carbon` above a white explainer box, amber tab beaded with
+`--chrome-led-pip`, poll, promo plate, calendar, or compact form in a narrow
+right rail, making secondary actions feel like console-side controls. The whole
+page must reveal what can be clicked, searched, read, or advanced at a glance.
 
 The rows and rails compose the [command and navigation system](../command-nav)
 and the [beveled plate and chrome system](../plates); every module earns a

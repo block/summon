@@ -40,6 +40,37 @@ sparingly — when type is large, keep it light, tracked tight, and calm. Let
 terminal or code panels carry evidence only when they clarify the task; muted
 semantic state stays secondary to the neutral system.
 
+## Signature look & feel
+
+If you stripped every label off a Technical Noir surface and left only the
+shapes, you would still know it by these moves — they belong to this language and
+no other in the catalog:
+
+- **The warm-charcoal void.** The page is a brown-warmed near-charcoal (`#2b2622`)
+  that reads as a dimmed terminal at 2am, never pure black, never cool slate. The
+  warmth is the brand. Cards lift only ~8% off the page; you sense the boundary
+  before you see it.
+- **Hairlines do all the work.** Every region, row, panel, and input is drawn with
+  the single warm 1px `--noir-hairline`. There are no shadows, no glows, no
+  fills competing for depth — just a quiet lattice of warm lines. Elevation is a
+  lie this language refuses to tell.
+- **The mono gutter.** Command lines, log rows, and agent steps are prefixed with
+  a `$`, `›`, or hash glyph in the `--noir-gutter`, monospace, muted-beige. The
+  surface reads like a transcript you could scroll forever.
+- **One live cursor.** Exactly one blinking off-white block cursor (`--noir-cursor`,
+  `--noir-cursor-blink`) marks the live edge of activity per panel — the only thing
+  on the surface that moves. Liveness, rationed.
+- **The off-white spine.** The active row, selected step, or focused command carries
+  a 2px off-white left spine (`--noir-spine`) — the single emphatic fill in an
+  otherwise fill-less surface. Selection is a bar of light, not a colored chip.
+- **Status as 6px dots, not color blocks.** State lives in tiny muted dots
+  (`--noir-dot-*`): idle gray, running amber, ok sage, failed clay. Semantics whisper.
+- **Felt scan grid.** Behind dense evidence panels, a near-invisible 24px warm
+  scan grid (`--noir-grid`) gives the void texture you feel rather than see.
+
+Hold these and a surface is Technical Noir even before a word is set. Drop them
+and it collapses into generic dark-mode SaaS.
+
 ## Inventory
 
 The material is a warm-dark technical token system: a brown-warmed near-charcoal
@@ -126,6 +157,25 @@ these custom properties rather than inventing values):
   --shadow-elevated: none;
   --shadow-popover: none;
   --shadow-modal: none;
+
+  /* SIGNATURE — the moves that belong to Technical Noir alone. Reference these, do not reinvent them. */
+  /* The single-pixel warm hairline that draws every boundary; depth is hairlines, never shadow. */
+  --noir-hairline: 1px solid #3f3a36;
+  --noir-hairline-strong: 1px solid #57504a;
+  /* Faint warm scan grid behind dense panels — felt, never seen as a pattern. */
+  --noir-grid: repeating-linear-gradient(180deg, transparent 0 23px, rgba(247,245,240,0.025) 23px 24px);
+  /* The blinking command cursor block: terminal liveness, exactly one per panel. */
+  --noir-cursor: #f7f5f0;
+  --noir-cursor-blink: 1.06s steps(2, jump-none) infinite;
+  /* Status dot system — muted, tied to real state, 6px, never decorative. */
+  --noir-dot-idle: #57504a;
+  --noir-dot-run: #d6b16a;
+  --noir-dot-ok: #a8c890;
+  --noir-dot-fail: #e08b7d;
+  /* The "$" / "›" gutter glyph that prefixes every command line, set in mono. */
+  --noir-gutter: 1.6ch;
+  /* Left accent spine on the active row — off-white, 2px, the only emphatic fill. */
+  --noir-spine: 2px solid #f7f5f0;
 }
 ```
 

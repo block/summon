@@ -30,6 +30,48 @@ color-as-emphasis over shadow-as-elevation; compact metadata and rail structure
 over verbose labels when time, status, sequence, or category matters. Keep
 saturated fills sparing and small text on stable contrast pairs.
 
+## Signature look & feel
+
+If you stripped every label off a Signal Stream surface and left only the shapes,
+you would still know it by these moves — they belong to this language and no other
+in the catalog:
+
+- **The warm near-black field reads as the signal, not the backdrop.** Everything
+  floats on `--color-bg` — a near-black that's warm, not blue — where white text
+  and muted-gray metadata stay crisp and bright fills become rare interruptions.
+  Light comes from saturation, never from a lit-up panel.
+- **Acid mint and electric violet behave like hazard markers.** The
+  `--signal-hazard-mint` / `--signal-hazard-violet` pairs (each carrying its
+  `-fg` text color) are deployed like warning tape, not decoration — mint for the
+  one primary action or live tile, violet for secondary emphasis and rails. Two
+  voltages, used sparingly, never a pastel wash.
+- **A condensed Impact "shout" headline anchors the page.** `--signal-shout-*`
+  drives an oversized, uppercase, near-solid-leading (`0.86`) display line that
+  shouts against the whispered mono metadata beside it — the shout-versus-whisper
+  contrast that no calm feed has.
+- **A live signal rail runs down the left edge with recency ticks.** The
+  `--signal-rail-*` spine drops markers along its length — mint ticks for the
+  stream, a violet tick for the most recent — so order and recency are visible as
+  a physical column before a single word is read.
+- **Tiles are intentionally FLAT and saturated.** `--signal-tile-shadow: none`
+  is a rule, not an omission: `--signal-tile-fill-*` blocks of solid mint, violet,
+  or surface get hierarchy from color and a 1px border, never from elevation,
+  glow, or glass. Color is the emphasis; shadow is forbidden.
+- **Segmented mode tabs switch the stream like a hardware selector.** The
+  `--signal-tab-*` group is a hairline-bordered, zero-gap segmented control in
+  uppercase mono with a 2px mint underline on the active segment — modes feel
+  toggled, not clicked through.
+- **Uppercase mono metadata pills carry the orientation.** `--signal-pill-*`
+  renders tracked, compact, pill-radius mono chips that hold time, order, state,
+  and category — navigation disguised as data, never ornament.
+
+What holds the identity: the warm near-black field, two hazard voltages used
+sparingly, the condensed shout, the ticked rail, and flat saturated color doing
+the work of elevation. What collapses it into a generic light-mode feed or
+glassmorphism: lifting tiles with shadow or blur, washing the field pastel,
+softening the shout into a normal headline, or letting the metadata go decorative
+instead of navigational.
+
 ## Inventory
 
 The material is a dark editorial token system: a warm near-black canvas, white and
@@ -114,6 +156,59 @@ these custom properties rather than inventing values):
   --shadow-elevated: none;
   --shadow-popover: 0 0 0 1px rgba(255, 255, 255, 0.22);
   --shadow-modal: 0 0 0 1px rgba(60, 255, 208, 0.45);
+
+  /* SIGNATURE — the moves that belong to Signal Stream alone.
+     Reference these, do not reinvent them. */
+
+  /* Hazard accents — acid mint + electric violet emphasis, with fg pairs. */
+  --signal-hazard-mint: #3cffd0;
+  --signal-hazard-mint-fg: #000000;
+  --signal-hazard-violet: #5200ff;
+  --signal-hazard-violet-fg: #ffffff;
+
+  /* Condensed Impact "shout" display treatment — oversized, near-solid line-height. */
+  --signal-shout-font: var(--font-display);
+  --signal-shout-size: var(--text-display);
+  --signal-shout-leading: 0.86;
+  --signal-shout-tracking: 0.01em;
+  --signal-shout-transform: uppercase;
+  --signal-shout-weight: 400;
+
+  /* Signal rail — left-edge spine with recency ticks/markers down its length. */
+  --signal-rail-width: 2px;
+  --signal-rail-color: var(--color-text-muted);
+  --signal-rail-gap: var(--space-4);
+  --signal-rail-tick-size: 8px;
+  --signal-rail-tick-color: var(--signal-hazard-mint);
+  --signal-rail-tick-recent: var(--signal-hazard-violet);
+  --signal-rail-tick-spacing: var(--space-5);
+
+  /* Saturated flat tiles — color-as-emphasis, intentionally no shadow/glow. */
+  --signal-tile-radius: var(--radius-lg);
+  --signal-tile-border: 1px solid var(--color-border);
+  --signal-tile-shadow: none;
+  --signal-tile-fill-mint: var(--signal-hazard-mint);
+  --signal-tile-fill-violet: var(--signal-hazard-violet);
+  --signal-tile-fill-flat: var(--color-surface);
+
+  /* Segmented stream-mode tabs — hairline-bordered switch, active mint underline. */
+  --signal-tab-gap: 0px;
+  --signal-tab-border: 1px solid var(--color-border-input);
+  --signal-tab-padding: var(--space-2) var(--space-4);
+  --signal-tab-radius: var(--radius-sm);
+  --signal-tab-active-underline: 2px solid var(--signal-hazard-mint);
+  --signal-tab-font: var(--font-mono);
+  --signal-tab-transform: uppercase;
+  --signal-tab-tracking: var(--tracking-label);
+
+  /* Uppercase mono metadata pills — tracked, compact, time/order/state carriers. */
+  --signal-pill-font: var(--font-mono);
+  --signal-pill-size: var(--text-sm);
+  --signal-pill-transform: uppercase;
+  --signal-pill-tracking: var(--tracking-label);
+  --signal-pill-radius: var(--radius-pill);
+  --signal-pill-padding: var(--space-1) var(--space-3);
+  --signal-pill-border: 1px solid var(--color-border-input);
 }
 ```
 

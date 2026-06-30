@@ -34,6 +34,47 @@ evidence density over decorative whitespace, while preserving enough air to scan
 Use severity carefully — the tone can be exact and austere without becoming
 hostile.
 
+## Signature look & feel
+
+If you stripped every label off an Editorial Mono surface and left only the
+shapes, you would still know it by these moves — they belong to this language and
+no other in the catalog:
+
+- **Hairline rules do all the drawing.** Structure is cut with `--editorial-hairline`
+  and `--editorial-rule-heavy`, never with boxes or fills — a single ink weight
+  ruling columns and rows the way a compositor sets a page, so the surface reads
+  as drawn, not contained.
+- **The whole page sits on ruled paper.** A faint `--editorial-ruled-paper`
+  baseline grid runs beneath the type like the ruling of a ledger, with
+  `--editorial-ruled-gutter` marking the margin — present at the edge of
+  perception, enough to feel like stock you could write on.
+- **One slab of inverse ink, and only one.** The verdict alone wears
+  `--editorial-verdict-bg` / `--editorial-verdict-fg`: black paper, cream ink,
+  square corners, no shadow. It reads first because it is the one place the page
+  inverts, and nothing else is allowed to.
+- **Folios carry the metadata, tracked and uppercase.** Page numbers, ranks,
+  labels, and timestamps run through `--editorial-folio-font` at
+  `--editorial-folio-tracking`, sitting beside the `--editorial-registration-mark`
+  like crop ticks on a printed sheet — press furniture, not chrome.
+- **A serif initial opens the voice.** The oversized `--editorial-dropcap-size`
+  drop cap spanning `--editorial-dropcap-lines` lines announces the article
+  register before a word is read, anchoring the column to the top-left the way an
+  edited page begins.
+- **Evidence is justified into ruled columns.** `--editorial-column-rule`
+  hairlines and `--editorial-column-gap` split criteria into parallel bands that
+  line up across options, so trust comes from alignment rather than color or card
+  decoration.
+- **Depth comes from rules, never elevation.** Squared geometry and the
+  deliberately invisible shadow tokens keep every plane flat; separation is read
+  from hairline contrast and paper tiers, the way ink separates regions on a
+  printed page.
+
+What holds the identity is the discipline of one ink, one inverse slab, hairlines
+that rule instead of enclose, and a verdict that reads before its evidence. What
+collapses it into a generic doc or dashboard is the moment any of those soften —
+a second accent color, a rounded card, a drop shadow, or evidence given equal
+weight to the verdict — and the printed page becomes just another panel.
+
 ## Inventory
 
 The material is a monochrome editorial token system: an editorial paper
@@ -115,6 +156,52 @@ these custom properties rather than inventing values):
   --shadow-elevated: none;
   --shadow-popover: none;
   --shadow-modal: none;
+
+  /* SIGNATURE — the moves that belong to Editorial Mono alone. Reference these, do not reinvent them. */
+
+  /* The hairline that draws every column and row — one ink weight, never a box. */
+  --editorial-hairline: 1px solid #11100e;
+  --editorial-hairline-faint: 1px solid #b8b0a0;
+  --editorial-rule-heavy: 2px solid #11100e;
+
+  /* Faint ruled-paper grid the whole surface sits on — baseline lines like a printed ledger. */
+  --editorial-ruled-paper: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 27px,
+    rgba(17, 16, 14, 0.06) 27px,
+    rgba(17, 16, 14, 0.06) 28px
+  );
+  --editorial-ruled-gutter: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(100% - 1px),
+    rgba(17, 16, 14, 0.04) calc(100% - 1px),
+    rgba(17, 16, 14, 0.04) 100%
+  );
+
+  /* The single inverse-ink verdict slab — black paper, cream ink, no rounding, no shadow. */
+  --editorial-verdict-bg: #11100e;
+  --editorial-verdict-fg: #fffdf6;
+  --editorial-verdict-pad: var(--space-7) var(--space-6);
+  --editorial-verdict-radius: 0px;
+
+  /* Folio / registration-mark metadata — mono, tracked, uppercase, page-number discipline. */
+  --editorial-folio-font: var(--font-mono);
+  --editorial-folio-size: var(--text-xs);
+  --editorial-folio-tracking: var(--tracking-label);
+  --editorial-folio-transform: uppercase;
+  --editorial-registration-mark: "✚"; /* crop/registration tick set beside the folio */
+
+  /* Drop-cap / oversized serif initial that opens the article voice. */
+  --editorial-dropcap-font: var(--font-serif);
+  --editorial-dropcap-size: var(--text-3xl);
+  --editorial-dropcap-leading: var(--leading-display);
+  --editorial-dropcap-lines: 3;
+
+  /* Column-rule hairlines that split evidence into justified columns. */
+  --editorial-column-rule: 1px solid #b8b0a0;
+  --editorial-column-gap: var(--space-6);
 }
 ```
 

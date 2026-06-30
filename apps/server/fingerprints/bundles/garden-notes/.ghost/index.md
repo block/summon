@@ -35,6 +35,49 @@ when it helps task clarity, pacing, or emotional ease. Name what can wait as
 clearly as what should happen now. The display scale exists for warm headings, but
 generated surfaces should scale down before they take a marketing-hero posture.
 
+## Signature look & feel
+
+If you stripped every label off a Garden Notes surface and left only the shapes,
+you would still know it by these moves — they belong to this language and no other
+in the catalog:
+
+- **Warm cream note-paper, never flat white.** Every panel sits on
+  `--garden-note-paper`, a soft top-lit cream gradient that warms toward
+  `#f6f0cf` at its base, so a note reads like a page that has caught afternoon
+  light rather than a UI card. Dusted over it, `--garden-paper-texture` at
+  `--garden-paper-texture-size` leaves a faint warm grain — felt, not seen.
+- **One gentle outer lift — no card piles.** Note panels rest on a single soft
+  `--garden-note-lift`, one quiet green-tinted shadow that suggests a page set
+  down on the field. No stacked elevations, no drop-shadow theatrics; depth is a
+  whisper, and every note that matters equally lifts equally.
+- **Chlorophyll green is reserved for the one chosen next step.** The
+  `--garden-chosen-dot` radial marker, sized at `--garden-chosen-marker` and
+  haloed by `--garden-chosen-ring`, appears beside exactly one action — the
+  good-enough thing to do now. Green is a spotlight, never a coat of paint; if it
+  shows up twice, it has stopped meaning "start here."
+- **Pill state-chips are a language, not garnish.** Readiness, waiting, timing,
+  and effort ride in `--garden-chip-radius` pills built from `--garden-chip-face`,
+  `--garden-chip-ink`, `--garden-chip-edge`, and `--garden-chip-pad`. Each chip
+  names a real planning state — Ready, Needs one thing, Can wait — so a row of
+  them reads like a status sentence instead of decorative confetti.
+- **Clay accents keep warmth human.** A single warm-terracotta
+  `--garden-clay-accent` carries the rare "check first" or gentle caution note,
+  grounding the green-and-cream field with a hand-thrown, earthy tone instead of a
+  shrill alert red.
+- **Generously rounded note-panels invite, never command.** Panels round to
+  `--garden-panel-radius` (and `--garden-panel-radius-lg` for the larger plans),
+  soft enough to feel like a folded notebook corner, so the surface lowers
+  pressure by its geometry before a word is read.
+- **"Good-enough" calm is built into the spacing and the copy.** The airy rhythm
+  and the small human atoms — Now, Next, Later, Can wait, Good enough — give every
+  plan a tactile checklist warmth and a low-stakes, unhurried pulse: doable now,
+  the rest can keep.
+
+What holds the identity is restraint with the green dot, the single soft lift, and
+chips that mean something — warm cream paper pacing one calm chosen step. What
+collapses it into a generic kanban or productivity app is green everywhere, stacked
+card shadows, urgency copy, and chips worn as decoration.
+
 ## Inventory
 
 The material is a soft outdoor-notebook token system: a warm cream field, quiet
@@ -116,6 +159,23 @@ these custom properties rather than inventing values):
   --shadow-elevated: 0 28px 70px rgba(66, 99, 58, 0.22);
   --shadow-popover: 0 30px 90px rgba(66, 99, 58, 0.24);
   --shadow-modal: 0 40px 120px rgba(66, 99, 58, 0.30);
+
+  /* SIGNATURE — the moves that belong to Garden Notes alone. Reference these, do not reinvent them. */
+  --garden-note-paper: linear-gradient(180deg, #fffae6 0%, #fff8dc 62%, #f6f0cf 100%);
+  --garden-note-lift: 0 14px 34px rgba(66, 99, 58, 0.14);
+  --garden-chosen-dot: radial-gradient(circle at 50% 50%, #5aa047 0%, #4f8a3d 60%, #42633a 100%);
+  --garden-chosen-marker: 10px;
+  --garden-chosen-ring: 0 0 0 4px rgba(79, 138, 61, 0.18);
+  --garden-chip-radius: 999px;
+  --garden-chip-pad: 4px 11px;
+  --garden-chip-face: #eef4df;
+  --garden-chip-ink: #506b45;
+  --garden-chip-edge: 1px solid #c0d19b;
+  --garden-clay-accent: #b75142;
+  --garden-paper-texture: radial-gradient(circle at 18% 22%, rgba(196, 135, 53, 0.05) 0 1px, transparent 1px), radial-gradient(circle at 67% 71%, rgba(66, 99, 58, 0.04) 0 1px, transparent 1px);
+  --garden-paper-texture-size: 22px 22px;
+  --garden-panel-radius: 28px;
+  --garden-panel-radius-lg: 38px;
 }
 ```
 

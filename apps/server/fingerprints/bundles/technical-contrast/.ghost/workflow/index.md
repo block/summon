@@ -1,5 +1,5 @@
 ---
-description: The technical form/workflow surface — white form sheets with mono labels, hairline field groups, small-radius inputs, and one black primary action for configuration and setup tasks. Reach when the first question is "how do I configure or complete this?"
+description: The technical form/workflow surface — white form sheets with uppercase mono labels, hairline-bordered field groups, small-radius rectangular inputs, and one black rectangular primary action for configuration and setup tasks. Reach when the first question is "how do I configure or complete this?"
 relates:
   - to: cta-system
     as: reinforces
@@ -16,11 +16,15 @@ capacity setup — not when the job is to introduce the platform (the
 [landing](../landing)), to compare tiers (the [pricing](../pricing)), or to argue
 proof at gravity (the [proof](../proof)).
 
-**Technical form sheet.** Workflows use white form sheets with mono labels,
-hairline field groups, small-radius inputs (`--radius-md`), and one black primary
-action; show technical state near the controls it affects, and simplify any
-product-UI proof into neutral configuration state rather than copying source
-screenshots. Omit signal artwork — the form and its state should carry the page.
+**Technical form sheet.** Workflows use white form sheets
+(`--contrast-plane-sheet-bg`) with mono labels in `--contrast-eyebrow-font`, field
+groups bounded by `--contrast-edge-hairline` rather than shadow
+(`--contrast-elevation` is `none`), small-radius inputs (`--radius-md`), and one
+black primary action — a square-ish rectangle at `--contrast-cta-radius` with a
+`--contrast-cta-font` uppercase label, never a full pill. Show technical state near
+the controls it affects, and simplify any product-UI proof into neutral
+configuration state rather than copying source screenshots. Omit signal artwork —
+the form and its state should carry the page.
 
 **Code editor breakout.** A compact dark code or configuration mockup can break up
 a white form plane — midnight panel, mono-caption code, small radius, no elaborate

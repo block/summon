@@ -1,5 +1,5 @@
 ---
-description: The mono eyebrow and label system — uppercase monospace eyebrows, tabs, table headers, badges, and metadata paired with sentence-case geometric sans copy. Reach when setting the typographic voice and navigation labels.
+description: The uppercase-mono eyebrow and label system — monospace eyebrows, tabs, table headers, badges, and metadata paired with sentence-case geometric sans body copy. Reach for how type voices, labels, and navigation orient a page.
 relates:
   - to: cta-system
     as: reinforces
@@ -17,9 +17,13 @@ sentence-case and slightly tight; reserve all-caps for the mono system. Never se
 paragraphs in mono or buttons in casual body text.
 
 **Mono eyebrow system.** Uppercase monospace labels form the technical navigation
-system — eyebrows, buttons, tabs, table headers, badges, and compact metadata.
-Positive tracking (`--tracking-label`), compact sizes (`--text-xs`/`--text-sm`),
-short and parallel; labels orient, they never decorate empty chips.
+system — eyebrows, buttons, tabs, table headers, badges, and compact metadata —
+all set with the one all-caps voice: `--contrast-eyebrow-font` in
+`--contrast-eyebrow-transform` uppercase, sized at `--contrast-eyebrow-size`, with
+`--contrast-eyebrow-tracking` open spacing and `--contrast-eyebrow-weight`. The
+narrative itself stays sentence-case geometric sans — mono is the label voice,
+never a paragraph. Short and parallel; labels orient, they never decorate empty
+chips.
 
 **Segmented technical tabs.** Compact segmented tabs on a hairline rail or white
 sheet, small-radius active pills with mono labels, black fill or stronger border

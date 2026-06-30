@@ -1,5 +1,5 @@
 ---
-description: The spec surface — a performance-data story where oversized numerals, units, and hairline comparison grids prove capability. Reach when the first question is "how does this perform, and how does it compare?"
+description: The spec surface — a performance-data story where giant spec numerals, units, and hairline comparison grids prove capability with the scarce red on the decisive value. Reach for it when the first question is "how does this perform, and how does it compare?"
 relates:
   - to: spec-system
     as: reinforces
@@ -18,18 +18,20 @@ many items for transaction (the [catalog](../catalog)), to find a location (the
 [lineup](../lineup)).
 
 **Numbers as the subject.** Build the page from the [large-number spec
-system](../spec-system): oversized numerals each paired with a compact uppercase
-label and unit, aligned in grids or rows with hairline dividers, red on only one
-decisive value. Numerals must carry real performance, ranking, or comparison
-information — never decorative big type — and stay aligned with comparable
-metrics.
+system](../spec-system): oversized numerals at `--redline-spec-numeral` in modest
+`--redline-spec-numeral-weight`, each paired with a compact uppercase label and
+unit tracked at `--redline-spec-unit-tracking`, aligned in grids or rows with
+hairline dividers, `--redline-voltage` on only one decisive value. Numerals must
+carry real performance, ranking, or comparison information — never decorative big
+type — and stay aligned with comparable metrics.
 
 **Comparison reads like specification.** When comparing variants or rivals, keep
 the criteria visible and parallel across every option — the same labels for every
 alternative — so the reader compares like against like. Mark only the decisive
 value or active position in red.
 
-The numerals sit on [dark elevated plates](../depth) separated by hairlines
+The numerals sit on [dark elevated plates](../depth) raised one
+`--redline-brightness-step` above the canvas and separated by `--redline-hairline`
 rather than shadow, and a cinematic image moment can still open the page via the
 [cinematic image system](../cinematic-image) before the data tightens into the
 spec grid.

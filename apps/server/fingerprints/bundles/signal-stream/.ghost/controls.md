@@ -13,16 +13,21 @@ Controls switch modes and drive action without breaking the flat, high-voltage
 signal. Buttons are uppercase mono hazard pills (mint fill, black text, no
 shadow); inputs sit on the dark field with a 1px muted border.
 
-**Segmented stream tabs.** One saturated active pill (violet or mint) inside a
-muted segmented rail, with uppercase mono labels (Top Stories, Latest, Live…).
-The rail is full-width and tappable on mobile, and the active mode stays the only
-saturated element in the control. Mode controls are preserved on mobile even when
-the layout collapses.
+**Segmented stream tabs.** A `--signal-tab-*` segmented control — zero
+`--signal-tab-gap`, hairline `--signal-tab-border`, uppercase
+`--signal-tab-font`/`--signal-tab-transform` labels at `--signal-tab-tracking`
+(Top Stories, Latest, Live…) — where the active segment is marked by the 2px
+`--signal-tab-active-underline` in mint, not a fill swap, so modes feel toggled
+like a hardware selector. The rail is full-width and tappable on mobile, and the
+active mode stays the only saturated element in the control. Mode controls are
+preserved on mobile even when the layout collapses.
 
-**Hazard pill CTA.** A compact mint-filled pill (24px radius, black text) for the
-primary action; outline pills for secondary; explicit contrast-safe focus rings,
-no glow. One primary mint button per region — reach for border weight, position,
-or the active rail before adding more color.
+**Hazard pill CTA.** A compact mint-filled `--signal-pill-*` chip
+(`--signal-pill-radius`, `--signal-pill-padding`, `--signal-pill-border`, mono
+`--signal-pill-font` at `--signal-pill-tracking`, black text) for the primary
+action; outline pills for secondary; explicit contrast-safe focus rings, no glow.
+One primary mint button per region — reach for border weight, position, or the
+active rail before adding more color.
 
 These controls borrow the mint and violet hazard accents of the [dark
 canvas](canvas), use the [mono uppercase metadata](type-system) for their labels,

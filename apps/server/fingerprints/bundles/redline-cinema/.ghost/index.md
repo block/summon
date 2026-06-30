@@ -36,6 +36,49 @@ widgets when communicating performance. White bands are deliberate transactional
 clarity, not the default mood — return to near-black for framing, footers, and
 cinematic breaks.
 
+## Signature look & feel
+
+If you stripped every label off a Redline Cinema surface and left only the
+shapes, you would still know it by these moves — they belong to this language and
+no other in the catalog:
+
+- **The stage is a warm near-black, never a true black.** Every surface floors on
+  `--redline-canvas-warm` (`#181818`), a charcoal with a trace of warmth that
+  reads like a darkened screening room, not the dead `#000` of a terminal. The
+  warmth is what makes the photography glow rather than sit in a void.
+- **A single full-bleed cinematic frame opens the act.** One hero image runs
+  edge-to-edge at `--redline-frame-bleed` (`0px` inset) with a square
+  `--redline-frame-radius`, dropped under `--redline-frame-overlay` so the headline
+  stays legible against it. It is the drama — one image moment, not a gallery of
+  decorative cards.
+- **Race-red is voltage spent exactly once.** `--redline-voltage` (`#da291c`)
+  lights a single role per page — the primary CTA, one decisive metric, or one
+  active position — and never leaks into borders, icons, charts, or category
+  swatches. Scarcity is the whole point; the `--redline-voltage-stripe` hairline
+  appears once or not at all.
+- **One full-width red livery band cuts the page, once.** A single
+  `--redline-livery-band-h` sweep of `--redline-livery-band` slices full-width
+  across the surface as the lone dramatic interruption — a racing livery stripe,
+  never a repeated divider.
+- **Giant spec numerals carry the proof.** Performance and ranking figures display
+  at `--redline-spec-numeral` (up to 132px) in modest `--redline-spec-numeral-weight`,
+  each riding beside an uppercase unit tracked at `--redline-spec-unit-tracking`.
+  The numbers are dramatic in size, never bombastic in weight.
+- **Geometry is square and machined.** CTAs, cards, image plates, and spec cells
+  all sit at `--redline-machined-radius` (`0px`) — sharp rectangular precision that
+  signals luxury engineering; only tiny utility controls and badge pills are
+  allowed to round.
+- **Depth comes from hairlines and brightness, not shadow.** A single
+  `--redline-hairline` separates regions and an elevated plate rises exactly one
+  `--redline-brightness-step` (`#303030`) above the canvas — presence built from
+  light and 1px lines, with surface shadows held inert.
+
+The identity holds when red stays scarce, the geometry stays square, one image
+carries the emotion, and the canvas keeps its warm near-black glow. It collapses
+into generic dark SaaS the moment red becomes a palette, corners soften, and
+shadow stacks replace hairlines — or into neon cyberpunk if the red multiplies,
+glows, or borrows a real automotive mark.
+
 ## Inventory
 
 The material is a dark cinematic token system: a warm near-black canvas (never
@@ -124,6 +167,24 @@ these custom properties rather than inventing values):
   --shadow-elevated: none;
   --shadow-popover: 0 24px 70px rgba(0, 0, 0, 0.28);
   --shadow-modal: 0 40px 120px rgba(0, 0, 0, 0.38);
+
+  /* SIGNATURE — the moves that belong to Redline Cinema alone. Reference these, do not reinvent them. */
+  --redline-canvas-warm: #181818; /* warm near-black stage — never pure #000, the floor of every frame */
+  --redline-canvas-rgb: 24, 24, 24; /* for overlay/atmosphere math against the warm near-black */
+  --redline-frame-bleed: 0px; /* full-bleed cinematic image frame: image runs edge-to-edge, zero inset */
+  --redline-frame-radius: 0px; /* the image plate is square-cornered, machined, never softened */
+  --redline-frame-overlay: linear-gradient(180deg, rgba(24, 24, 24, 0) 35%, rgba(24, 24, 24, 0.82) 100%); /* legibility scrim over photography, not decorative glass */
+  --redline-voltage: #da291c; /* scarce race-red — spent exactly once per page, never bled into borders/icons */
+  --redline-voltage-hover: #b01e0a;
+  --redline-voltage-stripe: 3px; /* the single hairline-thin red accent stripe; one appearance only */
+  --redline-livery-band-h: 4px; /* the one full-width red livery band that cuts the page exactly once */
+  --redline-livery-band: linear-gradient(90deg, #da291c, #b01e0a); /* the livery band's race-red sweep */
+  --redline-spec-numeral: clamp(56px, 9vw, 132px); /* giant performance/spec numerals — oversized numeric display */
+  --redline-spec-numeral-weight: 600; /* large but modest-weight: dramatic, never bombastic */
+  --redline-spec-unit-tracking: 0.10em; /* uppercase tracked unit/label riding beside the giant numeral */
+  --redline-machined-radius: 0px; /* square machined geometry on CTAs, cards, plates, spec cells */
+  --redline-hairline: 1px solid #303030; /* depth from a single dark hairline, never a shadow stack */
+  --redline-brightness-step: #303030; /* the one brightness step a plate sits above the canvas */
 }
 ```
 

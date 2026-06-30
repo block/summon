@@ -1,5 +1,5 @@
 ---
-description: The utility surface — chrome form panels, login/recovery flows, and playful tools in platinum inset plates capped by section-label bars. Reach when the first question is "how do I enter, submit, or operate this?"
+description: The utility surface — chrome form panels with inset inputs, login/recovery flows, and playful tools in platinum beveled plates capped by uppercase section-label bars. Reach for this when the first question is "how do I enter, submit, or operate this?"
 relates:
   - to: controls
     as: reinforces
@@ -19,15 +19,17 @@ playful tool — not when the job is to announce one title (that is the
 [dashboard](../dashboard)), or to browse and find items (that is the
 [directory](../directory)).
 
-**Chrome form panels.** Forms live in platinum or white inset panels capped by
-periwinkle section-label bars, with compact hard-bordered inputs, native-select
-dropdowns, dotted dividers for notes and recovery links, signal-orange submit,
-and amber or carbon support actions. Keep inputs hard-bordered and labeled
-directly rather than by placeholder alone.
+**Chrome form panels.** Forms live in platinum or white inset panels molded by
+`--chrome-faceplate` and ringed by `--chrome-faceplate-rim`, capped by periwinkle
+section-label bars, with compact fields pressed in by `--chrome-inset-input`,
+native-select dropdowns, `--chrome-divider-dotted` seams for notes and recovery
+links, signal-orange submit, and amber or carbon support actions. Keep inputs
+hard-bordered and labeled directly rather than by placeholder alone.
 
 **Forward submit semantics.** The commit — submit, continue, log in, send — must
-read as a signal-orange fill or arrow disc; amber and carbon carry support and
-secondary actions. Orange must never be passive decoration. Pressed states are
+read as a signal-orange fill or arrow disc lit by `--chrome-led-glow`; amber and
+carbon carry support and secondary actions, with amber chips beaded by
+`--chrome-led-pip`. Orange must never be passive decoration. Pressed states are
 hard and darker, never soft or lifted.
 
 **Playful but usable.** A poll, mini-tool, or mascot signoff may join the panel

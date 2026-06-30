@@ -1,5 +1,5 @@
 ---
-description: The pricing/capacity navigation surface — a quiet left category rail paired with crisp white data sheets for cost, tier, model, and capacity comparison. Reach when the first question is "which tier or capacity should I choose, and what does it cost?"
+description: The pricing/capacity navigation surface — a quiet left category rail paired with crisp white data sheets, aligned tabular numeric columns, and mono headers for cost, tier, model, and capacity comparison. Reach when the first question is "which tier or capacity should I choose, and what does it cost?"
 relates:
   - to: data-sheets
     as: reinforces
@@ -23,9 +23,13 @@ inactive muted, hairline dividers between groups. On mobile, collapse groups int
 large plain accordions before the table.
 
 **Pricing table sheet.** Pricing, model, capacity, and capability comparisons read
-as crisp white sheets with uppercase-mono muted headers on a pale rail, geometric-
-sans body cells with aligned numeric columns, and 1px hairline separators — no
-shadows, winner badges, or decorative artwork inside the sheet. Keep shared
+as crisp white sheets (`--contrast-plane-sheet-bg`) with uppercase-mono headers in
+`--contrast-eyebrow-font` on a pale rail, geometric-sans body cells whose numbers
+stack in `--contrast-num-font` tabular figures, set `--contrast-num-align`
+right-aligned with `--contrast-num-variant` and spaced by `--contrast-num-col-gap`
+so digits line up decimal-for-decimal, and `--contrast-edge-hairline` separators
+— no shadows, winner badges, or decorative artwork inside the sheet. Reach for
+`--contrast-edge-strong` to mark the chosen option. Keep shared
 criteria visible and parallel across every option using the same criteria names;
 never make the user infer comparable facts from differently structured cards. Omit
 signal artwork entirely here — the data carries the page.

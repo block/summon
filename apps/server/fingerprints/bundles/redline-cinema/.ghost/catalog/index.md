@@ -1,5 +1,5 @@
 ---
-description: The catalog surface — dense listings, tables, filters, and forms on sharp white sheets framed by dark sections. Reach when the first question is "what is available, and how do I act on it?"
+description: The catalog surface — dense listings, tables, filters, and square-control forms on sharp sheets framed by the warm near-black canvas, with red spent once per region. Reach for it when the first question is "what is available, and how do I act on it?"
 relates:
   - to: controls
     as: reinforces
@@ -18,16 +18,18 @@ data (the [spec](../spec)), to find a location or service (the
 [lineup](../lineup)).
 
 **White is transactional relief.** Render dense listings, tables, filters, and
-forms on sharp white sheets framed by dark sections: near-black text, hairline
-dividers, red or ink rectangular CTAs. White sheets keep typography, spacing, and
-sharp geometry continuous with the dark sections and return to near-black for
-framing. Avoid pale-grey SaaS backgrounds beyond a tight table rail or subtle
-listing divider.
+forms on sharp white sheets framed by dark sections: near-black text,
+`--redline-hairline` dividers, `--redline-voltage` or ink CTAs squared at
+`--redline-machined-radius`. White sheets keep typography, spacing, and sharp
+geometry continuous with the dark sections and return to the
+`--redline-canvas-warm` near-black for framing. Avoid pale-grey SaaS backgrounds
+beyond a tight table rail or subtle listing divider.
 
-**Image-first listing card.** Listing cards carry top edge-to-edge images,
-aligned metadata, square corners, and no shadows — drawing on the [cinematic
-image system](../cinematic-image) so even dense listings feel composed. Keep cards
-in clean two-up or three-up grids rather than crowded masonry.
+**Image-first listing card.** Listing cards carry top edge-to-edge images held
+square at `--redline-frame-radius`, aligned metadata, and no shadows — drawing on
+the [cinematic image system](../cinematic-image) so even dense listings feel
+composed. Keep cards in clean two-up or three-up grids rather than crowded
+masonry.
 
 **Machined controls stay dense but calm.** Filters, inputs, and CTAs follow the
 [rectangular control system](../controls): 48px-class controls, uppercase tracked

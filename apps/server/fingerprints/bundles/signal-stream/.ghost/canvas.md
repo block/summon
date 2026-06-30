@@ -15,24 +15,30 @@ borders stay crisp against it. There are no light-mode shells unless a single
 bright tile is deliberately interrupting the dark rhythm.
 
 **Hazard accents earn attention.** Mint and violet behave like hazard markers —
-they identify the most important action, state, rail, or tile. Acid mint marks
-primary CTAs, active underlines, and one high-attention tile; electric violet
-carries secondary emphasis, promotional outlines, and rails. Saturated tile
-colors are solid editorial blocks, never gradients or pastel washes. The accent's
-job must always be legible: priority, action, state, section, or interruption,
-and no more than a few saturated accents per viewport.
+they identify the most important action, state, rail, or tile. Acid mint
+(`--signal-hazard-mint` on `--signal-hazard-mint-fg`) marks primary CTAs, active
+underlines, and one high-attention tile; electric violet
+(`--signal-hazard-violet` on `--signal-hazard-violet-fg`) carries secondary
+emphasis, promotional outlines, and rails. Always pair each hazard fill with its
+`-fg` text color so the two voltages stay legible; never invent ad-hoc accent
+hexes. Saturated tile colors are solid editorial blocks, never gradients or
+pastel washes. The accent's job must always be legible: priority, action, state,
+section, or interruption, and no more than a few saturated accents per viewport.
 
 **Saturated hazard tiles.** High-priority stories become solid saturated blocks
 on the black canvas — black text on mint/yellow/white, white text on
-violet/blue/orange/hot-pink. They are printed-on-the-field, never faded or
-gradient, and they earn their loudness by carrying the lead or the urgent item,
-not by decorating the page.
+violet/blue/orange/hot-pink. Build these from `--signal-tile-fill-mint` and
+`--signal-tile-fill-violet` (with quieter blocks on `--signal-tile-fill-flat`).
+They are printed-on-the-field, never faded or gradient, and they earn their
+loudness by carrying the lead or the urgent item, not by decorating the page.
 
 **Flat depth keeps the signal clean.** Hierarchy comes from 1px borders, inset
-rules, saturation, and contrast — never elevation shadows. Saturated fills are
-the loudest tier. Hover changes text or border color, not card lift. No soft
-shadows, glow, blur, glass, or card lift on primary editorial surfaces; a
-separation ring, if needed, is a 1px outline only.
+rules, saturation, and contrast — never elevation shadows. `--signal-tile-shadow:
+none` is a mandatory rule on this field, not an omission: saturated fills are the
+loudest tier and color does the work elevation would elsewhere. Hover changes
+text or border color, not card lift. No soft shadows, glow, blur, glass, or card
+lift on primary editorial surfaces; a separation ring, if needed, is a 1px
+`--signal-tile-border` outline only.
 
 This field is the stage for every other system: the [tiles](tiles) and saturated
 blocks sit on it, the [display shout and mono metadata](type-system) read against

@@ -1,5 +1,5 @@
 ---
-description: The scarce-red CTA and rectangular control system — square 48px-class buttons with one red fill per region, uppercase tracked labels, and machined form controls.
+description: The scarce-red CTA and machined control system — square 48px-class buttons that spend the race-red voltage once per region, uppercase tracked labels, and rectangular form controls. Reach for it when a surface needs its single decisive action and disciplined, square-geometry inputs.
 relates:
   - to: cinematic-image
     as: reinforces
@@ -12,12 +12,14 @@ relates:
 Red is voltage, not palette, and sharp precision signals luxury. The control
 system carries both rules into every button, label, and input.
 
-**Scarce red CTA cluster.** 48px-class rectangular buttons with square corners,
-uppercase tracked labels, one red fill primary per region, and outline, white, or
-text secondaries. Copy stays short and commanding — Explore, Reserve, Configure,
-Compare, View details. Keep surrounding surfaces near-black, white, and grey so
-the single red fill stays high-voltage; never let red spread to borders, icons,
-or category chrome until it loses voltage.
+**Scarce red CTA cluster.** 48px-class rectangular buttons squared at
+`--redline-machined-radius` (0px), uppercase tracked labels, one `--redline-voltage`
+fill primary per region that darkens to `--redline-voltage-hover` on interaction,
+and outline, white, or text secondaries. Copy stays short and commanding —
+Explore, Reserve, Configure, Compare, View details. Keep surrounding surfaces
+near-black, white, and grey so the single `--redline-voltage` fill stays
+high-voltage; never let red spread to borders, icons, or category chrome until it
+loses voltage.
 
 **Restrained uppercase labels.** Nav items, CTAs, badges, and section labels are
 uppercase with generous tracking; body copy stays small, calm, and editorial.
@@ -26,8 +28,9 @@ tracking, but weight stays modest and never competes with the image. Use
 substitute sans fonts only.
 
 **Rectangular form-and-control system.** 48px-class inputs and buttons, a tiny
-4px radius for inputs only where usability requires it (CTAs stay square),
-hairline borders, high-contrast text, and disciplined filter rows that stack
+4px radius for inputs only where usability requires it (CTAs hold
+`--redline-machined-radius` and stay square), borders drawn from
+`--redline-hairline`, high-contrast text, and disciplined filter rows that stack
 cleanly on mobile. Badge pills are the only rounded geometry — never the primary
 CTA shape.
 
