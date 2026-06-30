@@ -80,7 +80,7 @@ export interface SurfaceGenerationInput {
   /**
    * Optional provenance for the inferred surface goal. Affects only how firmly
    * the surface-contract prompt voices the `purpose` hint — never the
-   * capability boundaries. Supplied by the agent broker path; omitted for
+   * capability boundaries. Supplied by the agent ward path; omitted for
    * host-authored policies (hint then voiced at the conservative default
    * firmness).
    */

@@ -28,7 +28,7 @@ import type { Mode } from '../../../showcase.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
 import { reduceSurfacePreviewSnapshot } from '../generationPreview.js';
 import {
-  agentBrokerRequestFor,
+  agentWardRequestFor,
   agentGoalText,
   agentPolicyText,
   missingArtifactMessage,
@@ -144,11 +144,11 @@ export function useSurfaceStream({
       return;
     }
     if (line.op === 'meta' && line.path === '/playground-mode') {
-      const value = line.value as { validation?: unknown; broker?: unknown; repairs?: unknown; repairIssueCodes?: unknown } | undefined;
+      const value = line.value as { validation?: unknown; ward?: unknown; repairs?: unknown; repairIssueCodes?: unknown } | undefined;
       const repairCodes = Array.isArray(value?.repairIssueCodes)
         ? value.repairIssueCodes.filter((code): code is string => typeof code === 'string')
         : [];
-      logLine('op-meta', `playground -> validation=${String(value?.validation ?? 'observe')}; broker=${String(value?.broker ?? 'off')}; repairs=${String(value?.repairs ?? 0)}${repairCodes.length ? `; repairCodes=${repairCodes.join(',')}` : ''}`);
+      logLine('op-meta', `playground -> validation=${String(value?.validation ?? 'observe')}; ward=${String(value?.ward ?? 'off')}; repairs=${String(value?.repairs ?? 0)}${repairCodes.length ? `; repairCodes=${repairCodes.join(',')}` : ''}`);
       return;
     }
     if (line.op === 'meta' && line.path === '/validation-observed') {
@@ -366,7 +366,7 @@ export function useSurfaceStream({
     const active = opts.active;
     const toolPack = toolPackFor(active);
     const surfaceRequest = opts.playgroundMode ? {} : surfaceRequestFor(active);
-    const agent = opts.playgroundMode ? undefined : agentBrokerRequestFor(active);
+    const agent = opts.playgroundMode ? undefined : agentWardRequestFor(active);
     const streamStartedAt = performance.now();
     const metrics = createRunMetricsAccumulator(opts.experimentalRuntime);
     const elapsedSinceStart = () => performance.now() - streamStartedAt;

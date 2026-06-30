@@ -20,7 +20,7 @@ All the receipt's data is ALREADY emitted during a generation, scattered across
 | `/run-metrics` | runtime, repairs, blocked, validationCount, safetyViolations | what-happened (generation) |
 | `/validation-blocked` `/validation-observed` | per-issue detail | what-happened (validation) |
 | `/timing` | phase timings | what-happened (perf) |
-| `/agent-goal` `/agent-policy-resolution` | broker plan | spec-in (capability) |
+| `/agent-goal` `/agent-policy-resolution` | ward plan | spec-in (capability) |
 
 `GhostReviewPacket` is already ~80% of the receipt. Step 6 is: **define the
 canonical receipt shape, fold conformance + the missing provenance into it, and

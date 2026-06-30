@@ -122,8 +122,8 @@ export function toolPackFor(active: ActiveContract): ToolPack {
   return narrowToolPack(baseToolPack, active.toolNames);
 }
 
-export function agentBrokerRequestFor(active: ActiveContract): { enabled: true } | undefined {
-  return active.agentBroker ? { enabled: true } : undefined;
+export function agentWardRequestFor(active: ActiveContract): { enabled: true } | undefined {
+  return active.agentWard ? { enabled: true } : undefined;
 }
 
 export function explicitSurfaceRequestFor(active: ActiveContract): Pick<StreamOptionsPayload, 'surfacePolicy'> {
@@ -132,7 +132,7 @@ export function explicitSurfaceRequestFor(active: ActiveContract): Pick<StreamOp
 }
 
 export function surfaceRequestFor(active: ActiveContract): StreamOptionsPayload {
-  const agent = agentBrokerRequestFor(active);
+  const agent = agentWardRequestFor(active);
   if (agent) return {};
   return explicitSurfaceRequestFor(active);
 }
@@ -296,7 +296,7 @@ export function agentPolicyText(value: unknown): string {
   const policy = item.surfacePolicy && typeof item.surfacePolicy === 'object'
     ? item.surfacePolicy as Record<string, unknown>
     : null;
-  const source = typeof item.source === 'string' ? item.source : 'broker';
+  const source = typeof item.source === 'string' ? item.source : 'ward';
   const goalSource = typeof item.goalSource === 'string' ? item.goalSource : '';
   const tier = typeof policy?.tier === 'string' ? policy.tier : 'policy';
   const purpose = typeof policy?.purpose === 'string' ? policy.purpose : 'inform';
@@ -329,7 +329,7 @@ export function buildContractRows({
   currentValidationSummary: string | null;
 }) {
   const requested = active.surfacePlan;
-  const broker = active.agentBroker
+  const ward = active.agentWard
     ? currentAgentPolicySummary ?? currentAgentGoalSummary ?? 'planning on run'
     : scenarioUsesFixedPolicy(selectedScenario)
       ? 'fixed policy'
@@ -358,8 +358,8 @@ export function buildContractRows({
   return [
     ['provider', 'Model provider', provider ? `${provider.name} · ${selectedModel}` : 'server default', provider ? 'neutral' : 'pending'],
     ['utility', 'Utility model', selectedUtility, provider ? 'neutral' : 'pending'],
-    ['broker', 'Agent broker', broker, active.agentBroker ? currentAgentPolicySummary ? 'good' : 'neutral' : 'pending'],
-    ['requested', 'Requested surface config', active.agentBroker ? 'brokered from prompt' : planText(requested), 'neutral'],
+    ['ward', 'Agent ward', ward, active.agentWard ? currentAgentPolicySummary ? 'good' : 'neutral' : 'pending'],
+    ['requested', 'Requested surface config', active.agentWard ? 'warded from prompt' : planText(requested), 'neutral'],
     ['effective', 'Effective safety plan', effective, effectivePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${toolCount}: ${hostTools}`, toolCount ? 'neutral' : 'pending'],
     ['visuals', 'Generated visuals', runtimeTargetText(active.experimentalRuntime), effectivePlan ? 'good' : 'pending'],

@@ -31,7 +31,7 @@ export type SurfaceGoalSideEffect =
   | 'external-action'
   | 'approval-required';
 // `SurfaceGoalSource` is defined in the engine (its canonical home, since the
-// surface-contract block consumes it) and re-exported here for broker callers.
+// surface-contract block consumes it) and re-exported here for ward callers.
 export type { SurfaceGoalSource };
 
 export interface SurfaceGoal {

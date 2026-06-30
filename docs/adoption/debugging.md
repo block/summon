@@ -120,8 +120,8 @@ stays blank:
 
 | Path | Meaning |
 | --- | --- |
-| `/agent-goal` | Broker-advisory goal inferred from the prompt before host policy narrowing. |
-| `/agent-policy-resolution` | Brokered proposed/effective surface config, host policy source, goal source, and rejected tools. |
+| `/agent-goal` | Ward-advisory goal inferred from the prompt before host policy narrowing. |
+| `/agent-policy-resolution` | Warded proposed/effective surface config, host policy source, goal source, and rejected tools. |
 | `/surface-policy` | Host-owned public surface config selected for this run. |
 | `/surface-plan` | Host-owned compiled safety plan selected for this run. |
 | `/surface-contract` | Host-owned compact view of the selected policy, narrowed tools/resources, optional layout, and compile issues. |

@@ -1,18 +1,18 @@
-# Plan: separate the broker's capability clamp from its intent guess
+# Plan: separate the ward's capability clamp from its intent guess
 
-> The agent broker was built to *parse intent and be dynamic about what's best*.
+> The agent ward was built to *parse intent and be dynamic about what's best*.
 > In practice its default path is a regex keyword classifier, and its output
 > (`purpose`, `data`, `authority`) is injected verbatim into the generation
 > model's system prompt via `buildSurfacePlanBlock`. That means a low-confidence
 > intent guess and a hard, sandbox-enforced security fact reach the model in the
 > same authoritative voice — so a misread regex becomes a false instruction the
-> model obeys. This plan splits those two concerns cleanly: keep the broker as a
+> model obeys. This plan splits those two concerns cleanly: keep the ward as a
 > deterministic **capability clamp**, and stop it from **wrongfully steering**
 > the model with intent it only guessed at.
 
 ## Current state
 
-- `packages/server/src/agent-broker.ts` does two jobs in one pass:
+- `packages/server/src/agent-ward.ts` does two jobs in one pass:
   1. **Capability authorization** — `policyFromGoal` + `narrowSurfacePolicy`
      pick a tier and clamp grants against the tool ceiling. This is correct:
      14/14 demo scenarios match the human-authored tier, never over-grants,
@@ -21,7 +21,7 @@
      (`APPROVAL_RE`, `SEARCH_RE`, `FORM_RE`, …) and `inferPurpose`. The model
      classifier path exists but is **off unless `SUMMON_AGENT_GOAL_MODEL` is
      set**, so the regex is the default.
-- The broker's plan flows into the model prompt at
+- The ward's plan flows into the model prompt at
   `packages/engine/src/contracts.ts:369` → `buildSurfacePlanBlock`.
 - **Already shipped (step 0, done):** `buildSurfacePlanBlock` re-voiced so
   capability fields read as hard constraints and `purpose` reads as a soft,
@@ -30,7 +30,7 @@
   without touching the security model.
 - **Ghost overlap:** `selectGhostSurface` (apps/server/src/ghost-adapter.ts)
   already parses the same prompt semantically and explicitly *"does no NLP in
-  code; Summon does not re-implement that matching in code."* The broker's regex
+  code; Summon does not re-implement that matching in code."* The ward's regex
   path is exactly the thing Ghost's design refuses to do. Two parsers, opposite
   philosophies, same pipeline.
 
@@ -50,8 +50,8 @@
 - **Not** handing capability/authority decisions to a model. Approval-gating,
   worker access, and network grants stay deterministic, host-owned, fail-closed.
   That conservatism is correct and stays.
-- **Not** deleting the broker. The clamp is load-bearing and proven.
-- **Not** merging broker and Ghost. The boundary ("broker = authority, Ghost =
+- **Not** deleting the ward. The clamp is load-bearing and proven.
+- **Not** merging ward and Ghost. The boundary ("ward = authority, Ghost =
   composition") is good; we only make the *intent half* follow Ghost's
   no-NLP-in-code discipline instead of contradicting it.
 
@@ -59,7 +59,7 @@
 
 ### Step 1 — Next-legal-tier fallback (replace the static cliff) — DONE
 
-`narrowSurfacePolicy` in `packages/server/src/agent-broker.ts`: when the
+`narrowSurfacePolicy` in `packages/server/src/agent-ward.ts`: when the
 proposed tier can't be satisfied by the available tools, it now falls back to
 `declarative` with the legal (host-action/read) subset of tools instead of
 collapsing to `static`. Only collapses to `static` when there are genuinely no
@@ -77,24 +77,24 @@ that is legal at `declarative` is no longer falsely reported as rejected.
   `fallback=true`, `rejected=[]` — previously dead `static` surfaces.
 - "publish" with no usable tool still resolves to `static` (correct).
 - All 14 demo scenarios unchanged (tier-for-tier match with authored policy).
-- New regression test added; `agent-broker.test.ts` 11/11, server pkg 47/47,
+- New regression test added; `agent-ward.test.ts` 11/11, server pkg 47/47,
   `apps/server` 26/26 green.
 
 ### Step 2 — Make intent inference semantic, regex as fallback
 
 > **Key fact:** the semantic classifier already exists. `inferGoalWithModel` +
-> `buildGoalClassifierPrompt` (agent-broker.ts) hand the model the tool catalog
+> `buildGoalClassifierPrompt` (agent-ward.ts) hand the model the tool catalog
 > (each line already carries `data=`/`authority=`/`kind=` metadata) and parse a
 > bounded goal JSON. It is just **gated off by default** — `main.ts` only passes
 > `goalModel` when `SUMMON_AGENT_GOAL_MODEL !== '0'` AND the host didn't disable
 > it, but the *intent* of the env var today reads as opt-in. Compare Ghost
 > surface-select, which is **default-on** (`SUMMON_GHOST_SURFACE_SELECT=0` to
-> disable). Step 2 flips the broker to match Ghost's posture, hardens the
+> disable). Step 2 flips the ward to match Ghost's posture, hardens the
 > semantic path, and removes the redundant second model pass.
 
 #### Current state of the two passes
 
-| | broker goal (`inferGoalWithModel`) | Ghost (`selectGhostSurface`) |
+| | ward goal (`inferGoalWithModel`) | Ghost (`selectGhostSurface`) |
 |---|---|---|
 | input to model | tool catalog + `data`/`authority` per tool | surface menu (id + description) |
 | default | effectively opt-in via `SUMMON_AGENT_GOAL_MODEL` | **default-on**, `…SELECT=0` disables |
@@ -129,29 +129,29 @@ model," not a toggle. Renamed to `SUMMON_AGENT_GOAL_SELECT` (parallels
 survives the clamp intact (`grants: [choose, counter]`, tier `declarative`,
 `fallback=false`). The regex `singleCandidate` guard only affects the
 deterministic path, which remains the fallback. Regression test added
-(`agent-broker.test.ts` 12/12). No logic change needed.
+(`agent-ward.test.ts` 12/12). No logic change needed.
 
 #### 2C. Unify the two model passes into one intent resolution — DONE (Option B: parallel)
 
-**Correction from code review (revises Q2):** "broker owns the single pass"
-(option i) is **not viable**. The broker lives in `packages/server`, the
+**Correction from code review (revises Q2):** "ward owns the single pass"
+(option i) is **not viable**. The ward lives in `packages/server`, the
 published *provider-neutral* package, and is deliberately **Ghost-agnostic**
-(Ghost lives app-side in `apps/server/src/ghost-adapter.ts`). The broker cannot
+(Ghost lives app-side in `apps/server/src/ghost-adapter.ts`). The ward cannot
 own Ghost anchor selection without leaking Ghost into a neutral package. The two
-passes also ask different questions — broker: *which tools/purpose*; Ghost:
+passes also ask different questions — ward: *which tools/purpose*; Ghost:
 *which surface node* — so neither derives from the other.
 
 **Revised approach — shared pre-pass in `main.ts` (option ii):**
 - Add **one** combined classifier call in `main.ts` (app layer, where both Ghost
-  and the broker are visible) that reads the prompt once and returns both
+  and the ward are visible) that reads the prompt once and returns both
   projections: a `SurfaceGoal` and a Ghost anchor id.
-- Feed the parsed `goal` into `planAgentSurface({ goal })` (the broker already
+- Feed the parsed `goal` into `planAgentSurface({ goal })` (the ward already
   accepts a pre-supplied goal and reports `goalSource: 'provided'`), so the
-  broker skips its own model call.
+  ward skips its own model call.
 - Feed the chosen anchor into `prepareGhostSurfacePrompt` (extend it to accept a
   pre-selected surface and skip `selectGhostSurface`'s model call when supplied).
 - Must preserve: Ghost's single-`core` skip (no call when only `core`), the
-  broker's no-tools skip, both timeouts, and the existing disable flags.
+  ward's no-tools skip, both timeouts, and the existing disable flags.
 - **Sequencing risk:** the combined call needs the tool catalog (for goal) and
   the Ghost gather menu (for anchor). Both are available in `main.ts` before
   L462. If a single combined prompt is too coupled, the acceptable fallback is
@@ -163,13 +163,13 @@ passes also ask different questions — broker: *which tools/purpose*; Ghost:
 (independently tunable, distinct failure modes/timeouts) but removed the
 *sequential* coupling.
 - `main.ts` now kicks off `selectGhostSurface` **before** the policy branch, so
-  the Ghost anchor model call runs concurrently with the broker's goal model
+  the Ghost anchor model call runs concurrently with the ward's goal model
   call instead of after it. The ghost block awaits the pre-resolved anchor.
 - `prepareGhostSurfacePrompt` gained a `preselectedSurface` option: when set it
   skips its own `selectGhostSurface` call and uses the anchor directly, validated
   against the graph menu (`validatePreselectedSurface`), falling back to `core`
   for an unknown id — same contract as fresh selection.
-- Layering preserved: the broker stays Ghost-agnostic in `packages/server`; the
+- Layering preserved: the ward stays Ghost-agnostic in `packages/server`; the
   app layer (`main.ts`) orchestrates both. No combined/coupled prompt.
 - Gate matches the prior behavior exactly (`!!ghostContext &&
   SUMMON_GHOST_SURFACE_SELECT !== '0'`); selection skipped → anchor `core`, no
@@ -194,14 +194,14 @@ provenance. No inferred field becomes a hard constraint regardless of source.
   scenarios; no demo tier changes.
 - With the model disabled, behavior is exactly today's regex path.
 - Tests: multi-tool model goal survives the clamp; unified pass calls the model
-  once; Ghost `core`-only and broker no-tools skips still hold; broker + server
+  once; Ghost `core`-only and ward no-tools skips still hold; ward + server
   suites green; stress/demo probes rerun and recorded.
 
 ### Step 3 — Confidence-aware prompt voicing — DONE
 
 **Critical correction from code review:** Step 0 re-voiced `buildSurfacePlanBlock`,
 but that block is **almost never rendered**. In `session.ts`, whenever a
-`surfacePolicy` is set (always true on the broker path), a `surfaceContract` is
+`surfacePolicy` is set (always true on the ward path), a `surfaceContract` is
 built and `compileSystemContracts` renders **`buildSurfaceContractBlock`
 instead** of `buildSurfacePlanBlock`. The live block is the *surface contract*,
 and it was still voicing `purpose` **twice** (Policy line + Plan line) as
@@ -245,7 +245,7 @@ Shipped:
 - Intent inference is semantic when a model is present, regex only as fallback,
   and shares one pass with Ghost surface selection.
 - No inferred field is ever phrased to the model as a host-enforced constraint.
-- Engine + server test suites green; broker/stress probes rerun and recorded.
+- Engine + server test suites green; ward/stress probes rerun and recorded.
 
 ## Step 4 — Consolidation + aggressive collapse to one surface block — DONE
 
@@ -253,9 +253,9 @@ Final pass to remove terminology sprawl and redundant shape (pre-1.0, breaking
 changes acceptable).
 
 - **Deduped the source enum.** `'deterministic' | 'model' | 'provided'` was
-  declared twice (broker `SurfaceGoalSource` + inline in the engine). Canonical
+  declared twice (ward `SurfaceGoalSource` + inline in the engine). Canonical
   `SurfaceGoalSource` now lives in the engine (`surface-contract.ts`), consumed
-  by `SurfaceIntentProvenance`; the broker re-exports it. One definition,
+  by `SurfaceIntentProvenance`; the ward re-exports it. One definition,
   dependency arrow respected (server → engine).
 - **Collapsed two surface blocks into one (breaking).** `buildSurfacePlanBlock`
   and the `surfacePlan` input to `compileSystemContracts` were a redundant second
@@ -279,7 +279,7 @@ typechecks clean; public `@anarchitecture/summon` bundle rebuilt with
 
 ## Step 5 — Terminology unification (goal, not intent) — DONE
 
-Final cosmetic pass to collapse the `goal`/`intent` synonym split. The broker's
+Final cosmetic pass to collapse the `goal`/`intent` synonym split. The ward's
 established domain term is **goal** (`SurfaceGoal`, `goalSource`); `intent` was a
 newcomer I introduced for the same concept. Eliminated it:
 
@@ -303,10 +303,10 @@ lingering `intent` references in `src`.
    **Resolved:** drop to `declarative` with the legal host-action subset.
    Host-action is host-owned and schema-validated, so it is safe; failing to
    `read`-only would needlessly strip working interactivity. Shipped in Step 1.
-2. (Step 2, Q2) Unification: should the single intent pass live in the broker
+2. (Step 2, Q2) Unification: should the single intent pass live in the ward
    (and Ghost consumes the parsed goal) or in a shared `main.ts` pre-pass both
-   consume? Timing (broker ~L462, ghost prepare ~L488) allows either. Leaning
-   (i) broker-owns, since the broker already runs first and Ghost prepare
+   consume? Timing (ward ~L462, ghost prepare ~L488) allows either. Leaning
+   (i) ward-owns, since the ward already runs first and Ghost prepare
    already receives `surfacePlan`/`tools` — passing the goal alongside is a
    small surface change. Confirm before executing 2C.
 3. (Step 2, Q3) Keep `SUMMON_AGENT_GOAL_MODEL` as the flag name, or rename to a

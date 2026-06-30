@@ -41,7 +41,7 @@ const maxInteractiveTiles = 8;
 const maxStaticTiles = 12;
 
 function summarizeAgentMeta(value: unknown): string {
-  if (!value || typeof value !== 'object') return 'agent broker';
+  if (!value || typeof value !== 'object') return 'agent ward';
   const item = value as Record<string, unknown>;
   const policy = item.surfacePolicy && typeof item.surfacePolicy === 'object'
     ? item.surfacePolicy as Record<string, unknown>

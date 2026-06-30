@@ -89,7 +89,7 @@ if (!defaultModelProvider.configured) {
 const ghostRoots = parseGhostRoots(process.env.SUMMON_GHOST_ROOTS);
 const fingerprintCatalog = loadFingerprintCatalog();
 
-// Playground is a dev-only convenience (relaxed validation, no agent broker),
+// Playground is a dev-only convenience (relaxed validation, no agent ward),
 // NOT part of the governed generation path. It is enabled by default for local
 // dev but can be fenced off with SUMMON_ENABLE_PLAYGROUND=0 (e.g. in any hosted
 // or governed deployment), in which case `playground: true` requests fall back
@@ -417,12 +417,12 @@ app.post('/api/generate', async (req, res) => {
     let agentPlan: AgentSurfacePlanResult | null = null;
     let generationSurfacePolicy: SurfacePolicy | null = null;
 
-    // Ghost surface selection and the agent broker both read the user prompt
+    // Ghost surface selection and the agent ward both read the user prompt
     // with the same utility model, but ask different questions (anchor node vs
-    // tools/purpose) and live in different layers (Ghost is app-side; the broker
+    // tools/purpose) and live in different layers (Ghost is app-side; the ward
     // is the provider-neutral package). Rather than run them sequentially, kick
     // off Ghost selection here so it runs concurrently with the policy branch's
-    // broker call; the ghost block below awaits the pre-resolved anchor. Skipped
+    // ward call; the ghost block below awaits the pre-resolved anchor. Skipped
     // (left null → adapter anchors at `core`) when there is no Ghost context or
     // surface selection is disabled — matching the prior gate exactly.
     const ghostSurfaceSelectEnabled =
@@ -504,7 +504,7 @@ app.post('/api/generate', async (req, res) => {
       writeGeneratePhase(res, seedLines, 'contract', 'Preparing Ghost surface brief');
       const startedAt = performance.now();
       // Surface selection was kicked off before the policy branch so it ran
-      // concurrently with the broker's model call. Await the pre-resolved anchor
+      // concurrently with the ward's model call. Await the pre-resolved anchor
       // and hand it in; prepareGhostSurfacePrompt skips its own selection call
       // when `preselectedSurface` is set. When selection was disabled the
       // promise resolves to null → adapter anchors at `core` (no model call).
@@ -566,7 +566,7 @@ app.post('/api/generate', async (req, res) => {
         value: {
           enabled: true,
           validation: 'observe',
-          broker: 'off',
+          ward: 'off',
           repairs: 1,
           repairIssueCodes: playgroundRepairIssueCodes,
         },
@@ -622,7 +622,7 @@ app.post('/api/generate', async (req, res) => {
             : pack,
         surfacePolicy: generationSurfacePolicy,
         // Goal provenance scales how firmly the surface-contract prompt voices
-        // the `purpose` hint (never the capability boundaries). Only the broker
+        // the `purpose` hint (never the capability boundaries). Only the ward
         // path infers a goal; host-authored policies leave this undefined so the
         // hint is voiced at the conservative default firmness.
         ...(agentPlan

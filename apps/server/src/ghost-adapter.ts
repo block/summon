@@ -106,7 +106,7 @@ export interface GhostSurfacePromptOptions {
    * Pre-selected anchor surface id. When provided, `prepareGhostSurfacePrompt`
    * skips its own `selectGhostSurface` model call and uses this anchor directly.
    * The caller is responsible for having resolved it via `selectGhostSurface`
-   * (e.g. running it concurrently with the agent broker to avoid a second
+   * (e.g. running it concurrently with the agent ward to avoid a second
    * sequential model round-trip). Falls back to `completeText`-driven selection
    * when omitted.
    */
@@ -348,7 +348,7 @@ export async function prepareGhostSurfacePrompt(
   // gather menu) and optional — without a `completeText` it stays at `core`.
   let resolved = context;
   // Use a pre-resolved anchor when the caller already ran selection (e.g.
-  // concurrently with the agent broker). Validate it against the graph menu and
+  // concurrently with the agent ward). Validate it against the graph menu and
   // fall back to `core` for an unknown id, matching selectGhostSurface's
   // contract (which also accepts `core` and rejects out-of-menu answers).
   const chosen = options.preselectedSurface !== undefined
@@ -639,7 +639,7 @@ function buildSummonFingerprintSurfaceBrief(
     '- The final artifact must include a composed outer shell, not unframed content. Avoid generic header-plus-card-grid layouts unless the fingerprint explicitly calls for that pattern.',
     '- Use Ghost-provided tokens, aliases, renderable primitives, and fingerprint examples as the visual source of truth. You may define local CSS variables that alias or compose Ghost tokens and use advanced safe CSS layout, transitions, transforms, inline SVG, and typographic tuning when fingerprint-compatible.',
     '- Do not invent unrelated colors, fonts, shadows, gradients, radii, or decorative motifs. Do not import external stylesheets, fonts, images, scripts, or URLs.',
-    '- The agent broker controls host authority and tools. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
+    '- The agent ward controls host authority and tools. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
     '- Treat checks as validation constraints, not as content to render.',
   ].join('\n');
 }

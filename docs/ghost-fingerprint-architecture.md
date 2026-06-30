@@ -2,7 +2,7 @@
 
 Summon treats a Ghost fingerprint as a portable product design direction
 package. It is not a Summon visual direction, not a registry of Ghost UI
-components, and not an agent-broker policy source.
+components, and not an agent-ward policy source.
 
 ## Boundary
 
@@ -62,9 +62,9 @@ Summon does not run heavyweight Ghost-fidelity validation in the generation hot
 path, package validation, review packets, and offline visual checks are the
 right places to catch product/design drift.
 
-## Agent Broker
+## Agent Ward
 
-The agent broker is not the owner of the fingerprint. It may use fingerprint
+The agent ward is not the owner of the fingerprint. It may use fingerprint
 context as a signal in the future, but its job is still to decide what host
 authority is allowed. The fingerprint answers a different question: what should
 this surface feel, prioritize, compose, and avoid for this product context?

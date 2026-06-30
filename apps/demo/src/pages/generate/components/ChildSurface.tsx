@@ -64,7 +64,7 @@ export function ChildSurface({
             }) ?? {}),
             ...child.modelSelection,
             tools: contract.pack,
-            ...(child.agentBroker
+            ...(child.agentWard
               ? { agent: { enabled: true } }
               : { surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: childToolNames } }),
           }),

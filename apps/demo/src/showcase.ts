@@ -26,7 +26,7 @@ export interface ActiveContract {
   prompt: string;
   mode: Mode;
   toolNames: string[];
-  agentBroker?: boolean;
+  agentWard?: boolean;
   surfacePolicy?: SurfacePolicy;
   surfacePlan: SurfacePlan;
   layoutId?: string;

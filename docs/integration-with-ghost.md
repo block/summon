@@ -146,9 +146,9 @@ Ordered, each independently shippable:
   ```css blocks from *every* node in the gathered slice and merges them in
   corridor/provenance order (ancestors → own → edge). A surface node can thus
   override a base token; no single "canonical" visual node is required.
-- **Surface naming → extend the agent broker.** Summon names the node (Ghost
+- **Surface naming → extend the agent ward.** Summon names the node (Ghost
   does not infer it). Feed `buildGraphMenu(graph)` (each node's `id` +
-  `description`) to the existing broker, which already classifies prompt intent;
+  `description`) to the existing ward, which already classifies prompt intent;
   it selects the best-matching node id exactly as it selects a tool from a tool
   list. Fall back to `core` (true everywhere) when no node matches confidently.
 - **Sample bundles → author fresh node-model fixtures.** Re-author the existing

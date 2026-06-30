@@ -189,7 +189,7 @@ emits server-owned preview/artifact/diagnostic lines, and returns a replay
 summary.
 
 For agent-driven hosts, use `runAgentSurfaceGeneration(input, emit)` when the
-end user should not choose Summon-specific configs. The broker converts the
+end user should not choose Summon-specific configs. The ward converts the
 prompt to an advisory `SurfaceGoal`, proposes a `SurfacePolicy`, narrows it
 through host-owned policy, then calls the same `runSurfaceGeneration()`
 lifecycle.

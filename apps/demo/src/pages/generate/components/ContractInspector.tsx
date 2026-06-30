@@ -70,8 +70,8 @@ export function ContractInspector({
   setLayoutId,
   mode,
   setMode,
-  agentBrokerEnabled,
-  setAgentBrokerEnabled,
+  agentWardEnabled,
+  setAgentWardEnabled,
   customContractEnabled,
   setCustomContractEnabled,
   selectedScenario,
@@ -116,8 +116,8 @@ export function ContractInspector({
   setLayoutId: (value: string) => void;
   mode: Mode;
   setMode: (value: Mode) => void;
-  agentBrokerEnabled: boolean;
-  setAgentBrokerEnabled: (value: boolean) => void;
+  agentWardEnabled: boolean;
+  setAgentWardEnabled: (value: boolean) => void;
   customContractEnabled: boolean;
   setCustomContractEnabled: (value: boolean) => void;
   selectedScenario: ShowcaseScenario;
@@ -172,7 +172,7 @@ export function ContractInspector({
       <section className={cn('grid gap-3', !playgroundMode && 'border-t border-line pt-5')} aria-label="Run settings">
         <div className="rounded-card border border-good/30 bg-good/10 p-3 text-xs text-ink-soft" hidden={!playgroundMode}>
           <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-good">Diagnostic mode</div>
-          <p className="mt-1 leading-snug">Best-effort Ghost-steered rendering. Broker, shape inference, repair loops, and validation gates are off; diagnostics still stream.</p>
+          <p className="mt-1 leading-snug">Best-effort Ghost-steered rendering. Ward, shape inference, repair loops, and validation gates are off; diagnostics still stream.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className={toggleClassName} title="Render best-effort Arrow surfaces with validation as diagnostics only">
@@ -227,7 +227,7 @@ export function ContractInspector({
           </label>
           <label className="min-w-0" hidden={playgroundMode}>
             <span className={fieldLabelClass}>Utility model</span>
-            <select id="utility-model" className={selectClassName} title="Utility model used for broker, policy, and host helper calls" value={utilityModel} disabled={!selectedProvider} onChange={(event) => setUtilityModel(event.target.value)}>
+            <select id="utility-model" className={selectClassName} title="Utility model used for ward, policy, and host helper calls" value={utilityModel} disabled={!selectedProvider} onChange={(event) => setUtilityModel(event.target.value)}>
               {utilityModels.map((model) => (
                 <option key={model.id} value={model.id}>{model.label} · {model.tier}</option>
               ))}
@@ -311,8 +311,8 @@ export function ContractInspector({
             <label><input type="radio" name="mode" value="interactive" checked={mode === 'interactive'} onChange={() => setMode('interactive')} /><span>Interactive</span></label>
           </ModeGroup>
           <label className={toggleClassName} title="Infer surface policy from the prompt within host ceilings">
-            <input id="agent-broker-enabled" type="checkbox" checked={agentBrokerEnabled} disabled={playgroundMode || customContractEnabled || scenarioUsesFixedPolicy(selectedScenario)} onChange={(event) => setAgentBrokerEnabled(event.target.checked)} />
-            <span>Agent broker</span>
+            <input id="agent-ward-enabled" type="checkbox" checked={agentWardEnabled} disabled={playgroundMode || customContractEnabled || scenarioUsesFixedPolicy(selectedScenario)} onChange={(event) => setAgentWardEnabled(event.target.checked)} />
+            <span>Agent ward</span>
           </label>
         </div>
 

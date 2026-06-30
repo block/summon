@@ -26,24 +26,24 @@ bake in `core`, because real multi-surface fingerprints (and the root
 **Decision needed: where does surface selection happen?**
 
 Timing in `main.ts`: ghost context resolves at ~L357 (early, before the prompt
-is classified), the broker plans at ~L461, and `prepareGhostSurfacePrompt` runs
+is classified), the ward plans at ~L461, and `prepareGhostSurfacePrompt` runs
 at ~L488 (both prompt + graph available). So selection can happen at prepare-time.
 
 Options:
-- **(A) Selection at prepare-time, broker-driven.** The broker already classifies
+- **(A) Selection at prepare-time, ward-driven.** The ward already classifies
   the prompt into a `SurfaceGoal`. Extend it (or add a small sibling) to also pick
   a node id from `buildGraphMenu(graph)` (id + description — the retrieval payload
   Ghost designed for exactly this). Re-gather the slice for the chosen surface
   inside `prepareGhostSurfacePrompt` (it has `context.graph`).
 - **(B) Selection at resolve-time.** Pass the prompt into
   `resolve*GhostGenerationContext` and select there. Cleaner data flow but the
-  resolve fns currently don't take the prompt, and the broker hasn't run yet.
+  resolve fns currently don't take the prompt, and the ward hasn't run yet.
 
 **Recommendation: (A) but minimal for now.** Since every current fixture is
 single-`core`, implement the *seam* (a `selectSurface(graph, prompt)` that returns
 a node id, defaulting to `core`) and wire it at prepare-time, but keep the actual
 selection logic trivial (return `core` when the menu has one real node; use the
-broker/menu match only when there are multiple). This avoids over-building against
+ward/menu match only when there are multiple). This avoids over-building against
 fixtures that can't exercise multi-surface, while removing the hardcode and
 leaving a real extension point. **Do NOT build a heavyweight LLM surface
 classifier now** — wrong cost/benefit until multi-surface fingerprints exist.
@@ -52,7 +52,7 @@ Mechanics:
 - Add `selectGhostSurface(graph, prompt): string` — returns `core` unless the
   graph has multiple top-level surfaces, in which case match the prompt against
   `buildGraphMenu` descriptions (cheap: keyword/description overlap, or reuse the
-  broker's existing goal text if it already ran). Keep it deterministic for v1.
+  ward's existing goal text if it already ran). Keep it deterministic for v1.
 - `prepareGhostSurfacePrompt` re-resolves the slice for the chosen surface when it
   differs from `core`, updates `context.slice`/`context.surface`/`prompt`/`tokenSource`.
 - Widen the context `surface` type from the literal `'core'` to `string`.

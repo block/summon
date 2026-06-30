@@ -68,7 +68,7 @@ and stubs the brief/token/ingestion outputs minimally, with steps 3-5 filling th
 ### 2b. Name the surface + gather (the new "context")
 
 - Surface naming for step 2: default to `core` (the root node, always present).
-  The broker-driven node selection (decision #2) is a step-3 refinement; step 2
+  The ward-driven node selection (decision #2) is a step-3 refinement; step 2
   hardcodes `core` so we have a working slice.
 - `resolveGraphSlice(graph, surfaceId)` → `GraphSlice`. Store it on the context.
 - New `ResolvedGhostSteer` shape (rough): `{ source, request, root, graph, slice,

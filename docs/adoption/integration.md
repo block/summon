@@ -152,7 +152,7 @@ safety details, but it cannot widen what the host allowed.
 ### Agent-Driven Configs
 
 When a user is talking to an agent or another harness, the user should not need
-to choose Summon tiers, grants, or surface plans. Use the server broker to
+to choose Summon tiers, grants, or surface plans. Use the server ward to
 translate the prompt into a bounded host-owned config:
 
 ```ts
@@ -168,7 +168,7 @@ await runAgentSurfaceGeneration({
 }, emit);
 ```
 
-The broker emits `/agent-goal` and `/agent-policy-resolution` diagnostics,
+The ward emits `/agent-goal` and `/agent-policy-resolution` diagnostics,
 including whether the goal came from a provided value, model classifier, or
 deterministic fallback. Generation then continues through the normal
 `/surface-policy`, `/surface-plan`, and `/surface-contract` path. `SurfaceGoal`

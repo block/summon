@@ -41,7 +41,7 @@ pnpm dev:workbench
 
 Open `http://localhost:5173/generate`.
 
-The Generate workbench runs showcase prompts through the agent broker by
+The Generate workbench runs showcase prompts through the agent ward by
 default, then keeps maintainer controls visible: stream diagnostics, Devtools,
 validation summaries, replay, custom SurfacePlan overrides, directions, and
 Ghost fingerprint steering internals. The custom Surface Config panel is the
@@ -145,7 +145,7 @@ The Stream and Devtools drawers are for understanding a run after you have
 rendered and interacted with a surface:
 
 - Open the **Stream** drawer to inspect server stream lines, the selected
-  broker goal, selected surface config, validation summaries, model-output mode,
+  ward goal, selected surface config, validation summaries, model-output mode,
   and Arrow artifact revisions.
 - Open the **Devtools** drawer to inspect sandbox startup, render events, host
   tool requests, host dispatch, pushed state, runtime errors, and stream
@@ -157,7 +157,7 @@ rendered and interacted with a surface:
 ## Optional Checks
 
 Open `http://localhost:5173/batch` to run several prompts through the
-agent broker against the same host tool ceiling. Use it when changing prompt
+agent ward against the same host tool ceiling. Use it when changing prompt
 contracts, directions, host tool wiring, visual direction coverage, or
 throughput behavior.
 

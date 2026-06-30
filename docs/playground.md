@@ -1,6 +1,6 @@
 # Summon Diagnostic Playground
 
-The playground path is the local-first diagnostic loop for Ghost-backed generative UI debugging. The main Generate workbench defaults to real showcase scenarios with the agent broker, host policy, granted tools, repair attempts, and enforced validation.
+The playground path is the local-first diagnostic loop for Ghost-backed generative UI debugging. The main Generate workbench defaults to real showcase scenarios with the agent ward, host policy, granted tools, repair attempts, and enforced validation.
 
 Diagnostic mode keeps the Arrow renderer, but turns hardening into diagnostics:
 
@@ -10,7 +10,7 @@ Ghost fingerprint -> prompt -> Arrow bundle -> render
 
 When **Diagnostic mode** is enabled in the Generate workbench:
 
-- the agent broker is skipped
+- the agent ward is skipped
 - generic response-shape inference does not exist; Ghost composition and the selected scenario's tool ceiling shape the run
 - repair attempts are skipped
 - validation runs in observe mode
@@ -44,7 +44,7 @@ Then select the fingerprint in the Generate workbench. The workbench sends `{ fi
 
 ## Showcase Mode
 
-The default Generate path is the stricter adoption path: broker/policy selection, scenario tool ceilings, repair attempts, and enforced Arrow/runtime validation gates.
+The default Generate path is the stricter adoption path: ward/policy selection, scenario tool ceilings, repair attempts, and enforced Arrow/runtime validation gates.
 
 ## Experimental HTML Stream
 

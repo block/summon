@@ -204,7 +204,7 @@ whole `ARROW_SANDBOX_SUBSET_PROMPT_BLOCK` (those live in §1).
 ## Out-of-band model calls
 
 ### Goal classifier
-`buildGoalClassifierPrompt()` — `packages/server/src/agent-broker.ts`. Utility
+`buildGoalClassifierPrompt()` — `packages/server/src/agent-ward.ts`. Utility
 model, temperature 0, ~500 tokens. Lists available host tools and asks for ONE
 JSON object: `{purpose, interaction, dataNeed, sideEffect, requestedTools,
 confidence, rationale}`. Rules map request phrasing → interaction class. Used to

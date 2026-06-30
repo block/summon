@@ -158,5 +158,5 @@ export interface ChildSurfaceModel {
   fingerprintTargetPath: string;
   tokensSource: string;
   modelSelection: ModelSelectionPayload;
-  agentBroker: boolean;
+  agentWard: boolean;
 }

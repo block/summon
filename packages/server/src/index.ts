@@ -4,7 +4,7 @@ export {
   planAgentSurface,
   policyFromGoal,
   runAgentSurfaceGeneration,
-} from './agent-broker.js';
+} from './agent-ward.js';
 export { runSurfaceGeneration } from './runner.js';
 export { summarizeContractIssues } from './summary.js';
 
@@ -26,7 +26,7 @@ export type {
   SurfaceGoalInteraction,
   SurfaceGoalSideEffect,
   SurfaceGoalSource,
-} from './agent-broker.js';
+} from './agent-ward.js';
 
 export type {
   GenerateSurfaceInput,

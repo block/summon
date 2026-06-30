@@ -134,7 +134,7 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /Output runtime: arrow-control/);
     assert.match(prepared.prompt, /structured Arrow sandbox bundle/);
     assert.match(prepared.prompt, /Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata/);
-    assert.match(prepared.prompt, /The agent broker controls host authority and tools/);
+    assert.match(prepared.prompt, /The agent ward controls host authority and tools/);
     assert.match(prepared.prompt, /The user request is the semantic and task authority/);
     assert.match(prepared.prompt, /The Ghost fingerprint is the visual and composition authority/);
     assert.match(prepared.prompt, /Fingerprint surface: core \(cascade: core\)/);

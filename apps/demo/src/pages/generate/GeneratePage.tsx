@@ -125,7 +125,7 @@ export function GeneratePage() {
   );
   const [layoutId, setLayoutId] = useState("");
   const [playgroundMode, setPlaygroundMode] = useState(false);
-  const [agentBrokerEnabled, setAgentBrokerEnabled] = useState(true);
+  const [agentWardEnabled, setAgentWardEnabled] = useState(true);
   const [customContractEnabled, setCustomContractEnabled] = useState(false);
   const [fingerprintId, setFingerprintId] = useState<string | null>(
     DEFAULT_FINGERPRINT_ID,
@@ -500,9 +500,9 @@ export function GeneratePage() {
 
   const activeContract = useMemo<ActiveContract>(() => {
     const modelSelection = readModelSelection();
-    const agentBroker =
+    const agentWard =
       !playgroundMode &&
-      agentBrokerEnabled &&
+      agentWardEnabled &&
       !customContractEnabled &&
       !scenarioUsesFixedPolicy(selectedScenario);
     const surfacePolicy = customContractEnabled
@@ -513,8 +513,8 @@ export function GeneratePage() {
       prompt: prompt.trim() || selectedScenario.prompt,
       mode,
       toolNames: runtimeToolNames ?? selectedScenario.toolNames,
-      agentBroker,
-      ...(!playgroundMode && !agentBroker ? { surfacePolicy } : {}),
+      agentWard,
+      ...(!playgroundMode && !agentWard ? { surfacePolicy } : {}),
       surfacePlan,
       ...(layoutId ? { layoutId } : {}),
       fingerprintId,
@@ -535,7 +535,7 @@ export function GeneratePage() {
         : {}),
     };
   }, [
-    agentBrokerEnabled,
+    agentWardEnabled,
     customContractEnabled,
     playgroundMode,
     fingerprintId,
@@ -569,7 +569,7 @@ export function GeneratePage() {
             tokensSource:
               activeTokensSourceOverrideRef.current ?? defaultTokensSource,
             modelSelection: readModelSelectionRef.current(),
-            agentBroker: activeContract.agentBroker === true,
+            agentWard: activeContract.agentWard === true,
           };
           setChildren((items) => [...items, child]);
           localSummonCount += 1;
@@ -585,7 +585,7 @@ export function GeneratePage() {
       activeContract.toolNames,
     );
   }, [
-    activeContract.agentBroker,
+    activeContract.agentWard,
     activeContract.toolNames,
     activeContract.mode,
     fingerprintId,
@@ -1043,8 +1043,8 @@ export function GeneratePage() {
             setLayoutId={setLayoutId}
             mode={mode}
             setMode={setMode}
-            agentBrokerEnabled={agentBrokerEnabled}
-            setAgentBrokerEnabled={setAgentBrokerEnabled}
+            agentWardEnabled={agentWardEnabled}
+            setAgentWardEnabled={setAgentWardEnabled}
             customContractEnabled={customContractEnabled}
             setCustomContractEnabled={setCustomContractEnabled}
             selectedScenario={selectedScenario}

@@ -31,7 +31,7 @@ The host agent evaluates."* Summon is that host agent.
 - `GhostCheckDocument = { frontmatter: { name, description, severity:
   'high'|'medium'|'low', surface? }, body }` — body is the prose rule.
 - Summon utility model: `utilityModelProvider.completeText(request, selection)` in
-  `main.ts` (~L331) — the same small-model path the agent broker uses.
+  `main.ts` (~L331) — the same small-model path the agent ward uses.
 - Accepted artifact: `summary.emittedLines` after `runSurfaceGeneration` returns
   (~main.ts L603). Run-metrics emitted in `session.ts finalize()` (~L130) via
   `buildRunMetrics`. `/ghost-review-packet` is emitted in main.ts right after the
@@ -73,7 +73,7 @@ post-pass), so it never slows or blocks the stream's artifact delivery.
   Per-check only if a check declares tools/turn_limit (none do in v1). Decision:
   **single batched call**, artifact sent once, returns one verdict per check.
 - Use the existing utility model (`utilityModelProvider.completeText`). Reuse the
-  broker's JSON-extraction hardening (strip fences, parse, validate). On
+  ward's JSON-extraction hardening (strip fences, parse, validate). On
   parse/timeout/error: emit an `inconclusive` verdict, never crash the response.
 - Gate behind an env flag (e.g. `SUMMON_GHOST_CONFORMANCE`, default ON for ghost
   runs, `=0` to disable) so it is opt-out and adds no cost when checks are absent.
@@ -112,7 +112,7 @@ verdict. Step 6 (the receipt) consumes this. Step 5 just emits the meta + logs.
    disable). When a fingerprint has no checks, the pass is a no-op (no model call).
    Confirm.
 4. **Utility model, not the generation model**, does the evaluation (cheap, fast;
-   matches the broker pattern). Confirm.
+   matches the ward pattern). Confirm.
 
 ## Definition of done
 
@@ -145,7 +145,7 @@ Two requirements that turn this from a possible 3s regression into a free tail:
    The user's UI has already rendered; the verdict is purely additive tail meta.
    The live smoke MUST confirm the artifact line precedes `/ghost-conformance` in
    the stream.
-2. **Hard timeout on the verdict call** (reuse the broker's, ~5-8s); timeout →
+2. **Hard timeout on the verdict call** (reuse the ward's, ~5-8s); timeout →
    `inconclusive`. The tail can never hang the response beyond the cap.
 
 ## Risks

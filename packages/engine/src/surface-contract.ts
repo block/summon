@@ -27,7 +27,7 @@ import type {
 /**
  * How an inferred surface goal/purpose was arrived at. `deterministic` = regex
  * fallback (lowest trust), `model` = semantic classifier, `provided` =
- * host-supplied. Canonical home for this union (the broker re-exports it).
+ * host-supplied. Canonical home for this union (the ward re-exports it).
  */
 export type SurfaceGoalSource = 'deterministic' | 'model' | 'provided';
 

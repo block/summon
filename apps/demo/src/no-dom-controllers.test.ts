@@ -49,11 +49,11 @@ test('generate page exposes experimental runtime selection through the UI reques
   assert.match(stream, /experimentalRuntime: opts\.experimentalRuntime/);
 });
 
-test('generate defaults to showcase mode with broker and a catalog fingerprint', () => {
+test('generate defaults to showcase mode with ward and a catalog fingerprint', () => {
   const page = readFileSync(join(srcRoot, 'pages/generate/GeneratePage.tsx'), 'utf8');
 
   assert.match(page, /const \[playgroundMode, setPlaygroundMode\] = useState\(false\)/);
-  assert.match(page, /const \[agentBrokerEnabled, setAgentBrokerEnabled\] = useState\(true\)/);
+  assert.match(page, /const \[agentWardEnabled, setAgentWardEnabled\] = useState\(true\)/);
   assert.match(page, /const \[runProfile, setRunProfile\] = useState<RunProfile>\("quality"\)/);
   assert.match(page, /const \[fingerprintId, setFingerprintId\] = useState<string \| null>\(\s*DEFAULT_FINGERPRINT_ID,\s*\)/);
   assert.match(page, /No Ghost fingerprint catalog is available/);
