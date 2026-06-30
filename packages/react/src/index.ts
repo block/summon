@@ -4,11 +4,13 @@ import {
 import {
   isArrowSurfaceArtifact,
   isHtmlSurfaceArtifact,
+  isDomjsSurfaceArtifact,
   normalizeHtmlSurfacePatch,
   type ArtifactLine,
   type ArrowSurfaceArtifact,
   type HtmlSurfacePatch,
   type HtmlSurfaceArtifact,
+  type DomjsSurfaceArtifact,
   type SurfaceEvent,
   type ValidationTool,
 } from '@anarchitecture/summon/engine';
@@ -66,7 +68,7 @@ export interface SummonSurfaceHandle {
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot | null;
 }
 
-export type SummonRenderableArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact;
+export type SummonRenderableArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact;
 
 export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>(function SummonSurface(
   props,
@@ -215,7 +217,7 @@ function resolveRenderableArtifact(props: SummonSurfaceProps): SummonRenderableA
     const line = lines[i];
     if (!line || line.op !== 'artifact' || line.path !== '/artifact') continue;
     const value = (line as ArtifactLine).value;
-    if (isArrowSurfaceArtifact(value) || isHtmlSurfaceArtifact(value)) {
+    if (isArrowSurfaceArtifact(value) || isHtmlSurfaceArtifact(value) || isDomjsSurfaceArtifact(value)) {
       return value;
     }
   }

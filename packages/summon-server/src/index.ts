@@ -32,6 +32,8 @@ export type {
   HtmlBundleRequest,
   HtmlBundleRepairRequest,
   HtmlStreamRequest,
+  DomjsBundleRequest,
+  DomjsBundleRepairRequest,
   SurfaceModelProvider,
   SurfaceModelRequest,
   SurfaceGoal,

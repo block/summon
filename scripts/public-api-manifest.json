@@ -169,7 +169,6 @@
         "buildGhostSteeringPayload",
         "buildLayoutBlock",
         "buildSurfaceContractBlock",
-        "buildSurfacePlanBlock",
         "buildToolsBlock",
         "compileSurfaceContractView",
         "compileSurfacePolicy",

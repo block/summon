@@ -54,7 +54,7 @@ export class SurfaceGenerationSession {
         })
       : null;
     this.surfaceContract = this.surfacePolicy
-      ? surfaceContractViewFromCompiledPolicy(this.surfacePolicy, input.layout ?? null)
+      ? surfaceContractViewFromCompiledPolicy(this.surfacePolicy, input.layout ?? null, input.goalProvenance ?? null)
       : null;
     this.systemContracts = compileSystemContracts({
       mode: this.surfacePolicy?.mode ?? 'static',
@@ -63,7 +63,6 @@ export class SurfaceGenerationSession {
       layout: input.layout ?? null,
       experimentalPromptBlock: input.experimentalPromptBlock ?? null,
       tools: this.surfacePolicy?.tools ?? input.tools ?? null,
-      surfacePlan: this.surfacePolicy?.surfacePlan ?? null,
       surfaceContract: this.surfaceContract,
       activeTokensCss: input.activeTokensCss ?? null,
     });

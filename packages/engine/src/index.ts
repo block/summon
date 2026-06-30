@@ -44,6 +44,27 @@ export type {
   SummonArrowPreviewRegion,
 } from './arrow-bundle.js';
 export {
+  isDomjsSurfaceArtifact,
+  normalizeDomjsSurfaceArtifact,
+  validateDomjsSurfaceArtifact,
+} from './domjs-artifact.js';
+export type {
+  DomjsSurfaceArtifact,
+  DomjsArtifactValidationOptions,
+} from './domjs-artifact.js';
+export {
+  SUMMON_DOMJS_BUNDLE_SCHEMA,
+  domjsArtifactFromBundle,
+  createDomjsBundleJsonSchema,
+  createDomjsBundleToolDefinition,
+  isSummonDomjsBundle,
+  normalizeDomjsBundle,
+} from './domjs-bundle.js';
+export type {
+  NormalizeDomjsBundleResult,
+  SummonDomjsBundle,
+} from './domjs-bundle.js';
+export {
   SUMMON_HTML_BUNDLE_SCHEMA,
   canonicalizeHtmlFragment,
   createHtmlBundleJsonSchema,
@@ -83,9 +104,11 @@ export type {
 export {
   SUMMON_FIXED_INSTRUCTIONS,
   SUMMON_FIXED_HTML_INSTRUCTIONS,
+  SUMMON_FIXED_DOMJS_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS as SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
+  SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS,
   buildLayoutBlock,
   buildToolsBlock,
   buildSurfaceContractBlock,
@@ -186,7 +209,6 @@ export {
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   SURFACE_NETWORK_VALUES,
-  buildSurfacePlanBlock,
   inferSurfacePlan,
   normalizeSurfacePlan,
   suggestSurfacePlan,
@@ -238,6 +260,8 @@ export type {
   SurfaceContractSurface,
   SurfaceContractTool,
   SurfaceContractView,
+  SurfaceGoalSource,
+  SurfaceGoalProvenance,
 } from './surface-contract.js';
 export { createProtocolHardener } from './protocol-hardener.js';
 export type {

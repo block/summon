@@ -236,6 +236,8 @@ function acceptedArtifactDescription(runtime: SummonOutputRuntime | undefined): 
   switch (runtime ?? 'arrow-control') {
     case 'arrow-control':
       return 'a validated Arrow artifact';
+    case 'domjs-control':
+      return 'a validated domjs artifact';
     case 'html-static':
       return 'a validated HTML artifact';
     case 'html-stream':
@@ -377,6 +379,8 @@ export function runtimeTargetText(runtime: SummonOutputRuntime | undefined): str
   switch (runtime ?? 'arrow-control') {
     case 'arrow-control':
       return 'Arrow control';
+    case 'domjs-control':
+      return 'domjs control';
     case 'html-static':
       return 'HTML static';
     case 'html-stream':

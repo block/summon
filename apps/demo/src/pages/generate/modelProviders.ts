@@ -18,6 +18,7 @@ const MODEL_PROFILE_KEY_BY_RUNTIME = {
   'arrow-control': 'arrow-control',
   'html-static': 'html-static',
   'html-stream': 'html-stream',
+  'domjs-control': 'domjs-control',
 } satisfies Record<SummonOutputRuntime, RuntimeModelProfileKey>;
 
 export function modelProfileKeyForRuntime(runtime: SummonOutputRuntime): RuntimeModelProfileKey {

@@ -49,6 +49,11 @@ const runtimeCopy: Record<
     description:
       "Raw model stream framed as scaffold plus validated patch commits.",
   },
+  "domjs-control": {
+    label: "domjs control",
+    description:
+      "Imperative HTML/JS authored by the model, executed in the surface-vm capability sandbox.",
+  },
 };
 
 const runtimeGroupDefinitions: Array<{
@@ -69,6 +74,10 @@ const runtimeGroupDefinitions: Array<{
     label: "HTML stream",
     includes: (profile) =>
       profile.format === "html" && profile.delivery === "stream",
+  },
+  {
+    label: "domjs (sandboxed HTML/JS)",
+    includes: (profile) => profile.format === "domjs",
   },
 ];
 
@@ -316,7 +325,7 @@ export function GenerationStage({
           )}
           id="welcome"
         >
-          <div className="absolute inset-0 bg-[repeating-linear-gradient(90deg,color-mix(in_srgb,var(--color-ink)_4%,transparent)_0_1px,transparent_1px_96px)]" />
+          <div className="summon-page-dot-field" aria-hidden="true" />
           <div
             className="relative z-[1] flex h-full items-center px-[clamp(24px,7vw,96px)]"
             id="welcome-text"

@@ -179,7 +179,7 @@ test('api generate rejects the removed unsafe raw runtime as an unknown runtime 
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_AGENT_GOAL_SELECT: '0',
       SUMMON_INFER_SHAPE: '0',
       SUMMON_GHOST_SURFACE_SELECT: '0',
     },
@@ -301,7 +301,7 @@ test('api generate sends narrowed contract and stream meta shape through package
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_AGENT_GOAL_SELECT: '0',
       SUMMON_INFER_SHAPE: '0',
       SUMMON_GHOST_SURFACE_SELECT: '0',
     },
@@ -403,8 +403,8 @@ test('api generate sends narrowed contract and stream meta shape through package
   const policySystemText = policyRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(policySystemText, /Search host-owned dinner data/);
   assert.match(policySystemText, /Surface contract/);
-  assert.match(policySystemText, /runtime=`arrow`/);
-  assert.match(policySystemText, /data=`host-resource`/);
+  assert.match(policySystemText, /Runtime: `arrow`/);
+  assert.match(policySystemText, /data: `host-resource`/);
   assert.doesNotMatch(policySystemText, /Rules for scripts/);
 
   const policyLines = policyBody
@@ -459,7 +459,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   const agentSystemText = agentRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(agentSystemText, /Search host-owned dinner data/);
   assert.match(agentSystemText, /Surface contract/);
-  assert.match(agentSystemText, /runtime=`arrow`/);
+  assert.match(agentSystemText, /Runtime: `arrow`/);
 
   const agentLines = agentBody
     .trim()
@@ -653,7 +653,7 @@ test('api generate playground repairs invalid entry-file bundles', async (t) => 
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_AGENT_GOAL_SELECT: '0',
       SUMMON_INFER_SHAPE: '0',
       SUMMON_GHOST_SURFACE_SELECT: '0',
     },
@@ -774,7 +774,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
       SUMMON_GHOST_ROOTS: `checkout=${root}`,
-      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_AGENT_GOAL_SELECT: '0',
       SUMMON_INFER_SHAPE: '0',
       SUMMON_GHOST_SURFACE_SELECT: '0',
     },
@@ -972,7 +972,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
       OPENAI_API_KEY: '',
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_AGENT_GOAL_SELECT: '0',
       SUMMON_GHOST_SURFACE_SELECT: '0',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -1085,7 +1085,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
       OPENAI_BASE_URL: `http://127.0.0.1:${openAIPort}/v1`,
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
-      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_AGENT_GOAL_SELECT: '0',
       SUMMON_INFER_SHAPE: '0',
       SUMMON_GHOST_SURFACE_SELECT: '0',
     },
@@ -1220,7 +1220,7 @@ test('api generate can stream with Gemini provider', async (t) => {
       GEMINI_API_KEY: 'test-gemini-key',
       GOOGLE_API_KEY: '',
       GEMINI_BASE_URL: `http://127.0.0.1:${geminiPort}`,
-      SUMMON_AGENT_GOAL_MODEL: '0',
+      SUMMON_AGENT_GOAL_SELECT: '0',
       SUMMON_INFER_SHAPE: '0',
       SUMMON_GHOST_SURFACE_SELECT: '0',
     },

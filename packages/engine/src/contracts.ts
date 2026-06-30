@@ -1,10 +1,12 @@
-import { ARROW_CONTROLLED_INPUT_HINTS } from './arrow-subset.js';
+import { ARROW_CONTROLLED_INPUT_HINTS, ARROW_MAP_CALLBACK_HINTS } from './arrow-subset.js';
 import type { ProtocolLine } from './protocol.js';
 import {
   SUMMON_FIXED_INSTRUCTIONS,
   SUMMON_FIXED_HTML_INSTRUCTIONS,
+  SUMMON_FIXED_DOMJS_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
+  SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS,
   buildToolsBlock,
   buildLayoutBlock,
   buildSurfaceContractBlock,
@@ -22,10 +24,7 @@ import {
 } from './tool-contract.js';
 import { formatTokenContract } from './token-contract.js';
 import type { SurfaceContractView } from './surface-contract.js';
-import {
-  buildSurfacePlanBlock,
-  type SurfacePlan,
-} from './surface-plan.js';
+import type { SurfacePlan } from './surface-plan.js';
 import type {
   ValidationTool,
   ValidationContext,
@@ -109,7 +108,6 @@ export interface SystemContractInput {
   editBlock?: string | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
   tools?: ToolPack | null;
-  surfacePlan?: SurfacePlan | null;
   surfaceContract?: SurfaceContractView | null;
   activeTokensCss?: string | null;
 }
@@ -194,6 +192,19 @@ export function hintsForContractIssue(
       return ['Use normal quoted Arrow attributes and sanitize dynamic values before rendering them.'];
     case 'unsupported-arrow-idl-binding':
       return ARROW_CONTROLLED_INPUT_HINTS;
+    case 'arrow-map-callback-not-function':
+      return ARROW_MAP_CALLBACK_HINTS;
+    case 'domjs-unsupported-api':
+      return [
+        'Use only the supported domjs DOM subset: document.createElement, createTextNode, textContent, setAttribute/removeAttribute, className, append, addEventListener, reactive state(...), and region(...) for dynamic lists.',
+        'Do not use innerHTML, outerHTML, querySelector, getElementById, insertBefore, removeChild, el.style, window, or document.body.',
+        'Hold references to nodes you create. For dynamic content use reactive bindings — textContent = () => s.value, el.setAttribute(name, () => ...), region(() => s.items.map(...)) — and mutate state in handlers (reassign arrays: s.items = s.items.concat(...)). No manual update calls needed.',
+      ];
+    case 'domjs-network-not-granted':
+      return ['Remove fetch/XHR/WebSocket; call granted host tools with callTool(name, args) instead.'];
+    case 'invalid-domjs-entry':
+    case 'missing-domjs-bundle-entry':
+      return ['Return one main.js entry that builds the UI and exports the root node as default.'];
     case 'unsupported-arrow-open-tag-expression':
       return [
         'Remove bare `${...}` expressions from opening tags. Do not write `<button ${() => "disabled"}>` or `<section ${dynamicAttrs}>`.',
@@ -304,16 +315,21 @@ export function compileSystemContracts(
   const outputRuntime = input.outputRuntime ?? 'arrow-control';
   const profile = runtimeProfile(outputRuntime);
   const htmlRuntime = profile.format === 'html';
+  const domjsRuntime = profile.format === 'domjs';
   const promptBlocks: ContractPromptBlock[] = [
     {
       id: 'fixed',
-      text: htmlRuntime ? SUMMON_FIXED_HTML_INSTRUCTIONS : SUMMON_FIXED_INSTRUCTIONS,
+      text: domjsRuntime
+        ? SUMMON_FIXED_DOMJS_INSTRUCTIONS
+        : htmlRuntime
+          ? SUMMON_FIXED_HTML_INSTRUCTIONS
+          : SUMMON_FIXED_INSTRUCTIONS,
       cache: 'ephemeral',
     },
   ];
   const issues: ContractIssue[] = [];
   const startupLines: ProtocolLine[] = [];
-  const activeSurfacePlan = input.surfaceContract?.surface.plan ?? input.surfacePlan ?? null;
+  const activeSurfacePlan = input.surfaceContract?.surface.plan ?? null;
 
   const activeTokensCss = input.activeTokensCss ?? null;
 
@@ -343,12 +359,6 @@ export function compileSystemContracts(
       text: buildSurfaceContractBlock(input.surfaceContract, { outputRuntime }),
       cache: 'ephemeral',
     });
-  } else if (activeSurfacePlan) {
-    promptBlocks.push({
-      id: 'surface-plan',
-      text: buildSurfacePlanBlock(activeSurfacePlan, { outputRuntime }),
-      cache: 'ephemeral',
-    });
   }
 
   const tool = compileToolContract(input.tools, { outputRuntime });
@@ -358,9 +368,11 @@ export function compileSystemContracts(
 
   promptBlocks.push({
     id: 'output-contract',
-    text: htmlRuntime
-      ? SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS
-      : SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
+    text: domjsRuntime
+      ? SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS
+      : htmlRuntime
+        ? SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS
+        : SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
     cache: 'none',
   });
 

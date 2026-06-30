@@ -22,6 +22,23 @@
  */
 export const ARROW_IDL_BINDING_RE = /<[a-zA-Z][^>]*\s\.[a-zA-Z][\w-]*\s*=/;
 
+/**
+ * The #2 gotcha after IDL bindings: passing a tagged template (or any
+ * non-function) to `Array.prototype.map` / `flatMap` / `forEach`. The model
+ * pattern-matches to JSX/lit habits and writes `items.map(html`...`)`, which is
+ * valid syntax but crashes at VM boot with `TypeError: not a function` because
+ * `.map` calls its argument. Arrow's reactive list form requires a function
+ * callback: `items.map((item) => html`...`)`. No upstream doc states this
+ * plainly, so we own it here and feed it to both the prompt and the validator.
+ *
+ * Matches `.map(`, `.flatMap(`, or `.forEach(` immediately followed by a
+ * tagged-template (`` html` `` or any `ident` + backtick) — the high-confidence,
+ * low-false-positive shape. We deliberately do NOT try to flag every
+ * non-function argument; that needs real parsing and would block valid code.
+ */
+export const ARROW_MAP_TEMPLATE_CALLBACK_RE =
+  /\.(?:map|flatMap|forEach)\s*\(\s*[A-Za-z_$][\w$]*\s*`/;
+
 /** The controlled-input rewrite the model must use instead of `.value=`. */
 export const ARROW_CONTROLLED_INPUT_HINTS: string[] = [
   'Do not use IDL property bindings like `.value="${...}"`, `.checked="${...}"`, or `.selected="${...}"`. The Arrow sandbox compiler rejects them.',
@@ -46,7 +63,15 @@ export const ARROW_SANDBOX_SUBSET_PROMPT_BLOCK: string = [
   '- A `ref` binding must be a single expression.',
   '- Wrap every live read as a function so Arrow tracks it: `${() => state.count}`, never `${state.count}`.',
   '- Return `false` from a boolean attribute binding to remove it; do not inject a bare attribute string.',
+  '- Render lists with a function callback: `${() => items.map((item) => html`<li>${() => item.label}</li>`)}`. The `.map()` / `.flatMap()` / `.forEach()` argument must be a function. Never pass a template directly — `items.map(html`...`)` crashes at runtime with `TypeError: not a function`.',
 ].join('\n');
+
+/** Repair hints for a `.map(html`...`)` style non-function list callback. */
+export const ARROW_MAP_CALLBACK_HINTS: string[] = [
+  'A list render passed a template (or other non-function) directly to `.map()` / `.flatMap()` / `.forEach()`. These call their argument, so it must be a function.',
+  'Wrap each item in an arrow function: `items.map((item) => html`<li>${() => item.label}</li>`)`, not `items.map(html`<li>...</li>`)`.',
+  'Keep the whole reactive list read inside a function so Arrow tracks it: `${() => items.map((item) => html`...`)}`.',
+];
 
 /** One-line supported-binding summary for inline use in shorter rule lists. */
 export const ARROW_BINDING_RULE_LINE: string =

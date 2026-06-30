@@ -331,9 +331,9 @@ export function useSurfaceStream({
       return;
     }
     if (line.op === 'artifact') {
-      const artifact = line.value as ArrowSurfaceArtifact | HtmlSurfaceArtifact | undefined;
-      const validArtifact = artifact?.runtime === 'arrow' || artifact?.runtime === 'html';
-      const files = validArtifact
+      const artifact = line.value as ArrowSurfaceArtifact | HtmlSurfaceArtifact | { runtime?: string; source?: Record<string, string> } | undefined;
+      const validArtifact = artifact?.runtime === 'arrow' || artifact?.runtime === 'html' || artifact?.runtime === 'domjs';
+      const files = validArtifact && artifact?.source
         ? Object.keys(artifact.source).join(', ')
         : 'invalid';
       logLine('op-add', `${validArtifact ? artifact.runtime : 'unknown'} artifact ${line.path} -> ${files}`);

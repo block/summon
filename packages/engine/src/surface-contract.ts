@@ -24,10 +24,30 @@ import type {
   SurfacePlanMode,
 } from './surface-plan.js';
 
+/**
+ * How an inferred surface goal/purpose was arrived at. `deterministic` = regex
+ * fallback (lowest trust), `model` = semantic classifier, `provided` =
+ * host-supplied. Canonical home for this union (the broker re-exports it).
+ */
+export type SurfaceGoalSource = 'deterministic' | 'model' | 'provided';
+
+/**
+ * Provenance of the inferred surface goal, used only to scale how firmly the
+ * surface-contract prompt voices the `purpose` hint. The capability boundaries
+ * are never affected. Optional: when absent the hint is voiced at the
+ * conservative default firmness.
+ */
+export interface SurfaceGoalProvenance {
+  source: SurfaceGoalSource;
+  confidence?: number;
+}
+
 export interface SurfaceContractSurface {
   policy: NormalizedSurfacePolicy;
   plan: SurfacePlan;
   mode: SurfacePlanMode;
+  /** Optional provenance for the goal (scales `purpose` hint voicing only). */
+  goalProvenance?: SurfaceGoalProvenance;
 }
 
 export interface SurfaceContractTool {
@@ -79,12 +99,14 @@ export function compileSurfaceContractView(
 export function surfaceContractViewFromCompiledPolicy(
   compiledPolicy: CompiledSurfacePolicy,
   layout?: SummonLayout | SurfaceContractLayout | null,
+  goalProvenance?: SurfaceGoalProvenance | null,
 ): SurfaceContractView {
   return {
     surface: {
       policy: compiledPolicy.policy,
       plan: compiledPolicy.surfacePlan,
       mode: compiledPolicy.mode,
+      ...(goalProvenance ? { goalProvenance } : {}),
     },
     tools: formatTools(compiledPolicy.tools),
     layout: formatLayout(layout ?? null),

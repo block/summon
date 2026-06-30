@@ -8,6 +8,7 @@ import type {
   SummonLayout,
   SummonOutputRuntime,
   SurfacePolicy,
+  SurfaceGoalProvenance,
   ProtocolValidationMode,
 } from '@summon-internal/engine';
 
@@ -40,6 +41,17 @@ export interface ArrowBundleRepairRequest extends ArrowBundleRequest {
   attempt: number;
 }
 
+export interface DomjsBundleRequest extends SurfaceModelRequest {
+  schema: Record<string, unknown>;
+}
+
+export interface DomjsBundleRepairRequest extends DomjsBundleRequest {
+  previousBundle: unknown;
+  issues: ContractIssue[];
+  hints: string[];
+  attempt: number;
+}
+
 export interface HtmlBundleRepairRequest extends HtmlBundleRequest {
   previousBundle: unknown;
   issues: ContractIssue[];
@@ -53,6 +65,8 @@ export interface SurfaceModelProvider {
   generateHtmlBundle?(request: HtmlBundleRequest): Promise<unknown>;
   repairHtmlBundle?(request: HtmlBundleRepairRequest): Promise<unknown>;
   streamHtmlSurface?(request: HtmlStreamRequest): AsyncIterable<string>;
+  generateDomjsBundle?(request: DomjsBundleRequest): Promise<unknown>;
+  repairDomjsBundle?(request: DomjsBundleRepairRequest): Promise<unknown>;
 }
 
 export interface SurfaceGenerationInput {
@@ -63,6 +77,14 @@ export interface SurfaceGenerationInput {
   experimentalPromptBlock?: ContractPromptBlock | null;
   tools?: ToolPack | null;
   surfacePolicy?: SurfacePolicy | null;
+  /**
+   * Optional provenance for the inferred surface goal. Affects only how firmly
+   * the surface-contract prompt voices the `purpose` hint — never the
+   * capability boundaries. Supplied by the agent broker path; omitted for
+   * host-authored policies (hint then voiced at the conservative default
+   * firmness).
+   */
+  goalProvenance?: SurfaceGoalProvenance | null;
   activeTokensCss?: string | null;
   preludeLines?: ProtocolLine[];
   seedLines?: ProtocolLine[];

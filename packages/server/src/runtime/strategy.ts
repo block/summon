@@ -8,6 +8,7 @@ import {
 } from '@summon-internal/engine';
 import type { SurfaceGenerationInput } from '../types.js';
 import { ArrowControlStrategy } from './arrow-control.js';
+import { DomjsControlStrategy } from './domjs-control.js';
 import { HtmlBundleStrategy } from './html-bundle.js';
 import { HtmlStreamStrategy } from './html-stream.js';
 
@@ -63,7 +64,21 @@ export function createRuntimeStrategy(runtime: SummonOutputRuntime): RuntimeStra
       return new HtmlBundleStrategy('html-static');
     case 'html-stream':
       return new HtmlStreamStrategy();
+    case 'domjs-control':
+      return new DomjsControlStrategy();
   }
+}
+
+function outputModeFormat(format: string): string {
+  if (format === 'arrow') return 'arrow-bundle';
+  if (format === 'domjs') return 'domjs-bundle';
+  return 'html-bundle';
+}
+
+function outputModeSchema(format: string): string {
+  if (format === 'arrow') return 'summon.arrow-bundle/v1';
+  if (format === 'domjs') return 'summon.domjs-bundle/v1';
+  return 'summon.html-bundle/v0';
 }
 
 export async function writeInitialOutputMode(ctx: RuntimeContext): Promise<void> {
@@ -71,10 +86,8 @@ export async function writeInitialOutputMode(ctx: RuntimeContext): Promise<void>
     op: 'meta',
     path: '/model-output-mode',
     value: {
-      format: ctx.profile.format === 'arrow' ? 'arrow-bundle' : 'html-bundle',
-      schema: ctx.profile.format === 'arrow'
-        ? 'summon.arrow-bundle/v1'
-        : 'summon.html-bundle/v0',
+      format: outputModeFormat(ctx.profile.format),
+      schema: outputModeSchema(ctx.profile.format),
       runtime: ctx.profile.runtime,
       repairAttempts: 0,
     },
@@ -82,14 +95,17 @@ export async function writeInitialOutputMode(ctx: RuntimeContext): Promise<void>
 }
 
 export function missingArtifactIssueForProfile(profile: RuntimeProfile): ContractIssue {
-  const missingArrowArtifact = profile.format === 'arrow';
+  const code = profile.format === 'arrow'
+    ? 'missing-arrow-artifact'
+    : profile.format === 'domjs'
+      ? 'missing-domjs-artifact'
+      : 'missing-html-artifact';
+  const label = profile.format === 'arrow' ? 'Arrow' : profile.format === 'domjs' ? 'domjs' : 'HTML';
   return contractIssue({
     source: 'protocol',
     severity: 'block',
-    code: missingArrowArtifact ? 'missing-arrow-artifact' : 'missing-html-artifact',
-    message: missingArrowArtifact
-      ? 'Generation completed without a valid Arrow artifact'
-      : 'Generation completed without a valid HTML artifact',
+    code,
+    message: `Generation completed without a valid ${label} artifact`,
     path: '/artifact',
   });
 }

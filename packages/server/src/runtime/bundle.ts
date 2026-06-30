@@ -221,6 +221,7 @@ function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[])
     'arrow-network-not-granted',
     'unsupported-arrow-idl-binding',
     'unsupported-arrow-open-tag-expression',
+    'arrow-map-callback-not-function',
     'invalid-arrow-source-syntax',
     'invalid-arrow-network',
     'invalid-arrow-bundle',
@@ -246,6 +247,18 @@ function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[])
     'unsupported-html-attribute',
     'html-script-not-enabled',
     'unsafe-html-script',
+    // domjs runtime
+    'invalid-domjs-entry',
+    'invalid-domjs-source',
+    'invalid-domjs-source-path',
+    'invalid-domjs-source-file',
+    'domjs-source-limit',
+    'domjs-network-not-granted',
+    'domjs-unsupported-api',
+    'invalid-domjs-bundle',
+    'invalid-domjs-bundle-schema',
+    'missing-domjs-bundle-entry',
+    'invalid-domjs-source-syntax',
   ]);
   const allowed = allowedCodes && allowedCodes.length > 0 ? new Set(allowedCodes) : null;
   return issues.some((issue) => (

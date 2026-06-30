@@ -10,25 +10,21 @@ const runtimeValues = [
   'arrow-control',
   'html-static',
   'html-stream',
+  'domjs-control',
 ];
 const streamRuntimes = new Set(['html-stream']);
 
 const bundles = [
+  // Only technical-noir's prompt file exists in this checkout; the other bundles'
+  // curated dogfood prompt files are not present here. Restore them and re-add
+  // entries to widen the matrix.
   {
-    id: 'redline-cinema',
-    promptFile: 'apps/server/fingerprints/bundles/redline-cinema/fingerprint/sources/curation/dogfood-prompts-2026-06-22.md',
-  },
-  {
-    id: 'console-chrome-2001',
-    promptFile: 'apps/server/fingerprints/bundles/console-chrome-2001/fingerprint/sources/curation/dogfood-eval-prompts-2026-06-22.md',
+    id: 'technical-noir',
+    promptFile: 'apps/server/fingerprints/bundles/technical-noir/evals/prompts.md',
   },
   {
     id: 'signal-stream',
-    promptFile: 'apps/server/fingerprints/bundles/signal-stream/examples/dogfood/prompts.md',
-  },
-  {
-    id: 'technical-contrast',
-    promptFile: 'apps/server/fingerprints/bundles/technical-contrast/examples/dogfood/prompts.md',
+    promptFile: 'apps/server/fingerprints/bundles/signal-stream/evals/interactive-prompts.md',
   },
 ];
 
@@ -208,6 +204,9 @@ async function runOne(item, baseUrl) {
     if (line.op === 'artifact' && line.path === '/artifact') {
       artifactSeen = true;
       if (artifactTti === null) artifactTti = elapsed;
+      // domjs emits no paint/preview event (the surface-vm render tree drives the
+      // live view), so its ttfp is the artifact arrival time.
+      if (ttfp === null && item.runtime === 'domjs-control') ttfp = elapsed;
       return;
     }
     if (line.op === 'patch' && line.path === '/artifact/html-patch' && patchTti === null) {

@@ -5,32 +5,6 @@ import type {
   GenerationPreviewSection,
 } from "../generationPreview.js";
 
-const dotGridSide = 11;
-const dotGridCenter = (dotGridSide - 1) / 2;
-const maxDotDistance = Math.hypot(dotGridCenter, dotGridCenter);
-const rippleDots = Array.from({ length: dotGridSide * dotGridSide }, (_, index) => {
-  const x = index % dotGridSide;
-  const y = Math.floor(index / dotGridSide);
-  const distance = Math.hypot(x - dotGridCenter, y - dotGridCenter);
-  const normalized = distance / maxDotDistance;
-  const delay = Math.round(distance * 72 + ((x * 7 + y * 3) % 5) * 10);
-  const opacity = Math.max(0.2, 0.8 - normalized * 0.5);
-  const scale = Math.max(0.62, 1.08 - normalized * 0.42);
-
-  return {
-    id: `${x}-${y}`,
-    style: {
-      "--ripple-delay": `${delay}ms`,
-      "--dot-rest-opacity": Math.max(0.1, opacity * 0.3).toFixed(2),
-      "--dot-settle-opacity": Math.max(0.14, opacity * 0.58).toFixed(2),
-      "--dot-peak-opacity": opacity.toFixed(2),
-      "--dot-rest-scale": Math.max(0.38, scale * 0.68).toFixed(2),
-      "--dot-settle-scale": Math.max(0.5, scale * 1.04).toFixed(2),
-      "--dot-peak-scale": Math.max(0.72, scale * 1.62).toFixed(2),
-    } as CSSProperties,
-  };
-});
-
 export function SurfaceLoadingOverlay({
   statusText,
   preview,
@@ -67,27 +41,20 @@ export function SurfaceLoadingOverlay({
         )}
         aria-hidden="true"
       />
+      {fullPage ? (
+        <div className="summon-host-ripple-waves" aria-hidden="true">
+          <span className="summon-host-ripple-wave" />
+          <span className="summon-host-ripple-wave" />
+          <span className="summon-host-ripple-wave" />
+          <span className="summon-host-ripple-wave" />
+        </div>
+      ) : null}
       <div
         className={cn(
           "relative z-[1] grid w-full justify-items-center",
           compact ? "max-w-[320px] gap-2.5" : "max-w-[520px] gap-4",
         )}
       >
-        <div
-          className={cn(
-            "summon-host-ripple-grid",
-            compact && "summon-host-ripple-grid--compact",
-          )}
-          aria-hidden="true"
-        >
-          {rippleDots.map((dot) => (
-            <span
-              key={dot.id}
-              className="summon-host-ripple-dot"
-              style={dot.style}
-            />
-          ))}
-        </div>
         <div className="grid max-w-[34ch] gap-1">
           <span className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
             {label}

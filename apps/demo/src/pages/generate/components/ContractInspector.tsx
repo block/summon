@@ -25,6 +25,7 @@ const RUNTIME_PROFILE_LABEL: Record<ModelProfileKey, string> = {
   'arrow-control': 'Arrow control',
   'html-static': 'HTML static',
   'html-stream': 'HTML stream',
+  'domjs-control': 'domjs control',
   utility: 'Utility',
 };
 import { ModeGroup } from '../../../components/chrome.js';

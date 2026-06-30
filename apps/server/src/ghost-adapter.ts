@@ -102,6 +102,15 @@ export interface GhostSurfacePromptOptions {
   completeText?: (request: TextCompletionRequest) => Promise<string>;
   surfaceSelectTimeoutMs?: number;
   signal?: AbortSignal;
+  /**
+   * Pre-selected anchor surface id. When provided, `prepareGhostSurfacePrompt`
+   * skips its own `selectGhostSurface` model call and uses this anchor directly.
+   * The caller is responsible for having resolved it via `selectGhostSurface`
+   * (e.g. running it concurrently with the agent broker to avoid a second
+   * sequential model round-trip). Falls back to `completeText`-driven selection
+   * when omitted.
+   */
+  preselectedSurface?: string;
 }
 
 export interface GhostReceiptValidation {
@@ -338,11 +347,17 @@ export async function prepareGhostSurfacePrompt(
   // once the user prompt is known. Selection is semantic (model-driven over the
   // gather menu) and optional — without a `completeText` it stays at `core`.
   let resolved = context;
-  const chosen = await selectGhostSurface(context.graph, options.userPrompt, {
-    completeText: options.completeText,
-    timeoutMs: options.surfaceSelectTimeoutMs,
-    signal: options.signal,
-  });
+  // Use a pre-resolved anchor when the caller already ran selection (e.g.
+  // concurrently with the agent broker). Validate it against the graph menu and
+  // fall back to `core` for an unknown id, matching selectGhostSurface's
+  // contract (which also accepts `core` and rejects out-of-menu answers).
+  const chosen = options.preselectedSurface !== undefined
+    ? validatePreselectedSurface(context.graph, options.preselectedSurface)
+    : await selectGhostSurface(context.graph, options.userPrompt, {
+        completeText: options.completeText,
+        timeoutMs: options.surfaceSelectTimeoutMs,
+        signal: options.signal,
+      });
   if (chosen !== context.surface) {
     const slice = resolveGraphSlice(context.graph, chosen);
     // Rebuild the token CSS from the new slice, but preserve the kind/source
@@ -454,6 +469,20 @@ export async function selectGhostSurface(
     clearTimeout(timer);
     options.signal?.removeEventListener('abort', onAbort);
   }
+}
+
+/**
+ * Validate a caller-supplied anchor id against the graph menu. Accepts `core`
+ * and any candidate surface; an unknown id falls back to `core`. Mirrors the
+ * out-of-menu guard in `selectGhostSurface` so a pre-resolved anchor is held to
+ * the same contract as a freshly selected one.
+ */
+function validatePreselectedSurface(graph: GhostGraph, surfaceId: string): string {
+  if (surfaceId === GHOST_GRAPH_ROOT_ID) return GHOST_GRAPH_ROOT_ID;
+  const menu = buildGraphMenu(graph);
+  return menu.some((entry) => entry.id === surfaceId)
+    ? surfaceId
+    : GHOST_GRAPH_ROOT_ID;
 }
 
 export function ghostContextMeta(ctx: ResolvedGhostContext) {

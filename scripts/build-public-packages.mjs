@@ -119,7 +119,6 @@ const coreExports = {
         'buildToolsBlock',
         'buildLayoutBlock',
         'buildSurfaceContractBlock',
-        'buildSurfacePlanBlock',
         'compileToolContract',
         'compileSurfaceContractView',
         'compileSurfacePolicy',
@@ -594,6 +593,7 @@ async function buildCore() {
     assertBuilt('packages/engine'),
     assertBuilt('packages/host'),
     assertBuilt('packages/sandbox-runtime'),
+    assertBuilt('packages/surface-vm'),
   ]);
 
   const distDir = resolveRoot('packages/summon/dist');
@@ -602,10 +602,12 @@ async function buildCore() {
   await copyDistTree(resolveRoot('packages/engine/dist'), join(distDir, '_internal', 'engine'));
   await copyDistTree(resolveRoot('packages/devtools/dist'), join(distDir, '_internal', 'devtools'));
   await copyDistTree(resolveRoot('packages/sandbox-runtime/dist'), join(distDir, '_internal', 'sandbox-runtime'));
+  await copyDistTree(resolveRoot('packages/surface-vm/dist'), join(distDir, '_internal', 'surface-vm'));
   await copyDistTree(resolveRoot('packages/host/dist'), join(distDir, '_internal', 'host'), [
     ['@summon-internal/sandbox-runtime/assets', '../sandbox-runtime/assets.js'],
     ['@summon-internal/devtools', '../devtools/index.js'],
     ['@summon-internal/engine', '../engine/index.js'],
+    ['@summon-internal/surface-vm', '../surface-vm/index.js'],
   ]);
 
   await writeWrappers(distDir, coreExports);

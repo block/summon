@@ -8,6 +8,7 @@ import {
   type SurfacePersistence,
   type SurfacePolicy,
   type SurfacePurpose,
+  type SurfaceGoalSource,
 } from '@summon-internal/engine';
 import { runSurfaceGeneration } from './runner.js';
 import type {
@@ -29,7 +30,9 @@ export type SurfaceGoalSideEffect =
   | 'local-state'
   | 'external-action'
   | 'approval-required';
-export type SurfaceGoalSource = 'provided' | 'model' | 'deterministic';
+// `SurfaceGoalSource` is defined in the engine (its canonical home, since the
+// surface-contract block consumes it) and re-exported here for broker callers.
+export type { SurfaceGoalSource };
 
 export interface SurfaceGoal {
   purpose: SurfacePurpose;
@@ -461,9 +464,53 @@ function narrowSurfacePolicy(
 
   if ((tier === 'worker' && grants.length === 0) ||
     (tier === 'approval' && !knownTools.some((tool) => toolAuthority(tool) === 'approval-gated'))) {
+    // The proposed tier (worker/approval) cannot be satisfied by the available
+    // tools. Rather than collapse to a dead `static` surface (the historical
+    // "static cliff"), fall back to the strongest *legal* tier the available
+    // tools support. We fail-closed on authority — never granting an approval
+    // or worker capability the host didn't authorize — but not on the surface's
+    // ability to function. Mirrors Ghost's "fall back to core: keep everything,
+    // lose focus" instead of "fall back to nothing".
+    const declarativeGrants = knownTools
+      .filter((tool) => toolAllowedForTier('declarative', tool))
+      .map((tool) => tool.name);
+    // Recompute rejections against the *downgraded* tier so a tool that is
+    // legal at `declarative` isn't reported as rejected just because it was
+    // illegal at the proposed approval/worker tier. Unknown (off-ceiling) names
+    // stay rejected.
+    const downgradeRejected = [
+      ...new Set([
+        ...rawGrants.filter((name) => !toolNames.has(name)),
+        ...knownGrantNames.filter((name) => !declarativeGrants.includes(name)),
+      ]),
+    ];
+    if (declarativeGrants.length === 0) {
+      // No usable interactive tools at all — static is the only legal surface.
+      return {
+        surfacePolicy: staticFallbackPolicy(policy),
+        rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
+        fallback: true,
+      };
+    }
+    const downgraded: SurfacePolicy = {
+      tier: 'declarative',
+      purpose: PURPOSES.has(policy.purpose as SurfacePurpose) ? policy.purpose : 'inform',
+      grants: declarativeGrants,
+      persistence: policy.persistence === 'ephemeral' ? 'ephemeral' : 'replayable',
+    };
+    const downgradedCompiled = compileSurfacePolicy(downgraded, {
+      tools: options.tools,
+    });
+    if (downgradedCompiled.issues.some((issue) => issue.severity === 'block')) {
+      return {
+        surfacePolicy: staticFallbackPolicy(policy),
+        rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
+        fallback: true,
+      };
+    }
     return {
-      surfacePolicy: staticFallbackPolicy(policy),
-      rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
+      surfacePolicy: downgraded,
+      rejectedTools: downgradeRejected,
       fallback: true,
     };
   }

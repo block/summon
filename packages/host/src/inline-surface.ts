@@ -1,6 +1,7 @@
 import type { EventStore } from '@summon-internal/devtools';
 import type {
   ArrowSurfaceArtifact,
+  DomjsSurfaceArtifact,
   HtmlSurfaceArtifact,
   HtmlPatchAction,
   HtmlSurfacePatch,
@@ -9,7 +10,9 @@ import type {
   ValidationTool,
 } from '@summon-internal/engine';
 
-export type InlineSurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact;
+import { buildDomjsModules, mountSurface } from '@summon-internal/surface-vm';
+
+export type InlineSurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact;
 
 export interface HtmlStreamPreviewDelta {
   runtime: 'html';
@@ -192,6 +195,9 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
   const preview = createPreviewState();
   let currentState = cloneState(options.initialState);
   let arrowTeardown: (() => void) | null = null;
+  // domjs (surface-vm) mounted surface, if the active artifact is a domjs one.
+  let domjsSurface: { pushState(state: Record<string, unknown>): void; destroy(): void } | null = null;
+  let domjsStateListener: ((state: Record<string, unknown>) => void) | null = null;
   let htmlTeardown: (() => void) | null = null;
   let htmlFrame: HTMLIFrameElement | null = null;
   let htmlPreviewFrame: HTMLIFrameElement | null = null;
@@ -244,6 +250,21 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       notifyState();
     }
     return result;
+  };
+
+  const teardownDomjsRuntime = () => {
+    if (domjsStateListener) {
+      subscribers.delete(domjsStateListener);
+      domjsStateListener = null;
+    }
+    if (domjsSurface) {
+      try {
+        domjsSurface.destroy();
+      } catch {
+        // best effort
+      }
+    }
+    domjsSurface = null;
   };
 
   const teardownHtmlRuntime = () => {
@@ -332,6 +353,75 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     }
   };
 
+  const renderDomjsArtifact = (artifact: DomjsSurfaceArtifact, revision: number) => {
+    // Tear down any other runtime; domjs replaces the active surface.
+    teardownDomjsRuntime();
+    teardownHtmlRuntime();
+    if (arrowTeardown) {
+      try {
+        arrowTeardown();
+      } catch {
+        // best effort
+      }
+      arrowTeardown = null;
+    }
+    renderState = 'rendering';
+    clearRuntimeChildren(root);
+
+    const entry = artifact.source['main.js'];
+    if (typeof entry !== 'string') {
+      const reason = 'domjs artifact is missing a main.js entry';
+      renderState = 'failed';
+      renderRuntimeError(root, reason);
+      reportRuntimeError(options, surfaceId, reason);
+      return;
+    }
+
+    const { modules, entryPath } = buildDomjsModules({ entry });
+    void mountSurface({
+      modules,
+      entryPath,
+      root,
+      initialState: cloneState(currentState),
+      // The surface-vm bridge forwards every tool call to the same host plumbing
+      // the Arrow path uses, so grants/policy/state behave identically.
+      hostBridge: (tool, args) => callToolInternal(tool, args as Record<string, unknown>),
+      onError(reason) {
+        if (disposed || revision !== renderRevision) return;
+        renderState = 'failed';
+        teardownDomjsRuntime();
+        clearRuntimeChildren(root);
+        renderRuntimeError(root, `domjs runtime error: ${reason}`);
+        reportRuntimeError(options, surfaceId, `domjs runtime error: ${reason}`);
+      },
+    })
+      .then((surface) => {
+        if (disposed || revision !== renderRevision) {
+          try {
+            surface.destroy();
+          } catch {
+            // best effort
+          }
+          return;
+        }
+        domjsSurface = surface;
+        // Keep the VM's surface state in sync with host state.
+        const listener = (state: Record<string, unknown>) => surface.pushState(state);
+        subscribers.add(listener);
+        domjsStateListener = listener;
+        renderState = 'rendered';
+        options.events?.push({ kind: 'rendered', at: Date.now(), surfaceId, revision });
+      })
+      .catch((err: unknown) => {
+        if (disposed || revision !== renderRevision) return;
+        renderState = 'failed';
+        const reason = `domjs runtime failed to mount: ${err instanceof Error ? err.message : String(err)}`;
+        clearRuntimeChildren(root);
+        renderRuntimeError(root, reason);
+        reportRuntimeError(options, surfaceId, reason);
+      });
+  };
+
   const renderHtmlArtifact = (artifact: HtmlSurfaceArtifact, revision: number) => {
     teardownHtmlRuntime();
     htmlPreviewArtifactCss = artifact.source['main.css'] ?? '';
@@ -412,6 +502,17 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
         renderHtmlArtifact(artifact, revision);
         return;
       }
+      if (artifact.runtime === 'domjs') {
+        options.events?.push({
+          kind: 'render',
+          at: Date.now(),
+          surfaceId,
+          bytes: JSON.stringify(artifact.source).length,
+        });
+        renderDomjsArtifact(artifact, revision);
+        return;
+      }
+      teardownDomjsRuntime();
       teardownHtmlRuntime();
       if (arrowTeardown) {
         try {
@@ -537,6 +638,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
         }
       }
       arrowTeardown = null;
+      teardownDomjsRuntime();
       teardownHtmlRuntime();
       subscribers.clear();
       root.replaceChildren();

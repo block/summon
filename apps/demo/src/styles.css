@@ -185,38 +185,6 @@ pre {
   box-shadow: var(--shadow-elevated);
 }
 
-.summon-host-ripple-grid {
-  --summon-ripple-size: 132px;
-  --summon-ripple-gap: 7px;
-  --summon-ripple-dot-size: 3px;
-  position: relative;
-  display: grid;
-  width: var(--summon-ripple-size);
-  aspect-ratio: 1;
-  grid-template-columns: repeat(11, minmax(0, 1fr));
-  place-items: center;
-  gap: var(--summon-ripple-gap);
-  isolation: isolate;
-}
-
-.summon-host-ripple-grid--compact {
-  --summon-ripple-size: 82px;
-  --summon-ripple-gap: 4px;
-  --summon-ripple-dot-size: 2px;
-}
-
-.summon-host-ripple-dot {
-  width: var(--summon-ripple-dot-size);
-  height: var(--summon-ripple-dot-size);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-ink) 74%, transparent);
-  opacity: var(--dot-rest-opacity);
-  transform: scale(var(--dot-rest-scale));
-  animation: summon-ripple-dot 1.9s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-  animation-delay: var(--ripple-delay);
-  box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ink) 0%, transparent);
-}
-
 .summon-host-dot-field {
   position: absolute;
   inset: -20%;
@@ -234,11 +202,92 @@ pre {
   animation: summon-dot-field-breathe 4.6s ease-in-out infinite;
 }
 
+/*
+ * Resting page dot field. Shares the exact dot spec (18px pitch, ink 22%)
+ * with the loader field so the idle background and the summon pulse read as
+ * the same dots — only their energy changes.
+ */
+.summon-page-dot-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-ink) 22%, transparent) 0 1px,
+      transparent 1.25px
+    );
+  background-position: 50% 50%;
+  background-size: 18px 18px;
+  opacity: 0.34;
+  mask-image: radial-gradient(circle at 50% 50%, black 0 52%, transparent 94%);
+  animation: summon-dot-field-breathe 4.6s ease-in-out infinite;
+}
+
+/*
+ * Full-page loader field. Same geometry as the resting field; the difference
+ * is energy: a slightly stronger breathe plus expanding rings (::before /
+ * ::after) of the *same* dots brightening as the wave passes outward.
+ */
 .summon-host-dot-field--page-pulse {
-  inset: -12%;
+  inset: 0;
   opacity: 0.5;
-  background-size: 22px 22px;
-  mask-image: radial-gradient(circle at 50% 50%, black 0 46%, transparent 82%);
+  background-size: 18px 18px;
+  mask-image: radial-gradient(circle at 50% 50%, black 0 58%, transparent 95%);
+  animation-duration: 3.4s;
+}
+
+/*
+ * Water-ripple wave train. Several concentric ring layers ride outward from
+ * the center at a staggered cadence, so multiple waves are always in flight.
+ * Each is a layer of the *same* dots; the ring mask brightens dots as the
+ * wave passes, and amplitude decays with travel (see keyframe).
+ */
+.summon-host-ripple-waves {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.summon-host-ripple-wave {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-ink) 100%, transparent) 0 1.7px,
+      transparent 2.2px
+    );
+  background-position: 50% 50%;
+  background-size: 18px 18px;
+  --summon-ring: 0%;
+  --summon-ring-band: 11%;
+  mask-image: radial-gradient(
+    circle at 50% 50%,
+    transparent calc(var(--summon-ring) - var(--summon-ring-band)),
+    black var(--summon-ring),
+    transparent calc(var(--summon-ring) + var(--summon-ring-band))
+  );
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 50%,
+    transparent calc(var(--summon-ring) - var(--summon-ring-band)),
+    black var(--summon-ring),
+    transparent calc(var(--summon-ring) + var(--summon-ring-band))
+  );
+  opacity: 0;
+  animation: summon-ripple-wave 3.2s linear infinite;
+}
+
+.summon-host-ripple-wave:nth-child(2) {
+  animation-delay: 0.8s;
+}
+
+.summon-host-ripple-wave:nth-child(3) {
+  animation-delay: 1.6s;
+}
+
+.summon-host-ripple-wave:nth-child(4) {
+  animation-delay: 2.4s;
 }
 
 .summon-host-preview-sketch {
@@ -338,29 +387,43 @@ pre {
   }
 }
 
-@keyframes summon-ripple-dot {
-  0%,
+@property --summon-ring {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+@property --summon-ring-band {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 11%;
+}
+
+@keyframes summon-ripple-wave {
+  0% {
+    --summon-ring: 0%;
+    --summon-ring-band: 7%;
+    opacity: 0;
+  }
+
+  6% {
+    opacity: 1;
+  }
+
+  40% {
+    --summon-ring-band: 11%;
+    opacity: 0.62;
+  }
+
+  75% {
+    --summon-ring-band: 15%;
+    opacity: 0.22;
+  }
+
   100% {
-    opacity: var(--dot-rest-opacity);
-    transform: scale(var(--dot-rest-scale));
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-ink) 0%, transparent);
-  }
-
-  24% {
-    opacity: var(--dot-peak-opacity);
-    transform: scale(var(--dot-peak-scale));
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-ink) 5%, transparent);
-  }
-
-  46% {
-    opacity: var(--dot-settle-opacity);
-    transform: scale(var(--dot-settle-scale));
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-ink) 2%, transparent);
-  }
-
-  74% {
-    opacity: var(--dot-rest-opacity);
-    transform: scale(var(--dot-rest-scale));
+    --summon-ring: 100%;
+    --summon-ring-band: 18%;
+    opacity: 0;
   }
 }
 

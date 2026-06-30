@@ -128,50 +128,26 @@ test('system compiler returns deterministic prompt block order and validation co
   assert.deepEqual(compiled.startupLines, []);
 });
 
-test('system compiler includes a host-owned surface plan block', () => {
-  const compiled = compileSystemContracts({
-    mode: 'interactive',
-    surfacePlan: {
-      purpose: 'explore',
-      runtime: 'arrow',
-      data: 'host-resource',
-      authority: 'read',
-      persistence: 'replayable',
-      network: 'none',
-    },
-    tools: {
-      tools: [
-        {
-          name: 'search',
-          description: 'Search host data.',
-          argsSchema: '{query: string}',
-          stateShape: '{loading: boolean, results: unknown[]}',
-          kind: 'resource',
-          triggers: ['submit'],
-          stateKeys: { loading: 'loading', data: 'results', error: 'error' },
-        },
-      ],
-    },
-  });
-
-  assert.deepEqual(
-    compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'surface-plan', 'tools', 'output-contract'],
-  );
-  assert.deepEqual(compiled.validationContext.surfacePlan, {
-    purpose: 'explore',
-    runtime: 'arrow',
-    data: 'host-resource',
-    authority: 'read',
-    persistence: 'replayable',
-    network: 'none',
-  });
-  const surfaceBlock = compiled.promptBlocks.find((block) => block.id === 'surface-plan');
-  assert.match(surfaceBlock?.text ?? '', /host-owned runtime contract/);
-  assert.match(surfaceBlock?.text ?? '', /Do not emit a `\/surface-plan` meta line/);
-});
-
 test('system compiler uses HTML-static prompt blocks without Arrow bridge leakage', () => {
+  const tools: ToolPack = {
+    tools: [
+      {
+        name: 'search',
+        description: 'Search host data.',
+        argsSchema: '{query: string}',
+        stateShape: '{loading: boolean, results: unknown[]}',
+        kind: 'resource',
+        triggers: ['submit'],
+        stateKeys: { loading: 'loading', data: 'results', error: 'error' },
+        surface: { data: 'host-resource', authority: 'read' },
+      },
+    ],
+  };
+  const surfaceContract = compileSurfaceContractView({
+    tier: 'declarative',
+    purpose: 'explore',
+    grants: ['search'],
+  }, { tools });
   const compiled = compileSystemContracts({
     mode: 'interactive',
     outputRuntime: 'html-static',
@@ -182,32 +158,13 @@ test('system compiler uses HTML-static prompt blocks without Arrow bridge leakag
         { id: 'details', purpose: 'Supporting context' },
       ],
     },
-    surfacePlan: {
-      purpose: 'explore',
-      runtime: 'arrow',
-      data: 'host-resource',
-      authority: 'read',
-      persistence: 'replayable',
-      network: 'none',
-    },
-    tools: {
-      tools: [
-        {
-          name: 'search',
-          description: 'Search host data.',
-          argsSchema: '{query: string}',
-          stateShape: '{loading: boolean, results: unknown[]}',
-          kind: 'resource',
-          triggers: ['submit'],
-          stateKeys: { loading: 'loading', data: 'results', error: 'error' },
-        },
-      ],
-    },
+    surfaceContract,
+    tools,
   });
 
   assert.deepEqual(
     compiled.promptBlocks.map((block) => block.id),
-    ['fixed', 'layout:two-slot', 'surface-plan', 'tools', 'output-contract'],
+    ['fixed', 'layout:two-slot', 'surface-contract', 'tools', 'output-contract'],
   );
   assert.equal(compiled.validationContext.experimentalHtmlScript, false);
   const systemText = compiled.promptBlocks.map((block) => block.text).join('\n');

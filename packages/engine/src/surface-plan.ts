@@ -1,8 +1,4 @@
 import type { ToolPack } from './prompt.js';
-import {
-  runtimeProfile,
-  type SummonOutputRuntime,
-} from './output-runtime.js';
 
 export type SurfacePurpose =
   | 'inform'
@@ -146,45 +142,6 @@ export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePla
  */
 export function inferSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan {
   return suggestSurfacePlan(input);
-}
-
-export function buildSurfacePlanBlock(
-  plan: SurfacePlan,
-  options: { outputRuntime?: SummonOutputRuntime } = {},
-): string {
-  const outputRuntime = options.outputRuntime ?? 'arrow-control';
-  const runtimeRules = runtimeProfile(outputRuntime).format === 'html'
-    ? `- This generation's output runtime is \`${outputRuntime}\`: return the structured HTML bundle requested by the output contract, not protocol lines or another source-tree format.
-- \`SurfacePlan.runtime\` remains \`${plan.runtime}\` as host safety-plan metadata; do not reinterpret it as a request to change the output format.
-- Static, declarative, worker, and approval behavior comes from \`SurfacePolicy.tier\` and this plan's data/authority fields, not alternate surface-plan runtimes.
-- Use only the host-owned capabilities described in the Tools block; worker execution and approval remain host-owned.`
-    : `- Runtime is always \`arrow\`: emit one \`op: "artifact"\` line at \`/artifact\` containing an Arrow sandbox source tree with one \`main.ts\` or \`main.js\`.
-- Static, declarative, worker, and approval behavior comes from \`SurfacePolicy.tier\` and this plan's data/authority fields, not alternate runtimes.
-- Use only tools the host describes in the Tools block; worker execution and approval remain host-owned.`;
-
-  return `## Surface plan — host-owned runtime contract
-
-The host has selected this minimum safe surface plan:
-
-- Purpose: \`${plan.purpose}\`
-- Runtime: \`${plan.runtime}\`
-- Data: \`${plan.data}\`
-- Authority: \`${plan.authority}\`
-- Persistence: \`${plan.persistence}\`
-- Network: \`${plan.network ?? 'none'}\`
-
-This plan is a host decision, not part of your generated artifact. Do not emit a \`/surface-plan\` meta line and do not imply tools outside this plan.
-
-Runtime rules:
-
-${runtimeRules}
-
-Authority rules:
-
-- \`none\`: no emitted tools.
-- \`read\`: read-oriented data resources only.
-- \`host-action\`: host-owned actions and resources may run after schema validation.
-- \`approval-gated\`: use only tools explicitly marked approval-gated; approval happens outside the artifact.`;
 }
 
 function inferPurpose(prompt: string): SurfacePurpose {

@@ -166,6 +166,59 @@ test('planAgentSurface selects worker and approval tiers from catalog-backed too
   assert.equal(approval.surfacePolicy.purpose, 'operate');
 });
 
+test('planAgentSurface downgrades to the strongest legal tier instead of the static cliff', async () => {
+  // Approval verb ("update ... my") escalates to approval tier, but the only
+  // available tool (choose) is host-action, not approval-gated. Previously this
+  // collapsed to a dead static surface; now it falls back to declarative with
+  // the legal tool, failing closed on authority but not on functionality.
+  const chooseOnly: ToolPack = {
+    tools: [tools.tools.find((tool) => tool.name === 'choose')!],
+  };
+  const approvalStarved = await planAgentSurface({
+    prompt: 'help me compare three pricing plans and update my preferred pick',
+    tools: chooseOnly,
+  });
+  assert.equal(approvalStarved.surfacePolicy.tier, 'declarative');
+  assert.deepEqual(approvalStarved.surfacePolicy.grants, ['choose']);
+  assert.equal(approvalStarved.compiledPolicy.mode, 'interactive');
+  assert.equal(approvalStarved.policyResolution.fallback, true);
+  // The legal tool is granted, so it must not appear as rejected.
+  assert.deepEqual(approvalStarved.policyResolution.rejectedTools, []);
+
+  // With no usable interactive tool at all, static remains the only legal surface.
+  const noUsableTool = await planAgentSurface({
+    prompt: 'publish the release note for me',
+    tools: { tools: [] },
+  });
+  assert.equal(noUsableTool.surfacePolicy.tier, 'static');
+  assert.equal(noUsableTool.surfacePolicy.grants, undefined);
+});
+
+test('planAgentSurface passes a model/provided multi-tool goal through the clamp intact', async () => {
+  // The regex `singleCandidate` guard drops all-but-one tool on ambiguity, but
+  // that guard only governs the deterministic fallback. A semantic (model or
+  // host-provided) goal may legitimately request several host-action tools, and
+  // the capability clamp must honor them at a single declarative tier rather
+  // than narrowing back to one.
+  const plan = await planAgentSurface({
+    prompt: 'help us vote on options and keep a running tally',
+    tools: multiToolPack,
+    goal: {
+      purpose: 'compare',
+      interaction: 'select',
+      dataNeed: 'embedded',
+      sideEffect: 'local-state',
+      requestedTools: ['choose', 'counter'],
+      confidence: 0.9,
+      rationale: 'model: two host-action tools',
+    },
+  });
+  assert.equal(plan.goalSource, 'provided');
+  assert.equal(plan.surfacePolicy.tier, 'declarative');
+  assert.deepEqual([...(plan.surfacePolicy.grants ?? [])].sort(), ['choose', 'counter']);
+  assert.equal(plan.policyResolution.fallback, false);
+});
+
 test('planAgentSurface keeps multi-tool class inference narrow', async () => {
   const approval = await planAgentSurface({
     prompt: 'publish the prepared summary',

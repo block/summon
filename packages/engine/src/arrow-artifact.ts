@@ -1,4 +1,4 @@
-import { ARROW_IDL_BINDING_RE } from './arrow-subset.js';
+import { ARROW_IDL_BINDING_RE, ARROW_MAP_TEMPLATE_CALLBACK_RE } from './arrow-subset.js';
 import type { ContractIssue } from './contracts.js';
 import { contractIssue } from './contracts.js';
 
@@ -122,6 +122,21 @@ export function validateArrowSurfaceArtifact(
       issues.push(arrowIssue(
         'unsupported-arrow-idl-binding',
         `Arrow source "${path}" uses an IDL property binding (e.g. \`.value=\`), which the Arrow sandbox compiler rejects. Use an attribute binding plus an event binding instead.`,
+        `/artifact/${path}`,
+      ));
+    }
+    // A tagged template (or other non-function) passed directly to
+    // `.map`/`.flatMap`/`.forEach` is valid syntax but crashes at VM boot with
+    // `TypeError: not a function`, because those methods call their argument.
+    // The model's JSX/lit habit produces `items.map(html`...`)`; the Arrow form
+    // needs a function callback. Catch the high-confidence template-callback
+    // shape here as a repairable block so the repair loop rewrites it before it
+    // reaches the sandbox. We intentionally only flag the template form to keep
+    // false positives near zero (anything else needs real parsing).
+    if (ARROW_MAP_TEMPLATE_CALLBACK_RE.test(contents)) {
+      issues.push(arrowIssue(
+        'arrow-map-callback-not-function',
+        `Arrow source "${path}" passes a template directly to .map()/.flatMap()/.forEach(), which crashes at runtime ("not a function"). Pass a function callback instead, e.g. items.map((item) => html\`...\`).`,
         `/artifact/${path}`,
       ));
     }

@@ -21,7 +21,7 @@ import {
   type ToolTrigger,
   type ResourceStateKeys,
 } from './tool-contract.js';
-import type { SurfaceContractView } from './surface-contract.js';
+import type { SurfaceContractView, SurfaceContractSurface } from './surface-contract.js';
 import type { ToolSurface } from './surface-plan.js';
 import {
   runtimeProfile,
@@ -158,6 +158,109 @@ Highest-value reminders (full rules above): no \`<script>\`, \`<iframe>\`, \`<fo
 
 The run is incomplete until the bundle contains valid \`body.html\`.`;
 
+export const SUMMON_FIXED_DOMJS_INSTRUCTIONS = `You generate self-contained, interactive HTML/JS web UIs for the experimental Summon domjs runtime.
+
+You receive a user request and a Ghost design fingerprint. Render one interactive surface as imperative JavaScript that builds the DOM. The Ghost fingerprint is the sole authority for composition, hierarchy, density, tone, and all visual design — follow it. Summon governs only the runtime, safety, and output format below.
+
+## How the runtime works
+
+Your JavaScript runs inside a capability sandbox. There is no real browser: no \`window\`, no \`document.body\`, no network, no storage. A small \`document\` facade lets you build a node tree, and the trusted host renders it. This is why interactivity is safe — write normal imperative DOM code and export the root node.
+
+## Supported API (use ONLY these)
+
+- \`document.createElement(tag)\`, \`document.createElementNS(svgNs, tag)\`, \`document.createTextNode(text)\`
+- \`node.textContent = string\` (set on a text node you hold to update it later)
+- \`el.setAttribute(name, value)\`, \`el.removeAttribute(name)\`, \`el.className = ...\`, \`el.id = ...\`
+- \`el.append(child)\` / \`el.appendChild(child)\` (during initial build)
+- \`el.addEventListener(type, fn)\`, \`el.removeEventListener(type)\`
+- \`state(initial)\` (alias \`reactive(initial)\`) returns a REACTIVE object — mutating a property automatically re-renders anything that reads it
+- \`region(() => [nodes])\` for a DYNAMIC list or conditional
+- Host tools: \`await callTool(name, args)\`, \`getState()\`, \`onState(cb)\`
+- \`export default rootNode\` — the surface root
+
+## Reactivity (preferred — write this, not manual updates)
+
+State is reactive. Bind dynamic values by passing a FUNCTION; the binding re-runs automatically when the state it reads changes. You do not manage updates yourself.
+
+- Reactive text: \`textNode.textContent = () => 'Count: ' + s.count\` — only that text updates when \`s.count\` changes.
+- Reactive attribute: \`el.setAttribute('disabled', () => s.items.length === 0 ? true : false)\` or \`el.className = () => s.active ? 'tab on' : 'tab'\`.
+- Reactive list/conditional: \`region(() => s.items.map(item => { const li = document.createElement('li'); li.textContent = item.label; return li; }))\` — the region re-renders automatically when \`s.items\` changes. Do NOT call \`.update()\`.
+- For list edits, REASSIGN the array so the change is tracked: \`s.items = s.items.concat(newItem)\` and \`s.items = s.items.filter(x => x.id !== id)\` (not \`.push\`/\`.splice\`).
+- A handler just mutates state: \`btn.addEventListener('click', () => { s.count += 1; })\` — the UI follows. No explicit re-render call.
+- \`region(fn).update()\` still exists as a manual escape hatch for non-reactive data sources, but prefer reactive state.
+
+## Hard rules (these crash or are rejected)
+
+- Do NOT use \`innerHTML\`, \`outerHTML\`, \`querySelector\`, \`getElementById\`, \`el.style\` (use \`setAttribute('style', ...)\` or \`className\`), \`insertBefore\`, \`removeChild\`, \`parentNode\` traversal, \`window\`, or \`document.body\`.
+- Do NOT \`append\` to or reset \`textContent\` of an element AFTER it has rendered. For dynamic content, use a reactive binding (\`() => ...\`) or wrap it in \`region(() => [...])\`.
+- Do NOT use \`fetch\`, \`XMLHttpRequest\`, or \`WebSocket\`. Call granted host tools with \`callTool(name, args)\` instead.
+- Hold references to nodes you create; you cannot query for them later.
+
+## Worked examples (follow this shape — design per the fingerprint)
+
+These show the runtime mechanics only; apply the Ghost fingerprint for all visual design.
+
+Reactive counter — function bindings update in place, handler just mutates state:
+
+    const s = state({ count: 0 });
+    const root = document.createElement('div');
+    const label = document.createElement('p');
+    label.textContent = () => 'Count: ' + s.count;          // reactive text
+    const inc = document.createElement('button');
+    inc.textContent = 'Increment';
+    inc.addEventListener('click', () => { s.count += 1; });  // no manual update
+    const reset = document.createElement('button');
+    reset.textContent = 'Reset';
+    reset.setAttribute('disabled', () => s.count === 0);     // reactive attribute
+    reset.addEventListener('click', () => { s.count = 0; });
+    root.append(label, inc, reset);
+    export default root;
+
+Reactive list with add/remove — region re-renders automatically; reassign the array:
+
+    const s = state({ items: ['First task'], draft: '' });
+    const root = document.createElement('div');
+    const input = document.createElement('input');
+    input.addEventListener('input', (e) => { s.draft = e.value; });
+    const add = document.createElement('button');
+    add.textContent = 'Add';
+    add.addEventListener('click', () => {
+      if (!s.draft) return;
+      s.items = s.items.concat(s.draft);                     // reassign -> tracked
+      s.draft = '';
+    });
+    const count = document.createElement('p');
+    count.textContent = () => s.items.length + ' item(s)';
+    const list = region(() => s.items.map((label, i) => {    // auto re-renders
+      const row = document.createElement('div');
+      const text = document.createElement('span');
+      text.textContent = label;
+      const del = document.createElement('button');
+      del.textContent = 'Remove';
+      del.addEventListener('click', () => { s.items = s.items.filter((_, j) => j !== i); });
+      row.append(text, del);
+      return row;
+    }));
+    root.append(input, add, count, list);
+    export default root;
+
+## Token contract
+
+${formatTokenContract()}
+
+Begin. Return one complete structured domjs bundle through the provided tool/schema.`;
+
+export const SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS = `## Output contract — final reminder
+
+Return one structured object through the \`emit_domjs_surface\` tool/schema. Not Markdown, code fences, transport records, \`op\`/\`path\` objects, host-owned meta paths, or Arrow source.
+
+- \`schema: "summon.domjs-bundle/v1"\`
+- \`source["main.js"]\` building the UI imperatively and \`export default rootNode\` (optional \`source["main.css"]\`)
+
+Highest-value reminders (full rules above): only the supported facade API; use reactive state with function bindings (\`textContent = () => s.x\`, \`region(() => s.items.map(...))\`) and mutate state in handlers — no manual update calls; reassign arrays (\`s.items = s.items.concat(...)\`) so edits track; no \`innerHTML\`/\`querySelector\`/\`el.style\`/\`window\`/\`fetch\`; reach the host only through \`callTool()\`.
+
+The run is incomplete until the bundle contains a valid \`main.js\` that exports a root node.`;
+
 export function buildLayoutBlock(
   layout: SummonLayout,
   options: PromptRuntimeOptions = {},
@@ -181,6 +284,32 @@ Rules:
 - Do not invent page chrome or alternate slot names that obscure the layout.
 - Do not emit transport records or stream lines such as \`set /screen\`, \`add /section/*\`, \`/surface-plan\`, or \`/artifact\`; the server owns the stream.
 - The host layout controls semantic order; the direction controls visual language.`;
+}
+
+/**
+ * Render the `purpose` hint at a firmness scaled by goal provenance. The
+ * capability boundaries are unaffected — only how strongly we phrase the
+ * (always overrulable) purpose hint changes. A `deterministic` regex guess is
+ * voiced most tentatively; a confident `model`/`provided` goal a bit more
+ * assertively. In all cases Purpose is a hint the model may override based on
+ * the user request.
+ */
+function purposeHintText(surface: SurfaceContractSurface): string {
+  const purpose = surface.plan.purpose;
+  const source = surface.goalProvenance?.source ?? 'deterministic';
+  const confidence = surface.goalProvenance?.confidence;
+  const confident =
+    (source === 'model' || source === 'provided') &&
+    (confidence === undefined || confidence >= 0.7);
+
+  const lead = confident
+    ? `Purpose hint (the host's inferred purpose for this request — a strong suggestion, still not a constraint):`
+    : `Purpose hint (the host's best guess at what the user wants — a weak signal, not a constraint):`;
+  const guidance = confident
+    ? `Treat Purpose as a suggestion. If the user request or content clearly calls for a different shape, follow them. Never narrow, omit, or genericize the surface to fit the Purpose hint. The capability boundaries above are the only hard limits.`
+    : `Treat Purpose as a soft hint only. The user request and the actual content are the authority — when in doubt, follow them over this hint. Never narrow, omit, or genericize the surface to fit the Purpose hint. The capability boundaries above are the only hard limits.`;
+
+  return `${lead}\n\n- Purpose (hint): \`${purpose}\`\n\n${guidance}`;
 }
 
 export function buildSurfaceContractBlock(
@@ -227,9 +356,13 @@ ${enforcementLine}
 
 ### Surface
 
-- Policy: tier=\`${surface.policy.tier}\`, purpose=\`${surface.policy.purpose}\`, persistence=\`${surface.policy.persistence}\`
-- Plan: purpose=\`${surface.plan.purpose}\`, runtime=\`${surface.plan.runtime}\`, data=\`${surface.plan.data}\`, authority=\`${surface.plan.authority}\`, persistence=\`${surface.plan.persistence}\`
+Capability boundaries (hard limits — the sandbox enforces these):
+
+- Tier: \`${surface.policy.tier}\`
+- Runtime: \`${surface.plan.runtime}\`, data: \`${surface.plan.data}\`, authority: \`${surface.plan.authority}\`, persistence: \`${surface.plan.persistence}\`
 - Mode: \`${surface.mode}\`
+
+${purposeHintText(surface)}
 
 ### Tools
 

@@ -209,6 +209,45 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
     ['unsupported-arrow-idl-binding'],
   );
 
+  // Passing a tagged template directly to .map() is valid syntax but crashes
+  // at VM boot with `TypeError: not a function`, because .map calls its
+  // argument. The validator blocks it as a repairable issue so the repair loop
+  // rewrites it to a function callback before it reaches the sandbox.
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'import { html } from "@arrow-js/core"; const items = []; export default html`<ul>${() => items.map(html`<li>x</li>`)}</ul>`',
+          },
+        },
+      },
+      baseContext,
+    )),
+    ['arrow-map-callback-not-function'],
+  );
+
+  // The correct function-callback form must NOT be flagged.
+  assert.deepEqual(
+    codes(validateProtocolLine(
+      {
+        op: 'artifact',
+        path: '/artifact',
+        value: {
+          runtime: 'arrow',
+          source: {
+            'main.ts': 'import { html } from "@arrow-js/core"; const items = []; export default html`<ul>${() => items.map((item) => html`<li>${() => item}</li>`)}</ul>`',
+          },
+        },
+      },
+      baseContext,
+    )),
+    [],
+  );
+
   // Subset restriction removed (experiment 2026-06-25): open-tag template
   // expressions are now accepted, not blocked.
   assert.deepEqual(

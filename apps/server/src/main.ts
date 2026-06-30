@@ -35,6 +35,7 @@ import {
   publicGhostRoots,
   resolveCatalogGhostGenerationContext,
   resolveGhostGenerationContext,
+  selectGhostSurface,
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
 import { evaluateConformance, emptyConformanceVerdict, type ConformanceVerdict } from './ghost-conformance.js';
@@ -121,6 +122,7 @@ const MODEL_PROFILE_KEY_BY_RUNTIME = {
   'arrow-control': 'arrow-control',
   'html-static': 'html-static',
   'html-stream': 'html-stream',
+  'domjs-control': 'domjs-control',
 } satisfies Record<SummonOutputRuntime, ModelProfileKey>;
 
 function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?: string } {
@@ -415,6 +417,22 @@ app.post('/api/generate', async (req, res) => {
     let agentPlan: AgentSurfacePlanResult | null = null;
     let generationSurfacePolicy: SurfacePolicy | null = null;
 
+    // Ghost surface selection and the agent broker both read the user prompt
+    // with the same utility model, but ask different questions (anchor node vs
+    // tools/purpose) and live in different layers (Ghost is app-side; the broker
+    // is the provider-neutral package). Rather than run them sequentially, kick
+    // off Ghost selection here so it runs concurrently with the policy branch's
+    // broker call; the ghost block below awaits the pre-resolved anchor. Skipped
+    // (left null → adapter anchors at `core`) when there is no Ghost context or
+    // surface selection is disabled — matching the prior gate exactly.
+    const ghostSurfaceSelectEnabled =
+      !!ghostContext && process.env.SUMMON_GHOST_SURFACE_SELECT !== '0';
+    const ghostSurfacePromise: Promise<string | null> = ghostSurfaceSelectEnabled
+      ? selectGhostSurface(ghostContext!.graph, prompt, {
+          completeText: (request) => utilityModelProvider.completeText(request, utilityModelSelection),
+        })
+      : Promise.resolve(null);
+
     if (playgroundMode) {
       writeGeneratePhase(res, seedLines, 'contract', 'Preparing playground run');
       const startedAt = performance.now();
@@ -461,7 +479,7 @@ app.post('/api/generate', async (req, res) => {
       agentPlan = await planAgentSurface({
         prompt,
         tools: toolCeiling,
-        goalModel: process.env.SUMMON_AGENT_GOAL_MODEL === '0' || agentOptions?.goalModel === 'off'
+        goalModel: process.env.SUMMON_AGENT_GOAL_SELECT === '0' || agentOptions?.goalModel === 'off'
           ? null
           : {
               completeText: (request) => utilityModelProvider.completeText(request, utilityModelSelection),
@@ -485,6 +503,12 @@ app.post('/api/generate', async (req, res) => {
     if (ghostContext) {
       writeGeneratePhase(res, seedLines, 'contract', 'Preparing Ghost surface brief');
       const startedAt = performance.now();
+      // Surface selection was kicked off before the policy branch so it ran
+      // concurrently with the broker's model call. Await the pre-resolved anchor
+      // and hand it in; prepareGhostSurfacePrompt skips its own selection call
+      // when `preselectedSurface` is set. When selection was disabled the
+      // promise resolves to null → adapter anchors at `core` (no model call).
+      const preselectedSurface = await ghostSurfacePromise;
       ghostContext = await prepareGhostSurfacePrompt(ghostContext, {
         userPrompt: prompt,
         mode,
@@ -495,15 +519,9 @@ app.post('/api/generate', async (req, res) => {
           : agentPlan
             ? agentPlan.compiledPolicy.tools
             : pack,
-        // Semantic surface selection is an optional pre-generation refinement
-        // (default-on, `SUMMON_GHOST_SURFACE_SELECT=0` to disable). It only
-        // calls the model for multi-surface fingerprints; single-`core`
-        // packages skip it. Omitting completeText keeps the anchor at `core`.
-        completeText:
-          process.env.SUMMON_GHOST_SURFACE_SELECT === '0'
-            ? undefined
-            : (request) =>
-                utilityModelProvider.completeText(request, utilityModelSelection),
+        // Semantic surface selection already ran concurrently above; pass the
+        // resolved anchor so the adapter does not make a second model call.
+        ...(preselectedSurface !== null ? { preselectedSurface } : {}),
       });
       writeGenerateTiming(
         res,
@@ -525,6 +543,20 @@ app.post('/api/generate', async (req, res) => {
       'invalid-arrow-bundle-entry',
       'arrow-bundle-extra-file',
       'invalid-arrow-bundle-source-file',
+      // domjs: let the repair loop recover the "valid syntax, runtime-fatal"
+      // class (unsupported facade API, ungranted network) instead of blocking.
+      // These mirror the repairable domjs codes in runtime/bundle.ts.
+      'invalid-domjs-source-syntax',
+      'invalid-domjs-source',
+      'invalid-domjs-source-file',
+      'invalid-domjs-source-path',
+      'invalid-domjs-bundle',
+      'invalid-domjs-bundle-schema',
+      'invalid-domjs-entry',
+      'missing-domjs-bundle-entry',
+      'domjs-source-limit',
+      'domjs-unsupported-api',
+      'domjs-network-not-granted',
     ];
 
     if (playgroundMode) {
@@ -589,6 +621,13 @@ app.post('/api/generate', async (req, res) => {
             ? toolCeiling
             : pack,
         surfacePolicy: generationSurfacePolicy,
+        // Goal provenance scales how firmly the surface-contract prompt voices
+        // the `purpose` hint (never the capability boundaries). Only the broker
+        // path infers a goal; host-authored policies leave this undefined so the
+        // hint is voiced at the conservative default firmness.
+        ...(agentPlan
+          ? { goalProvenance: { source: agentPlan.goalSource, confidence: agentPlan.goal.confidence } }
+          : {}),
         preludeLines,
         seedLines,
         validationMode,
@@ -606,6 +645,8 @@ app.post('/api/generate', async (req, res) => {
           generateHtmlBundle: (request) => modelProvider.generateHtmlBundle(request, modelSelection),
           repairHtmlBundle: (request) => modelProvider.repairHtmlBundle(request, modelSelection),
           streamHtmlSurface: (request) => modelProvider.streamHtmlSurface(request, modelSelection),
+          generateDomjsBundle: (request) => modelProvider.generateDomjsBundle(request, modelSelection),
+          repairDomjsBundle: (request) => modelProvider.repairDomjsBundle(request, modelSelection),
         },
       }, (line) => {
         writeGenerateLine(res, line);

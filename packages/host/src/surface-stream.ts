@@ -2,6 +2,7 @@ import {
   normalizeHtmlSurfaceArtifact,
   normalizeHtmlSurfacePatch,
   normalizeArrowSurfaceArtifact,
+  normalizeDomjsSurfaceArtifact,
   normalizeValidationLimits,
   parseProtocolLine,
   StreamGraph,
@@ -9,9 +10,11 @@ import {
   validateHtmlSurfacePatch,
   validateProtocolLine,
   validateArrowSurfaceArtifact,
+  validateDomjsSurfaceArtifact,
   type ContractIssue,
   type ArrowSurfaceArtifact,
   type ArtifactLine,
+  type DomjsSurfaceArtifact,
   type HtmlPatchLine,
   type HtmlSurfaceArtifact,
   type HtmlSurfacePatch,
@@ -25,7 +28,7 @@ import {
   type ValidationContext,
 } from '@summon-internal/engine';
 
-export type SurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact;
+export type SurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact;
 
 export type SurfaceStreamChunk = string | Uint8Array;
 export type SurfaceStreamSource =
@@ -322,6 +325,10 @@ function compileAcceptedArtifactLine(
         maxSourceBytes: limits.maxProtocolLineBytes,
         network: validationContext?.surfacePlan?.network ?? 'none',
       }));
+    } else if (normalized.artifact.runtime === 'domjs') {
+      issues.push(...validateDomjsSurfaceArtifact(normalized.artifact, {
+        maxSourceBytes: limits.maxProtocolLineBytes,
+      }));
     } else {
       issues.push(...validateHtmlSurfaceArtifact(normalized.artifact, {
         allowScript: validationContext?.experimentalHtmlScript === true,
@@ -379,6 +386,9 @@ function normalizeSurfaceArtifact(value: unknown): {
   if (value && typeof value === 'object' && (value as { runtime?: unknown }).runtime === 'html') {
     return normalizeHtmlSurfaceArtifact(value);
   }
+  if (value && typeof value === 'object' && (value as { runtime?: unknown }).runtime === 'domjs') {
+    return normalizeDomjsSurfaceArtifact(value);
+  }
   return normalizeArrowSurfaceArtifact(value);
 }
 
@@ -393,7 +403,8 @@ function isSurfaceArtifactValue(value: unknown): value is SurfaceArtifact {
     typeof value === 'object' &&
     !Array.isArray(value) &&
     ((value as { runtime?: unknown }).runtime === 'arrow' ||
-      (value as { runtime?: unknown }).runtime === 'html') &&
+      (value as { runtime?: unknown }).runtime === 'html' ||
+      (value as { runtime?: unknown }).runtime === 'domjs') &&
     typeof (value as { source?: unknown }).source === 'object' &&
     (value as { source?: unknown }).source !== null &&
     !Array.isArray((value as { source?: unknown }).source)

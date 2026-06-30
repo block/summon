@@ -236,6 +236,56 @@ describe('Ghost adapter', () => {
     );
   });
 
+  it('honors a preselected anchor and makes no selection model call', async () => {
+    const root = await makeGhostFixture();
+    const roots = parseGhostRoots(`checkout=${root}`);
+    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+
+    const ctx = await resolveGhostContext(parsed.request, roots);
+    let calls = 0;
+    const throwIfCalled = async () => {
+      calls += 1;
+      throw new Error('selection model must not be called when preselected');
+    };
+
+    // `core` is always a valid anchor; preselected → no model call.
+    const prepared = await prepareGhostSurfacePrompt(ctx, {
+      userPrompt: 'show checkout queue status',
+      mode: 'static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'arrow',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'replayable',
+      },
+      preselectedSurface: 'core',
+      completeText: throwIfCalled,
+    });
+    assert.equal(prepared.surface, 'core');
+    assert.equal(calls, 0, 'preselected anchor must skip the selection model call');
+
+    // An unknown preselected id falls back to core (never trust an off-menu id),
+    // still without a model call.
+    const fallback = await prepareGhostSurfacePrompt(ctx, {
+      userPrompt: 'show checkout queue status',
+      mode: 'static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'arrow',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'replayable',
+      },
+      preselectedSurface: 'nonexistent-surface',
+      completeText: throwIfCalled,
+    });
+    assert.equal(fallback.surface, 'core');
+    assert.equal(calls, 0, 'unknown preselected id must not trigger a model call');
+  });
+
   it('uses HTML output wording in the Summon surface brief when requested', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
