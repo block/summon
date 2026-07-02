@@ -11,8 +11,6 @@ import {
   type SummonSurfaceProps,
 } from "@anarchitecture/summon-react";
 import {
-  runtimeProfile,
-  type SummonOutputRuntime,
   type SurfaceSize,
   type SurfaceComplexity,
 } from "@anarchitecture/summon/engine";
@@ -104,7 +102,6 @@ export function GenerationStage({
   selectedFingerprintId,
   fingerprints,
   onSelectFingerprint,
-  experimentalRuntime,
   scaleSize,
   onSelectScaleSize,
   scaleComplexity,
@@ -138,7 +135,6 @@ export function GenerationStage({
   selectedFingerprintId: string | null;
   fingerprints: GhostRootInfo[];
   onSelectFingerprint: (id: string | null) => void;
-  experimentalRuntime: SummonOutputRuntime;
   scaleSize: SurfaceSize | "";
   onSelectScaleSize: (value: SurfaceSize | "") => void;
   scaleComplexity: SurfaceComplexity | "";
@@ -170,18 +166,13 @@ export function GenerationStage({
   childSurfaces: ChildSurfaceModel[];
   onCloseChild: (id: number) => void;
 }) {
-  const selectedRuntimeProfile = runtimeProfile(experimentalRuntime);
-  const isStreamDelivery = selectedRuntimeProfile.delivery === "stream";
   const showSamplePills = showWelcome && !running;
   const showHostLoader =
-    !isStreamDelivery &&
     !showWelcome &&
     !stageNotice &&
     !surfaceReady &&
     (running || hasRenderedArtifact);
-  const showSandboxFrame =
-    !showWelcome &&
-    (surfaceReady || stageNotice !== null || isStreamDelivery);
+  const showSandboxFrame = !showWelcome && (surfaceReady || stageNotice !== null);
   const selectedFingerprint =
     fingerprints.find(
       (fingerprint) => fingerprint.id === selectedFingerprintId,

@@ -1,5 +1,12 @@
-import type { SummonLayout } from '@anarchitecture/summon/engine';
+import type { SummonLayout, SummonOutputRuntime } from '@anarchitecture/summon/engine';
 import { createScopedDemoRegistry } from '../../showcase.js';
+
+/**
+ * The generate workbench is pinned to the Surface Document runtime — the
+ * successor contract (docs/surface-document-plan.md). Runtime comparison
+ * lives in the Batch page, not here.
+ */
+export const GENERATE_RUNTIME: SummonOutputRuntime = 'surface-document';
 
 export const savedSurfacesKey = 'summon.savedSurfaces.v1';
 export const maxSavedSurfaces = 8;

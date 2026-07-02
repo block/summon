@@ -7,7 +7,6 @@ import {
   isHtmlSurfaceArtifact,
   isSurfaceDocumentArtifact,
   type ProtocolLine,
-  type SummonOutputRuntime,
   type SummonLayout,
   type SurfaceContractView,
   type SurfacePlan,
@@ -29,7 +28,7 @@ import { ApprovalStack } from "./components/ApprovalStack.js";
 import { ContractInspector } from "./components/ContractInspector.js";
 import { DiagnosticsDock } from "./components/DiagnosticsDock.js";
 import { GenerationStage } from "./components/GenerationStage.js";
-import { layoutPresets } from "./constants.js";
+import { GENERATE_RUNTIME, layoutPresets } from "./constants.js";
 import { displayEventKind, type ExtraDevtoolsEvent } from "./devtools.js";
 import { buildGenerationPreview } from "./generationPreview.js";
 import { useGenerationRuns } from "./hooks/useGenerationRuns.js";
@@ -69,7 +68,6 @@ import type {
 } from "./types.js";
 
 const DEFAULT_FINGERPRINT_ID = "editorial-mono";
-const DEFAULT_EXPERIMENTAL_RUNTIME: SummonOutputRuntime = "arrow-control";
 
 function profileStateToPayload(
   profile: ModelProfileState,
@@ -144,8 +142,6 @@ export function GeneratePage() {
   );
   const [fingerprintTargetPath, setFingerprintTargetPath] = useState(".");
   const [runProfile, setRunProfile] = useState<RunProfile>("quality");
-  const [experimentalRuntime, setExperimentalRuntime] =
-    useState<SummonOutputRuntime>(DEFAULT_EXPERIMENTAL_RUNTIME);
   const [modelProfiles, setModelProfiles] = useState<
     Record<ModelProfileKey, ModelProfileState>
   >(() => createEmptyModelProfiles());
@@ -218,7 +214,7 @@ export function GeneratePage() {
     [selectedScenarioId, showcaseScenarios],
   );
   const activeModelProfileKey: ModelProfileKey =
-    modelProfileKeyForRuntime(experimentalRuntime);
+    modelProfileKeyForRuntime(GENERATE_RUNTIME);
   const activeModelProfile = modelProfiles[activeModelProfileKey];
   const utilityModelProfile = modelProfiles.utility;
 
@@ -546,7 +542,7 @@ export function GeneratePage() {
         ? { utilityModel: modelSelection.utilityModel }
         : {}),
       ...(modelSelection.customModel ? { customModel: true } : {}),
-      experimentalRuntime,
+      experimentalRuntime: GENERATE_RUNTIME,
       ...(modelSelection.modelOptions
         ? { modelOptions: modelSelection.modelOptions }
         : {}),
@@ -559,7 +555,6 @@ export function GeneratePage() {
     customContractEnabled,
     playgroundMode,
     fingerprintId,
-    experimentalRuntime,
     layoutId,
     scaleSize,
     scaleComplexity,
@@ -737,7 +732,6 @@ export function GeneratePage() {
     activeContract,
     playgroundMode,
     fingerprintId,
-    experimentalRuntime,
     fingerprintTargetPath,
     clearApprovals,
     clearRuntimeState,
@@ -790,7 +784,7 @@ export function GeneratePage() {
   const statusText = bytes
     ? `${statusLabel} · ${bytes.toLocaleString()} B`
     : statusLabel;
-  const runtimeLabel = runtimeTargetText(experimentalRuntime);
+  const runtimeLabel = runtimeTargetText(GENERATE_RUNTIME);
   const generationPreview = useMemo(
     () =>
       buildGenerationPreview({
@@ -957,7 +951,6 @@ export function GeneratePage() {
             setActiveTokensSourceOverride(null);
             setShowWelcome(true);
           }}
-          experimentalRuntime={experimentalRuntime}
           scaleSize={scaleSize}
           onSelectScaleSize={setScaleSize}
           scaleComplexity={scaleComplexity}

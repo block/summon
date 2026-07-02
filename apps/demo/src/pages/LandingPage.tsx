@@ -4,7 +4,7 @@ const cards = [
   {
     href: "/generate",
     title: "Generate",
-    body: "One prompt. Generate a structured Arrow bundle, stream server-owned diagnostics, render the accepted artifact in the inline sandbox, and inspect validation.",
+    body: "One prompt. Generate a governed Surface Document bundle, stream server-owned diagnostics, render the accepted artifact in the inline sandbox, and inspect validation.",
     icon: (
       <>
         <path d="M3 12c2-4 3.5-4 5.5 0s3.5 4 5.5 0 3.5-4 5.5 0" />
@@ -69,8 +69,8 @@ export function LandingPage() {
             summon
           </h1>
           <p className="m-0 max-w-[56ch] text-[15px] leading-[1.55] text-ink-soft">
-            summon renders ai-generated UI in an inline Arrow sandbox. the ui
-            can only use host tools the app allows.
+            summon renders ai-generated UI in an inline capability sandbox. the
+            ui can only use host tools the app allows.
           </p>
         </header>
 

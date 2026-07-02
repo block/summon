@@ -7,7 +7,6 @@ import {
   isSurfaceDocumentArtifact,
   normalizeHtmlSurfacePatch,
   type HtmlSurfacePatch,
-  type SummonOutputRuntime,
   type SummonLayout,
   type SurfaceContractView,
   type SurfacePlan,
@@ -15,6 +14,7 @@ import {
 import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import type { ActiveContract, Mode } from '../../../showcase.js';
+import { GENERATE_RUNTIME } from '../constants.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
 import type { ChildSurfaceModel, LogEntry, StreamOptions, StreamResult, TimingEntry } from '../types.js';
 
@@ -28,7 +28,6 @@ export function useGenerationRuns({
   activeContract,
   playgroundMode,
   fingerprintId,
-  experimentalRuntime,
   fingerprintTargetPath,
   clearApprovals,
   clearRuntimeState,
@@ -67,7 +66,6 @@ export function useGenerationRuns({
   activeContract: ActiveContract;
   playgroundMode: boolean;
   fingerprintId: string | null;
-  experimentalRuntime: SummonOutputRuntime;
   fingerprintTargetPath: string;
   clearApprovals: (reason: string) => void;
   clearRuntimeState: () => void;
@@ -123,7 +121,7 @@ export function useGenerationRuns({
         prompt: runPrompt,
         active: activeContract,
         fingerprintId,
-        experimentalRuntime,
+        experimentalRuntime: GENERATE_RUNTIME,
         fingerprintTargetPath: fingerprintTargetPath.trim() || '.',
         layout: readLayout(),
         playgroundMode,
@@ -157,7 +155,6 @@ export function useGenerationRuns({
     clearRuntimeState,
     currentValidationSummary,
     fingerprintId,
-    experimentalRuntime,
     fingerprintTargetPath,
     logLine,
     readLayout,

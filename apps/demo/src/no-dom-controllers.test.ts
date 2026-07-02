@@ -32,21 +32,30 @@ test('demo host pages stay React-state driven instead of DOM-controller driven',
   assert.deepEqual(violations, []);
 });
 
-test('generate page exposes experimental runtime selection through the UI request path', () => {
+test('generate is pinned to the Surface Document runtime with no picker', () => {
+  const constants = readFileSync(join(srcRoot, 'pages/generate/constants.ts'), 'utf8');
   const page = readFileSync(join(srcRoot, 'pages/generate/GeneratePage.tsx'), 'utf8');
+  const runs = readFileSync(join(srcRoot, 'pages/generate/hooks/useGenerationRuns.ts'), 'utf8');
   const stage = readFileSync(join(srcRoot, 'pages/generate/components/GenerationStage.tsx'), 'utf8');
   const stream = readFileSync(join(srcRoot, 'pages/generate/hooks/useSurfaceStream.ts'), 'utf8');
+  const child = readFileSync(join(srcRoot, 'pages/generate/components/ChildSurface.tsx'), 'utf8');
 
-  assert.match(stage, /id="stream-type-picker"/);
-  assert.match(stage, /overline="Runtime"/);
-  assert.match(stage, /value=\{experimentalRuntime\}/);
-  assert.match(stage, /function runtimeGroups/);
-  assert.match(stage, /hover:opacity-85/);
-  assert.match(stage, /html-static/);
-  assert.match(stage, /html-stream/);
-  assert.doesNotMatch(stage, /unsafe/);
-  assert.doesNotMatch(page, /unsafeRuntimeGateEnabled/);
+  // The pinned runtime is declared once and flows through every request path.
+  assert.match(constants, /GENERATE_RUNTIME: SummonOutputRuntime = 'surface-document'/);
+  assert.match(page, /experimentalRuntime: GENERATE_RUNTIME/);
+  assert.match(runs, /experimentalRuntime: GENERATE_RUNTIME/);
+  assert.match(child, /experimentalRuntime: GENERATE_RUNTIME/);
   assert.match(stream, /experimentalRuntime: opts\.experimentalRuntime/);
+
+  // No runtime picker UI and no per-run runtime state on the generate page.
+  assert.doesNotMatch(stage, /stream-type-picker/);
+  assert.doesNotMatch(stage, /experimentalRuntime/);
+  assert.doesNotMatch(page, /setExperimentalRuntime/);
+  assert.doesNotMatch(page, /unsafe/);
+
+  // The pinned bundle runtime leaves no html-stream plumbing behind.
+  assert.doesNotMatch(stream, /html-stream-preview|applyHtmlPreviewDelta|onHtmlPatch/);
+  assert.doesNotMatch(child, /html-stream-preview|applyHtmlPreviewDelta|onHtmlPatch/);
 });
 
 test('generate defaults to showcase mode with ward and a catalog fingerprint', () => {

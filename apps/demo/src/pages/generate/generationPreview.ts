@@ -258,7 +258,7 @@ function phaseLabel(value: string): string {
     case 'validating':
       return 'Checking sandbox contract';
     case 'rendering':
-      return 'Mounting Arrow UI';
+      return 'Mounting surface';
     case 'finalizing':
       return 'Finalizing surface';
     case 'streaming':

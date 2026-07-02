@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import {
   consumeSurfaceStream,
-  type HtmlStreamPreviewDelta,
   type SurfacePreviewSnapshot,
 } from '@anarchitecture/summon/browser';
 import {
@@ -13,7 +12,7 @@ import {
 import { Button, panelClass } from '../../../components/ui.js';
 import { cn } from '../../../lib/cn.js';
 import { createScopedDemoRegistry } from '../../../showcase.js';
-import { childToolNames } from '../constants.js';
+import { childToolNames, GENERATE_RUNTIME } from '../constants.js';
 import {
   buildGenerationPreview,
   reduceSurfacePreviewSnapshot,
@@ -58,6 +57,7 @@ export function ChildSurface({
           body: JSON.stringify({
             prompt: child.prompt,
             validationMode: 'observe',
+            experimentalRuntime: GENERATE_RUNTIME,
             ...(buildFingerprintSteeringPayload({
               id: child.fingerprintId,
               targetPath: child.fingerprintTargetPath,
@@ -80,18 +80,11 @@ export function ChildSurface({
             if (line.path === '/surface-plan') {
               setCurrentSurfacePlan(normalizeSurfacePlan(line.value));
             }
-            if (line.path === '/html-stream-preview') {
-              const delta = parseHtmlStreamPreviewDelta(line.value);
-              if (delta) surfaceRef.current?.applyHtmlPreviewDelta(delta);
-            }
           },
           onArtifact: (artifact) => {
             setSurfaceReady(false);
             setArtifactSeen(true);
             surfaceRef.current?.renderArtifact(artifact);
-          },
-          onHtmlPatch: (patch) => {
-            surfaceRef.current?.applyHtmlPatch(patch);
           },
           onSurfaceEvent: (event) => {
             setPreviewSnapshot((snapshot) =>
@@ -175,35 +168,6 @@ export function ChildSurface({
       </div>
     </section>
   );
-}
-
-function parseHtmlStreamPreviewDelta(value: unknown): HtmlStreamPreviewDelta | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const delta = value as Record<string, unknown>;
-  const action = delta.action;
-  const text = typeof delta.delta === 'string'
-    ? delta.delta
-    : typeof delta.text === 'string'
-      ? delta.text
-      : '';
-  if (delta.runtime !== 'html') return null;
-  if (typeof delta.target !== 'string' || !delta.target) return null;
-  if (
-    action !== 'append' &&
-    action !== 'replace' &&
-    action !== 'update' &&
-    action !== 'remove' &&
-    action !== 'morph'
-  ) {
-    return null;
-  }
-  if (!text) return null;
-  return {
-    runtime: 'html',
-    target: delta.target,
-    action,
-    delta: text,
-  };
 }
 
 function statusLabel(status: string): string {

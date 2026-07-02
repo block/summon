@@ -7,16 +7,12 @@ import {
 } from 'react';
 import {
   consumeSurfaceStream,
-  type HtmlStreamPreviewDelta,
   type SurfacePreviewSnapshot,
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import {
   normalizeSurfacePlan,
   buildFingerprintSteeringPayload,
-  runtimeProfile,
-  type ArrowSurfaceArtifact,
-  type HtmlSurfaceArtifact,
   type ProtocolLine,
   type SurfaceContractView,
   type SurfacePlan,
@@ -275,26 +271,6 @@ export function useSurfaceStream({
       logLine('op-meta', `stream diagnostics -> ${JSON.stringify(line.value)}`);
       return;
     }
-    if (line.op === 'meta' && line.path === '/html-stream-preview') {
-      const delta = parseHtmlStreamPreviewDelta(line.value);
-      if (delta) {
-        surfaceRef.current?.applyHtmlPreviewDelta(delta);
-        logLine('op-meta', `html preview -> ${delta.action} #${delta.target}`);
-      }
-      return;
-    }
-    if (line.op === 'meta' && line.path === '/html-stream-summary') {
-      const value = line.value as { previewDeltaCount?: unknown; committedPatchCount?: unknown; blockedPatchReasons?: unknown } | undefined;
-      const previewDeltaCount = typeof value?.previewDeltaCount === 'number' ? value.previewDeltaCount : 0;
-      const committedPatchCount = typeof value?.committedPatchCount === 'number' ? value.committedPatchCount : 0;
-      const blockedPatchReasons = Array.isArray(value?.blockedPatchReasons)
-        ? value.blockedPatchReasons.filter((reason): reason is string => typeof reason === 'string')
-        : [];
-      const summary = `html preview=${previewDeltaCount} patches=${committedPatchCount} blocked=${blockedPatchReasons.length}`;
-      setCurrentStreamHealth(summary);
-      logLine('op-meta', `html stream -> ${summary}${blockedPatchReasons.length ? ` (${blockedPatchReasons.join(',')})` : ''}`);
-      return;
-    }
     if (line.op === 'meta' && line.path === '/timing') {
       const timing = parseTimingEntry(line.value);
       if (timing) {
@@ -331,8 +307,8 @@ export function useSurfaceStream({
       return;
     }
     if (line.op === 'artifact') {
-      const artifact = line.value as ArrowSurfaceArtifact | HtmlSurfaceArtifact | { runtime?: string; source?: Record<string, string> } | undefined;
-      const validArtifact = artifact?.runtime === 'arrow' || artifact?.runtime === 'html' || artifact?.runtime === 'domjs';
+      const artifact = line.value as { runtime?: string; source?: Record<string, string> } | undefined;
+      const validArtifact = artifact?.runtime === 'surface-document' || artifact?.runtime === 'arrow' || artifact?.runtime === 'html' || artifact?.runtime === 'domjs';
       const files = validArtifact && artifact?.source
         ? Object.keys(artifact.source).join(', ')
         : 'invalid';
@@ -482,10 +458,6 @@ export function useSurfaceStream({
         }
         surfaceRef.current?.renderArtifact(artifact);
       },
-      onHtmlPatch: (patch) => {
-        surfaceRef.current?.applyHtmlPatch(patch);
-        logLine('op-artifact', `html patch ${patch.action} #${patch.target}`);
-      },
       onSurfaceEvent: (event) => {
         metrics.observeSurfaceEvent(event, elapsedSinceStart());
         noteFirstPaintTiming();
@@ -633,34 +605,6 @@ function roundMs(value: number): number {
 
 function formatTimingMs(value: number): string {
   return `${Math.round(value).toLocaleString()}ms`;
-}
-
-function parseHtmlStreamPreviewDelta(value: unknown): HtmlStreamPreviewDelta | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const delta = value as Record<string, unknown>;
-  if (delta.runtime !== 'html') return null;
-  if (typeof delta.target !== 'string' || !delta.target) return null;
-  if (
-    delta.action !== 'append' &&
-    delta.action !== 'replace' &&
-    delta.action !== 'update' &&
-    delta.action !== 'remove' &&
-    delta.action !== 'morph'
-  ) {
-    return null;
-  }
-  const text = typeof delta.delta === 'string'
-    ? delta.delta
-    : typeof delta.text === 'string'
-      ? delta.text
-      : '';
-  if (!text) return null;
-  return {
-    runtime: 'html',
-    target: delta.target,
-    action: delta.action,
-    delta: text,
-  };
 }
 
 async function readErrorResponse(response: Response): Promise<string> {
