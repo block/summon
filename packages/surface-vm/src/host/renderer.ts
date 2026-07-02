@@ -155,7 +155,15 @@ export class HostRenderer {
 
   private replaceRegion(regionId: string, children: SerializedNode[]): void {
     const region = this.regions.get(regionId);
-    if (!region) return;
+    if (!region) {
+      // Implicit element region: a replace-region whose id names an element
+      // replaces that element's children. This is how post-mount structural
+      // DOM mutation (append/removeChild/textContent reset) reaches the host —
+      // same op, wider id domain; the 6-op protocol line holds.
+      const node = this.nodes.get(regionId);
+      if (node instanceof Element) this.replaceElementChildren(node, children);
+      return;
+    }
 
     let node = region.start.nextSibling;
     while (node && node !== region.end) {
@@ -170,6 +178,62 @@ export class HostRenderer {
 
     for (const child of children) {
       parent.insertBefore(this.instantiate(child), region.end);
+    }
+  }
+
+  private replaceElementChildren(element: Element, children: SerializedNode[]): void {
+    // Best-effort focus/value preservation: if the focused input lives inside
+    // the subtree being replaced, remember how to find it again (tag + id/name)
+    // and restore focus, value, and caret after the swap. Heuristic only — node
+    // ids are freshly allocated per re-render, so identity cannot be used.
+    const focusKey = this.focusKeyWithin(element);
+
+    for (const child of Array.from(element.childNodes)) {
+      this.teardownNode(child);
+    }
+    const fragment = document.createDocumentFragment();
+    for (const child of children) {
+      fragment.append(this.instantiate(child));
+    }
+    element.replaceChildren(fragment);
+
+    if (focusKey) this.restoreFocus(element, focusKey);
+  }
+
+  private focusKeyWithin(
+    element: Element,
+  ): { selector: string; value: string; selectionStart: number | null } | null {
+    const active = element.ownerDocument.activeElement;
+    if (!active || !element.contains(active)) return null;
+    const input = active as HTMLInputElement;
+    const tag = active.tagName.toLowerCase();
+    const id = active.getAttribute('id');
+    const name = active.getAttribute('name');
+    const selector = id ? `${tag}[id="${id}"]` : name ? `${tag}[name="${name}"]` : tag;
+    return {
+      selector,
+      value: typeof input.value === 'string' ? input.value : '',
+      selectionStart: typeof input.selectionStart === 'number' ? input.selectionStart : null,
+    };
+  }
+
+  private restoreFocus(
+    element: Element,
+    key: { selector: string; value: string; selectionStart: number | null },
+  ): void {
+    const next = element.querySelector(key.selector) as HTMLInputElement | null;
+    if (!next || typeof next.focus !== 'function') return;
+    next.focus();
+    if (typeof next.value === 'string' && !next.value && key.value) {
+      // Only re-fill if the re-render dropped the value (uncontrolled input).
+      next.value = key.value;
+    }
+    if (key.selectionStart !== null && typeof next.setSelectionRange === 'function') {
+      try {
+        next.setSelectionRange(key.selectionStart, key.selectionStart);
+      } catch {
+        // not a text-selection input type; fine
+      }
     }
   }
 

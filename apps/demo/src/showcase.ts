@@ -3,6 +3,7 @@ import type {
   SummonOutputRuntime,
   SurfacePlan,
   SurfacePlanMode,
+  SurfaceScale,
 } from '@anarchitecture/summon/engine';
 import type { ToolRegistry, SurfacePolicy } from '@anarchitecture/summon';
 import { createDemoToolRegistry, type DemoHandlerOptions } from './tools.js';
@@ -18,6 +19,7 @@ export interface ShowcaseScenario {
   surfacePolicy: SurfacePolicy;
   surfacePlan: SurfacePlan;
   layoutId?: string;
+  scale?: SurfaceScale;
   fingerprintId?: string | null;
 }
 
@@ -30,6 +32,7 @@ export interface ActiveContract {
   surfacePolicy?: SurfacePolicy;
   surfacePlan: SurfacePlan;
   layoutId?: string;
+  scale?: SurfaceScale;
   fingerprintId?: string | null;
   modelProvider?: string | null;
   generationModel?: string;
@@ -57,9 +60,9 @@ export interface ActiveContract {
 export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   {
     id: 'host-resource-search',
-    label: 'Dinner finder',
+    label: 'Hike finder',
     prompt:
-      "i'm tired and have chicken, pasta, and spinach — help me search for weeknight dinner ideas i can compare",
+      "help me find a weekend hike near me — let me search by distance and difficulty and compare a couple options",
     mode: 'interactive',
     toolNames: ['search'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search'] },
@@ -74,9 +77,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'host-ai-brainstorm',
-    label: 'Gift ideas',
+    label: 'Coffee cart name',
     prompt:
-      "brainstorm birthday gift ideas for my sister — she's 32, into pottery and hiking, and i want something thoughtful",
+      "brainstorm names for my new coffee cart — playful, easy to say, and not already a big chain",
     mode: 'interactive',
     toolNames: ['ai'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['ai'] },
@@ -93,7 +96,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     id: 'github-profile-lookup',
     label: 'GitHub profile',
     prompt:
-      'look up a GitHub username and help me understand the profile, followers, and public repo signal from the returned data',
+      'look up a GitHub username and help me understand their profile, top repos, and how active they have been',
     mode: 'interactive',
     toolNames: ['github_lookup'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['github_lookup'] },
@@ -108,9 +111,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'arrow-fidelity',
-    label: 'Launch readiness',
+    label: 'Job offer call',
     prompt:
-      'help me review whether our small product launch is ready, compare the main signals, and choose the final recommendation',
+      'help me review two job offers, compare the main tradeoffs side by side, and choose the one to accept',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: {
@@ -129,8 +132,8 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'static-summary',
-    label: 'IRA explainer',
-    prompt: 'explain Roth vs traditional IRA for someone new to retirement saving and show when each one makes sense',
+    label: '401k explainer',
+    prompt: 'explain what a 401k match actually means for someone who has never had one, and show when it makes sense to max it out',
     mode: 'static',
     toolNames: [],
     surfacePolicy: { tier: 'static', purpose: 'compare' },
@@ -145,9 +148,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'decision-picker',
-    label: 'Announcement pick',
+    label: 'Phone plan pick',
     prompt:
-      'help me choose between three launch announcement approaches for a small developer tool, compare tradeoffs, and save the best fit',
+      'help me choose between three phone plans for a family of four, compare tradeoffs, and save the best fit',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'compare', grants: ['choose'] },
@@ -162,9 +165,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'declarative-form',
-    label: 'Lunch order',
+    label: 'Housewarming RSVPs',
     prompt:
-      'collect a team lunch order for eight people, including dietary notes, and let me submit the final order',
+      'collect RSVPs for my housewarming with headcount and plus-ones, and let me submit the final guest list',
     mode: 'interactive',
     toolNames: ['submit'],
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
@@ -179,9 +182,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'worker-analysis',
-    label: 'Blocker score',
+    label: 'Spending score',
     prompt:
-      'analyze launch readiness for instant payouts, compute a score, and show me the biggest blockers to resolve',
+      'analyze my past three months of spending, compute a savings-rate score, and show me the biggest leaks to fix',
     mode: 'interactive',
     toolNames: ['analysis', 'compute_score'],
     surfacePolicy: { tier: 'worker', purpose: 'review', grants: ['analysis', 'compute_score'] },
@@ -198,7 +201,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     id: 'approval-publish',
     label: 'Publish approval',
     prompt:
-      'prepare a release note i can review, then ask for approval before publishing it to the team update log',
+      'draft a price increase email to my clients i can review, then ask for approval before publishing it',
     mode: 'interactive',
     toolNames: ['publish_summary'],
     surfacePolicy: { tier: 'approval', purpose: 'operate', grants: ['publish_summary'] },
@@ -213,9 +216,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'local-state-motion',
-    label: 'Weekend vote',
+    label: 'Chore vote',
     prompt:
-      'help me and my partner vote on weekend activities, compare the options, track votes, and make the final pick less awkward',
+      'help me and my roommate divide the chores fairly, compare the options, track votes, and make the final split less awkward',
     mode: 'interactive',
     toolNames: ['choose', 'counter'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },
@@ -230,9 +233,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'offer-picker',
-    label: 'Offer picker',
+    label: 'Savings picker',
     prompt:
-      'compare three customer retention offers, make the preferred one easy to choose, and show the saved selection clearly',
+      'compare three savings accounts on fees and rate, make the preferred one easy to choose, and show the saved selection clearly',
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose'] },
@@ -247,9 +250,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
   },
   {
     id: 'layout-card',
-    label: 'Project intake',
+    label: 'Freelance intake',
     prompt:
-      'create a project intake card where i can submit owner, deadline, risk, and requested next step',
+      'create a freelance request intake card where i can submit scope, budget, deadline, and next step',
     mode: 'interactive',
     toolNames: ['submit'],
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
@@ -265,9 +268,9 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
   {
     id: 'sibling-summon',
-    label: 'Recipe prep',
+    label: 'Trip planner',
     prompt:
-      'help me search for dinner ideas and spin up a separate prep guide for the recipe i decide to cook',
+      'help me search for weekend getaway spots and spin up a separate packing guide for the trip i decide to take',
     mode: 'interactive',
     toolNames: ['search', 'summon'],
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search', 'summon'] },

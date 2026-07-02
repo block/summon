@@ -1,0 +1,17 @@
+{
+  "schema": "summon.fingerprint-bundle/v1",
+  "id": "decisive-dark",
+  "name": "Decisive Dark",
+  "summary": "A confident dark answer surface where one hero result claims the screen, evidence reads as bold discrete data, meaning lands in a single sentence, and a single accent is spent at most once.",
+  "status": "published",
+  "version": "0.1.0",
+  "tags": [
+    "dark",
+    "agentic",
+    "confident",
+    "data",
+    "hero-answer",
+    "minimal",
+    "single-accent"
+  ]
+}

@@ -8,6 +8,7 @@ import type {
   SummonLayout,
   SummonOutputRuntime,
   SurfacePolicy,
+  SurfaceScale,
   SurfaceGoalProvenance,
   ProtocolValidationMode,
 } from '@summon-internal/engine';
@@ -74,6 +75,7 @@ export interface SurfaceGenerationInput {
   modelProvider: SurfaceModelProvider;
   ghost?: GhostGenerationContext | null;
   layout?: SummonLayout | null;
+  scale?: SurfaceScale | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
   tools?: ToolPack | null;
   surfacePolicy?: SurfacePolicy | null;
@@ -95,6 +97,23 @@ export interface SurfaceGenerationInput {
   repairIssueCodes?: string[];
   heartbeatIntervalMs?: number;
   signal?: AbortSignal;
+  /**
+   * Optional design-fidelity reviewer. After a bundle passes runtime/safety
+   * validation, the loop hands its accepted source to this reviewer; any
+   * returned issues (severity `block`) trigger up to `maxFidelityRepairs`
+   * additional repair passes with design hints, so a technically-valid but
+   * off-fingerprint surface can be regenerated instead of shipped as-is.
+   *
+   * Provider-neutral by construction: the app closes over the Ghost context and
+   * a utility model (e.g. Ghost conformance) and returns plain ContractIssues.
+   * Omitted ⇒ no fidelity loop (behaviour unchanged).
+   */
+  fidelityReviewer?: (
+    source: Record<string, string>,
+  ) => Promise<ContractIssue[]>;
+  /** Max design-fidelity repair passes (separate budget from validation
+   * repairs). Defaults to 0 when a reviewer is present but no budget is set. */
+  maxFidelityRepairs?: number;
 }
 
 export interface SurfaceGenerationSummary {

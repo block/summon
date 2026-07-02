@@ -107,6 +107,45 @@ describe('Ghost adapter', () => {
     assert.match(ctx.prompt, /--color-bg/);
   });
 
+  it('injects signature moves and the fingerprint\'s own composition grammar at the core anchor', async () => {
+    const root = await makeRichGhostFixture();
+    const roots = parseGhostRoots(`checkout=${root}`);
+    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+
+    const ctx = await resolveGhostContext(parsed.request, roots);
+    // The common path: anchor stays at `core`. Composition authority lives in
+    // the fingerprint's own `core` prose + building-block nodes, so a `core`
+    // anchor is fully composed — not a generic base.
+    const prepared = await prepareGhostSurfacePrompt(ctx, {
+      userPrompt: 'make me something',
+      mode: 'static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'arrow',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'ephemeral',
+      },
+      preselectedSurface: 'core',
+    });
+
+    assert.equal(prepared.surface, 'core');
+    // Signature moves are surfaced verbatim as mandatory requirements.
+    assert.match(prepared.prompt, /Signature moves — non-negotiable for this fingerprint/);
+    assert.match(prepared.prompt, /the ticked rail runs down the left edge/i);
+    // The fingerprint's own composition grammar (from `core`) carries the
+    // surface — its building-block node body is rendered verbatim in the slice.
+    assert.match(prepared.prompt, /Compose every surface from the same parts/);
+    assert.match(prepared.prompt, /Stack ordered updates on the visible rail/);
+    // Summon injects NO composition voice of its own: no repertoire, no
+    // archetype menu, no lead-archetype template.
+    assert.doesNotMatch(prepared.prompt, /Composition repertoire/);
+    assert.doesNotMatch(prepared.prompt, /Lead archetype composition/);
+    assert.doesNotMatch(prepared.prompt, /Fingerprint composition rules/);
+  });
+
   it('appends a Summon surface brief to the slice prompt', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
@@ -136,7 +175,7 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata/);
     assert.match(prepared.prompt, /The agent ward controls host authority and tools/);
     assert.match(prepared.prompt, /The user request is the semantic and task authority/);
-    assert.match(prepared.prompt, /The Ghost fingerprint is the visual and composition authority/);
+    assert.match(prepared.prompt, /The Ghost fingerprint is the sole composition authority/);
     assert.match(prepared.prompt, /Fingerprint surface: core \(cascade: core\)/);
     assert.match(prepared.prompt, /Gathered nodes: core \(own\)/);
   });
@@ -502,6 +541,66 @@ id: test-product
   );
   const css = options.tokenCss ?? await readDefaultTokensCss();
   await writeFile(join(ghostDir, 'index.md'), ghostIndexMarkdown(css));
+  return root;
+}
+
+/** A fixture with a `## Signature look & feel` section and a `## Composition`
+ * grammar on the root, plus a building-block node (`rail`), so the
+ * signature-moves block and the fingerprint's own composition voice have real
+ * content to surface. Composition is authored as grammar-in-core + composable
+ * parts — there are no archetype folders (dissolve model). */
+async function makeRichGhostFixture(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-rich-'));
+  fixtureRoots.push(root);
+  const ghostDir = join(root, '.ghost');
+  await mkdir(ghostDir, { recursive: true });
+  await writeFile(
+    join(ghostDir, 'manifest.yml'),
+    `schema: ghost.fingerprint-package/v1
+id: rich-product
+`,
+  );
+  const css = await readDefaultTokensCss();
+  await writeFile(
+    join(ghostDir, 'index.md'),
+    `---
+description: Rich test fingerprint with signature moves and a composition grammar.
+---
+
+## Intent
+
+A paced signal language.
+
+## Signature look & feel
+
+- The ticked rail runs down the left edge and no other fingerprint has it.
+- Flat saturated tiles carry hierarchy through color, never elevation.
+
+## Inventory
+
+\`\`\`css
+${css.trim()}
+\`\`\`
+
+## Composition
+
+Compose every surface from the same parts: run the [ticked rail](rail) down the
+left edge, then stack flat saturated tiles beside it. Let the task set the shape —
+a live feed orders the tiles by time; a digest leads with one large tile — but
+never collapse to an unframed generic layout.
+`,
+  );
+  await writeFile(
+    join(ghostDir, 'rail.md'),
+    `---
+description: The ticked rail — the left-edge sequence spine that orders the surface.
+---
+
+## Composition
+
+Stack ordered updates on the visible rail with mono timestamps beside rounded tile bodies.
+`,
+  );
   return root;
 }
 

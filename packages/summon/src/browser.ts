@@ -9,7 +9,6 @@ export {
   parseHtmlSandboxMessage,
 } from '@summon-internal/host/browser';
 export type {
-  Artifact,
   HtmlSandboxMessage,
   HtmlSandboxSrcdocOptions,
   HtmlPreviewSrcdocOptions,

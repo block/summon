@@ -9,9 +9,11 @@ import {
   SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS,
   buildToolsBlock,
   buildLayoutBlock,
+  buildScaleBlock,
   buildSurfaceContractBlock,
   type ToolPack,
   type SummonLayout,
+  type SurfaceScale,
 } from './prompt.js';
 import {
   parseDefinedTokens,
@@ -105,6 +107,7 @@ export interface SystemContractInput {
   outputRuntime?: SummonOutputRuntime;
   ghost?: GhostGenerationContext | null;
   layout?: SummonLayout | null;
+  scale?: SurfaceScale | null;
   editBlock?: string | null;
   experimentalPromptBlock?: ContractPromptBlock | null;
   tools?: ToolPack | null;
@@ -196,9 +199,9 @@ export function hintsForContractIssue(
       return ARROW_MAP_CALLBACK_HINTS;
     case 'domjs-unsupported-api':
       return [
-        'Use only the supported domjs DOM subset: document.createElement, createTextNode, textContent, setAttribute/removeAttribute, className, append, addEventListener, reactive state(...), and region(...) for dynamic lists.',
-        'Do not use innerHTML, outerHTML, querySelector, getElementById, insertBefore, removeChild, el.style, window, or document.body.',
-        'Hold references to nodes you create. For dynamic content use reactive bindings — textContent = () => s.value, el.setAttribute(name, () => ...), region(() => s.items.map(...)) — and mutate state in handlers (reassign arrays: s.items = s.items.concat(...)). No manual update calls needed.',
+        'Write standard imperative DOM code: document.createElement/createTextNode, textContent, setAttribute/removeAttribute, className/classList, el.style.*, append/appendChild/insertBefore/removeChild/replaceChildren, addEventListener or on<event> properties, and property setters like value/checked/disabled.',
+        'Do not use innerHTML, outerHTML, querySelector, getElementById, node.remove(), parentNode traversal, window, or document.body. Hold references to nodes you create.',
+        'For dynamic values use reactive state(...) with function bindings — textContent = () => s.value, el.setAttribute(name, () => ...) — and mutate state (including s.items.push(...)) in event handlers. No manual update calls needed.',
       ];
     case 'domjs-network-not-granted':
       return ['Remove fetch/XHR/WebSocket; call granted host tools with callTool(name, args) instead.'];
@@ -345,6 +348,14 @@ export function compileSystemContracts(
     promptBlocks.push({
       id: `layout:${input.layout.id}`,
       text: buildLayoutBlock(input.layout, { outputRuntime }),
+      cache: 'ephemeral',
+    });
+  }
+
+  if (input.scale) {
+    promptBlocks.push({
+      id: 'scale',
+      text: buildScaleBlock(input.scale),
       cache: 'ephemeral',
     });
   }

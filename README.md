@@ -61,7 +61,7 @@ pnpm dev:workbench
 Open `http://localhost:5173/generate`.
 
 1. Choose the **Host resource search** showcase scenario.
-2. Confirm the agent broker selects an interactive run with only the `search`
+2. Confirm the agent ward selects an interactive run with only the `search`
    host tool allowed.
 3. Run it, then submit a generated search such as `chicken pasta`.
 4. Open `http://localhost:5173/adversarial` and confirm the sandbox
@@ -81,7 +81,7 @@ classify the request into generic response shapes.
 The full guided path lives in
 [docs/adoption/quickstart.md](docs/adoption/quickstart.md).
 The architecture boundary is documented in
-[docs/ghost-fingerprint-architecture.md](docs/ghost-fingerprint-architecture.md).
+[docs/integration-with-ghost.md](docs/integration-with-ghost.md).
 
 ## How It Fits Together
 
@@ -108,10 +108,10 @@ pnpm dev:demos
 - `apps/surface-gallery` - primary adopter gallery with curated live
   presets, compact host tools, Ghost-root presets when configured, an inline
   Arrow surface, and a small event strip.
-- `/generate` - diagnostic maintainer workbench for broker-selected
+- `/generate` - diagnostic maintainer workbench for ward-selected
   surface configs, allowed host tools, token overrides, validation summaries,
   replay, Ghost steering, Devtools, and stream diagnostics.
-- `/batch` - parallel broker harness for prompt coverage, host tool
+- `/batch` - parallel ward harness for prompt coverage, host tool
   wiring, Ghost fingerprint token coverage, throughput, and consistency checks.
 - `/adversarial` - sandbox boundary checks for network, storage, parent
   access, and unallowed host tool requests.

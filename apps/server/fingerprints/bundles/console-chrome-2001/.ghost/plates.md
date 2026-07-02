@@ -36,6 +36,15 @@ the chassis carries an outlined box-art wordmark (white fill, dark stroke, hard
 offset shadow), a short bold tagline, and one signal-orange circular arrow or
 chevron. No flat text over a gradient hero; no competing hero panels.
 
+**Slot wells for persistent things.** Content that represents something held by
+the machine — saved items, sessions, attachments, drafts — may press into the
+plate as a card slot: the deep `--chrome-slot-well` recess holding a compact
+beveled tile, with an empty slot staying visible in disabled grey rather than
+collapsing away. A slot is deeper kin of `--chrome-inset-input`: same pressed
+two-tone rim, more throw. Ration slots to genuinely persistent state so the
+metaphor stays honest — the slot grammar is specified in the [screen logic
+system](screen-logic).
+
 **Dotted technical dividers.** Separate modules and rows with the stitched dot
 seam of `--chrome-divider-dotted` (and its vertical twin `--chrome-divider-dotted-v`),
 like legend printing on a controller — never a plain hairline rule and never

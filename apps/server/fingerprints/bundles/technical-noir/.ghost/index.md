@@ -67,11 +67,28 @@ no other in the catalog:
   (`--noir-dot-*`): idle gray, running amber, ok sage, failed clay. Semantics whisper.
 - **Felt scan grid.** Behind dense evidence panels, a near-invisible 24px warm
   scan grid (`--noir-grid`) gives the void texture you feel rather than see.
+- **Density as measurement.** Where another system would draw a chart or a
+  colored progress bar, Technical Noir sets a mono glyph field from the ordered
+  `--noir-density-ramp` — sparse marks mean low, dense ink means high — always
+  beside its exact value, always mapped to a real live quantity, never texture
+  for texture's sake. State steps through discrete ink levels
+  (`--noir-ink-1..4`) rather than fading through a gradient.
 
 Hold these and a surface is Technical Noir even before a word is set. Drop them
 and it collapses into generic dark-mode SaaS.
 
 ## Inventory
+
+**Design lineage.** Technical Noir descends from the modern developer-terminal
+and code-editor tradition — the warm-dimmed workspaces of command-line reboots
+like Warp, launcher-precise command surfaces like Raycast, editor calm like Zed,
+and the muted, warm-neutral palette discipline of GitHub's "dark dimmed" theme.
+It inherits their operational credibility: a warm near-charcoal never resolved to
+pure black, an off-white material system standing in for brand color, hairline
+depth instead of elevation, a monospace gutter for command and log rows, one live
+cursor as the sole motion, and status carried in tiny muted dots rather than color
+blocks. It is named here as heritage only — the lineage grounds the vocabulary; no
+specific tool's brand assets, chrome, or wordmarks are reproduced.
 
 The material is a warm-dark technical token system: a brown-warmed near-charcoal
 page canvas (never pure black or cool gray), slightly lifted warm-dark surfaces
@@ -88,6 +105,46 @@ out around 64px and stays light), spacing follows a compact 4px-ish rhythm with
 10px control steps and 96px major bands, radii stay tight at 2–6px (pills
 reserved for icon buttons and compact state chips), and shadow tokens are
 intentionally inert.
+
+The component vocabulary follows the terminal/editor lineage. Buttons are tight
+rectangles on the compact 10px control step: the primary action is an off-white
+fill on the warm-charcoal void with `--color-accent-fg` text, secondary is a
+`--noir-hairline` outline over the bare canvas, and icon buttons are the rare
+`--radius-pill` exception. Rows and tiles share one alignment grid divided by the
+`--noir-hairline` — never a deck of equal-weight cards; the active row wears the
+2px off-white `--noir-spine` and nothing else. Inputs are warm-dark fills with a
+`--color-border-input` hairline that thickens to `--noir-hairline-strong` on
+focus. Terminal, log, and agent panels are the evidence surfaces: minimal chrome,
+`--radius-md` corners, a mono `--noir-gutter` prefixing every command/log/step
+line, the felt `--noir-grid` behind dense content, and exactly one blinking
+`--noir-cursor` at the live edge. Chips and status labels are compact mono,
+carrying state on a 6px `--noir-dot-*` dot rather than a colored fill.
+
+Interaction states stay expressed in hairline and off-white, never in color.
+Hover lifts a hairline from `--color-border` to `--color-border-strong` (or nudges
+surface toward `--color-surface`), not a glow. Focus is a single off-white
+hairline ring (`--focus-ring`) — crisp, no bloom, no shadow. Active/pressed reads
+as the off-white `--noir-spine` or a momentary off-white edge. Disabled recedes
+via `--state-disabled-opacity` on a still-hairline outline — never a grayed color
+swatch. Selected is the spine; loading is the one cursor plus a muted running dot
+(`--noir-dot-run`); empty and error states stay quiet — an empty panel keeps its
+gutter and hairline frame, an error whispers on `--noir-dot-fail` and muted
+`--color-danger` text, never a filled alarm banner. Density is editorial: rows
+tighten to the 4px rhythm on dense evidence surfaces and relax to 16px bands on
+reading surfaces, and layouts collapse from multi-column tile racks to single
+stacked rows on narrow viewports while preserving the hairline lattice and the
+mono gutter.
+
+Accessibility is built into the pairing. Off-white `--color-text` on
+`--color-bg` and `--color-surface` clears WCAG AA for body and large display;
+muted `--color-text-muted` is reserved for secondary/metadata copy at 14px and
+up, never for primary reading text. The off-white focus ring is always visible
+against the warm-charcoal void and is the one non-negotiable state — every
+interactive element must show it. Semantic dots carry a mono text label or
+`aria` state as well as the dot, so state never relies on the muted hue alone.
+Body and control text stay at 14px minimum; the single blinking cursor is the
+only motion and respects reduced-motion by resting solid when animation is
+suppressed.
 
 The literal token vocabulary (inject as the visual source of truth; reference
 these custom properties rather than inventing values):
@@ -176,6 +233,33 @@ these custom properties rather than inventing values):
   --noir-gutter: 1.6ch;
   /* Left accent spine on the active row — off-white, 2px, the only emphatic fill. */
   --noir-spine: 2px solid #f7f5f0;
+
+  /* INTERACTION STATES — expressed in hairline and off-white, never color or glow. Warm-charcoal stance holds. */
+  /* Focus is a single off-white hairline ring on the warm-charcoal void — crisp, no bloom, no shadow. */
+  --focus-ring: 1px solid #f7f5f0;
+  --focus-ring-offset: 2px;
+  /* Hover/active lift the boundary hairline toward off-white; depth stays hairline, never elevation. */
+  --state-hover-border: #57504a;
+  --state-active-border: #f7f5f0;
+  --state-hover-surface: #383330;
+  /* Disabled recedes by opacity on a still-hairline outline — never a grayed color swatch. */
+  --state-disabled-opacity: 0.45;
+  /* Muted semantic dot roles completing the state system — info stays as quiet as the rest. */
+  --noir-dot-info: #9fb7d7;
+  --noir-dot-muted: #57504a;
+
+  /* DENSITY FIELD — glyph density as measurement; the system's only "chart", drawn in ink levels, never color. */
+  /* Ordered sparse-to-dense glyph ramp: emptiness is zero, full ink is full — mapping stays monotonic. */
+  --noir-density-ramp: " .:-=+#";
+  /* One mono cell: 1ch wide, one 24px scan-grid row tall — density fields share the transcript lattice. */
+  --noir-density-cell-w: 1ch;
+  --noir-density-cell-h: 24px;
+  /* Threshold rendering: state moves through discrete ink steps, never a smooth gradient or cross-fade. */
+  --noir-step-levels: 4;
+  --noir-ink-1: #57504a;   /* border-input value — the faintest legible mark */
+  --noir-ink-2: #c9c0ad;   /* muted text value */
+  --noir-ink-3: #dad2c1;   /* alt text value */
+  --noir-ink-4: #f7f5f0;   /* primary off-white — the filled level, spent sparingly */
 }
 ```
 
@@ -187,10 +271,13 @@ the serif italic is a rare editorial emphasis, never the core UI voice.
 
 The shared material every surface draws on lives in the root nodes that reach
 everywhere: the [control and metadata system](controls), the
-[terminal evidence panels](terminal-evidence) that prove technical claims, and
-the [tile and row system](tiles) that carries repeating units. The surfaces —
-[landing](landing), [workspace](workspace), [comparison](comparison), and
-[brief](brief) — compose this material for their own job.
+[terminal evidence panels](terminal-evidence) that prove technical claims, the
+[tile and row system](tiles) that carries repeating units, the
+[one-instrument discipline](one-instrument) that holds every surface to a single
+treatment under explicit budgets, and the [density field](density-field) that
+turns live quantities into mono glyph texture on the transcript grid. Every surface —
+landing, workspace, comparison, brief, or one the task invents — is composed from
+these same building blocks under the same rules, never from a fixed template.
 
 ## Composition
 
@@ -229,6 +316,30 @@ Six principles carry the language and are true on every surface:
    technical evidence readable. Create presence through hierarchy, alignment,
    silence, and proof instead of fog, glow, spotlight, grain, or dramatic shadow,
    and keep every atmospheric choice tied to task clarity.
+
+**Composing the surface from the kit.** Technical Noir has no fixed page types —
+every surface is composed for its task from the same small kit of parts, on one
+continuous warm near-charcoal canvas. State the claim first in quiet light-weight
+sans — current state, a product value, a recommendation, the live edge of work —
+never a marketing posture; prove it immediately with
+[terminal evidence panels](terminal-evidence) whose mono `--noir-gutter` lines,
+felt `--noir-grid`, and single blinking `--noir-cursor` carry plausible,
+task-tied material, never decorative filler; rack any repeating units — tasks,
+options, criteria, steps, releases — as [the tile and row system](tiles) divided
+by the `--noir-hairline`, never a grid of equal cards; label, select, and route
+with [the control and metadata system](controls), spending one off-white primary
+action per region. Let the task set the shape, not a template: when it reports
+current state, lead with the finding and keep severity muted on 6px
+`--noir-dot-*` dots rather than filled banner alarms; when it weighs options, hold
+the same operational criteria parallel across every path so the reader compares
+like against like, ride pass/fail on a dot not a colored cell, and mark the chosen
+path with the off-white `--noir-spine`, an off-white fill, or primary position —
+never a bright winner badge, a colorful score, or a pricing-table grid; when it
+operates running work, let zones emerge from spacing, hairlines, and alignment so
+the page reads as one workspace and not an equal-weight dashboard, and mark the
+active item with the spine. If a task matches none of these, compose a new surface
+from the same parts under the same rules — never collapse to a generic layout —
+compose from the same parts.
 
 **Surface obligations (true everywhere).** Every surface keeps the
 off-white-on-warm-dark relationship — a warm near-charcoal canvas (never pure

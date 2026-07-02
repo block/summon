@@ -7,7 +7,7 @@ import {
   HTML_STREAM_SCAFFOLD_START,
   HtmlStreamAccumulator,
   type HtmlStreamAccumulatorEvent,
-} from '../src/html-stream.ts';
+} from '../src/runtime/html-stream.ts';
 
 test('HtmlStreamAccumulator handles scaffold chunks, preview deltas, and closed patch commits', () => {
   const accumulator = new HtmlStreamAccumulator();

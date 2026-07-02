@@ -15,11 +15,13 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "test": "tsx --test test/*.test.ts",
+    "build": "node scripts/build-vm-source.mjs && tsc -p tsconfig.build.json",
+    "build:vm-source": "node scripts/build-vm-source.mjs",
+    "test": "node scripts/build-vm-source.mjs --check && tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "esbuild": "^0.27.0",
     "happy-dom": "^15.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"

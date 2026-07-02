@@ -14,6 +14,9 @@ export interface RuntimeValidationResult {
   accepted: boolean;
   issues: ContractIssue[];
   blocker: ContractIssue;
+  /** The accepted artifact source, present only when `accepted` is true. Lets
+   * the loop run an optional design-fidelity review on the committed source. */
+  acceptedSource?: Record<string, string>;
 }
 
 export interface BundleRepairRequest {
@@ -173,11 +176,60 @@ async function runBundleRepairLoop(
 ): Promise<void> {
   let bundle: unknown = initialBundle;
   const maxRepairAttempts = Math.max(0, Math.floor(ctx.input.maxRepairAttempts ?? 1));
-  for (let attempt = 0; attempt <= maxRepairAttempts; attempt++) {
+  // A fidelity pass reuses the same repair mechanism as validation repairs, but
+  // its issues come from a design reviewer, not the runtime validators. Its
+  // budget is separate so a design nudge never eats the safety-repair budget.
+  const maxFidelityRepairs = ctx.input.fidelityReviewer
+    ? Math.max(0, Math.floor(ctx.input.maxFidelityRepairs ?? 0))
+    : 0;
+  let fidelityRepairsUsed = 0;
+  // Combined ceiling so a runaway loop can never exceed the two budgets summed.
+  const hardCeiling = maxRepairAttempts + maxFidelityRepairs;
+
+  for (let attempt = 0; attempt <= hardCeiling; attempt++) {
     if (ctx.isBlocked()) return;
     const result = await strategy.validate(ctx, bundle, attempt);
-    if (result.accepted) return;
-    if (attempt >= maxRepairAttempts || !strategy.canRepair(ctx)) {
+
+    if (result.accepted) {
+      // Runtime/safety validation passed. Optionally run one design-fidelity
+      // review on the committed source; block-severity design issues trigger a
+      // repair pass (bounded by the fidelity budget). Any reviewer failure is
+      // swallowed — a fidelity check must never fail an otherwise-valid run.
+      if (!result.acceptedSource || fidelityRepairsUsed >= maxFidelityRepairs) return;
+      let fidelityIssues: ContractIssue[] = [];
+      try {
+        fidelityIssues = await runFidelityReview(strategy, ctx, result.acceptedSource);
+      } catch {
+        fidelityIssues = [];
+      }
+      const blockers = fidelityIssues.filter((issue) => issue.severity === 'block');
+      if (blockers.length === 0 || !strategy.canRepair(ctx)) return;
+
+      fidelityRepairsUsed += 1;
+      ctx.recordRepairAttempt();
+      await ctx.writeProtocolLine({
+        op: 'meta',
+        path: '/model-output-mode',
+        value: {
+          ...strategy.repairOutputMode(attempt + 1, blockers),
+          fidelityRepair: fidelityRepairsUsed,
+        },
+      });
+      await ctx.writePhase('validating', 'Refining fingerprint fidelity');
+      bundle = await ctx.withStatusHeartbeat({
+        status: 'validating',
+        messages: ['Refining fingerprint fidelity', 'Re-aligning to the design fingerprint'],
+        run: () => strategy.repair(ctx, {
+          schema,
+          previousBundle: bundle,
+          issues: blockers,
+          attempt: attempt + 1,
+        }),
+      });
+      continue;
+    }
+
+    if (attempt >= hardCeiling || !strategy.canRepair(ctx)) {
       await ctx.blockGeneration(result.blocker);
       return;
     }
@@ -203,6 +255,32 @@ async function runBundleRepairLoop(
       }),
     });
   }
+}
+
+/** Run the app-supplied design-fidelity reviewer against the accepted source
+ * and surface its findings as ContractIssues. Emits a diagnostic line so the
+ * fidelity verdict is visible in the stream. */
+async function runFidelityReview(
+  _strategy: BundleRuntimeStrategy,
+  ctx: RuntimeContext,
+  source: Record<string, string>,
+): Promise<ContractIssue[]> {
+  const reviewer = ctx.input.fidelityReviewer;
+  if (!reviewer) return [];
+  await ctx.writePhase('validating', 'Reviewing fingerprint fidelity');
+  const issues = await reviewer(source);
+  await ctx.writeProtocolLine({
+    op: 'meta',
+    path: '/fidelity-review',
+    value: {
+      schema: 'summon.fidelity-review/v1',
+      issues: issues.length,
+      blocking: issues.filter((issue) => issue.severity === 'block').length,
+      codes: [...new Set(issues.map((issue) => issue.code))].sort(),
+    },
+  });
+  ctx.addValidationIssues(issues.filter((issue) => issue.severity !== 'block'));
+  return issues;
 }
 
 export function hintsForIssues(

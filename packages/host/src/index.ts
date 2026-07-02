@@ -50,11 +50,6 @@ export type {
   ResourceStateKeys,
   StateShapeDescriptor,
 } from './tool-registry.js';
-export { bindEndpoint } from './bind-endpoint.js';
-export type {
-  EndpointBinding,
-  EndpointStateKeys,
-} from './bind-endpoint.js';
 export {
   SUMMON_SURFACE_ENVELOPE_VERSION,
   createSurfaceEnvelope,
@@ -76,6 +71,3 @@ export type {
   SurfaceStreamSource,
   SurfaceArtifact,
 } from './surface-stream.js';
-export type {
-  Artifact,
-} from './types.js';

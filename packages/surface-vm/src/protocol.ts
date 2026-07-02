@@ -12,6 +12,12 @@
 // proves the existing ops cannot express it. Lists are handled by
 // `replace-region`, not arbitrary node insertion.
 //
+// `replace-region.regionId` may name either an explicit region node OR an
+// element ("implicit region"): the renderer then replaces that element's
+// children wholesale. Same op, wider id domain — this is how post-mount
+// structural DOM mutation (append/removeChild/textContent reset) crosses the
+// boundary without new ops.
+//
 // Vendored and owned by Summon (originally modeled on @arrow-js/sandbox's
 // shared protocol, MIT). We own it now: it is our cross-platform UI wire format.
 

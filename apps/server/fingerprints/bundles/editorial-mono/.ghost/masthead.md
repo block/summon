@@ -32,6 +32,24 @@ it. The body sits on a faint ruled paper grid, sets type in the serif workhorse,
 and keeps geometry squared so the page reads as edited paper rather than a card
 layout.
 
+**The breath before the claim.** A well-set front page does not start at its own
+top edge. Above the masthead, spend real emptiness — a `--space-9` or `--space-10`
+band of bare paper carrying only the folio corner — so the verdict headline lands
+after a pause, the way a printed opening spread breathes before the text begins.
+The emptiness is deliberate stock, not wasted room: it is what makes the display
+serif feel decisive when it finally arrives, and it absorbs the 72px host-chrome
+obligation without crowding. Never fill this band with a preamble, a logo lockup,
+or an ornament; the pause is the ornament.
+
+**The sheet as an object.** The masthead frame may treat the whole surface as a
+single printed sheet: the page-tier paper (`--editorial-paper-page`) running edge
+to edge, with the shell tier (`--editorial-paper-shell`) set inside it like a
+trimmed leaf laid on the desk, its edge cut by a hairline rather than a shadow.
+This is print-object framing — the reader should feel they are holding one
+composed document, not scrolling a feed. The distinction between tiers is stock
+weight, read from the two paper values and a rule; never elevation, texture
+images, or skeuomorphic curl.
+
 The headline and deck carry the verdict; the [mono metadata system](metadata) sets
 the folio, issue label, and timestamps that frame the masthead, and the
 [ruled evidence bands](evidence) fill the body grid beneath the strong rule. The

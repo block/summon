@@ -110,12 +110,18 @@ export {
   SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS,
   buildLayoutBlock,
+  buildScaleBlock,
   buildToolsBlock,
   buildSurfaceContractBlock,
+  resolveSurfaceScale,
+  DEFAULT_SURFACE_SIZE,
 } from './prompt.js';
 export type {
   SummonLayout,
   SummonLayoutSlot,
+  SurfaceScale,
+  SurfaceSize,
+  SurfaceComplexity,
   PromptRuntimeOptions,
   ToolSpec,
   DataResourceSpec,
@@ -263,9 +269,4 @@ export type {
   SurfaceGoalSource,
   SurfaceGoalProvenance,
 } from './surface-contract.js';
-export { createProtocolHardener } from './protocol-hardener.js';
-export type {
-  ProtocolHardener,
-  ProtocolHardenerOptions,
-  ProtocolHardenerResult,
-} from './protocol-hardener.js';
+

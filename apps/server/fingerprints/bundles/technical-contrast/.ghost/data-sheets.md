@@ -26,6 +26,20 @@ up decimal-for-decimal under the mono headers, separated by
 `--contrast-num-col-gap` — comparison reads down a column, not across scattered
 cards.
 
+**Staged density — claim first, drill-down on demand.** Complexity is clarified
+by layering, not by deletion. A sheet leads with the decision-grade row — the
+few criteria that actually separate the options — and stages the rest behind
+explicit reveals: category accordions that expand full criterion groups, a
+"full specification" tier of the same table, or a footnoted cell that opens its
+derivation. Every deeper layer keeps the same anatomy as the surface layer —
+same mono headers, same `--contrast-num-align` columns, same hairline rules —
+so drilling down feels like focusing the same instrument, never entering a
+different page. What is staged must remain honest: collapsed groups are named
+with mono labels and row counts so the reader knows what is folded away, and
+nothing decision-relevant hides below the first layer. Progressive disclosure
+here serves comparison, not marketing — it is the difference between a sheet
+that summarizes and a sheet that conceals.
+
 **Tinted stat tiles.** Pastel tiles give rare relief on white planes — large
 number in display type, label in mono caps, a restrained mint or periwinkle fill
 (`--color-tint-mint`/`--color-tint-periwinkle`), small corners, no shadow. Used

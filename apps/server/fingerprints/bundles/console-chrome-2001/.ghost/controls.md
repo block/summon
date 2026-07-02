@@ -35,6 +35,20 @@ an amber Go chip beaded with `--chrome-led-pip`, and small tips/link text inside
 or near the command layer, with controls labeled directly rather than by
 placeholder alone.
 
+**Every control answers like hardware.** A console pad never leaves the player
+guessing whether a press registered, and neither does a Console Chrome control.
+Each interactive chip, disc, and field runs the full call-and-response cycle:
+rest → hover lights the `--chrome-hover-pip` bead → focus snaps the hardware
+cursor frame on → press inverts to `--chrome-bevel-pressed` and drops the label
+by `--chrome-press-offset` → release either flashes `--chrome-led-glow` once
+(commit confirmed) or returns to rest — all stepped at `--chrome-motion-click`,
+never eased. Selection inside groups reads as one cursor at a time: a segmented
+control, tab row, or option list holds exactly one lit or pressed member, the
+way a console menu holds one highlight. A silently interactive element — a
+clickable row with no bevel answer, a link that changes nothing until the page
+does — is a dead button and never ships. The full cursor-and-swap grammar lives
+in the [screen logic system](screen-logic).
+
 **Usable density.** Controls may feel desktop-era compact but must stay usable:
 routine controls at 11–12px or larger, 10px only for micro captions, with visible
 focus outlines or dotted rings and enlarged invisible padding when touch use is

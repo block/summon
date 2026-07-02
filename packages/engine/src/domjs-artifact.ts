@@ -30,14 +30,16 @@ const FETCH_USAGE_RE = /\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\b/m;
 // only unambiguous tokens, to keep false positives near zero (a false positive
 // blocks valid code, which is worse than a caught runtime throw).
 const UNSUPPORTED_API_PATTERNS: Array<{ re: RegExp; api: string; hint: string }> = [
-  { re: /\.innerHTML\b/, api: 'innerHTML', hint: 'Build nodes with document.createElement and append.' },
-  { re: /\.outerHTML\b/, api: 'outerHTML', hint: 'Build nodes with document.createElement and append.' },
+  { re: /\.innerHTML\b/, api: 'innerHTML', hint: 'Build nodes with document.createElement/createTextNode and append.' },
+  { re: /\.outerHTML\b/, api: 'outerHTML', hint: 'Build nodes with document.createElement/createTextNode and append.' },
   { re: /\.querySelector(All)?\s*\(/, api: 'querySelector', hint: 'Hold references to nodes you created.' },
   { re: /\bgetElementById\s*\(/, api: 'getElementById', hint: 'Hold references to nodes you created.' },
-  { re: /\.insertBefore\s*\(/, api: 'insertBefore', hint: 'Use region(...) for dynamic lists.' },
-  { re: /\.removeChild\s*\(/, api: 'removeChild', hint: 'Use region(...) for dynamic lists.' },
-  { re: /\.style\b/, api: 'style', hint: "Use setAttribute('style', ...) or className." },
-  { re: /\bwindow\b/, api: 'window', hint: 'The window object is not available in the sandbox.' },
+  { re: /\.parentNode\b|\.parentElement\b/, api: 'parentNode', hint: 'Hold references to nodes you created; no live-tree traversal.' },
+  // Anchored to actual member/index access — bare `\bwindow\b` false-positived
+  // on prose in string literals ("maintenance window"), blocking valid artifacts.
+  // The dot form requires an immediately-following identifier so sentence-ending
+  // periods in prose ("...the maintenance window. Then...") don't match.
+  { re: /\bwindow(?:\.[A-Za-z_$]|\s*\[)/, api: 'window', hint: 'The window object is not available in the sandbox.' },
   { re: /\bdocument\.body\b/, api: 'document.body', hint: 'Return your root node via export default.' },
 ];
 

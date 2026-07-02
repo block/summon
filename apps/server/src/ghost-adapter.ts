@@ -397,15 +397,18 @@ export interface SelectGhostSurfaceOptions {
   signal?: AbortSignal;
 }
 
-const SURFACE_SELECT_TIMEOUT_MS = 4000;
+const SURFACE_SELECT_TIMEOUT_MS = 8000;
 
 const SURFACE_SELECT_SYSTEM_PROMPT = [
-  'You route a UI generation request to the single best-fitting surface of a',
-  'design fingerprint. You are given the user request and a menu of candidate',
-  'surfaces (id + a one-line "reach when" description). Pick the one id whose',
-  'description best matches what the user is asking to build. If none clearly',
-  'fits, or several fit equally, answer "core" to let the generator use the',
-  'shared base. Answer with ONLY the chosen id, nothing else.',
+  'You pick the single best-fitting composition archetype for a UI generation',
+  'request against a design fingerprint. You are given the user request and a',
+  'menu of candidate archetypes (id + a one-line "reach when" description). Pick',
+  'the one id whose description best matches what the user is asking to build.',
+  'Prefer a concrete archetype whenever one plausibly fits — it only focuses the',
+  'lead composition; the generator still sees the full fingerprint vocabulary, so',
+  'a confident-but-imperfect pick is better than defaulting to the shared base.',
+  'Answer "core" only when the request is genuinely generic or truly matches no',
+  'archetype. Answer with ONLY the chosen id, nothing else.',
 ].join(' ');
 
 /**
@@ -610,12 +613,22 @@ function buildSummonFingerprintSurfaceBrief(
     toolNames.length > 0 ? `Granted host tools: ${toolNames.join(', ')}` : 'Granted host tools: none',
   ].filter((line): line is string => Boolean(line));
 
+  // The differentiating content: this fingerprint's signature moves (mandatory,
+  // brand-defining), injected regardless of the anchored surface so a `core`
+  // anchor is never a generic base. Composition itself is authored entirely in
+  // the fingerprint's own `core` prose (the grammar) and building-block nodes
+  // (the composable vocabulary) rendered verbatim above — Summon injects NO
+  // composition voice of its own, so distinct fingerprints cannot collapse to a
+  // shared Summon-authored layout.
+  const signatureBlock = buildSignatureMovesBlock(context.graph);
+
   return [
     '## Summon Surface Brief',
     '',
     'Treat the fingerprint above as a product design direction package for this Summon surface.',
     '',
     ...details.map((line) => `- ${line}`),
+    ...(signatureBlock ? ['', signatureBlock] : []),
     '',
     'Generation rules:',
     '',
@@ -626,22 +639,61 @@ function buildSummonFingerprintSurfaceBrief(
     '',
     successRule,
     '- A technically valid but generic surface is a failed generation.',
-    '- The user request is the semantic and task authority: satisfy its workflow, content, data need, and intended action before choosing decorative structure.',
-    '- The Ghost fingerprint is the visual and composition authority: use it to decide product grammar, hierarchy, density, patterns, and anti-patterns without replacing the user task.',
-    '- The Ghost fingerprint is the binding authority for composition, hierarchy, density, spacing rhythm, typography rhythm, surface grammar, motif vocabulary, tone, and anti-pattern boundaries.',
-    '- Summon safety restricts APIs, host authority, and runtime behavior. It does not require bland UI.',
+    '- The user request is the semantic and task authority: satisfy its workflow, content, data need, and intended action before choosing structure.',
+    '- The Ghost fingerprint is the sole composition authority: its `core` prose states how this language composes a surface, and its building-block nodes are the parts you compose from. Follow them; do not substitute a generic layout of your own.',
+    '- Summon safety restricts APIs, host authority, and runtime behavior. It does not require bland UI, and it has no opinion about how the surface should look.',
     '',
-    'Fingerprint composition rules:',
+    'Authoring mechanics (design-neutral):',
     '',
-    '- Compose from the fingerprint prose. The prose states the product grammar, material, and evidence; reuse its surface patterns.',
-    '- Imitate the Ghost fingerprint’s visual grammar. Preserve its composition patterns, hierarchy, typography rhythm, density, surface treatment, motifs, and anti-pattern boundaries. Adapt content to the user request without genericizing the visual system.',
-    '- Choose a fingerprint composition shell before authoring the artifact. The root `<main>` must express that shell through layout, spacing, hierarchy, and surface treatment.',
-    '- The final artifact must include a composed outer shell, not unframed content. Avoid generic header-plus-card-grid layouts unless the fingerprint explicitly calls for that pattern.',
-    '- Use Ghost-provided tokens, aliases, renderable primitives, and fingerprint examples as the visual source of truth. You may define local CSS variables that alias or compose Ghost tokens and use advanced safe CSS layout, transitions, transforms, inline SVG, and typographic tuning when fingerprint-compatible.',
-    '- Do not invent unrelated colors, fonts, shadows, gradients, radii, or decorative motifs. Do not import external stylesheets, fonts, images, scripts, or URLs.',
-    '- The agent ward controls host authority and tools. The fingerprint controls product direction, hierarchy, tone, and composition expectations.',
+    '- Use only the fingerprint-provided tokens, aliases, and primitives as the visual source of truth. You may define local CSS variables that alias or compose those tokens and use safe CSS layout, transitions, transforms, inline SVG, and typographic tuning when fingerprint-compatible.',
+    '- Do not import external stylesheets, fonts, images, scripts, or URLs.',
+    '- The agent ward controls host authority and tools; the fingerprint controls all product direction, hierarchy, tone, and composition.',
     '- Treat checks as validation constraints, not as content to render.',
   ].join('\n');
+}
+
+/**
+ * The fingerprint's brand-defining "Signature look & feel" moves, extracted
+ * verbatim from the `core` root node's `## Signature look & feel` section and
+ * voiced as mandatory requirements for THIS run. Generic "don't be generic"
+ * instructions do not prevent generic output; naming the fingerprint's own
+ * unmistakable moves as must-haves does. Returns '' when the fingerprint has no
+ * signature section (older packages) so the brief degrades gracefully.
+ */
+function buildSignatureMovesBlock(graph: GhostGraph): string {
+  const root = graph.nodes.get(GHOST_GRAPH_ROOT_ID);
+  if (!root?.body) return '';
+  const section = extractMarkdownSection(root.body, 'Signature look & feel');
+  if (!section) return '';
+  return [
+    'Signature moves — non-negotiable for this fingerprint:',
+    '',
+    'These are the moves that make this fingerprint unmistakable. Reproduce them; do not soften them into a generic layout. If the surface does not visibly carry these, it is the wrong fingerprint.',
+    '',
+    section.trim(),
+  ].join('\n');
+}
+
+/** Extract a `## <title>` section body from a markdown document (stops at the
+ * next `## ` heading). Returns null when the section is absent. */
+function extractMarkdownSection(markdown: string, title: string): string | null {
+  const lines = markdown.split(/\r?\n/);
+  const headingRe = new RegExp(`^#{2,3}\\s+${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'i');
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (headingRe.test(lines[i]!)) {
+      start = i + 1;
+      break;
+    }
+  }
+  if (start === -1) return null;
+  const collected: string[] = [];
+  for (let i = start; i < lines.length; i++) {
+    if (/^#{2,3}\s+/.test(lines[i]!)) break;
+    collected.push(lines[i]!);
+  }
+  const body = collected.join('\n').trim();
+  return body || null;
 }
 
 const PROVENANCE_RANK: Record<GraphSliceProvenance['kind'], number> = {

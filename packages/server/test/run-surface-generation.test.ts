@@ -66,6 +66,82 @@ test('runSurfaceGeneration emits server-owned preview and artifact lines', async
   ]);
 });
 
+test('runSurfaceGeneration runs a fidelity repair pass when the reviewer blocks', async () => {
+  const lines: ProtocolLine[] = [];
+  let generateCalls = 0;
+  let repairCalls = 0;
+  const provider: SurfaceModelProvider = {
+    async generateArrowBundle() {
+      generateCalls++;
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Bland</p>`;',
+        },
+      };
+    },
+    async repairArrowBundle() {
+      repairCalls++;
+      return {
+        schema: 'summon.arrow-bundle/v1',
+        source: {
+          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Faithful</p>`;',
+        },
+      };
+    },
+  };
+
+  let reviewCalls = 0;
+  const summary = await runSurfaceGeneration({
+    prompt: 'hello',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: provider,
+    maxRepairAttempts: 0,
+    maxFidelityRepairs: 1,
+    // First (and only) review fails with a block-severity design issue,
+    // triggering the single budgeted fidelity repair. Once the budget is spent
+    // the loop accepts without re-reviewing (a re-review could not act anyway).
+    fidelityReviewer: async () => {
+      reviewCalls++;
+      return [{
+        source: 'direction',
+        severity: 'block',
+        code: 'fingerprint-fidelity',
+        message: 'Surface does not carry the fingerprint signature moves.',
+      }];
+    },
+  }, (line) => {
+    lines.push(line);
+  });
+
+  assert.equal(summary.blocked, false);
+  assert.equal(generateCalls, 1);
+  assert.equal(repairCalls, 1, 'expected exactly one fidelity repair pass');
+  assert.equal(reviewCalls, 1, 'reviewer runs once; budget spent, no re-review');
+  assert.ok(
+    lines.some((line) => line.op === 'meta' && line.path === '/fidelity-review'),
+    'expected a /fidelity-review diagnostic line',
+  );
+  const outputModes = lines.filter((line) => line.op === 'meta' && line.path === '/model-output-mode');
+  assert.ok(
+    outputModes.some((line) => (line.value as Record<string, unknown>).fidelityRepair === 1),
+    'expected a model-output-mode line tagged as a fidelity repair',
+  );
+});
+
+test('runSurfaceGeneration ships a valid surface when no fidelity reviewer is set', async () => {
+  const lines: ProtocolLine[] = [];
+  const summary = await runSurfaceGeneration({
+    prompt: 'hello',
+    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    modelProvider: validProvider,
+  }, (line) => {
+    lines.push(line);
+  });
+  assert.equal(summary.blocked, false);
+  assert.ok(!lines.some((line) => line.op === 'meta' && line.path === '/fidelity-review'));
+});
+
 test('runSurfaceGeneration emits experimental HTML artifacts when requested', async () => {
   const lines: ProtocolLine[] = [];
   let capturedSystemText = '';

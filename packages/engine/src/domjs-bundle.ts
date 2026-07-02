@@ -103,7 +103,7 @@ export function createDomjsBundleJsonSchema(): Record<string, unknown> {
         additionalProperties: false,
         required: ['main.js'],
         properties: {
-          'main.js': { type: 'string', description: 'Imperative HTML/JS entry. Build with document.createElement/append. Use reactive state(...) with function bindings for dynamic values (textContent = () => s.x, region(() => s.items.map(...))) — mutate state in handlers, no manual update calls. callTool() for host tools. Export the root node as default.' },
+          'main.js': { type: 'string', description: 'Imperative HTML/JS entry with standard DOM semantics: document.createElement/append/removeChild, textContent, el.style.*, classList, addEventListener or on<event> props. Use reactive state(...) with function bindings for dynamic values (textContent = () => s.x, region(() => s.items.map(...))) — mutate state in handlers (s.items.push(...) tracks), no manual update calls. No innerHTML/querySelector. callTool() for host tools. Export the root node as default.' },
           'main.css': { type: 'string', description: 'Optional stylesheet. No @import or external url() references.' },
         },
       },

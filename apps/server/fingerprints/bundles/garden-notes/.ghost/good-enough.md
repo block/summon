@@ -33,6 +33,15 @@ appears. Do not hide all non-immediate work if showing it helps the user trust
 the plan — the goal is a lighter plan the user believes, not a shorter one that
 omits what they were worried about.
 
+**Finished good-enough steps are kept, not erased.** When the chosen step gets
+done, the good-enough note does not strike through or disappear — it settles
+into a kept note under the [kept notes and pick-up moves](kept-notes), joining
+the small quiet collection of things that got done, and the green dot moves on
+to the next easiest move. The tradeoff sentence travels with it: a kept note
+still shows why it was enough, so the person can trust the plan looking back
+the way they trusted it looking forward. No praise copy attends the keeping —
+the reward is that the plan holds what happened.
+
 Both notes live inside the [note panels](note-panels), wear readiness and effort
 [badges](badges) when state helps, and anchor the recommendation logic of the
 [planner](planner), [staged-plan](staged-plan), [comparison](comparison), and

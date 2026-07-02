@@ -6,6 +6,11 @@
 // The host bridge, fetch, and timers are deliberately deferred to later
 // milestones; M0 only has to prove the boundary holds.
 //
+// Execution is time-bounded: every entry into VM execution (boot, dispatch,
+// microtask flush) arms an interrupt deadline, so model-authored `while(true)`
+// cannot hang the host. A tripped budget surfaces as a protocol `error`
+// message; the runner stays alive and destroyable.
+//
 // Ported from @arrow-js/sandbox's quickjs host (MIT), reduced to essentials.
 
 import {
@@ -23,6 +28,12 @@ export interface VmRunnerOptions {
   onMessage: (message: VmToHostMessage) => void;
   /** Optional capability bridge: VM tool calls are forwarded here. */
   hostBridge?: HostBridge;
+  /**
+   * Time budget (ms) for each synchronous slice of VM execution (boot,
+   * dispatch, microtask flush after a bridge call). Host awaits (e.g. a slow
+   * tool call) do not count: the budget re-arms on each re-entry into the VM.
+   */
+  dispatchBudgetMs?: number;
   debug?: boolean;
 }
 
@@ -30,6 +41,8 @@ export interface VmRunner {
   dispatch(message: HostToVmMessage): Promise<void>;
   destroy(): void;
 }
+
+const DEFAULT_DISPATCH_BUDGET_MS = 1000;
 
 // Globals injected during boot that are revoked immediately after the entry
 // module finishes importing, so later-running user code cannot reach the raw
@@ -46,33 +59,8 @@ async function getQuickJsModule() {
   return quickJsModulePromise;
 }
 
-function flushPendingJobs(runtime: any, context: any): void {
-  while (runtime.hasPendingJob()) {
-    context.unwrapResult(runtime.executePendingJobs());
-  }
-}
-
-async function settleHandle(runtime: any, context: any, handle: any): Promise<void> {
-  const settledResult = context.resolvePromise(handle);
-  flushPendingJobs(runtime, context);
-  const settledHandle = context.unwrapResult(await settledResult);
-  settledHandle.dispose();
-  flushPendingJobs(runtime, context);
-}
-
-async function evalModule(
-  runtime: any,
-  context: any,
-  code: string,
-  fileName: string,
-): Promise<void> {
-  const result = await context.evalCodeAsync(code, fileName, { type: 'module' });
-  const handle = context.unwrapResult(result);
-  try {
-    await settleHandle(runtime, context, handle);
-  } finally {
-    handle.dispose();
-  }
+function isInterruptError(error: unknown): boolean {
+  return error instanceof Error && /interrupted/i.test(error.message);
 }
 
 export async function createVmRunner(options: VmRunnerOptions): Promise<VmRunner> {
@@ -81,17 +69,60 @@ export async function createVmRunner(options: VmRunnerOptions): Promise<VmRunner
   runtime.setMemoryLimit(16 * 1024 * 1024);
   runtime.setMaxStackSize(512 * 1024);
 
+  const budgetMs = options.dispatchBudgetMs ?? DEFAULT_DISPATCH_BUDGET_MS;
+
+  // Interrupt deadline. Armed on every entry into VM execution, so the budget
+  // bounds each synchronous execution slice; time spent awaiting the host
+  // (bridge calls) is not charged to the VM.
+  let deadline: number | null = null;
+  runtime.setInterruptHandler(() => deadline !== null && Date.now() > deadline);
+  const armDeadline = (): void => {
+    deadline = Date.now() + budgetMs;
+  };
+
   const context = runtime.newContext();
   let destroyed = false;
 
+  function flushPendingJobs(): void {
+    armDeadline();
+    while (runtime.hasPendingJob()) {
+      context.unwrapResult(runtime.executePendingJobs());
+    }
+  }
+
+  async function settleHandle(handle: any): Promise<void> {
+    const settledResult = context.resolvePromise(handle);
+    flushPendingJobs();
+    const settledHandle = context.unwrapResult(await settledResult);
+    settledHandle.dispose();
+    flushPendingJobs();
+  }
+
+  async function evalModule(code: string, fileName: string): Promise<void> {
+    armDeadline();
+    const result = await context.evalCodeAsync(code, fileName, { type: 'module' });
+    const handle = context.unwrapResult(result);
+    try {
+      await settleHandle(handle);
+    } finally {
+      handle.dispose();
+    }
+  }
+
   // The single outbound channel. Untrusted code calls __hostSend(jsonString);
-  // we parse to a typed VmToHostMessage and hand it to the host.
+  // we parse to a typed VmToHostMessage and hand it to the host. A malformed
+  // message is surfaced as a protocol error — never silently dropped (silent
+  // failure at this boundary has already cost one misdiagnosis; see
+  // docs/arrow-mount-investigation.md).
   const hostSend = context.newFunction('__hostSend', (messageHandle: any) => {
     const message = context.getString(messageHandle);
     try {
       options.onMessage(JSON.parse(message) as VmToHostMessage);
-    } catch {
-      // A malformed message is the VM's problem, not the host's. Ignore.
+    } catch (error) {
+      options.onMessage({
+        type: 'error',
+        error: `surface-vm: malformed VM message (${error instanceof Error ? error.message : String(error)})`,
+      });
     }
   });
   context.setProp(context.global, '__hostSend', hostSend);
@@ -120,7 +151,7 @@ export async function createVmRunner(options: VmRunnerOptions): Promise<VmRunner
       deferred.reject(errHandle);
       errHandle.dispose();
       pendingBridge.delete(deferred);
-      if (!destroyed) flushPendingJobs(runtime, context);
+      if (!destroyed) flushPendingJobs();
       return deferred.handle;
     }
 
@@ -146,7 +177,19 @@ export async function createVmRunner(options: VmRunnerOptions): Promise<VmRunner
       .finally(() => {
         pendingBridge.delete(deferred);
         // Drain the VM microtask queue so the awaiting surface code resumes.
-        if (!destroyed) flushPendingJobs(runtime, context);
+        // A budget trip here must not become an unhandled rejection.
+        if (!destroyed) {
+          try {
+            flushPendingJobs();
+          } catch (error) {
+            options.onMessage({
+              type: 'error',
+              error: isInterruptError(error)
+                ? `surface-vm: VM execution exceeded the ${budgetMs}ms dispatch budget and was interrupted`
+                : `surface-vm: VM job flush failed (${error instanceof Error ? error.message : String(error)})`,
+            });
+          }
+        }
       });
 
     return deferred.handle;
@@ -165,25 +208,49 @@ export async function createVmRunner(options: VmRunnerOptions): Promise<VmRunner
   });
 
   // Boot: import the entry module (which installs the VM-side dispatch glue and
-  // emits the initial render), then revoke injected globals.
+  // emits the initial render), capture the dispatch function behind a
+  // JSON-string wrapper, then revoke injected globals. Capturing a callable
+  // handle here means later dispatches are function calls with a string
+  // argument — no per-message module compilation, and message data never
+  // crosses the boundary as source text.
   await evalModule(
-    runtime,
-    context,
-    `import ${JSON.stringify(options.entryPath)};\n${REVOKE_INJECTED_GLOBALS}`,
+    `import ${JSON.stringify(options.entryPath)};
+const __d = globalThis.__dispatch;
+globalThis.__dispatchJson = (json) => (typeof __d === 'function' ? __d(JSON.parse(json)) : undefined);
+${REVOKE_INJECTED_GLOBALS}`,
     '/__surface_vm/boot.js',
   );
-  flushPendingJobs(runtime, context);
+  flushPendingJobs();
+
+  const dispatchFn = context.getProp(context.global, '__dispatchJson');
 
   const dispatch = async (message: HostToVmMessage): Promise<void> => {
     if (destroyed) return;
-    // The entry module installs globalThis.__dispatch as the inbound handler.
-    await evalModule(
-      runtime,
-      context,
-      `await globalThis.__dispatch(${JSON.stringify(message)});`,
-      `/__surface_vm/dispatch-${Date.now()}.js`,
-    );
-    flushPendingJobs(runtime, context);
+    // A dispatch failure (including a tripped execution budget) surfaces as a
+    // protocol error message and resolves: consumers fire-and-forget dispatches,
+    // so rejecting here would only produce unhandled rejections.
+    try {
+      const argHandle = context.newString(JSON.stringify(message));
+      let callResult: any;
+      armDeadline();
+      try {
+        callResult = context.callFunction(dispatchFn, context.undefined, argHandle);
+      } finally {
+        argHandle.dispose();
+      }
+      const handle = context.unwrapResult(callResult) as any;
+      try {
+        await settleHandle(handle);
+      } finally {
+        handle.dispose();
+      }
+    } catch (error) {
+      if (destroyed) return;
+      const reason = isInterruptError(error)
+        ? `surface-vm: VM execution exceeded the ${budgetMs}ms dispatch budget and was interrupted`
+        : `surface-vm: dispatch failed (${error instanceof Error ? error.message : String(error)})`;
+      options.onMessage({ type: 'error', error: reason });
+    }
   };
 
   return {
@@ -191,6 +258,11 @@ export async function createVmRunner(options: VmRunnerOptions): Promise<VmRunner
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      try {
+        dispatchFn.dispose();
+      } catch {
+        // best effort
+      }
       try {
         context.dispose();
       } catch {

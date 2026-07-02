@@ -33,6 +33,25 @@ recommended path, waiting, blocked risk, ready evidence, empty data, error, and
 incomplete comparison. Reserve pill radius for compact mono labels and controls
 only, never broad panels.
 
+**Marginalia and footnote discipline.** Metadata that annotates rather than
+labels — a source citation, a generation timestamp, the measure a figure was
+taken on, a caveat too small for a Risk band — is set as marginalia: mono at
+`--editorial-folio-size`, placed in the gutter beside the passage it annotates
+on wide measures, or as a footnote line under the region's closing hairline on
+narrow ones. Tie note to referent with a mono superscript numeral or the
+`--editorial-registration-mark` tick, never an icon or tooltip; a printed page
+explains itself in its own margins. Marginalia never interrupts the reading
+column and never grows into a sidebar — one line per note, ruled off from the
+body by `--editorial-hairline-faint`, so the annotation reads as set in the
+margin of the same sheet.
+
+**The instrument corner.** A composed page may carry one small instrument
+cluster in a corner of the shell — the folio, the set date, the measure or
+version, each a tracked mono fragment separated by the registration tick. This
+is the press-room convention of printing the sheet's own particulars on the
+sheet: exact, self-describing, and inert. It is furniture, not a status bar —
+nothing in it updates live, glows, or invites a click.
+
 These labels frame the [masthead / deck / folio shell](masthead), tag the
 [ruled evidence bands](evidence) with their short uppercase headers, and mark the
 [editorial close](close) with a compact recommendation or rank label.

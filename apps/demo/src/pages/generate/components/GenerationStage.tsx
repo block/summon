@@ -11,10 +11,10 @@ import {
   type SummonSurfaceProps,
 } from "@anarchitecture/summon-react";
 import {
-  SUMMON_OUTPUT_RUNTIME_VALUES,
   runtimeProfile,
-  type RuntimeProfile,
   type SummonOutputRuntime,
+  type SurfaceSize,
+  type SurfaceComplexity,
 } from "@anarchitecture/summon/engine";
 import {
   Button,
@@ -30,70 +30,71 @@ import { SurfaceLoadingOverlay } from "./SurfaceLoadingOverlay.js";
 
 const promptActionRadiusClass = "!rounded-[22px]";
 
-const runtimeCopy: Record<
-  SummonOutputRuntime,
-  { label: string; description: string }
-> = {
-  "arrow-control": {
-    label: "Arrow control",
-    description:
-      "Structured Arrow bundle with host-owned tools and state bridge.",
-  },
-  "html-static": {
-    label: "HTML static",
-    description:
-      "Structured inert HTML/CSS bundle optimized for rich visual composition.",
-  },
-  "html-stream": {
-    label: "HTML stream",
-    description:
-      "Raw model stream framed as scaffold plus validated patch commits.",
-  },
-  "domjs-control": {
-    label: "domjs control",
-    description:
-      "Imperative HTML/JS authored by the model, executed in the surface-vm capability sandbox.",
-  },
+// The sandbox container mirrors the selected size budget: a `small` surface is
+// given a narrow, card-like frame, while `large` (and the auto/unset default)
+// gets the full stage width. Full literal class strings so Tailwind's JIT keeps
+// them.
+const sandboxWidthClass: Record<SurfaceSize | "", string> = {
+  "": "w-[min(1120px,calc(100%-24px))]",
+  small: "w-[min(480px,calc(100%-24px))]",
+  medium: "w-[min(760px,calc(100%-24px))]",
+  large: "w-[min(1120px,calc(100%-24px))]",
 };
 
-const runtimeGroupDefinitions: Array<{
+// Scale collapses the two axes (size + complexity) into one control. Each
+// preset maps to a {size, complexity} pair; "" complexity derives from size.
+interface ScalePreset {
+  value: string;
   label: string;
-  includes: (profile: RuntimeProfile) => boolean;
-}> = [
+  description: string;
+  size: SurfaceSize | "";
+  complexity: SurfaceComplexity | "";
+}
+
+const scalePresets: ScalePreset[] = [
+  { value: "auto", label: "Auto", description: "Default medium budget", size: "", complexity: "" },
+  { value: "small", label: "Small", description: "Little room — a focused surface", size: "small", complexity: "" },
+  { value: "medium", label: "Medium", description: "Room for a full self-contained surface", size: "medium", complexity: "" },
+  { value: "large", label: "Large", description: "Generous room — a multi-region surface", size: "large", complexity: "" },
+  { value: "small-rich", label: "Small · dense", description: "Little room, packed with detail", size: "small", complexity: "rich" },
+  { value: "large-simple", label: "Large · spacious", description: "Generous room, one bold idea", size: "large", complexity: "simple" },
+];
+
+const scalePresetByValue = (value: string): ScalePreset =>
+  scalePresets.find((preset) => preset.value === value) ?? scalePresets[0]!;
+
+const scaleGroups: DropdownSelectGroup[] = [
   {
-    label: "Arrow bundle",
-    includes: (profile) =>
-      profile.format === "arrow" && profile.delivery === "bundle",
+    options: ["auto"].map((value) => {
+      const { label, description } = scalePresetByValue(value);
+      return { value, label, description };
+    }),
   },
   {
-    label: "HTML bundle",
-    includes: (profile) =>
-      profile.format === "html" && profile.delivery === "bundle",
+    label: "Size",
+    options: ["small", "medium", "large"].map((value) => {
+      const { label, description } = scalePresetByValue(value);
+      return { value, label, description };
+    }),
   },
   {
-    label: "HTML stream",
-    includes: (profile) =>
-      profile.format === "html" && profile.delivery === "stream",
-  },
-  {
-    label: "domjs (sandboxed HTML/JS)",
-    includes: (profile) => profile.format === "domjs",
+    label: "Size + detail",
+    options: ["small-rich", "large-simple"].map((value) => {
+      const { label, description } = scalePresetByValue(value);
+      return { value, label, description };
+    }),
   },
 ];
 
-function runtimeGroups(): DropdownSelectGroup[] {
-  return runtimeGroupDefinitions
-    .map((group) => ({
-      label: group.label,
-      options: SUMMON_OUTPUT_RUNTIME_VALUES
-        .filter((runtime) => group.includes(runtimeProfile(runtime)))
-        .map((runtime) => ({
-          value: runtime,
-          label: runtimeCopy[runtime].label,
-          description: runtimeCopy[runtime].description,
-        })),
-    }))
-    .filter((group) => group.options.length > 0);
+function scalePresetValue(
+  size: SurfaceSize | "",
+  complexity: SurfaceComplexity | "",
+): string {
+  return (
+    scalePresets.find(
+      (preset) => preset.size === size && preset.complexity === complexity,
+    )?.value ?? "auto"
+  );
 }
 
 export function GenerationStage({
@@ -104,7 +105,10 @@ export function GenerationStage({
   fingerprints,
   onSelectFingerprint,
   experimentalRuntime,
-  onSelectExperimentalRuntime,
+  scaleSize,
+  onSelectScaleSize,
+  scaleComplexity,
+  onSelectScaleComplexity,
   running,
   onGenerate,
   statusText,
@@ -135,7 +139,10 @@ export function GenerationStage({
   fingerprints: GhostRootInfo[];
   onSelectFingerprint: (id: string | null) => void;
   experimentalRuntime: SummonOutputRuntime;
-  onSelectExperimentalRuntime: (runtime: SummonOutputRuntime) => void;
+  scaleSize: SurfaceSize | "";
+  onSelectScaleSize: (value: SurfaceSize | "") => void;
+  scaleComplexity: SurfaceComplexity | "";
+  onSelectScaleComplexity: (value: SurfaceComplexity | "") => void;
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
@@ -165,7 +172,6 @@ export function GenerationStage({
 }) {
   const selectedRuntimeProfile = runtimeProfile(experimentalRuntime);
   const isStreamDelivery = selectedRuntimeProfile.delivery === "stream";
-  const runtimeGroupOptions = useMemo(() => runtimeGroups(), []);
   const showSamplePills = showWelcome && !running;
   const showHostLoader =
     !isStreamDelivery &&
@@ -182,11 +188,6 @@ export function GenerationStage({
     ) ?? null;
   const fingerprintLabel =
     selectedFingerprint?.name ?? selectedFingerprintId ?? "Fingerprint";
-  const selectedRuntimeOption =
-    runtimeGroupOptions
-      .flatMap((group) => group.options)
-      .find((option) => option.value === experimentalRuntime) ??
-    runtimeGroupOptions[0]?.options[0];
   const fingerprintGroups = useMemo<DropdownSelectGroup[]>(() => {
     const options: DropdownSelectGroup["options"] = [];
 
@@ -245,7 +246,8 @@ export function GenerationStage({
         ) : null}
         <div
           className={cn(
-            "relative z-[2] mx-auto h-[calc(100vh-260px)] min-h-0 w-[min(1120px,calc(100%-24px))] transition-[opacity,filter,transform] duration-700 ease-out max-[760px]:h-[calc(100vh-320px)]",
+            "relative z-[2] mx-auto h-[calc(100vh-260px)] min-h-0 transition-[opacity,filter,transform,width] duration-700 ease-out max-[760px]:h-[calc(100vh-320px)]",
+            sandboxWidthClass[scaleSize],
             showSandboxFrame
               ? "translate-y-0 scale-100 opacity-100 blur-0"
               : "pointer-events-none translate-y-6 scale-[0.96] opacity-0 blur-lg",
@@ -407,29 +409,27 @@ export function GenerationStage({
                   }
                 />
                 <DropdownSelect
-                  id="stream-type-picker"
-                  value={experimentalRuntime}
-                  groups={runtimeGroupOptions}
-                  overline="Runtime"
-                  placeholder="Arrow control"
-                  title={
-                    selectedRuntimeOption?.description ??
-                    "Choose output runtime"
-                  }
+                  id="scale-picker"
+                  value={scalePresetValue(scaleSize, scaleComplexity)}
+                  groups={scaleGroups}
+                  showGroupLabels
+                  overline="Scale"
+                  placeholder="Auto"
+                  title="Size and complexity budget for the surface"
                   side="top"
                   align="end"
                   disabled={running}
-                  className="w-[168px] max-w-[38vw]"
+                  className="w-[150px] max-w-[34vw]"
                   triggerClassName={cn(
                     "h-20 !border-0 !bg-ink px-3 py-0 text-xs font-semibold !text-ink-inverse shadow-none hover:opacity-85 focus:border-transparent",
                     promptActionRadiusClass,
                   )}
                   contentClassName="w-[min(300px,calc(100vw-32px))] !rounded-[32px] max-[760px]:left-auto max-[760px]:right-0"
-                  onValueChange={(nextValue) =>
-                    onSelectExperimentalRuntime(
-                      nextValue as SummonOutputRuntime,
-                    )
-                  }
+                  onValueChange={(nextValue) => {
+                    const preset = scalePresetByValue(nextValue);
+                    onSelectScaleSize(preset.size);
+                    onSelectScaleComplexity(preset.complexity);
+                  }}
                 />
                 <Button
                   id="go"

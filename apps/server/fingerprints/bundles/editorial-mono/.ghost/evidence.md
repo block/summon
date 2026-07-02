@@ -30,6 +30,24 @@ between zones) so the bands feel edited rather than busy. Demote caveats, risks,
 tradeoffs into these bands so they support the decision rather than competing with
 it. Weak or empty cells stay visible; gaps are part of the evidence.
 
+**Specimen figures.** Where one fact in a band is the fact — the delta that
+decides, the number the verdict rests on — it may take the type-specimen
+treatment: the serif at `--editorial-specimen-size` and
+`--editorial-specimen-leading`, sitting inside its band with a mono caption
+beneath naming exactly what it measures. The specimen sheet's logic applies —
+show the material large, label it small — and its budget is strict: one specimen
+figure per evidence region, or the page becomes a KPI wall wearing serif. The
+oversized figure is still evidence, not decoration; it keeps its row, its label,
+and its so-what.
+
+**The measure made visible.** Where a comparison's credibility rests on its
+alignment, the evidence region may reveal its own construction: faint
+`--editorial-guide-rule` lines extended a `--editorial-guide-gap` beyond the
+column edges, like the drawn guides on a compositor's paste-up board. Everything
+inside must actually sit on those guides — a revealed measure that the content
+then violates is worse than no guides at all. Use once per surface at most; the
+guides frame the region that carries the comparison, never the whole page.
+
 **Risk and caveat rows.** Failure, warning, blocked, or caveat states ride the same
 ruled-band rhythm. Keep severity exact and austere without becoming hostile — reach
 for ink, border weight, and an uppercase Risk or Caveat label before semantic color,

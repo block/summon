@@ -76,4 +76,4 @@ never contradict each other. Arrow's pipeline is fully separate and untouched.
 This is an ergonomics + cleanliness win (less code, no manual-update bug class).
 Whether it measurably lowers crash/repair rate vs the manual-region model is
 unproven — that would need the repeat-based A/B described in
-`surface-vm-bakeoff-findings.md` (manual-region domjs vs reactive domjs).
+`archive/surface-vm-bakeoff-findings.md` (manual-region domjs vs reactive domjs).

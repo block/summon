@@ -1,9 +1,70 @@
-import type { CSSProperties } from "react";
+import { useCallback, useRef, type CSSProperties } from "react";
 import { cn } from "../../../lib/cn.js";
 import type {
   GenerationPreviewModel,
   GenerationPreviewSection,
 } from "../generationPreview.js";
+
+const svgMask = (shape: string) =>
+  `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E${shape}%3C/svg%3E")`;
+
+// Stroked outlines (monochrome, on-brand) used as the expanding wavefront.
+// Thin strokes so the ring reads as a travelling ripple, not a fattening band.
+const rippleShapes: string[] = [
+  // circle
+  svgMask("%3Ccircle cx='50' cy='50' r='42' fill='none' stroke='black' stroke-width='6'/%3E"),
+  // squircle
+  svgMask("%3Crect x='9' y='9' width='82' height='82' rx='36' fill='none' stroke='black' stroke-width='6'/%3E"),
+  // star
+  svgMask("%3Cpolygon points='50,4 61,37 96,37 68,58 79,92 50,71 21,92 32,58 4,37 39,37' fill='none' stroke='black' stroke-width='5' stroke-linejoin='round'/%3E"),
+  // hexagon
+  svgMask("%3Cpolygon points='50,5 89,27 89,73 50,95 11,73 11,27' fill='none' stroke='black' stroke-width='6' stroke-linejoin='round'/%3E"),
+  // heart
+  svgMask("%3Cpath d='M50 86 C14 60 8 36 24 24 C37 14 50 24 50 35 C50 24 63 14 76 24 C92 36 86 60 50 86 Z' fill='none' stroke='black' stroke-width='5' stroke-linejoin='round'/%3E"),
+];
+
+function randomShape(exclude?: string): string {
+  if (rippleShapes.length <= 1) return rippleShapes[0];
+  let pick = exclude;
+  while (pick === undefined || pick === exclude) {
+    pick = rippleShapes[Math.floor(Math.random() * rippleShapes.length)];
+  }
+  return pick;
+}
+
+function RippleWaves() {
+  const shapes = useRef<Record<number, string>>({});
+
+  const assign = useCallback((el: HTMLSpanElement | null, index: number) => {
+    if (!el) return;
+    if (!shapes.current[index]) {
+      shapes.current[index] = randomShape();
+      el.style.setProperty("--summon-shape", shapes.current[index]);
+    }
+  }, []);
+
+  const reroll = useCallback(
+    (el: HTMLSpanElement, index: number) => {
+      const next = randomShape(shapes.current[index]);
+      shapes.current[index] = next;
+      el.style.setProperty("--summon-shape", next);
+    },
+    [],
+  );
+
+  return (
+    <div className="summon-host-ripple-waves" aria-hidden="true">
+      {[0, 1, 2].map((index) => (
+        <span
+          key={index}
+          className="summon-host-ripple-wave"
+          ref={(el) => assign(el, index)}
+          onAnimationIteration={(event) => reroll(event.currentTarget, index)}
+        />
+      ))}
+    </div>
+  );
+}
 
 export function SurfaceLoadingOverlay({
   statusText,
@@ -41,14 +102,7 @@ export function SurfaceLoadingOverlay({
         )}
         aria-hidden="true"
       />
-      {fullPage ? (
-        <div className="summon-host-ripple-waves" aria-hidden="true">
-          <span className="summon-host-ripple-wave" />
-          <span className="summon-host-ripple-wave" />
-          <span className="summon-host-ripple-wave" />
-          <span className="summon-host-ripple-wave" />
-        </div>
-      ) : null}
+      {fullPage ? <RippleWaves /> : null}
       <div
         className={cn(
           "relative z-[1] grid w-full justify-items-center",

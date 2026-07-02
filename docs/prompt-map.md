@@ -1,257 +1,99 @@
 # Prompt Map
 
-> Exhaustive inventory of every instruction, system block, and hint Summon sends
-> to the model. Reflects the code as of 2026-06-27 (migration steps 1, 2, A–C
-> applied). When you change a prompt, update this map. This is the "compose"
-> half of the fingerprint-as-authority thesis made legible.
+> Inventory of every prompt/block that reaches a model: where it is built in
+> code, who consumes it, and what it contains. Regenerated against commit
+> `5908b65` (2026-07-01). When you change a prompt, update this map.
 >
 > **Layer ownership** (see `prompt-architecture.md`): Summon = runtime/safety/
-> output (zero design); Ghost = all composition/design; Host = capability +
-> optional layout. **Ghost blocks are pending a rearchitecture** — the §3/§4
-> descriptions below will change when it lands.
+> output format (zero design opinion); Ghost fingerprint = all composition and
+> visual design; Host = capability (tools, surface contract, layout, scale).
 
-## How a generation request is assembled
+## 1. System contracts — the main generation call
 
-The model receives **one or more cached system blocks** + **one user message**.
-The system blocks are assembled by `compileSystemContracts()`
-(`packages/engine/src/contracts.ts`) in this fixed order:
+Assembled by `compileSystemContracts()` in `packages/engine/src/contracts.ts`
+(~line 315), consumed by `SummonSession` (`packages/server/src/session.ts`)
+which sends them as ordered system blocks ahead of the user message. Fixed
+order; a block is omitted when its input is absent.
 
-| # | Block id | Layer | Source | Cache | When present |
-| --- | --- | --- | --- | --- | --- |
-| 1 | `fixed` | Summon | `SUMMON_FIXED_INSTRUCTIONS` (or `_HTML_`) | ephemeral | always |
-| 3 | `ghost` | Ghost | `ResolvedGhostSteer.prompt` (relay brief + surface brief) | ephemeral | fingerprint run |
-| 4 | `ghost:<id>` | Ghost | Ghost ingestion blocks incl. `ghost:contract`, `ghost:surface-brief` | ephemeral | fingerprint run |
-| 5 | `layout:<id>` | Host | `buildLayoutBlock()` | ephemeral | host supplies a layout |
-| 6 | `playground-mode` | Summon | `playgroundPromptBlock` (main.ts) | — | playground mode (dev-only, gated) |
-| 7 | `surface-contract` / `surface-plan` | Host | `buildSurfaceContractBlock()` / `buildSurfacePlanBlock()` | ephemeral | always (one of) |
-| 8 | tools | Host+Summon | `buildToolsBlock()` (or `buildHtmlToolsBlock()`) | ephemeral | interactive mode w/ tools |
-| 9 | `output-contract` | Summon | `SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS` (or `_HTML_`) | none | always |
+| # | Block id | Layer | Built in (file:function/const) | Cache | When present | Contents |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `fixed` | Summon | `packages/engine/src/prompt.ts`: `SUMMON_FIXED_INSTRUCTIONS` (arrow), `SUMMON_FIXED_HTML_INSTRUCTIONS` (~189), or `SUMMON_FIXED_DOMJS_INSTRUCTIONS` (~232), picked by output runtime | ephemeral | always | Stable cacheable prefix: runtime rules, sandbox API subset, safety boundaries, token contract (`formatTokenContract()`), bundle schema. No design direction. |
+| 2 | `ghost` | Ghost | `apps/server/src/ghost-adapter.ts`: `renderSlicePrompt()` (~728) + `buildSummonFingerprintSurfaceBrief()` joined in `prepareGhostSurfacePrompt()` (~343); passed in as `input.ghost.prompt` | ephemeral | fingerprint run | The single Ghost block. See §2. |
+| 3 | `layout:<id>` | Host | `packages/engine/src/prompt.ts`: `buildLayoutBlock()` (~335) | ephemeral | host supplies a layout | Host layout constraints for the surface. |
+| 4 | `scale` | Host | `packages/engine/src/prompt.ts`: `buildScaleBlock()` (~79) | ephemeral | `input.scale` set | Hard constraint on HOW MUCH surface to build: size (small/medium/large) + complexity (simple/moderate/rich) + element budget. Explicitly defers all visual language to the fingerprint. |
+| 5 | (experimental) | Summon | `input.experimentalPromptBlock`, e.g. `playgroundPromptBlock` in `apps/server/src/main.ts` (~708), gated by playground mode | per block | dev-only | Experimental/playground instructions. |
+| 6 | `surface-contract` | Host | `packages/engine/src/prompt.ts`: `buildSurfaceContractBlock()` (~386) | ephemeral | `input.surfaceContract` set | Surface plan (purpose/runtime/data/authority/persistence) rendered as binding contract. |
+| 7 | `tools` | Host+Summon | `packages/engine/src/contracts.ts`: `compileToolContract()` → `buildToolsBlock()` (`prompt.ts` ~500; html variant `buildHtmlToolsBlock()` ~696) | ephemeral | tool pack non-empty | Granted host tools: names, kinds, triggers, state keys, calling conventions (`callTool`/`getState`/`onState`). |
+| 8 | `output-contract` | Summon | `packages/engine/src/prompt.ts`: `SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS` (~175), `_HTML_` (~220), or `_DOMJS_` (~324) | none | always | Final-position reminder of the structured output schema (tool name, bundle schema id, required source keys, highest-value rules). |
 
-> Block 2 (`direction`) was removed in step 1. `playground` (§6) is dev-only and
-> gated behind `SUMMON_ENABLE_PLAYGROUND` (step C).
+The **user message** is the user's request (the ghost brief now lives in the
+`ghost` system block, not the user message).
 
-The **user message** is `ghostContext.prompt` (the user's request + the surface
-brief), or the bare prompt for non-ghost runs.
+Runtime selection: `fixed` and `output-contract` are switched together on
+`outputRuntime` — `arrow-control` → Arrow constants (`create_summon_arrow_surface`,
+`summon.arrow-bundle/v1`), html runtimes → HTML constants
+(`create_summon_html_surface`, `summon.html-bundle/v0`), domjs → domjs constants
+(`emit_domjs_surface`, `summon.domjs-bundle/v1`).
 
-Two model calls also exist outside the main generation:
-- **Goal classifier** (`buildGoalClassifierPrompt`) — utility model, picks a
-  bounded tool/policy object before generation.
-- **Repair** (`repairPrompt` / `repairHtmlPrompt`) — re-sends the failed bundle
-  + validation issues + hints when the repair loop fires.
+## 2. Ghost steering — the `ghost` block in detail
 
----
+There is exactly **one** ghost block. It is composed in
+`apps/server/src/ghost-adapter.ts` (there is no `packages/server/src/ghost/`
+prompt module) and equals `renderSlicePrompt(slice)` + blank line +
+`buildSummonFingerprintSurfaceBrief(...)`.
 
-## 1. Fixed instructions (the stable cached prefix)
+| Piece | Built in | Contents |
+| --- | --- | --- |
+| Fingerprint slice | `ghost-adapter.ts`: `renderSlicePrompt()` (~728) | `# Ghost Fingerprint` header, cascade line, then every slice node body **verbatim** (provenance-ordered: own → ancestors → edges; spokes omitted). Fenced ```css token blocks are kept — the prose is the only place the model sees token names/values (`activeTokensCss` is validation/sandbox-only, never rendered into the prompt). |
+| Surface brief | `ghost-adapter.ts`: `buildSummonFingerprintSurfaceBrief()` (~590) | `## Summon Surface Brief`: product, fingerprint surface + cascade, gathered nodes, user request (clamped), surface plan summary, output runtime, mode, granted tools. Then generation rules, success criteria ("technically valid but generic = failed"), and slice-faithful composition language: the fingerprint's `core` prose is the composition grammar and its **"core prose + building-block nodes"** are the composable vocabulary — Summon injects no composition voice of its own. |
+| Signature moves | `ghost-adapter.ts`: `buildSignatureMovesBlock()` (~657), embedded in the brief | The fingerprint root's `## Signature look & feel` section extracted verbatim and voiced as non-negotiable must-haves for this run. Empty (graceful) when the section is absent. |
 
-`SUMMON_FIXED_INSTRUCTIONS` — `packages/engine/src/prompt.ts`. The long-lived,
-design-agnostic Summon-layer prefix. As of step 2 it carries **zero composition
-or editorial guidance** — it opens by naming Ghost as the sole design authority.
-Sections:
+Slice resolution: `resolveRootGhostGenerationContext` / `resolveCatalogGhostGenerationContext`
+anchor at `core`; `prepareGhostSurfacePrompt()` (~343) re-anchors via surface
+selection (§5) and re-renders the slice prompt + token CSS for the chosen
+surface before appending the brief.
 
-- **Opening** — "You receive a user request and a Ghost design fingerprint…
-  The Ghost fingerprint is the sole authority for composition… Summon governs
-  only runtime, safety, and output format; it has no opinion about how the
-  surface should look."
-- **Structured Arrow sandbox bundle** — output shape: `schema:
-  "summon.arrow-bundle/v1"`, one `main.ts`/`main.js`, optional `main.css`,
-  optional `preview`. Forbids markdown/fences/op-path/meta lines.
-- **Arrow entry rules** — the binding/runtime rules:
-  - default export is an Arrow template/component
-  - import only `html, reactive, component, props, pick, watch, onCleanup, nextTick` from `@arrow-js/core`
-  - `reactive()` + live reads as functions
-  - quoted event/attribute bindings
-  - boolean attrs return `false` to remove
-  - **`ARROW_BINDING_RULE_LINE`** (shared) — attribute+event for inputs, never IDL `.value=`
-  - host tools via `host-bridge:summon` + `callTool`
-  - `getState()` / `onState()` for host state
-  - no `window`/`document`/storage/DOM refs/imports/timers/URLs
-  - `fetch()` only when network is `restricted-fetch`
-- **`ARROW_SANDBOX_SUBSET_PROMPT_BLOCK`** (shared) — the sandbox quirks:
-  no IDL bindings (+ controlled-input/checkbox/select rewrites), no bare
-  open-tag `${}`, no namespace tags, single-expression `ref`, wrap live reads,
-  boolean-attr removal.
-- **Arrow/CSS rules** — explicitly framed as "runtime and safety boundaries, not
-  design guidance": semantic HTML, styling in `main.css` via classes, no
-  external URLs/images/fonts/stylesheets, token *vocabulary comes from Ghost*,
-  and the one rescued runtime rule — no faked interactivity via
-  `:has()`/`:checked`/`<details>` state machines.
-- **Token contract** — `formatTokenContract()` (see §7), a deferral statement.
+Removed (do not re-add to this map): `ghost:contract`, `ghost:surface-brief`,
+`buildSurfacePlanBlock`, `buildCompositionRepertoireBlock`, `gatherRelayContext`.
 
-**Removed in step 2** (now Ghost's job): the 7 structural archetypes, the
-anti-card-grid guidance, the "Content quality" section, and "How to think about
-this generation". None of it lives in Summon anymore — no fallback floor.
+## 3. Generation calls (model providers)
 
-### HTML variant
-`SUMMON_FIXED_HTML_INSTRUCTIONS` — parallel Summon-layer block for the HTML
-runtimes. Same treatment: composition/editorial and the visual composition floor
-removed; keeps the static-HTML safety bans (`<script>`/`<iframe>`/inline
-handlers/external assets) and names Ghost as the design authority.
+`apps/server/src/model-providers.ts` implements `generateArrowBundle`,
+`generateHtmlBundle`, `generateDomjsBundle` (~110 interface; anthropic/openai/
+google provider impls at ~642/~814/~980). Each sends the compiled system blocks
+(§1) plus the user prompt and forces the structured tool/schema:
 
----
+| Call | Tool/schema | Notes |
+| --- | --- | --- |
+| `generateArrowBundle` | `create_summon_arrow_surface` → `summon.arrow-bundle/v1` | `main.ts`/`main.js` Arrow entry + optional `main.css` + optional `preview`. |
+| `generateHtmlBundle` | `create_summon_html_surface` → `summon.html-bundle/v0` | `body.html` + optional `main.css`; scripts forbidden unless `allowScript`. |
+| `generateDomjsBundle` | `emit_domjs_surface` → `summon.domjs-bundle/v1` | `main.js` building the DOM imperatively via the facade API, `export default rootNode`; reactive `state()`/`region()` bindings per `SUMMON_FIXED_DOMJS_INSTRUCTIONS`. |
 
-## 2. Direction block (REMOVED 2026-06-27)
+## 4. Repair prompts
 
-The legacy `direction` block (`buildDirectionBlock`, `directions-loader`,
-`compileDirectionContract`, `eval-directions`) was dead in the server
-(`main.ts` hardcoded `direction: null`) and has been removed entirely. Token
-validation (`validateDirection`) survives — it backs `compileTokenContract`.
+Built in `apps/server/src/model-providers.ts`, sent as a **user message** to
+the same provider (system blocks re-sent alongside) when validation fails:
 
----
+| Prompt | Built in | Contents |
+| --- | --- | --- |
+| `repairPrompt()` (~1537) | `model-providers.ts` | Original prompt + "failed Summon validation" + issue list (`code`/`path`/`message`) + repair hints (from the shared `hintsForContractIssue` table — no hardcoded per-issue reminders) + previous bundle JSON + "return a complete replacement; do not widen authority/schema". Arrow schema reminder. |
+| `repairHtmlPrompt()` (~1593) | `model-providers.ts` | Same shape; HTML schema reminder, script policy line depends on `allowScript`. |
+| `repairDomjsPrompt()` (~1566) | `model-providers.ts` | Same shape; domjs schema reminder + facade-API rules (no `innerHTML`/`querySelector`/`el.style`/`window`/`fetch`; `emit_domjs_surface`). Consumed by `generateDomjsBundle` repair turns (~659/~836/~1002). |
 
-## 3–4. Ghost blocks (the fingerprint authority)
+## 5. Utility model calls (outside the main generation)
 
-### `ghost` block — the surface brief
-`buildSummonFingerprintSurfaceBrief()` — `apps/server/src/ghost-adapter.ts`.
-Appended to the user prompt. Contains:
-- **Brief details**: product, target path, one-line user request, surface plan
-  (purpose/runtime/data/authority/persistence), output runtime, mode, selected
-  composition refs, granted host tools.
-- **Generation rules**: use the supplied relay brief as the complete entrypoint;
-  return the structured bundle via the tool/schema.
-- **Primary success criterion**: "a technically valid but generic surface is a
-  failed generation"; user request = task authority; fingerprint = visual/
-  composition authority; safety restricts APIs not richness.
-- **Fingerprint composition rules**: compose from prose+inventory+composition;
-  imitate the visual grammar; pick a composition shell; composed outer shell not
-  unframed content; tokens as source of truth; no invented colors/fonts/etc.;
-  checks are validation not content.
+| Call | Built in | Consumed by | Contents |
+| --- | --- | --- | --- |
+| **Goal classifier** (agent ward) | `packages/server/src/agent-ward.ts`: `buildGoalClassifierPrompt()` (~376), sent by `inferGoalWithModel()` (~342) | utility text model (`completeText`, temp 0, ~1.8s timeout, falls back to deterministic goal) | System prompt: classify the request into a bounded JSON goal object (`purpose`/`interaction`/`dataNeed`/`sideEffect`/`requestedTools`/`confidence`) against the listed host tools; "do not request broader authority than the prompt needs". User prompt: the raw request. |
+| **Surface selection** | `apps/server/src/ghost-adapter.ts`: `SURFACE_SELECT_SYSTEM_PROMPT` (~402) + inline user prompt in `selectGhostSurface()` (~430) | utility text model (temp 0, 32 tokens, 8s timeout; skipped without `completeText`, falls back to `core`) | System: pick the single best composition archetype id from the gather menu; prefer a concrete archetype; answer `core` only when nothing fits; answer with only the id. User: request + candidate menu (id + "reach when" line) + `core` option. Out-of-menu answers fall back to `core` (`validatePreselectedSurface` mirrors this for pre-resolved anchors). |
+| **Conformance evaluator** | `apps/server/src/ghost-conformance.ts`: `EVAL_SYSTEM_PROMPT` (~51) + `buildEvalPrompt()` (~103), sent by `evaluateConformance()` | utility text model (8s default timeout; no call when no routed checks or no artifact) | System: "design-conformance evaluator" — given UI source and named prose checks, return ONLY a JSON array of `{name, pass, reason, evidence?}`. User: `## Generated UI source` (clamped to ~12k chars) + `## Checks` (routed check bodies from the fingerprint package's checks dir). |
 
-### `ghost:contract` block — the ingestion contract
-`buildGhostContractPrompt()` — `packages/server/src/ghost/prompt.ts`. The
-compiled relay as binding direction:
-- Prose and intent anchors
-- Composition anchors (choose one as visible outer shell)
-- Inventory and building blocks (tokens, components, libraries)
-- Anti-pattern boundaries
-- Active/selected checks
-- Active token vocabulary (first 80 names)
+## 6. What the model never sees
 
----
-
-## 5. Layout block
-
-`buildLayoutBlock()` — when the host supplies a layout. Lists ordered semantic
-slots (`id` — `purpose`), instructs the model to honor slot order/purpose, and
-forbids inventing chrome or emitting transport/stream lines.
-
----
-
-## 6. Playground block
-
-`playgroundPromptBlock` — `apps/server/src/main.ts`. Best-effort local mode:
-prioritize one renderable Arrow bundle, hard-requires one entry file, prefers
-self-contained reactive Arrow.
-
----
-
-## 7. Surface contract / plan block
-
-`buildSurfaceContractBlock()` — `packages/engine/src/prompt.ts`. A compact,
-read-only view of the host-selected `SurfacePolicy`:
-- **Surface**: policy tier/purpose/persistence; plan
-  purpose/runtime/data/authority/persistence; mode.
-- **Tools**: each granted tool's name/kind/description/triggers/args/state/
-  surface authority.
-- **Host layout**: slots, if any.
-- **Compile issues**: count, "do not widen the surface to work around them."
-- Explicitly forbids emitting `/surface-contract`, `/surface-policy`,
-  `/surface-plan` meta lines (host owns those).
-
-`formatTokenContract()` — `packages/engine/src/token-contract.ts`. Three lines:
-treat host CSS custom properties as opaque vocabulary; use the names listed in
-the Ghost/direction block; token semantics belong to the design source, Summon
-only provides runtime + safety.
-
----
-
-## 8. Tools block (interactive mode)
-
-`buildToolsBlock()` — `packages/engine/src/prompt.ts`. The largest dynamic block.
-- **"Tools — this generation is INTERACTIVE"** — Arrow-native interactivity;
-  no CSS-only state machines.
-- **Host bridge** — `callTool` / `getState` / `onState` semantics.
-- **Available data resources / actions** — formatted per tool (args, state keys,
-  action state, surface, result schema, default data).
-- **Inline examples** — counter / submit-form / result-row Arrow snippets,
-  emitted only when those tool names are granted.
-- **Host tool bridge** — no `<script>`; behavior lives in the Arrow module.
-- **The interactivity contract — READ THIS** — every interactive element must be
-  wired to a declared tool; dead buttons are worse than no buttons; only listed
-  tools exist; data resources start at default/null; never hallucinate fetched
-  data; controlled actions expose pending/done/error.
-- **Initial state** — defensive rendering rules.
-- **Patterns** — owner-filtered tool patterns (`<script>` patterns
-  stripped).
-
-### HTML variant
-`buildHtmlToolsBlock()` — for HTML runtimes: tools are *context only*, no bridge,
-no live controls, no faked tool results.
-
----
-
-## 9. Output contract block
-
-`SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS` (or `_HTML_`) —
-`packages/engine/src/prompt.ts`. The final, **uncached** block. As of step A it
-is a **tight recency anchor**, not a restatement: the output shape + a handful
-of highest-value reminders (imports, the IDL binding rule, the core safety
-bans), ending with the line "the run is incomplete until the bundle contains a
-valid entry file". It no longer duplicates the full rule list or re-appends the
-whole `ARROW_SANDBOX_SUBSET_PROMPT_BLOCK` (those live in §1).
-
----
-
-## Out-of-band model calls
-
-### Goal classifier
-`buildGoalClassifierPrompt()` — `packages/server/src/agent-ward.ts`. Utility
-model, temperature 0, ~500 tokens. Lists available host tools and asks for ONE
-JSON object: `{purpose, interaction, dataNeed, sideEffect, requestedTools,
-confidence, rationale}`. Rules map request phrasing → interaction class. Used to
-propose a SurfacePolicy before generation.
-
-### Repair
-`repairPrompt()` / `repairHtmlPrompt()` — `apps/server/src/model-providers.ts`.
-Fires when the repair loop runs. Re-sends:
-- the original prompt
-- "previous bundle failed Summon validation"
-- the **validation issues** (`- code at path: message`)
-- the **repair hints** — from `hintsForContractIssue()`
-  (`packages/engine/src/contracts.ts`), keyed by issue code. Notable:
-  `unsupported-arrow-idl-binding` → `ARROW_CONTROLLED_INPUT_HINTS` (shared);
-  `unsupported-arrow-open-tag-expression`, `invalid-arrow-source-syntax`,
-  `arrow-network-not-granted`, the resource/action lifecycle hints, etc.
-- the previous bundle JSON
-- "return a complete replacement; do not widen authority / add tools / add
-  network / change schema."
-
-As of step B, there is **no hardcoded per-issue reminder** in `repairPrompt` —
-all issue-specific guidance (including the open-tag rewrite) flows through the
-shared `hintsForContractIssue()` table, so prompt/repair/validation cannot drift.
-
----
-
-## Shared single-source-of-truth modules
-
-- **`packages/engine/src/arrow-subset.ts`** — the Arrow sandbox quirks. Feeds the
-  prompt (`ARROW_BINDING_RULE_LINE`, `ARROW_SANDBOX_SUBSET_PROMPT_BLOCK`) AND the
-  repair hints (`ARROW_CONTROLLED_INPUT_HINTS`) AND the validator
-  (`ARROW_IDL_BINDING_RE`). Prompt, repair, and validation cannot drift.
-- **`packages/engine/src/token-contract.ts`** — `formatTokenContract()`, the
-  Summon-owns-no-token-semantics language.
-- **`packages/engine/src/contracts.ts`** — `hintsForContractIssue()`, the
-  per-issue-code repair hint table.
-
-## Resolved cleanup items
-
-- ✅ The full `ARROW_SANDBOX_SUBSET_PROMPT_BLOCK` + rule-list no longer duplicate
-  into the `output-contract` block — step A slimmed it to a recency anchor.
-- ✅ `repairPrompt`'s hardcoded open-tag reminder removed — step B routes all
-  issue-specific guidance through the shared hint table.
-
-## Pending the Ghost rearchitecture
-
-- The §3/§4 Ghost blocks (`ghost`, `ghost:contract`, surface brief) still overlap
-  on composition direction. De-overlapping is parked until the Ghost
-  rearchitecture lands (see `prompt-architecture.md`). The Summon layer has fully
-  vacated composition, so new Ghost must carry all of it.
+- `activeTokensCss` — parsed for validation (`parseDefinedTokens`) and injected
+  into the sandbox at render time only; token names reach the model via the
+  fingerprint prose's ```css blocks (see §2).
+- Validation context (`mode`, allowed tools, surface plan, defined tokens) —
+  server-side enforcement in `compileSystemContracts` output, not prompt text.
+- Conformance checks are validation constraints; the surface brief explicitly
+  tells the generator not to render them as content.

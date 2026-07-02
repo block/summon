@@ -145,6 +145,14 @@ export class DomjsControlStrategy implements BundleRuntimeStrategy {
       return { accepted: false, issues: issues.length > 0 ? issues : [invalid], blocker: blocker ?? invalid };
     }
     if (blocker && (!observeValidation || runtimeBlocker)) {
+      // Stream the rejected source so audits can inspect exactly what the
+      // validator blocked (issue codes alone proved insufficient to diagnose
+      // false positives — see the \bwindow\b prose incident, 2026-07-02).
+      await ctx.writeProtocolLine({
+        op: 'meta',
+        path: '/domjs-blocked-source',
+        value: { attempt, source: artifact.source },
+      });
       return { accepted: false, issues, blocker: runtimeBlocker ?? blocker };
     }
     if (blocker && observeValidation) {

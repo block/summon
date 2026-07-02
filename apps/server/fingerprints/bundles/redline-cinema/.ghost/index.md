@@ -81,6 +81,16 @@ glows, or borrows a real automotive mark.
 
 ## Inventory
 
+**Design lineage.** Redline Cinema descends from cinematic luxury-performance and
+automotive editorial art direction — the near-black stage, full-bleed hero frame,
+and giant spec numerals of the premium performance magazine — cross-cut with
+Apple-style product-marketing staging, where one product-hero image is lit against
+a dark ground and copy stays quiet and precise. It also inherits the discipline of
+premium magazine layout: hairline rules, generous editorial breaks, and uppercase
+tracked labels. This is heritage and grounding only; name the tradition, never
+borrow a real marque's marks, liveries, or type. The moves below are the source of
+truth; reference them rather than reaching for a specific brand's assets.
+
 The material is a dark cinematic token system: a warm near-black canvas (never
 pure black), dark editorial sections, a single brightness-step elevated plate, and
 deliberate white sheets for dense transactional relief. Text is white ink and grey
@@ -185,29 +195,101 @@ these custom properties rather than inventing values):
   --redline-machined-radius: 0px; /* square machined geometry on CTAs, cards, plates, spec cells */
   --redline-hairline: 1px solid #303030; /* depth from a single dark hairline, never a shadow stack */
   --redline-brightness-step: #303030; /* the one brightness step a plate sits above the canvas */
+
+  /* INTERACTION & FOCUS — machined states built from brightness + hairline, never shadow, never new red.
+     Depth stays photographic; these only make controls answer touch and keep focus visible on BOTH grounds. */
+  --redline-focus-ring: #ffffff; /* crisp focus ring — white reads on the near-black stage without spending voltage */
+  --redline-focus-ring-on-light: #181818; /* on white transactional relief bands the ring flips to warm near-black for the same crispness */
+  --redline-focus-ring-width: 2px; /* a single sharp 1–2px ring, machined not glowing — no soft halo */
+  --redline-focus-ring-offset: 2px; /* small offset so the square ring frames the control cleanly on either ground */
+
+  /* CTA + spec-row states — the rectangular button and hairline row shift by one brightness step or hairline, not elevation. */
+  --redline-cta-hover: #b01e0a; /* the one red CTA darkens on hover (mirrors --redline-voltage-hover); still spent once per page */
+  --redline-cta-active: #8f1808; /* pressed CTA steps down once more — a brightness step, never a drop-shadow lift */
+  --redline-row-hover: #202020; /* spec/list row on the dark stage rises one shy step toward the brightness step on hover */
+  --redline-row-hover-on-light: #f2f2f2; /* the same row on a white relief band cools by one step, staying transactional */
+  --redline-row-selected-rail: 2px solid #303030; /* selected row marked by a hairline rail, not red and not shadow */
+
+  /* DISABLED — presence drained via muted ink + hairline, the machined shape kept, no red, no glow. */
+  --redline-disabled-fg: #626262; /* disabled label mutes toward the grey metadata tone, never the red */
+  --redline-disabled-surface: #242424; /* disabled control sits just off the canvas — a half-step, clearly inert */
+  --redline-disabled-border: 1px solid #303030; /* disabled edge keeps the standard hairline, no accent leak */
+
+  /* SURFACE & BORDER roles — filling gaps for overlays and relief bands without adding chrome. */
+  --redline-scrim: rgba(24, 24, 24, 0.62); /* flat legibility scrim (warm near-black) for modals/overlays over photography */
+  --redline-relief-band: #ffffff; /* the white transactional relief band ground — deliberate clarity, returns to near-black after */
+  --redline-hairline-on-light: 1px solid #d2d2d2; /* the hairline's counterpart on white sheets — same 1px discipline, no shadow */
+
+  /* MOTION — restrained and cinematic; one slow ease, used sparingly, never bouncy. */
+  --redline-ease-cinematic: cubic-bezier(0.22, 0.61, 0.36, 1); /* slow confident ease for hero/overlay reveals — editorial, not playful */
+  --redline-duration-slow: 480ms; /* the cinematic reveal duration — restrained, applied to at most one moment per surface */
+  --redline-duration-state: 140ms; /* quick, calm state transition for hover/focus — machined, not springy */
+
+  /* PLAYER CHROME & HOVER REVEAL — footage dressed in the same machined vocabulary; no third-party player branding. */
+  --redline-player-rail: 1px solid #4a4a4a; /* the scrub bar is a single hairline, kin to --color-border-input — never a thick colored bar */
+  --redline-player-progress: #ffffff; /* elapsed footage fills in white ink — progress is brightness, not a second red */
+  --redline-timecode-size: 11px; /* mono timecode readout, same scale as the mono-technical data layer */
+  --redline-timecode-tracking: 0.14em; /* timecode tracks like the mono data voice — an instrument reading, not decoration */
+  --redline-hover-reveal-opacity: 0.9; /* a pointed-at frame fades up in its reserved plate — a fade on the stage, never a zoom or lift */
 }
 ```
 
 The component vocabulary is built from these tokens — cinematic heroes and
-image-led mastheads, dark and light top navigation, a red primary button paired
-with dark or light outline buttons and uppercase tertiary links, dark editorial
-sections, image-first feature cards, large-number spec cells, hairline event
-rows, premium directory sheets, white catalog sheets, rectangular form controls,
-badge pills, dark CTA bands, and dark footers. Copy atoms stay terse and
-commanding — Performance, Craft, Motion, Specification, Availability,
-Configuration, Event, Position, Detail, Reserve, Explore, Compare, Next session,
-Directory, Region, Service.
+image-led mastheads staged like a product-marketing key frame, dark and light top
+navigation, a red primary button paired with dark or light outline buttons and
+uppercase tertiary links, dark editorial sections, image-first feature cards,
+large-number spec cells, hairline event rows, premium directory sheets, white
+catalog sheets, rectangular form controls, badge pills, dark CTA bands, and dark
+footers. Every one of these is square-cornered at `--redline-machined-radius`
+(`0px`) — the CTA is a machined rectangle, never a pill; only tiny utility controls
+and compact badges are allowed to round. Copy atoms stay terse and commanding —
+Performance, Craft, Motion, Specification, Availability, Configuration, Event,
+Position, Detail, Reserve, Explore, Compare, Next session, Directory, Region,
+Service.
+
+**Component states, in this language's own terms.** The single red CTA is the
+only place voltage is spent, so its states are expressed through the same red,
+darkened by one brightness step: rest at `--redline-voltage`, `--redline-cta-hover`
+on hover, `--redline-cta-active` when pressed — never a shadow lift, never a second
+red appearing elsewhere. Spec rows and hairline list rows answer the pointer by
+rising one shy brightness step (`--redline-row-hover` on the dark stage,
+`--redline-row-hover-on-light` on a white relief band), and a selected row is
+marked by a `--redline-row-selected-rail` hairline rail, not by red or elevation.
+Disabled controls keep their machined shape but drain to `--redline-disabled-fg`
+ink on a `--redline-disabled-surface` half-step ground with a
+`--redline-disabled-border` edge — clearly inert, never greyed with a glow. Loading
+and empty states stay near-black and quiet: reserve a full cinematic image slot
+under `--redline-frame-overlay` rather than filling space with decorative cards,
+and let one line of grey metadata carry an empty result. Error and other semantic
+states use the reserved `--color-danger` / `--color-success` / `--color-info`
+roles for their actual meaning — the race-red stays reserved for voltage alone.
+
+**Accessibility intent.** Focus is always visible and always crisp: a sharp
+`--redline-focus-ring` (white) frames controls on the warm near-black stage, and it
+flips to `--redline-focus-ring-on-light` (near-black) the moment a control sits on a
+white transactional relief band, so a `--redline-focus-ring-width` ring at
+`--redline-focus-ring-offset` reads on both grounds without ever borrowing the red.
+White ink on `--redline-canvas-warm` and near-black ink on white relief bands both
+hold strong contrast; grey metadata (`--color-text-muted`) is reserved for
+secondary information, not primary reading. Uppercase tracked labels keep the
+`--tracking-label` breathing room that makes them legible at small sizes, and body
+copy holds `--text-md` and up. Motion is optional and honors reduced-motion
+preferences — the cinematic reveal is decoration, never a gate on content.
 
 The shared material every surface draws on lives in the root nodes that reach
 everywhere: the [cinematic image system](cinematic-image) that carries the drama
 and disciplines placeholders, the [scarce-red CTA and control system](controls)
 that supplies voltage and machined inputs, the [large-number spec
 system](spec-system) that reads data as specification, the [dark elevated plate
-and hairline depth system](depth) that builds presence without shadow, and the
-[single red livery band](livery-band) reserved for one dramatic interruption. The
-surfaces — [launch](launch), [spec](spec), [catalog](catalog),
-[directory](directory), and [lineup](lineup) — compose this material for their
-own job.
+and hairline depth system](depth) that builds presence without shadow, the
+[single red livery band](livery-band) reserved for one dramatic interruption, the
+[editorial cadence](editorial-cadence) that paces every surface as numbered
+chapters on one four-column backbone, and the [player chrome](player-chrome) that
+dresses motion footage in the same machined hairline-and-mono vocabulary with
+zero third-party player branding. Every
+generated surface — a launch, a spec story, a catalog, a directory, or a lineup —
+is cut from these same building blocks rather than a fixed template, composing the
+material for its own job.
 
 ## Composition
 
@@ -244,6 +326,29 @@ Seven principles carry the language and are true on every surface:
    gradients — never shadow stacks. Dark elevated plates sit one brightness step
    above the canvas; overlays make image text legible, not decorative glass;
    shadows are reserved for transient overlays only.
+
+**Cutting a surface from the same parts.** Redline Cinema has no fixed page
+types — every surface is edited for its task from the same machined kit of parts,
+in the same cinematic reading order. Open on the [cinematic image
+system](cinematic-image) so one full-bleed frame carries the emotion before any
+copy; spend the [scarce-red CTA and control system](controls) on the single
+decisive action per region and hold everything else near-black, white, and grey;
+let raw figures become proof through the [large-number spec system](spec-system);
+build presence from the [dark elevated plate and hairline depth
+system](depth) rather than shadow; and reserve the [single red livery
+band](livery-band) for the one moment that must seize the full width. Let the task
+set the shape, not a template: when a surface reveals one thing, cinema leads and
+the page tightens after the hero into editorial body with large brightness-paced
+breaks; when it proves capability, numbers are the subject and comparisons keep
+the same labels parallel across every option so the reader weighs like against
+like, with `--redline-voltage` on the one decisive value; when it lists and
+transacts, drop to a white sheet for dense relief but keep the hairlines, uppercase
+labels, and square geometry continuous with the dark framing; when it routes to
+places or people, group compact hairline rows by region, service, or tier with one
+squared action each and let the dark masthead carry the drama; when it invites
+browsing, delay dense filters behind an image-led gallery of square category
+plates. If a task fits none of these, edit a new surface from the same parts under
+the same rules — never collapse to a generic layout — compose from the same parts.
 
 **Surface obligations (true everywhere).** Generated surfaces preserve the
 luxury-performance composition language without reusing actual source names,

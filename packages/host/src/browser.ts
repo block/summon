@@ -28,6 +28,3 @@ export type {
   SurfaceStreamSource,
   SurfaceArtifact,
 } from './surface-stream.js';
-export type {
-  Artifact,
-} from './types.js';

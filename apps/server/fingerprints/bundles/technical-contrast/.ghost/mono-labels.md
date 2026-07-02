@@ -25,6 +25,16 @@ narrative itself stays sentence-case geometric sans — mono is the label voice,
 never a paragraph. Short and parallel; labels orient, they never decorate empty
 chips.
 
+**Labels as disclosure handles.** Where a sheet stages its density in layers,
+the mono label is the handle that opens them: an accordion group header, a
+"FULL SPEC" toggle, a footnote marker on a cell. Disclosure labels state what
+they reveal and how much — `LIMITS · 12 ROWS`, `DERIVATION` — in the same
+all-caps voice as every other label, with a plain hairline-weight indicator
+(a plus, a caret) rather than an icon set. The label's precision is the
+invitation: a reader should know exactly what expanding will show before
+expanding it. Vague handles ("MORE", "DETAILS") waste the voice; iconography
+in place of the word forfeits it.
+
 **Segmented technical tabs.** Compact segmented tabs on a hairline rail or white
 sheet, small-radius active pills with mono labels, black fill or stronger border
 for active state on light surfaces; preserve comparison context across tab

@@ -35,6 +35,19 @@ The white `--color-bg`/`--color-surface` carries sheets, forms, and tables;
 footer stencil; `--color-surface-dark` is the midnight proof plane with
 `--color-surface-dark-soft` for dark cards and badges inside it.
 
+**Plane sequence as argument.** Read in order, the three planes are the stages
+of an argument, not a color scheme: the pale landing states the claim in plain
+terms, the white sheet lays out the evidence in aligned detail, and the midnight
+plane delivers the proof with full gravity. Sequence planes so a reader
+scrolling the surface experiences that progression — approachable assertion,
+then verifiable detail, then inverted weight — and resist any ordering that
+breaks the argumentative arc for visual variety. A surface may open on midnight
+when the task itself is high-gravity, but the planes that follow must still
+each advance the argument; a plane that repeats the previous plane's job should
+be merged into it, not restyled. When the argument is short, use fewer planes
+rather than thinner ones — two planes that each earn their register beat three
+that alternate for rhythm.
+
 **Code editor breakout.** A compact dark code or configuration mockup can break
 up a white plane — midnight panel, mono-caption code, small radius, no elaborate
 window chrome, limited syntax accents — paired with a nearby claim as a proof or

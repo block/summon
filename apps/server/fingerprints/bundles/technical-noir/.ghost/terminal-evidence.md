@@ -5,6 +5,8 @@ relates:
     as: reinforces
   - to: tiles
     as: contrasts
+  - to: density-field
+    as: reinforces
 ---
 
 ## Composition
@@ -22,6 +24,18 @@ one blinking off-white block cursor (`--noir-cursor` animated by
 dots — idle, run, ok, fail — never a colored status bar. Add a small muted or mono
 metadata label so the user knows what the evidence represents, and prefer two
 strong evidence panels over many decorative screenshots.
+
+**Live readouts are visual material.** The most credible panel is one that
+appears to be measuring something. When the task has a quantity — progress,
+throughput, elapsed time, items processed — give it a labeled readout row inside
+the panel: a mono label in the gutter column, a [density field](density-field)
+strip whose glyph ink maps to the value, and the exact figure beside it
+(`sync ▏ ==+##..... ▏ 412/1024`). Readouts advance in discrete steps, cell by
+cell, the way a terminal repaints — never a smoothly easing bar. A panel may
+carry several readout rows, but they obey the transcript grid: same `ch` cells,
+same 24px row rhythm as the log lines around them, no second typeface, no
+rounded track. And the number must be plausible and task-tied — a readout with
+an invented quantity is decoration wearing an instrument's clothes.
 
 **Command-action pairs.** When setup, launch, install, or handoff is the task,
 place an off-white primary button beside a warm-dark command strip with

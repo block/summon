@@ -25,6 +25,16 @@ authority.** Summon never tells the model what *shape* a UI should take; it only
 tells it how to author a valid, safe surface. The host may *constrain* structure
 (via layout) but does not *design* it.
 
+Ghost carries composition as a **grammar, not a template menu**: each fingerprint
+states composition *rules* true on every surface (its `core` node) plus a kit of
+composable *building-block* nodes (masthead, evidence, tiles, controls, …). The
+model composes the surface for the task at hand from those parts under those
+rules. Fingerprints do **not** ship named page templates ("brief", "landing",
+"comparison") for the model to select and reproduce — that produces
+template-matched, structurally generic output regardless of prompt. See
+[`composition-grammar.md`](./archive/composition-grammar.md) for the reasoning and
+[`dissolve-pattern.md`](./archive/dissolve-pattern.md) for the authoring pattern.
+
 ## What each layer owns
 
 ### Summon layer — "how to author a valid, safe surface"
@@ -51,12 +61,14 @@ The design authority, resolved from the fingerprint. Speaks in two blocks:
 - **Surface brief** (`ghost`) — *this run's framing*: the user request, the
   resolved surface plan, and the success criteria ("a valid but generic surface
   is a failed generation"). Per-run. Does **not** restate composition rules.
-- **Ingestion contract** (`ghost:contract`) — *the fingerprint's memory*: prose
-  anchors, composition anchors, inventory, checks, token vocabulary. This is the
+- **Ingestion contract** (`ghost:contract`) — *the fingerprint's memory*: the
+  gathered graph slice rendered verbatim — the `core` composition grammar, the
+  building-block nodes it composes from, inventory, token vocabulary. This is the
   one and only place composition direction lives.
 
-All structural archetypes, anti-pattern guidance, density, editorial tone, and
-item-count opinions move here from `fixed`.
+All composition rules, anti-pattern guidance, density, editorial tone, and
+building-block vocabulary live here, authored per-fingerprint as grammar. Summon
+adds no composition voice of its own on top (see "No fallback" below).
 
 ### Host layer — "what this surface may do, and optionally its skeleton"
 - **Surface contract** (`surface-contract`) — the compiled `SurfacePolicy`:
@@ -86,15 +98,34 @@ job for one authority.
 Removed: `direction` (dead code). Demoted: `playground` (dev-only, not part of
 the governed path; gated, not in the default assembly narrative).
 
+> **Target vs current (2026-07-01):** this table is the *target*. In code the
+> block ids are still `fixed` and `output-contract` (`contracts.ts`), Ghost
+> ships as a **single `ghost` block** (no `ghost:contract` / `ghost:brief`
+> split), and a `scale` block (density/viewport guidance, `buildScaleBlock`)
+> exists in the live assembly but is not yet reflected here. See
+> `prompt-map.md` for the as-built assembly.
+
 ## Design rules for adding/changing prompt text
 
 1. **Ownership test.** Before adding a line, name its layer. If it's design →
    Ghost. If it's "how to author/stay safe" → Summon. If it's "what's allowed" →
    Host. A line that wants to be two layers is two lines in two blocks.
-2. **Zero design in Summon.** Summon is a delivery and generation mechanism with
-   no opinion about design. No composition, shape, archetype, anti-pattern, or
-   editorial line may live in a Summon-layer block — not even a fallback floor.
-   We fully trust Ghost; the burden of excellent composition is Ghost's alone.
+2. **Zero *design* in Summon — but a design-neutral scaffold is allowed.**
+   Summon is a delivery and generation mechanism with no opinion about how a
+   surface should *look*. No **design floor** may live in a Summon-layer block:
+   no composition, shape, archetype, anti-pattern, density, or editorial line —
+   not even a fallback. We fully trust Ghost; the burden of excellent composition
+   is Ghost's alone. Distinct from that ban, a **composition-reasoning scaffold**
+   *is* allowed: a design-neutral line that tells the model to *derive structure
+   from the fingerprint's own grammar and building blocks rather than from a
+   generic prior* (e.g. "the fingerprint's `core` prose and building-block nodes
+   are the composition authority; do not substitute a generic layout of your
+   own"). This carries no opinion about *any* surface's appearance — only about
+   reasoning from Ghost instead of from the model's landing-page default — so it
+   is a Summon-layer reasoning boundary, not a Ghost-layer design floor. The test:
+   if a line would read differently for two different fingerprints, it is design
+   and belongs to Ghost; if it is identical for all fingerprints and names no
+   shape, it may be a scaffold.
 3. **Single source of truth.** Cross-cutting rules (e.g. the Arrow subset) live in
    one module (`arrow-subset.ts`) and are referenced, never copy-pasted, so
    prompt/repair/validation cannot drift.
@@ -107,22 +138,34 @@ the governed path; gated, not in the default assembly narrative).
 
 ## No fallback. Ghost just has to.
 
-There is no composition floor in Summon. A thin or composition-silent fingerprint
-produces mechanically valid but visually unstructured output, and Summon does
-**not** rescue it.
+There is no composition **floor** in Summon — no design opinion that fills in for
+a weak fingerprint. A thin or composition-silent fingerprint produces
+mechanically valid but visually unstructured output, and Summon does **not**
+rescue it with design of its own.
 
 This is deliberate:
 
 - Summon is a delivery and generation mechanism. It is not opinionated about
   design, by construction.
-- A floor would make Summon a secondary composition authority, contradicting the
-  positioning thesis that Ghost is *the* authority for how interfaces compose.
+- A design floor would make Summon a secondary composition authority,
+  contradicting the positioning thesis that Ghost is *the* authority for how
+  interfaces compose.
 - Unstructured output from a thin fingerprint is the correct, honest signal: the
   fingerprint is incomplete. Masking it would hide the exact thing the governance
   model exists to surface.
 - Therefore the burden of excellent composition rests entirely on Ghost. The fix
-  for a generic surface is always to enrich the fingerprint — never to re-grow
-  Summon's design opinions.
+  for a generic surface is always to enrich the fingerprint's grammar and
+  building blocks — never to re-grow Summon's design opinions.
+
+**The one thing Summon does say** (design-neutral, per rule 2): point the model
+at Ghost's grammar and forbid the generic prior — "the fingerprint's `core` prose
+and building-block nodes are the composition authority; do not substitute a
+generic layout of your own." This is a reasoning scaffold, identical for every
+fingerprint and naming no shape. It is not a floor: it supplies no structure, no
+archetype, and no fallback appearance — it only stops the model from ignoring a
+present-but-unfamiliar grammar in favor of a header-plus-card-grid default. A
+fingerprint that says nothing about composition still gets nothing structural
+from Summon.
 
 ## Migration plan (surgical, independently committable)
 
@@ -137,19 +180,31 @@ Each step builds + tests + commits on its own. No big-bang rewrite.
    anti-card-grid, content-quality, and the visual composition floor are gone
    from every Summon-layer block. Ghost is now the sole composition authority.
    No fallback floor. — `5916e83`
+3. ✅ **Dissolve page-template archetypes into per-fingerprint grammar.** Removed
+   the adapter's "composition repertoire / lead archetype" machinery
+   (`buildCompositionRepertoireBlock`) that pasted a selected page template into
+   the brief, and slimmed the generic Summon composition boilerplate to the
+   design-neutral scaffold (rule 2). Re-authored all 8 in-repo fingerprints:
+   deleted every assembly folder, folding its genuine insight up into each
+   fingerprint's own `core` composition grammar + building-block nodes. Summon
+   now injects no composition voice of its own. See
+   [`composition-grammar.md`](./archive/composition-grammar.md) +
+   [`dissolve-pattern.md`](./archive/dissolve-pattern.md).
 
-### Blocked on the Ghost rearchitecture (do NOT touch yet)
+### Resolved by the Ghost rearchitecture (landed)
 
-Ghost is mid-rearchitecture (now a node-graph of prose, not YAML files). The
-integration plan lives in [`integration-with-ghost.md`](./integration-with-ghost.md).
-These prompt-layer items are subsumed by it:
+The Ghost node-graph rearchitecture has landed (`loadFingerprintPackage` /
+`resolveGraphSlice` are live in `apps/server/src/ghost-adapter.ts`; the
+migration record is in [`integration-with-ghost.md`](./integration-with-ghost.md)).
+These prompt-layer items were subsumed by it:
 
 - **De-overlap `ghost:brief` vs `ghost:contract`.** Resolved by the new model:
   there is no `composition.yml` to overlap with. The brief becomes "frame the
   task + name the surface"; the contract *is* the `resolveGraphSlice` output.
-- **Rehome the deleted composition wisdom into Ghost.** It becomes prose in the
-  node graph (core/surface nodes), authored via the composition lens — a
-  Ghost-side authoring concern, not Summon's.
+- ✅ **Rehome the deleted composition wisdom into Ghost.** Done for the in-repo
+  fingerprints (Done #3): it now lives as prose in each fingerprint's `core`
+  composition grammar and building-block nodes, authored via the composition
+  lens — a Ghost-side authoring concern, not Summon's.
 
 > **Integration note for the Ghost rearchitecture:** the Summon layer has *fully
 > vacated* composition. New Ghost cannot assume Summon supplies any structural
@@ -172,7 +227,9 @@ D. **Regenerate `prompt-map.md`** to match post-step-1/2 reality; mark Ghost
 
 - Every system block maps to exactly one layer in the table above.
 - `prompt-map.md` regenerated to match.
-- No composition/design language in any Summon-layer block. None. Not even a
-  fallback floor.
+- No composition/design *floor* in any Summon-layer block — no shape, archetype,
+  anti-pattern, or fallback appearance. The only composition-adjacent line
+  permitted is the design-neutral reasoning scaffold of rule 2 (point at Ghost's
+  grammar; forbid the generic prior), identical for every fingerprint.
 - Full suite green; a generate-page spot check confirms no quality regression on
   the interactive prompts.

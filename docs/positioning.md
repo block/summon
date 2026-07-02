@@ -48,8 +48,8 @@ commodity third. The defensible claim is all three:
 | Moment | Claim | Status |
 | --- | --- | --- |
 | **Compose** | The surface is composed *from* the fingerprint's product direction. | ✅ Working, tested |
-| **Govern** | The output is verified *against* the fingerprint — a conformance verdict, not just generation. | ⏳ To build |
-| **Account** | What happened is traced *back to* the fingerprint — a portable, inspectable receipt. | ⏳ To build |
+| **Govern** | The output is verified *against* the fingerprint — a conformance verdict, not just generation. | ✅ First cut shipped (`apps/server/src/ghost-conformance.ts`, streamed as `/ghost-conformance`) — LLM-judged today, deterministic checks still to come; lives in the demo server, not yet in the public packages |
+| **Account** | What happened is traced *back to* the fingerprint — a portable, inspectable receipt. | ✅ First cut shipped (`buildGhostReceipt`, streamed as `/ghost-receipt`) — not yet signed/hashed, and lives in the demo server, not yet in the public packages |
 
 > Summon operationalizes the claim that a fingerprint can be the *authority* for
 > an interface — composing it, governing it, and accounting for it — so rich
@@ -101,7 +101,9 @@ That is a feature once it is named honestly:
 | Runtime | Posture | Governance |
 | --- | --- | --- |
 | `arrow-control` | Capability-isolated (QuickJS/WASM, no DOM) | **Fully governed** — behavior flows through `callTool` |
+| `domjs-control` | Capability-isolated (QuickJS/WASM via `packages/surface-vm`, descriptor renderer, no real DOM) | **Fully governed** — same `callTool` chokepoint, Summon-owned glue |
 | `html-static` | Inert HTML/CSS, scripts blocked | Inert-safe, partially governed (no behavior to govern) |
+| `html-stream` | Inert streamed preview (`script-src 'none'`), validated patch commits | Inert-safe, partially governed |
 | _(future)_ scripted/iframe | Real DOM, real JS | **Outside** the behavioral guarantee, explicit opt-in |
 
 A powerful but less-isolated runtime is safe to offer *later* because

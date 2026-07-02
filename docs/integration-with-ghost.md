@@ -1,10 +1,11 @@
-# Integrating Summon with the new Ghost (node-graph model)
+# Integrating Summon with Ghost (node-graph model)
 
-> Head-start plan. Ghost is unpublished and actively shedding fossils (the
-> `fingerprint.schema.json` / palette-spacing-typography extraction was deleted
-> in `chore: delete dead fingerprint.md-era fossils`). This doc is written
-> against the live node-graph model so we execute — not rediscover — the moment
-> Ghost publishes. Nothing here should be built until Ghost's contract settles.
+> **Status: implemented.** This began as a head-start plan; all seven migration
+> steps have landed (see the sequencing section below). It now serves as the
+> record of how Summon consumes Ghost and why. The live code is
+> `apps/server/src/ghost-adapter.ts`, `apps/server/src/fingerprint-catalog.ts`,
+> `apps/server/src/ghost-conformance.ts`, and the receipt in
+> `buildGhostReceipt`.
 
 ## What changed in Ghost
 
@@ -122,23 +123,26 @@ The Ghost rearchitecture is also the unlock for the parked Tier 1 moat work:
   what-happened (which checks passed/failed, repairs, blocks). The graph slice's
   `provenance` and the checks' `relevance` give a precise, inspectable lineage.
 
-## Migration / sequencing (do NOT start until Ghost publishes)
+## Migration / sequencing (all done)
 
-Ordered, each independently shippable:
+Ordered, each independently shipped:
 
-1. **Add `@anarchitecture/ghost` as a pinned dependency**; spike
-   `loadFingerprintPackage` + `resolveGraphSlice` against a sample `.ghost/`.
-2. **Rewrite the discovery/load path** in `ghost-adapter.ts` + `fingerprint-catalog.ts`
-   to produce a graph instead of YAML blobs. Behind a flag if both must coexist.
-3. **Rewrite the surface brief** to render a `GraphSlice`.
-4. **Implement token-CSS extraction** from the slice (fenced-css + corridor merge).
-5. **Govern:** wire `selectChecksForSurfaces` → agent-evaluated conformance verdict
-   (Tier 1A).
-6. **Account:** extend the trace/receipt with gathered-node + routed-check lineage
-   (Tier 1B).
-7. **Delete** the old YAML adapter path, the `prose/composition/inventory` reads,
-   and migrate or re-author the in-repo `apps/server/fingerprints/bundles/*` to
-   the node-graph layout (or drop them for fresh node-model samples).
+1. ✅ **`@anarchitecture/ghost` pinned dependency** (`apps/server/package.json`).
+2. ✅ **Discovery/load rewritten** onto the graph (`loadFingerprintPackage` /
+   `resolveGraphSlice` in `ghost-adapter.ts`; `.ghost/manifest.yml` detection in
+   `fingerprint-catalog.ts`). Landed `5b5970e`.
+3. ✅ **Surface brief renders a `GraphSlice`** (`renderSlicePrompt`). Landed `9bc06a0`.
+4. ✅ **Token-CSS extraction** from fenced ```css blocks, corridor-merged.
+5. ✅ **Govern:** `selectChecksForSurfaces` → agent-evaluated conformance verdict
+   (`ghost-conformance.ts`, `/ghost-conformance`). Landed `fe22955`.
+6. ✅ **Account:** receipt with gathered-node + routed-check lineage
+   (`buildGhostReceipt`, `/ghost-receipt`). Landed `07f38a4`.
+7. ✅ **Legacy YAML path deleted**; bundles re-authored as node-graph fixtures.
+   Landed `bc0a9f5`.
+
+One deviation from the plan: surface naming shipped as a dedicated semantic
+model call (`selectGhostSurface` in `ghost-adapter.ts`), not as an extension of
+the agent ward's classifier described under "Resolved decisions" below.
 
 ## Resolved decisions
 

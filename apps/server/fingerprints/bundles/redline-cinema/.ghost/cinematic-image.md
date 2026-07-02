@@ -27,6 +27,15 @@ softened), no shadow, with tight title and body copy beneath, laid out in two-up
 or three-up grids rather than crowded masonry. The image leads; the copy
 supports.
 
+**Hover reveals the frame.** Where a list or index points at image-led work, the
+pointer becomes a projector: resting rows and titles stay ink-and-hairline, and
+the associated frame surfaces only on intent — a still fading up in a reserved
+square plate at `--redline-hover-reveal-opacity` over `--redline-duration-state`.
+The reveal is a fade on the near-black stage, never a zoom, tilt, or shadow lift,
+and the reserved plate means nothing reflows. This keeps dense indexes quiet
+while letting the image remain the reward; if red is spent in the region, it is
+not spent again on the reveal.
+
 **Derived image-placeholder discipline.** When prompt imagery is absent, use dark
 gradients, cropped light streaks, abstract silhouettes, material detail, or
 generic performance photography descriptions — never invented source-branded

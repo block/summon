@@ -10,4 +10,5 @@ playwright-report
 
 # Local experiment run output
 apps/server/.arrow-audit/
+apps/server/.domjs-audit/
 apps/server/.bakeoff/

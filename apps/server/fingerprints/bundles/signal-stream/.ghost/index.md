@@ -74,12 +74,24 @@ instead of navigational.
 
 ## Inventory
 
+**Design lineage.** Signal Stream descends from high-voltage editorial and
+neo-brutalist information design: the dense data-journalism of Bloomberg-style
+financial pages, the hazard-tape and industrial signage traditions that speak in
+warning voltages, condensed-Impact poster typography where a single line shouts,
+and the flat saturated color-blocking of contemporary conference and tech-event
+branding (the Config-era poster energy where color, not shadow, carries the
+weight). It is named as heritage, never copied: the language borrows the
+grammar — near-black field, two hazard markers, condensed shout, ticked rail,
+flat saturated tiles — while every surface stays neutral and fictionalized.
+
 The material is a dark editorial token system: a warm near-black canvas, white and
 muted-gray text, hairline borders, and a hazard-accent palette (acid mint,
 electric violet, hot pink, warm orange, signal yellow, electric blue). Three type
 roles — a condensed **display shout**, a sans workhorse, and **mono metadata** —
 plus a tight spacing ladder, nested pill radii, and intentionally flat shadow
-tokens.
+tokens. Read against its industrial-signage roots, the near-black `--color-bg` is
+the field an operator scans; hazard mint and violet are the two voltages allowed
+to interrupt it, deployed like painted floor tape rather than ornament.
 
 The literal token vocabulary (inject as the visual source of truth; reference
 these custom properties rather than inventing values):
@@ -209,12 +221,57 @@ these custom properties rather than inventing values):
   --signal-pill-radius: var(--radius-pill);
   --signal-pill-padding: var(--space-1) var(--space-3);
   --signal-pill-border: 1px solid var(--color-border-input);
+
+  /* Interaction states — hazard voltages doing the work, never elevation.
+     Focus is a bright mint outline that reads on the dark field; hover/active
+     shift text and border color or saturation, NOT lift; nothing glows. */
+  --signal-focus-ring: 2px solid var(--signal-hazard-mint);   /* bright hazard-mint outline on near-black */
+  --signal-focus-offset: 2px;                                 /* small gap so the ring stays crisp, not fused */
+  --signal-hover-border: var(--color-border-strong);          /* border brightens to mint on hover — no shadow */
+  --signal-hover-text: var(--signal-hazard-mint);             /* links/labels shift to mint, never underline-lift */
+  --signal-active-border: var(--signal-hazard-violet);        /* pressed state drops to the second voltage */
+  --signal-tile-hover-border: var(--color-border-strong);     /* flat tile brightens its 1px edge, stays flat */
+  --signal-tab-hover-text: var(--color-text);                 /* inactive tab warms to full white before select */
+  --signal-disabled-fg: var(--color-text-muted);              /* disabled reads as muted-gray metadata */
+  --signal-disabled-border: var(--color-border-input);        /* disabled edge falls back to the muted hairline */
+  --signal-disabled-opacity: 0.55;                            /* dimmed, not blurred — signal simply quiets */
+
+  /* Electric, snappy motion — minimal, for state changes only. Never decorative. */
+  --signal-duration-snap: 90ms;                               /* tab/hover flips feel like a hardware selector */
+  --signal-ease-snap: cubic-bezier(0.2, 0, 0, 1);             /* fast-in, hard-settle — no float, no bounce */
+
+  /* Stream cadence — runs, interruptions, chapters, loop splice, dwell register. */
+  --signal-cadence-run-gap: var(--space-3);                   /* dense-row runs read as one burst on the rail */
+  --signal-cadence-run-length: 4;                             /* rows per run before the rhythm must break */
+  --signal-cadence-break-gap: var(--space-8);                 /* dark field held around a full-width interruption */
+  --signal-chapter-font: var(--font-display);                 /* chapter break voice — condensed, below the shout */
+  --signal-chapter-size: var(--text-2xl);                     /* section-scale statement, never display scale */
+  --signal-chapter-rule: 1px solid var(--color-border-input); /* hairline seat under the chapter statement */
+  --signal-loop-gap: var(--space-9);                          /* held field before the tail resolves to the head */
+  --signal-dwell-measure: 62ch;                               /* dwell passages narrow for stopped reading */
+  --signal-dwell-leading: var(--leading-reading);             /* dwell register opens up; skim stays compact */
 }
 ```
 
-Buttons are uppercase mono hazard pills (mint fill, black text, no shadow); inputs
-sit on the dark field with a 1px muted border; `strong` emphasis takes the mint
-accent. Body is the sans workhorse; controls and metadata are mono.
+Buttons are uppercase mono hazard pills (mint fill, black text, no shadow); on
+hover the border brightens toward `--signal-hover-border` and the label toward
+`--signal-hover-text`, on press it drops to `--signal-active-border` — color and
+saturation move, the pill never lifts. Inputs sit on the dark field with a 1px
+muted border that goes mint on focus via `--signal-focus-ring` at
+`--signal-focus-offset`, so focus is a visible hazard outline rather than a soft
+halo. Segmented mode tabs are a zero-gap hairline switch: the inactive segment
+warms to `--signal-tab-hover-text` on hover and the selected one carries the 2px
+mint underline, flipping in `--signal-duration-snap` / `--signal-ease-snap` like a
+hardware selector. Flat saturated tiles get their hierarchy from the fill and a
+single 1px edge that brightens to `--signal-tile-hover-border` on hover — never a
+shadow, glow, or elevation change. Metadata pills stay navigational, carrying
+time, order, state, and category as tracked mono chips, never ornament. Disabled
+controls quiet to `--signal-disabled-fg` / `--signal-disabled-border` at
+`--signal-disabled-opacity` — dimmed, never blurred. `strong` emphasis takes the
+mint accent. Body is the sans workhorse; controls and metadata are mono.
+Accessibility rides on stable contrast pairs — white and muted-gray on near-black,
+and every hazard fill paired with its `-fg` text color — with mono metadata held
+at a 10–12px floor and focus made unmistakable by the mint ring on the dark field.
 
 The shared material every surface draws on lives in the root nodes that reach
 everywhere: the [dark canvas and hazard-accent system](canvas) that is the field
@@ -222,8 +279,11 @@ and its saturated interruptions, the [display-shout and mono-metadata type
 system](type-system) that anchors and navigates the page, the [pill-corner stream
 tile system](tiles) that carries repeating units and saturated tiles, and the
 [segmented tabs and hazard-pill controls](controls) that switch modes and drive
-action. The surfaces — [stream](stream), [digest](digest), and
-[briefing](briefing) — compose this material for their own job.
+action, while the [transmission grammar](transmission-grammar) paces, annotates,
+and cross-references the stream and the [stream cadence](cadence) sets the meter
+— dense runs, full-width interruptions, chapter breaks, the loop splice, and the
+skim-versus-dwell registers. Every surface tunes these same building blocks to
+its own job.
 
 ## Composition
 
@@ -253,6 +313,29 @@ Five principles carry the language and are true on every surface:
    rules, saturation, and contrast — never elevation shadows. Saturated fills are
    the loudest tier. Hover changes text or border color, not card lift. No soft
    shadows, glow, blur, glass, or card lift on primary editorial surfaces.
+
+**Tuning a surface from the signal.** Signal Stream has no fixed page types —
+every surface is tuned for its task from the same kit of parts, laid down on the
+field in the same order. Lay everything on the [dark canvas and hazard-accent
+field](canvas) so bright fills stay interruptions, not the default; anchor the
+first read with the [display shout and mono metadata](type-system) so the loudest
+signal states itself before any prose and the whisper kicker orients it; carry the
+content on the [stream tiles and the signal rail](tiles) so order, recency, and
+sequence read as a physical column before a word is read; switch modes and drive
+the one next action with the [segmented tabs and hazard-pill controls](controls).
+Let the task set the shape of the signal, not a template: when it reports a state
+or verdict, state the claim first in the shout, prove it with compact hairline rows
+on `--signal-tile-fill-flat`, and land on a single mint `--signal-pill-*` action,
+keeping saturation muted unless severity truly demands a hazard accent; when it
+ranks stories, let the feature lead own the first read and earn its span by
+priority so not every story carries equal weight, and mark the one editorial lead
+with a solid `--signal-tile-fill-mint`/`-violet` block rather than a viewport of
+saturated tiles; when it runs live updates, stack them on the ticked
+`--signal-rail-*` spine at tight 12–16px gaps so they read as one continuous
+stream, letting only an occasional saturated tile interrupt the rhythm — never
+every row equal weight. If a task fits none of these, tune a new surface from the
+same parts under the same rules: never collapse to a generic layout — compose from
+the same parts.
 
 **Surface obligations (true everywhere).** Feeds and digests must make
 order/recency/sequence visible without paragraph reading (rail, repeated

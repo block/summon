@@ -15,6 +15,18 @@ Black fill (`--color-accent`) is primary on light surfaces; white, mint, or
 dark-soft on midnight planes; outline for secondary. Circular geometry is reserved
 for isolated icon controls. One primary action per region.
 
+**Actions placed at the argument's stages.** Because the planes read as an
+argument's stages, the CTA's register follows the plane it sits on. On the pale
+landing the primary rectangle sits beside the claim as the direct route for
+readers already convinced; on the white sheet a quieter outline action sits at
+the point of resolved comparison — after the deciding row, never interrupting
+the columns; on the midnight plane the high-gravity action closes the proof,
+white or dark-soft against near-black. The label states the mechanical next
+step in the mono voice (`START EVALUATION`, `VIEW LIMITS`), never an emotional
+appeal — precision in the verb is what makes the small rectangle feel
+trustworthy. One primary per region still governs: a surface that repeats its
+primary CTA on every band is shouting, not staging.
+
 Primary actions stay small-radius rectangular with uppercase mono labels and
 clear contrast, never full pills. Borders ARE the elevation here — there is no
 floating shadow (`--contrast-elevation` is `none`): bound secondary and outline

@@ -42,6 +42,77 @@ export interface SummonLayout {
   slots: SummonLayoutSlot[];
 }
 
+/** How much room the calling medium offers. Owned by the medium, not Ghost. */
+export type SurfaceSize = 'small' | 'medium' | 'large';
+
+/** How much functionality/detail to build inside that room. */
+export type SurfaceComplexity = 'simple' | 'moderate' | 'rich';
+
+/**
+ * Surface scale — the spatial + functional budget the *calling medium* offers
+ * (a card, a sidecar, a banner, an email). Advisory: it steers the model, it
+ * does not change validation limits. Both fields optional; `complexity`
+ * derives from `size` when omitted. A future SurfaceTemplate is the natural
+ * owner of this field.
+ */
+export interface SurfaceScale {
+  size?: SurfaceSize;
+  complexity?: SurfaceComplexity;
+}
+
+export const DEFAULT_SURFACE_SIZE: SurfaceSize = 'medium';
+
+const COMPLEXITY_FROM_SIZE: Record<SurfaceSize, SurfaceComplexity> = {
+  small: 'simple',
+  medium: 'moderate',
+  large: 'rich',
+};
+
+export function resolveSurfaceScale(
+  scale?: SurfaceScale | null,
+): { size: SurfaceSize; complexity: SurfaceComplexity } {
+  const size = scale?.size ?? DEFAULT_SURFACE_SIZE;
+  const complexity = scale?.complexity ?? COMPLEXITY_FROM_SIZE[size];
+  return { size, complexity };
+}
+
+export function buildScaleBlock(scale?: SurfaceScale | null): string {
+  const { size, complexity } = resolveSurfaceScale(scale);
+
+  const sizeLine: Record<SurfaceSize, string> = {
+    small:
+      'The medium offers little room. Build ONE compact, contained surface — a single card-sized region. Do NOT add multi-column layouts, side panels, headers/footers, or full-page framing.',
+    medium:
+      'The medium offers room for one complete, self-contained surface with a clear primary region and, at most, light supporting structure.',
+    large:
+      'The medium offers generous room. You MAY build a full, multi-region surface with several distinct sections.',
+  };
+  const complexityLine: Record<SurfaceComplexity, string> = {
+    simple:
+      'Build exactly ONE primary idea. OMIT secondary sections, optional controls, empty/loading states, and decorative embellishment. Prefer the fewest elements that fully express the primary idea. If in doubt, leave it out.',
+    moderate:
+      'Build the primary content plus a reasonable amount of supporting detail and the controls a user would actually need. Avoid speculative or rarely-used affordances.',
+    rich:
+      'Develop the content fully: supporting sections, detail, and the full set of controls that make the surface complete.',
+  };
+
+  const elementBudget: Record<SurfaceComplexity, string> = {
+    simple: 'Target roughly 3–7 primary elements total.',
+    moderate: 'Target roughly 8–15 primary elements total.',
+    rich: 'No element budget — build what the content genuinely requires.',
+  };
+
+  return `## Surface scale — hard constraint for this generation
+
+Treat this as a binding constraint on HOW MUCH surface to build, not a suggestion. It sets the amount and structure of content; the Ghost fingerprint still owns all visual language, density, and tone. When scale and your default instinct conflict, scale wins.
+
+- Size \`${size}\`: ${sizeLine[size]}
+- Complexity \`${complexity}\`: ${complexityLine[complexity]}
+- Budget: ${elementBudget[complexity]}
+
+Do not exceed this scale to "improve" the result. A smaller, sharper surface that respects the budget is the correct answer — adding extra sections, controls, or regions beyond the budget is a failure to follow instructions.`;
+}
+
 export interface PromptRuntimeOptions {
   outputRuntime?: SummonOutputRuntime;
 }
@@ -164,37 +235,23 @@ You receive a user request and a Ghost design fingerprint. Render one interactiv
 
 ## How the runtime works
 
-Your JavaScript runs inside a capability sandbox. There is no real browser: no \`window\`, no \`document.body\`, no network, no storage. A small \`document\` facade lets you build a node tree, and the trusted host renders it. This is why interactivity is safe — write normal imperative DOM code and export the root node.
+Your JavaScript runs inside a capability sandbox. There is no real browser: no \`window\`, no \`document.body\`, no network, no storage. A \`document\` facade with standard DOM semantics lets you build and mutate a node tree, and the trusted host renders it. Write normal imperative DOM code — \`createElement\`, \`append\`, \`removeChild\`, \`textContent\`, \`el.style.*\`, \`classList\`, \`addEventListener\` or \`el.onclick\`, property setters like \`value\`/\`checked\`/\`disabled\` — and \`export default rootNode\`.
 
-## Supported API (use ONLY these)
+## Reactivity (preferred for dynamic values)
 
-- \`document.createElement(tag)\`, \`document.createElementNS(svgNs, tag)\`, \`document.createTextNode(text)\`
-- \`node.textContent = string\` (set on a text node you hold to update it later)
-- \`el.setAttribute(name, value)\`, \`el.removeAttribute(name)\`, \`el.className = ...\`, \`el.id = ...\`
-- \`el.append(child)\` / \`el.appendChild(child)\` (during initial build)
-- \`el.addEventListener(type, fn)\`, \`el.removeEventListener(type)\`
-- \`state(initial)\` (alias \`reactive(initial)\`) returns a REACTIVE object — mutating a property automatically re-renders anything that reads it
-- \`region(() => [nodes])\` for a DYNAMIC list or conditional
-- Host tools: \`await callTool(name, args)\`, \`getState()\`, \`onState(cb)\`
-- \`export default rootNode\` — the surface root
+\`state(initial)\` returns a deeply reactive object. Bind dynamic values by passing a FUNCTION; the binding re-runs automatically when the state it reads changes.
 
-## Reactivity (preferred — write this, not manual updates)
-
-State is reactive. Bind dynamic values by passing a FUNCTION; the binding re-runs automatically when the state it reads changes. You do not manage updates yourself.
-
-- Reactive text: \`textNode.textContent = () => 'Count: ' + s.count\` — only that text updates when \`s.count\` changes.
-- Reactive attribute: \`el.setAttribute('disabled', () => s.items.length === 0 ? true : false)\` or \`el.className = () => s.active ? 'tab on' : 'tab'\`.
-- Reactive list/conditional: \`region(() => s.items.map(item => { const li = document.createElement('li'); li.textContent = item.label; return li; }))\` — the region re-renders automatically when \`s.items\` changes. Do NOT call \`.update()\`.
-- For list edits, REASSIGN the array so the change is tracked: \`s.items = s.items.concat(newItem)\` and \`s.items = s.items.filter(x => x.id !== id)\` (not \`.push\`/\`.splice\`).
-- A handler just mutates state: \`btn.addEventListener('click', () => { s.count += 1; })\` — the UI follows. No explicit re-render call.
-- \`region(fn).update()\` still exists as a manual escape hatch for non-reactive data sources, but prefer reactive state.
+- Reactive text: \`label.textContent = () => 'Count: ' + s.count\` — only that text updates when \`s.count\` changes.
+- Reactive attribute: \`btn.setAttribute('disabled', () => s.items.length === 0)\` or \`el.className = () => s.active ? 'tab on' : 'tab'\`.
+- Reactive list/conditional: \`region(() => s.items.map(item => { const li = document.createElement('li'); li.textContent = item.label; return li; }))\` — re-renders automatically when \`s.items\` changes.
+- Handlers just mutate state, including in place: \`s.count += 1\`, \`s.items.push(item)\`, \`s.items.splice(i, 1)\`, \`s.user.name = ...\` — all tracked. No manual update calls.
+- Plain DOM mutation also works after render (\`root.append(...)\`, \`el.textContent = ...\` in a handler), but prefer reactive bindings for values that change often.
+- Host tools: \`await callTool(name, args)\`, \`getState()\`, \`onState(cb)\`.
 
 ## Hard rules (these crash or are rejected)
 
-- Do NOT use \`innerHTML\`, \`outerHTML\`, \`querySelector\`, \`getElementById\`, \`el.style\` (use \`setAttribute('style', ...)\` or \`className\`), \`insertBefore\`, \`removeChild\`, \`parentNode\` traversal, \`window\`, or \`document.body\`.
-- Do NOT \`append\` to or reset \`textContent\` of an element AFTER it has rendered. For dynamic content, use a reactive binding (\`() => ...\`) or wrap it in \`region(() => [...])\`.
+- Do NOT use \`innerHTML\`, \`outerHTML\`, \`querySelector\`, \`getElementById\`, \`node.remove()\`, or \`parentNode\` traversal. Hold references to nodes you create.
 - Do NOT use \`fetch\`, \`XMLHttpRequest\`, or \`WebSocket\`. Call granted host tools with \`callTool(name, args)\` instead.
-- Hold references to nodes you create; you cannot query for them later.
 
 ## Worked examples (follow this shape — design per the fingerprint)
 
@@ -208,15 +265,15 @@ Reactive counter — function bindings update in place, handler just mutates sta
     label.textContent = () => 'Count: ' + s.count;          // reactive text
     const inc = document.createElement('button');
     inc.textContent = 'Increment';
-    inc.addEventListener('click', () => { s.count += 1; });  // no manual update
+    inc.onclick = () => { s.count += 1; };                   // no manual update
     const reset = document.createElement('button');
     reset.textContent = 'Reset';
     reset.setAttribute('disabled', () => s.count === 0);     // reactive attribute
-    reset.addEventListener('click', () => { s.count = 0; });
+    reset.onclick = () => { s.count = 0; };
     root.append(label, inc, reset);
     export default root;
 
-Reactive list with add/remove — region re-renders automatically; reassign the array:
+Reactive list with add/remove — region re-renders automatically; mutate the array in place:
 
     const s = state({ items: ['First task'], draft: '' });
     const root = document.createElement('div');
@@ -224,11 +281,11 @@ Reactive list with add/remove — region re-renders automatically; reassign the 
     input.addEventListener('input', (e) => { s.draft = e.value; });
     const add = document.createElement('button');
     add.textContent = 'Add';
-    add.addEventListener('click', () => {
+    add.onclick = () => {
       if (!s.draft) return;
-      s.items = s.items.concat(s.draft);                     // reassign -> tracked
+      s.items.push(s.draft);                                 // tracked in place
       s.draft = '';
-    });
+    };
     const count = document.createElement('p');
     count.textContent = () => s.items.length + ' item(s)';
     const list = region(() => s.items.map((label, i) => {    // auto re-renders
@@ -237,7 +294,7 @@ Reactive list with add/remove — region re-renders automatically; reassign the 
       text.textContent = label;
       const del = document.createElement('button');
       del.textContent = 'Remove';
-      del.addEventListener('click', () => { s.items = s.items.filter((_, j) => j !== i); });
+      del.onclick = () => { s.items.splice(i, 1); };
       row.append(text, del);
       return row;
     }));

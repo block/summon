@@ -26,6 +26,17 @@ create breathing room around the first action rather than stacking more elevatio
 the airy spacing ladder is itself a depth tool — separation by space reads gentler
 than separation by shadow.
 
+**One sanctioned exception: the picked-up note.** When a person holds one note
+for a closer look under the [kept notes and pick-up moves](kept-notes), that
+single note — and only that one, only while held — takes the deeper
+`--garden-pickup-lift` and grows to `--garden-pickup-scale`, while everything
+else softens behind the `--garden-recede-veil`. This is depth with a reason:
+the page is telling you which note is in the hand. The moment the note is set
+down it returns to the shared `--garden-note-lift`, and the rule of one quiet
+lift resumes. The receding veil is itself a depth tool in the same spirit as
+whitespace — the plan gets quieter around the held note rather than the note
+getting louder above the plan.
+
 These rules govern how the [note panels](note-panels) layer, and they keep the
 [planner](planner), [staged-plan](staged-plan), [comparison](comparison), and
 [routine](routine) surfaces from collapsing into a generic dashboard of equal

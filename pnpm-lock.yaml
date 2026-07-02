@@ -305,6 +305,9 @@ importers:
         specifier: ^0.32.0
         version: 0.32.0
     devDependencies:
+      esbuild:
+        specifier: ^0.27.0
+        version: 0.27.7
       happy-dom:
         specifier: ^15.0.0
         version: 15.11.7

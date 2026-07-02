@@ -87,6 +87,19 @@ geometry stays squared (pill radius reserved for compact labels and controls
 only), and the shadow tokens are deliberately none — depth comes from rules,
 contrast, and paper tiers, never elevation.
 
+**Lineage.** Editorial Mono descends from the Swiss / International Typographic
+Style — Müller-Brockmann's grid systems and the Akzidenz/Helvetica rationalism
+that treated the page as a measured field where alignment, not ornament, carries
+meaning — crossed with classic broadsheet newspaper typesetting and editorial art
+direction: mastheads, folios, ruled columns, and drop caps that open a story in
+serif before the reader reaches a word. The mono metadata borrows the "furniture"
+conventions of the compositor's trade — page numbers, registration ticks, and set
+labels arranged as press furniture rather than interface chrome. This is a
+print-first, grid-and-rule tradition: depth is paper and hairline, hierarchy is
+type and position, and the reader trusts the page because everything lines up on a
+shared measure. These are named as heritage to orient the vocabulary; nothing here
+copies any specific publication's marks or type.
+
 The literal token vocabulary (inject as the visual source of truth; reference
 these custom properties rather than inventing values):
 
@@ -202,27 +215,90 @@ these custom properties rather than inventing values):
   /* Column-rule hairlines that split evidence into justified columns. */
   --editorial-column-rule: 1px solid #b8b0a0;
   --editorial-column-gap: var(--space-6);
+
+  /* INTERACTION STATE — expressed as ink and rule weight, never color or glow.
+     Focus is a crisp inked outline like a compositor's registration crop, not a halo;
+     hover and selection thicken the rule or ink the label, they do not tint the plane. */
+  --editorial-focus-ring: 2px solid #11100e; /* crisp ink outline — no glow, no chroma */
+  --editorial-focus-offset: 2px;             /* a hairline of paper between mark and outline */
+  --editorial-hover-rule: var(--editorial-rule-heavy);   /* hover reads as a heavier rule, not a fill */
+  --editorial-active-rule: var(--editorial-rule-heavy);  /* pressed = the rule commits to full ink */
+  --editorial-selected-border: var(--editorial-rule-heavy); /* chosen option marked by border weight, not color */
+  --editorial-selected-marker: "▍"; /* an ink marker set in the margin beside the chosen row */
+  --editorial-disabled-ink: #8f8677; /* muted to the input-border ink — legible but set back */
+  --editorial-disabled-paper: #e5e0d4; /* rests on the muted paper tier, no dimming or opacity tricks */
+
+  /* SEMANTIC SURFACE ROLES — paper tiers already in the palette, named for their editorial job.
+     No new hues: these route to the existing bg/surface inks so regions read by paper, not color. */
+  --editorial-paper-page: var(--color-bg);        /* the sheet the whole page is printed on */
+  --editorial-paper-shell: var(--color-surface);  /* raised stock for framed shells and cards */
+  --editorial-paper-band: var(--color-surface-muted); /* the secondary band under evidence rows */
+  --editorial-ink-rule: #11100e;                  /* the one ink every hairline and rule is cut from */
+
+  /* MOTION — austere by tradition; a printed page does not animate. Motion is opt-in only,
+     a single restrained token for state changes that must move at all. */
+  --editorial-duration: 120ms;         /* one measured beat — use sparingly or not at all */
+  --editorial-ease: linear;            /* no easing flourish; a rule appears, it does not swell */
+
+  /* CATALOG INDEX — numbered specimen rows and revealed measure for collection surfaces.
+     Derived entirely from the existing ink, mono, and spacing vocabulary; no new hues. */
+  --editorial-entry-number-font: var(--font-mono);      /* the row counter — 01, 02, 03 — set as press furniture */
+  --editorial-entry-number-size: var(--text-sm);
+  --editorial-entry-number-tracking: var(--tracking-label);
+  --editorial-specimen-size: var(--text-2xl);           /* one key fact shown as a type specimen, labeled small */
+  --editorial-specimen-leading: var(--leading-display);
+  --editorial-guide-rule: 1px solid rgba(17, 16, 14, 0.10); /* drawn guide revealing the shared measure — quieter than any hairline */
+  --editorial-guide-gap: var(--space-5);                /* how far a guide extends past the catalog's column edge */
 }
 ```
 
 The body sits on a faint ruled paper grid, sets type in the serif workhorse, and
 routes controls, inputs, labels, and metadata through the mono family; `strong`
 emphasis goes heavy rather than colored. The component vocabulary is editorial
-furniture, and the copy atoms are exact — Verdict, Evidence, Risk, Caveat,
-Recommendation, Accepted tradeoff, What changed, What to watch, Rank, Criteria —
-while state variants cover selected option, recommended path, waiting, blocked
-risk, ready evidence, empty data, error, and incomplete comparison. The serif
-fallback is intentional: generated UI should read editorial even when it uses
-generic element names.
+furniture in the broadsheet tradition: buttons are set as ink-ruled labels —
+squared, mono, tracked — that fill to the inverse slab only when they carry the
+one decisive action, and rest as hairline-outlined text otherwise; rows are ruled
+bands separated by `--editorial-hairline`, not boxed cards; panels are framed by
+rules and paper tiers rather than fills or elevation; inputs are underscored or
+hairline-boxed fields whose label sits above in tracked mono like a form set at
+the press; tables are the native idiom — parallel columns split by
+`--editorial-column-rule` with folio-style headers; chips are the one place pill
+radius is allowed, small mono labels that register status, never decorative
+badges. Interaction states are drawn, not tinted: **hover** thickens a rule to
+`--editorial-hover-rule` or inks a label; **focus** is a crisp
+`--editorial-focus-ring` outline held off the mark by `--editorial-focus-offset`,
+a registration crop rather than a glow; **active/pressed** commits the rule to
+full ink via `--editorial-active-rule`; **selected** marks the chosen option with
+`--editorial-selected-border` weight and the margin `--editorial-selected-marker`,
+never a color wash; **disabled** sets back to `--editorial-disabled-ink` on
+`--editorial-disabled-paper`, legible but quieted without opacity tricks;
+**loading, empty, and error** stay on the page as ruled placeholders and set
+labels so gaps read as part of the record. The copy atoms are exact — Verdict,
+Evidence, Risk, Caveat, Recommendation, Accepted tradeoff, What changed, What to
+watch, Rank, Criteria — while state variants cover selected option, recommended
+path, waiting, blocked risk, ready evidence, empty data, error, and incomplete
+comparison. Density follows the Swiss measure: tight internal rhythm inside bands,
+large decisive breaks between regions, and columns that collapse to stacked ruled
+rows on narrow measures rather than reflowing into a card grid. Accessibility is
+inherent to the palette — ink `#11100e` on cream paper clears AA comfortably at
+body sizes, the focus outline is a full ink weight visible against every paper
+tier, semantic status is carried by label and position as well as the reserved
+danger/success/info/warning inks so it never depends on color alone, and mono
+metadata holds at `--text-xs` only for labels while reading copy stays at
+`--text-md` or larger. The serif fallback is intentional: generated UI should
+read editorial even when it uses generic element names.
 
 The shared material every surface draws on lives in the root nodes that reach
 everywhere through the spine: the [masthead / deck / folio shell](masthead) that
 frames a composed page, the [mono metadata system](metadata) of folios, labels,
 ranks, and timestamps, the [ruled evidence bands](evidence) that justify the
 claim, the [single inverse-ink panel](inverse-panel) reserved for the verdict,
-and the [editorial close](close) that lands the decision. The surfaces —
-[brief](brief), [comparison](comparison), and [report](report) — compose this
-material for their own job.
+the [editorial close](close) that lands the decision, the
+[dossier structure](dossier-structure) that orders a long document's movements
+and frames its one verdict, and the [catalog index grammar](catalog-index) that
+sets many parallel entries as numbered specimen rows on a shared measure. Each surface composes
+these same building blocks for its own job — a brief, a comparison, or a report —
+under one reading order rather than from fixed page templates.
 
 ## Composition
 
@@ -248,6 +324,25 @@ Four principles carry the language and are true on every surface:
    semantic colors for true danger, success, info, or warning states; use shadows
    sparingly or not at all and rely on borders and contrast; keep pill radius for
    compact controls and labels, never broad panels.
+
+**Composing a surface from the parts.** Editorial Mono has no fixed page types —
+every surface is composed for its task from the same small kit of parts, in the
+same reading order. Open with the [masthead / deck / folio shell](masthead) so the
+verdict is the first visual event; justify it with [ruled evidence bands](evidence)
+that pair each fact with its so-what; label and register the page with the
+[mono metadata system](metadata); spend the [single inverse-ink panel](inverse-panel)
+on the one most decisive moment and nowhere else; land the page on the
+[editorial close](close). Let the task set the shape of the verdict, not a template:
+when the task is a recommendation, the verdict reads first as a claim in serif
+display; when it resolves a field of metrics, the verdict is one governing number,
+rank, or delta in the inverse slab, never four equal KPI cards; when it weighs
+options, align the shared criteria into parallel ruled columns with
+`--editorial-column-rule` hairlines so the reader compares like against like, keep
+weak or empty cells visible because gaps are part of the comparison, and mark the
+chosen option by position, border weight, or an ink label rather than color. If a
+task does not match any of these, compose a new surface from the same parts under
+the same rules — never collapse to an unframed generic layout because no familiar
+shape fit.
 
 **Surface obligations (true everywhere).** A reader should understand the
 verdict, criteria, and next action before reading paragraph detail. The headline,

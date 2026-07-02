@@ -61,6 +61,7 @@ export class SurfaceGenerationSession {
       outputRuntime: runtimeTarget,
       ghost: input.ghost ?? null,
       layout: input.layout ?? null,
+      scale: input.scale ?? null,
       experimentalPromptBlock: input.experimentalPromptBlock ?? null,
       tools: this.surfacePolicy?.tools ?? input.tools ?? null,
       surfaceContract: this.surfaceContract,

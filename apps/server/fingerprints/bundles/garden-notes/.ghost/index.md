@@ -80,6 +80,15 @@ card shadows, urgency copy, and chips worn as decoration.
 
 ## Inventory
 
+**Design lineage.** Garden Notes descends from the humane, calm-productivity
+tradition — the gentle task warmth of Things 3, the soft note-paper feel of Bear,
+and the low-pressure surfaces of Notion — and grounds its palette in the natural,
+perceptually-even "sand/olive" families of the Radix Colors scales. It borrows
+their conventions, not their brand assets: warm-cream paper over flat white, a
+single gentle lift instead of stacked elevation, reserved chlorophyll-green
+emphasis on one chosen step, and human state-chips that read like a sentence. The
+inheritance is a posture — unhurried, warm, decisive — never a copied surface.
+
 The material is a soft outdoor-notebook token system: a warm cream field, quiet
 muted note areas, gentle plant-toned borders, deep-green primary text with patient
 muted secondary context, and a soft chlorophyll-green accent reserved for the
@@ -176,6 +185,27 @@ these custom properties rather than inventing values):
   --garden-paper-texture-size: 22px 22px;
   --garden-panel-radius: 28px;
   --garden-panel-radius-lg: 38px;
+
+  /* CALM STATES — gentle interaction feedback in the Garden Notes voice.
+     Derived from the existing green/cream signature: focus is a soft
+     chlorophyll-tinted halo (never a harsh system ring), note panels and chips
+     warm by a hair on hover and settle a touch on press, and a quiet-note token
+     dims a can-wait or unavailable step without ever alarming. */
+  --garden-focus-ring: 0 0 0 3px rgba(79, 138, 61, 0.22); /* calm green halo, kin to --garden-chosen-ring, softer */
+  --garden-panel-hover: #fffef0;   /* note-paper lifts a shade warmer under the cursor */
+  --garden-panel-pressed: #f6f0cf; /* the paper settles to its gradient base when pressed */
+  --garden-chip-hover: #e6efd3;    /* chip face warms gently, still quiet */
+  --garden-chip-pressed: #dce8c5;  /* chip settles onto the muted note tone */
+  --garden-quiet-note: #9aab86;    /* can-wait / disabled ink: present but resting, never harsh grey */
+  --garden-ease-soft: cubic-bezier(0.32, 0.72, 0.28, 1); /* one unhurried ease — warmth in the pacing, no bounce */
+
+  /* KEPT NOTES & PICKING UP — keepsake completion and close inspection,
+     derived from the existing paper, lift, and quiet-note values. */
+  --garden-kept-paper: #f6f0cf;        /* a kept (done) note settles onto the note-paper gradient's own base */
+  --garden-kept-ink: #71805d;          /* kept-note text rests in the muted planning ink — held, not crossed off */
+  --garden-pickup-lift: 0 24px 60px rgba(66, 99, 58, 0.20); /* the one deeper lift, only while a note is picked up */
+  --garden-pickup-scale: 1.02;         /* a held note grows by a hair — closer, never zoomed */
+  --garden-recede-veil: rgba(234, 241, 220, 0.72); /* the rest of the plan softens behind the field color while one note is held */
 }
 ```
 
@@ -184,14 +214,69 @@ emphasis takes the green accent. The recurring copy atoms stay small and human �
 Tiny start, Now, Next, Later, Can wait, Gather, Check first, Good enough, Low
 effort, Ready, Needs one thing, Energy, Season, Timing.
 
+**Component vocabulary, in this voice.** Every surface is built from the same soft
+kit. **Note panels** are the primary container: cream note-paper
+(`--garden-note-paper`) rounded to `--garden-panel-radius` (larger plans use
+`--garden-panel-radius-lg`), resting on the single `--garden-note-lift` — one
+quiet lift, never a card pile, in the calm-note-paper manner of Bear. **Buttons**
+are gentle rather than glossy — the primary action fills `--color-accent` with
+`--color-accent-fg` ink at `--radius-md`, secondary actions stay quiet on
+`--color-surface-muted` with a `--color-border` edge; nothing shouts. **Inputs**
+carry a `--color-border-input` edge that firms toward `--color-border-strong` only
+on focus, so the field feels like writing on paper, not filling a form. **State
+chips** are the readable language of the surface: `--garden-chip-radius` pills from
+`--garden-chip-face`/`--garden-chip-ink`/`--garden-chip-edge` at `--garden-chip-pad`,
+each naming a real planning state (Ready, Needs one thing, Can wait) so a row reads
+like a status sentence — the Things-3 warmth of a task that tells you where it is.
+The **chosen-dot** (`--garden-chosen-dot`, `--garden-chosen-marker`,
+`--garden-chosen-ring`) lands beside exactly one step; comparisons and grids stay
+soft, never a numeric scorecard.
+
+**Interaction states, kept calm.** Hover is a whisper: note panels warm to
+`--garden-panel-hover` and chips to `--garden-chip-hover`, a single shade brighter,
+never a lift change (the one lift is constant). Press settles the surface —
+`--garden-panel-pressed` and `--garden-chip-pressed` ease the paper toward its
+gradient base, a gentle "received" rather than a click. **Focus** is a soft
+green-tinted halo (`--garden-focus-ring`), kin to the chosen-ring but quieter —
+visible and reassuring, never a harsh default outline, in the Radix-Colors spirit
+of a perceptually calm accent. **Disabled / can-wait** steps take
+`--garden-quiet-note` ink: present and legible but resting, never a cold grey-out
+or an alarm. Where motion helps (a panel opening, a chip settling), use the single
+`--garden-ease-soft` at a short duration — warmth lives in unhurried pacing, so
+there is one gentle ease and no bounce, no urgency, no spinner theatrics. Empty
+states stay encouraging and concrete (name a tiny start); error/caution is rare
+and rides the earthy `--garden-clay-accent`, not a shrill red. **Idle is a
+state, and its state is stillness.** A Garden Notes surface at rest does
+nothing: no pulsing dots, no auto-advancing content, no attention-seeking
+motion, no nudges to come back. The plan sits like an open notebook on a
+table — legible, patient, ready when the person is — because a surface that
+fidgets while someone thinks is applying pressure, and pressure is the one
+thing this language refuses to add.
+
+**Density & accessibility.** The airy spacing ladder (`--space-*`) is the
+low-pressure pacing itself — surfaces breathe first and tighten only when a plan
+grows long; full-screen compositions keep the 72px top breathing room. Body text
+holds at `--text-md` with generous `--leading-body`/`--leading-reading` so a plan
+reads like a page. Deep-green `--color-text` on cream surfaces clears comfortable
+contrast; muted `--color-text-muted` is reserved for secondary context, never for
+the primary next step. The chosen-dot and clay accent never carry meaning by color
+alone — a chip label or copy atom (Good enough, Check first) always names the
+state in words. Focus is always visible via `--garden-focus-ring`, and green
+emphasis stays reserved for the one chosen step so it never dilutes into
+decoration.
+
 The shared building blocks every surface draws on live in the root nodes that
 reach everywhere: the [note-panel and soft-shell system](note-panels) that shapes
 every plan, the [gentle depth rules](gentle-depth) that keep layering from
 becoming a card pile, the [badge and state system](badges) that carries planning
-state, and the [good-enough choice and can-wait notes](good-enough) that lower
-pressure. The surfaces — [planner](planner), [staged-plan](staged-plan),
-[comparison](comparison), and [routine](routine) — compose this material for their
-own job.
+state, the [good-enough choice and can-wait notes](good-enough) that lower
+pressure, the [humane orientation rules](humane-orientation) that keep every
+plan facing the person, one decision at a time, with the future left visibly
+open, and the [kept notes and pick-up moves](kept-notes) that let done work
+settle into small keepsakes and let one note be held closer while the rest of
+the page recedes. There are no fixed page types — planners, staged plans, comparisons, and
+routines are all composed on demand from these same four building blocks under the
+same unhurried rules.
 
 ## Composition
 
@@ -219,6 +304,30 @@ Four principles carry the language and are true on every surface:
    effort, confidence, season, or energy; avoid literal garden motifs unless the
    task itself is about gardening or seasonal prep, and never let warm filler copy
    replace a concrete recommendation.
+
+**Laying out a plan from the notes.** Garden Notes has no fixed page types — every
+surface is composed for its task from the same small kit of parts, in the same
+unhurried reading order. Bound the plan inside the [note-panel and soft-shell
+system](note-panels), opening with a context line that reflects the real task, not
+advice; keep the layering quiet with the [gentle depth rules](gentle-depth) so a
+few notes lift and the rest stay flat on the paper; let the [badge and state
+system](badges) carry time, effort, readiness, season, and energy so a row of chips
+reads like a status sentence; and point the whole thing at one move with the
+[good-enough choice and can-wait notes](good-enough). Let the task set the shape,
+not a template: when one clear move is all it needs, one note carrying the single
+`--garden-chosen-dot` is the whole plan; when the task has real sequence, pace it
+through soft panels and gather what it needs into a prep basket before a short
+beginnable checklist, using now/next/later only as a pressure-release and making
+Later explicitly reassuring; when it weighs low-stakes options, lay them on soft
+parallel criteria — fit, friction, timing, materials, emotional load — so the
+reader compares like against like, never a numeric scorecard, and let one kind
+recommendation wear the green dot and name the tradeoff it accepts rather than a
+hard winner/loser verdict; when it repeats, keep it a short tactile checklist with
+gentle reminder rows, never a streak-counting dashboard. The green marker lands
+once; a rare "check first" caution rides `--garden-clay-accent`, not alert red. If
+a task fits none of these shapes, compose a new surface from the same notes under
+the same rules — never let it collapse into a generic productivity dashboard of
+equal cards because no familiar shape fit.
 
 **Surface obligations (true everywhere).** Every planning surface must make the
 next small step obvious and emotionally easy to begin, highlighting one kind

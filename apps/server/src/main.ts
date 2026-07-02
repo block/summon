@@ -8,7 +8,11 @@ import {
   type SummonLayout,
   type SurfacePlan,
   type SurfacePolicy,
+  type SurfaceScale,
+  type SurfaceSize,
+  type SurfaceComplexity,
   type ContractPromptBlock,
+  type ContractIssue,
   type SummonOutputRuntime,
   DEFAULT_SUMMON_OUTPUT_RUNTIME,
   SUMMON_OUTPUT_RUNTIME_VALUES,
@@ -170,6 +174,34 @@ function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?:
   }
 
   return { layout: { id: obj.id, slots } };
+}
+
+const SURFACE_SIZE_VALUES: readonly SurfaceSize[] = ['small', 'medium', 'large'];
+const SURFACE_COMPLEXITY_VALUES: readonly SurfaceComplexity[] = ['simple', 'moderate', 'rich'];
+
+function parseSurfaceScale(raw: unknown): { scale: SurfaceScale | null; error?: string } {
+  if (raw === undefined || raw === null) return { scale: null };
+  if (typeof raw !== 'object') {
+    return { scale: null, error: 'scale must be an object' };
+  }
+  const obj = raw as Record<string, unknown>;
+  const scale: SurfaceScale = {};
+  if (obj.size !== undefined) {
+    if (!SURFACE_SIZE_VALUES.includes(obj.size as SurfaceSize)) {
+      return { scale: null, error: 'scale.size must be small, medium, or large' };
+    }
+    scale.size = obj.size as SurfaceSize;
+  }
+  if (obj.complexity !== undefined) {
+    if (!SURFACE_COMPLEXITY_VALUES.includes(obj.complexity as SurfaceComplexity)) {
+      return { scale: null, error: 'scale.complexity must be simple, moderate, or rich' };
+    }
+    scale.complexity = obj.complexity as SurfaceComplexity;
+  }
+  if (scale.size === undefined && scale.complexity === undefined) {
+    return { scale: null };
+  }
+  return { scale };
 }
 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
@@ -374,6 +406,12 @@ app.post('/api/generate', async (req, res) => {
     return;
   }
   const layout = parsedLayout.layout;
+  const parsedScale = parseSurfaceScale(req.body?.scale);
+  if (parsedScale.error) {
+    res.status(400).json({ error: parsedScale.error });
+    return;
+  }
+  const scale = parsedScale.scale;
   const unsupportedGenerationFields = [
     'edit',
     'fragmentMode',
@@ -608,13 +646,47 @@ app.post('/api/generate', async (req, res) => {
       preludeLines.push({ op: 'meta', path: '/layout', value: layout.id });
     }
 
+    // Design-fidelity loop (opt-in). When SUMMON_GHOST_FIDELITY_REPAIR is set to
+    // a positive integer and we have a Ghost context, the generation loop hands
+    // the accepted artifact source to the same conformance evaluator used for
+    // the advisory receipt — but here a failed HIGH-severity check becomes a
+    // block-severity design issue that triggers a bounded repair pass. This is
+    // the one place a bland-but-valid surface can be sent back for another try.
+    // Default 0 ⇒ behaviour unchanged (review stays purely advisory post-pass).
+    const fidelityBudget = ghostContext
+      ? clampInt(process.env.SUMMON_GHOST_FIDELITY_REPAIR, 0, 2, 0)
+      : 0;
+    const fidelityReviewer = fidelityBudget > 0 && ghostContext
+      ? async (source: Record<string, string>): Promise<ContractIssue[]> => {
+          const verdict = await evaluateConformance({
+            packageDir: ghostContext!.packageDir,
+            graph: ghostContext!.graph,
+            surface: ghostContext!.surface,
+            artifactSource: source,
+            completeText: (request) =>
+              utilityModelProvider.completeText(request, utilityModelSelection),
+          });
+          return verdict.checks
+            .filter((check) => check.verdict === 'fail' && check.severity === 'high')
+            .map((check): ContractIssue => ({
+              source: 'direction',
+              severity: 'block',
+              code: 'fingerprint-fidelity',
+              message: `Design fidelity check "${check.name}" failed: ${check.reason}`,
+              hint: `Revise the surface so it satisfies the "${check.name}" fingerprint rule while keeping the user task intact.`,
+            }));
+        }
+      : undefined;
+
     await withConcurrencyCap(async () => {
       let usage: ProviderUsageSnapshot | null = null;
       const commonGenerationInput = {
         prompt,
         ghost: ghostContext ?? null,
         activeTokensCss: ghostContext?.tokenSource.css ?? null,
+        ...(fidelityReviewer ? { fidelityReviewer, maxFidelityRepairs: fidelityBudget } : {}),
         layout,
+        scale,
         tools: playgroundMode
           ? pack
           : hasSurfacePolicy || agentPlan

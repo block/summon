@@ -36,6 +36,18 @@ as `--signal-pill-*` chips (`--signal-pill-font`, `--signal-pill-transform`,
 orient. 10–12px minimum; do not shrink on mobile, collapse layout instead. Mono
 uppercase metadata appears everywhere sequence, state, or category matters.
 
+**Type is set for a velocity.** Every passage serves one of two reading speeds.
+The skim voice — shout, chapter statements, mono pills, rail labels — is built
+to be caught by a moving eye: compact leading, tracked uppercase, hazard color
+doing the flagging. The dwell voice is built to be stopped at: body passages
+narrow to `--signal-dwell-measure` and open to `--signal-dwell-leading`, and
+the saturation falls away around them. Loudness belongs to the skim layer,
+room belongs to the dwell layer — a tracked-uppercase paragraph or a saturated
+dwell block mixes the velocities and muddies both. Chapter breaks take the
+condensed `--signal-chapter-font` at `--signal-chapter-size`, a section-scale
+statement that stays below the one shout per surface; the [stream
+cadence](cadence) decides where they land.
+
 **Source-neutral masthead placeholder.** When a publication identity is needed,
 use a fictional or task-derived title (Signal Brief, Launch File, Field Notes, or
 the user's product name) as a composition role — display scale and placement,

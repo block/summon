@@ -24,25 +24,30 @@ The repo should read like a reference implementation of a stance, not a lab.
 
 - [ ] **Prune the merged dead branches** (~22 at 0-ahead of main). One command.
 - [x] **Land `positioning.md`** — the north star every later decision is judged against.
-- [ ] **Land this roadmap** and link both from the README.
+- [x] **Land this roadmap** and link both from the README.
 
 ## Tier 1 — Make the three moments real (≈80% of energy)
 
-`Compose` works and is tested. `Govern` and `Account` are the moat and are not
-yet real. This tier is the whole bet.
+`Compose` works and is tested. First cuts of `Govern` and `Account` have
+shipped in the demo server; the remaining Tier 1 work is hardening them and
+moving them into the public packages.
 
-- [ ] **A. Govern — fingerprint conformance verdict.**
-  Generate → check the artifact against the fingerprint's declared situations,
-  principles, and checks → produce a structural conformance verdict (not
-  `forbidden-regex`). Rides the existing validator + repair loop. *Highest-value
-  build: this is the half that separates Summon from every black-box generator.*
+- [x] **A. Govern — fingerprint conformance verdict.** *(first cut shipped)*
+  Lives in `apps/server/src/ghost-conformance.ts`: checks are routed with
+  `selectChecksForSurfaces` and evaluated per-check, streamed as
+  `/ghost-conformance` (`summon.ghost-conformance/v1`).
+  **Remaining:** the verdict is LLM-judged today — split into deterministic
+  structural checks against the artifact (reproducible, citable) plus advisory
+  prose checks, and move it out of the demo app into
+  `@anarchitecture/summon-server`.
 
-- [ ] **B. Account — the trace/receipt as a first-class artifact.**
-  Promote the internal StreamGraph + validation events into a portable, legible
-  receipt: **spec-in** (fingerprint id + revision, surface policy, granted tools)
-  + **what-happened** (validations, repairs, blocks, conformance verdict, tool
-  calls). One inspectable object. Without it, "observability" is a claim, not a
-  feature.
+- [x] **B. Account — the trace/receipt as a first-class artifact.** *(first cut shipped)*
+  `buildGhostReceipt` (`apps/server/src/ghost-adapter.ts`) emits
+  `/ghost-receipt` (`summon.ghost-receipt/v1`) with fingerprint id, gathered
+  nodes, validation, and the conformance verdict.
+  **Remaining:** canonical serialization + artifact hashing, a published schema
+  and standalone verifier, tool-call events in the receipt, and promotion into
+  the public packages.
 
 - [ ] **C. The repair-path table, made real.**
   `wrong look → fingerprint`, `wrong behavior → tool contract`, `wrong
@@ -94,6 +99,12 @@ becoming sad again.
 
 - ❌ **No new runtimes.** The seam exists conceptually; instantiating plugins
   before the governance core is solid is the trap.
+  *Honest note:* `domjs-control` (via `packages/surface-vm`) shipped after this
+  rule was written. It keeps the same capability-isolated posture and
+  `callTool` chokepoint, so it does not widen the guarantee — but it is a
+  second runtime to maintain. Decision pending: converge on one
+  capability-isolated runtime or explicitly own both. No further runtimes
+  until that call is made.
 - ❌ **No lease/approval kernel.** Tier 3 of Bet 3, gated on a real customer.
 - ❌ **No external plugin SDK.** Premature; the near-term value of seams is
   internal discipline.
@@ -106,8 +117,8 @@ becoming sad again.
 ## First three things to build, in order
 
 1. ✅ `docs/positioning.md` — so decisions have a north star.
-2. **Fingerprint conformance verdict** (Tier 1A) — prove moment two works.
-3. **Inspectable trace/receipt** (Tier 1B) — prove moment three works.
+2. ✅ **Fingerprint conformance verdict** (Tier 1A) — first cut shipped; harden per Tier 1A remaining work.
+3. ✅ **Inspectable trace/receipt** (Tier 1B) — first cut shipped; harden per Tier 1B remaining work.
 
 Those three turn "we have a nice generator" into "we have governable generative
 UI" — which is the entire bet.

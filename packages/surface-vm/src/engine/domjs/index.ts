@@ -7,7 +7,7 @@ import {
   DOMJS_CORE_SOURCE,
   DOMJS_FACADE_MODULE_ID,
   DOMJS_FACADE_SOURCE,
-} from './runtime-source.js';
+} from './runtime-source.generated.js';
 
 const BOOTSTRAP_MODULE_ID = 'surface-vm:domjs-bootstrap';
 const ENTRY_PATH = '/main.js';

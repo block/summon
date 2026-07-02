@@ -24,6 +24,18 @@ mark a highlighted card. Each card starts with a mono tag, then a sentence-case
 title and concise body, and pairs the proof point with an operational
 implication — never bright cards floating on the dark plane or neon glows.
 
+**Proof that survives inspection.** The midnight plane earns its gravity only
+if its evidence holds up when the reader leans in. Each proof card's number
+should carry its own provenance in miniature — a mono footnote line naming the
+measurement condition (`P99 · 30-DAY WINDOW`, `SELF-REPORTED`, `N=1,200`) at
+`--text-xs`, hairline-separated below the implication. Where a proof point
+deserves annotation on a figure or chart, use the dimension-callout convention
+from the [drafting-mark system](drafting-marks) — a hairline rule with terminal
+ticks and a mono measurement label — rather than an arrow graphic or badge. A
+proof card whose number cannot state its own conditions is an assertion, not
+proof; either supply the condition line or move the claim off the midnight
+plane.
+
 **Technical update card.** Benchmark, certification, model-serving, and research
 updates appear as compact flat proof cards — short uppercase mono category badge
 (BENCHMARK, SECURITY, RESEARCH, CAPABILITY), bold sentence-case headline, one

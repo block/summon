@@ -40,6 +40,22 @@ demoted metadata.
 **Static image frames.** Images are framed by a 1px hairline, clipped to the
 tile, and static — never hover zoom, scale, or opacity.
 
+**Runs and interruptions, not a grid.** Tiles are paced, never tiled: a dense
+run of compact rows at `--signal-cadence-run-gap` reads as one burst on the
+rail, then a full-width interruption — a saturated lead, an image slab, a
+chapter statement — spans the column with `--signal-cadence-break-gap` of dark
+field held around it. The alternation is the anti-grid: no viewport should show
+only equal rows at equal gaps, and no viewport should show only interruptions.
+Roughly every `--signal-cadence-run-length` rows, the rhythm breaks or the feed
+has flattened into a log.
+
+**The rail never dead-ends.** The spine is the surface's spatial index: it runs
+unbroken through runs, interruptions, and chapters, and where the stream runs
+out it resolves back to its head across a `--signal-loop-gap` — a repeated lead
+card, a mono citation to the first ref code, or a compact chapter index — so the
+tail hands the reader back to the top instead of stopping against a blank wall.
+The [stream cadence](cadence) governs this pacing.
+
 The tiles sit on the [dark canvas](canvas) and borrow its saturated hazard fills
 for leads; their labels and timestamps are the [mono metadata](type-system) and
 their actions are the [hazard-pill controls](controls). The rail feed is the

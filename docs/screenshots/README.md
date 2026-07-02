@@ -14,6 +14,11 @@ domjs was only tested via source/metrics, never pixels.
 | `02-domjs-tasklist.png` | First domjs attempt — surface stuck on "Loading" because the host stream consumer (`surface-stream.ts`) didn't accept `runtime:'domjs'` artifacts and dropped them. |
 | `03-domjs-tasklist-rendered.png` | **Success.** A real, interactive domjs task-list surface ("THE DAILY LIST") rendered in the Editorial Mono fingerprint style — generated as imperative HTML/JS, executed in the surface-vm capability sandbox. |
 | `04-after-add-attempt.png` | **The thread comes full circle.** Clicking "Add" triggered `domjs runtime error: not a function` — the exact error class that started this whole investigation, now reproduced live in domjs. |
+| `05-arrow-state.png` | Arrow runtime state comparison capture. |
+| `06-arrow-counter.png` | Arrow-generated counter surface. |
+| `07-domjs-counter.png` | domjs-generated counter surface. |
+| `08-domjs-counter-after-clicks.png` | The domjs counter after interaction — click handlers executing in the surface-vm sandbox. |
+| `09-domjs-reactive-counter.png` | domjs reactive counter using the `reactive` tracking-proxy model (see `docs/domjs-reactivity.md`). |
 
 ## Wiring required to render domjs (shipped this session)
 

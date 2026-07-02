@@ -8,6 +8,12 @@
       "defaultTargetPath": "."
     },
     {
+      "id": "decisive-dark",
+      "path": "bundles/decisive-dark",
+      "enabled": true,
+      "defaultTargetPath": "."
+    },
+    {
       "id": "editorial-mono",
       "path": "bundles/editorial-mono",
       "enabled": true,

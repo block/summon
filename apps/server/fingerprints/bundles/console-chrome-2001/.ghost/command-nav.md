@@ -32,6 +32,16 @@ below primary content but keeps the command-slab styling.
 the chassis as rotated or stacked labels for rankings, archives, categories, or
 ratings — secondary navigation or status, never primary reading content.
 
+**Navigation changes screens, not scroll position.** Command words, tabs, and
+rail actions behave like a console menu: choosing one swaps the view in place —
+old screen out, new screen in on the stepped `--chrome-screen-swap` cut — rather
+than smooth-scrolling to an anchor or sliding a drawer. The active command word
+or tab holds a pressed `--chrome-bevel-pressed` state or lit amber pip so the
+current screen is always readable off the chrome itself, like a mode LED on the
+faceplate; there is never ambiguity about which screen the machine is on. The
+discrete-swap grammar and its hardware cursor are specified in the [screen
+logic system](screen-logic).
+
 **Chrome footer slab.** The page closes with a carbon footer slab textured by
 `--chrome-halftone-carbon` and nested inside the chassis, carrying micro
 practical copy, status marks, and the hard chamfered edges of `--chrome-bevel-hard`,

@@ -125,6 +125,64 @@ test('an ungranted tool call is rejected (not executed)', async () => {
   handle.dispose();
 });
 
+test('token style survives a domjs mount (tokens not wiped by replaceChildren)', async () => {
+  const root = makeRoot();
+  const artifact: DomjsSurfaceArtifact = {
+    runtime: 'domjs',
+    source: {
+      'main.js': `
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.append(document.createTextNode('styled'));
+        export default card;
+      `,
+    },
+  };
+
+  const handle = mountInlineSurface({
+    root,
+    artifact,
+    grantedTools: [],
+    tokensSource: ':root { --color-bg: #123456; }',
+  });
+  await wait();
+
+  // The domjs HostRenderer replaces the mount point's children; the token
+  // <style> must remain at the root level so tokens still apply.
+  const tokenStyle = root.querySelector('style[data-summon-inline-tokens]');
+  assert.ok(tokenStyle, 'token <style> must survive the domjs mount');
+  assert.match(tokenStyle?.textContent ?? '', /--color-bg/);
+  assert.equal(root.querySelector('.card')?.textContent, 'styled');
+  handle.dispose();
+});
+
+test('domjs artifact main.css is injected and scoped to the surface', async () => {
+  const root = makeRoot();
+  const artifact: DomjsSurfaceArtifact = {
+    runtime: 'domjs',
+    source: {
+      'main.js': `
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.append(document.createTextNode('styled'));
+        export default card;
+      `,
+      'main.css': '.card { display: grid; gap: 8px; }',
+    },
+  };
+
+  const handle = mountInlineSurface({ root, artifact, grantedTools: [] });
+  await wait();
+
+  const artifactStyle = root.querySelector('style[data-summon-inline-artifact-css]');
+  assert.ok(artifactStyle, 'artifact <style> must be injected for main.css');
+  // Rules must be scoped to the surface root, not leak globally.
+  assert.match(artifactStyle?.textContent ?? '', /data-summon-inline-surface/);
+  assert.match(artifactStyle?.textContent ?? '', /display: grid/);
+  assert.equal(root.querySelector('.card')?.textContent, 'styled');
+  handle.dispose();
+});
+
 test('a domjs runtime error is reported, not thrown', async () => {
   const root = makeRoot();
   const errors: string[] = [];

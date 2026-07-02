@@ -124,7 +124,7 @@ export class PolicyEngine {
     this.events = options.events;
   }
 
-  /** Full tool vocabulary — wire this into the Artifact.tools list. */
+  /** Full tool vocabulary — the set of tool names the surface may request. */
   get tools(): string[] {
     return Object.keys(this.handlers);
   }

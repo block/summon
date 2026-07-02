@@ -82,6 +82,17 @@ column floating on a flat gradient.
 
 ## Inventory
 
+**Design lineage.** Console Chrome 2001 descends from the early-2000s / Y2K
+operating-system and hardware-chrome tradition — the beveled skeuomorphism of the
+Windows XP "Luna" era, the glossy-but-machined Frutiger Aero moment, game-console
+faceplate industrial design, and the dense early-web portal. It is the same
+vocabulary that modern CSS revival libraries (XP.css, 98.css, 7.css) re-encode:
+hard pixel bevels, dot-matrix halftone, silkscreen legends, and injection-molded
+plastic plates. We inherit the *conventions* of that era — the two-tone raised
+edge, the pressed-in well, the printed-on label — not any vendor's chrome or brand
+assets; the periwinkle-and-carbon palette, rationed amber wayfinding, and box-art
+display type are this fingerprint's own dialect of that shared machine grammar.
+
 The material is a cool molded-plastic console token system: a neutral desktop-era
 browser background outside a central periwinkle chassis, white and platinum
 content plates, pale-sky secondary strips, carbon command slabs, and hard
@@ -208,23 +219,98 @@ these custom properties rather than inventing values):
 
   /* Chrome inset input: recessed white field with a hard pressed-in rim. */
   --chrome-inset-input: inset 1px 1px 0 #9aa0c4, inset -1px -1px 0 #ffffff, inset 0 0 0 1px #5a5f8c;
+
+  /* INTERACTION STATES — hard-edged, machined, zero-blur. Depth is bevels and halftone, never soft glow.
+     Warmth here still MEANS action/nav/tool; it never softens into decorative color. */
+
+  /* Focus: a hard pressed pixel ring, not a soft halo — a stamped indigo outline
+     doubled with a white keyline so it reads on both carbon and periwinkle. */
+  --chrome-focus-ring: 0 0 0 1px #ffffff, 0 0 0 3px #3d4f97;
+  --chrome-focus-ring-warm: 0 0 0 1px #ffffff, 0 0 0 3px #e48600; /* focus on a lit action/nav control */
+  --chrome-focus-outline: 2px dotted #3d4f97; /* silkscreen dotted ring for links and text targets */
+
+  /* Pressed/active: the bevel INVERTS — light edge drops to bottom-right, dark edge
+     climbs to top-left, so a control physically sinks into the chassis when clicked. */
+  --chrome-bevel-pressed: inset -1px -1px 0 rgba(255,255,255,0.85), inset 2px 2px 0 #3d4f97;
+  --chrome-bevel-pressed-deep: inset -2px -2px 0 rgba(255,255,255,0.9), inset 3px 3px 0 #2a3877;
+  --chrome-press-offset: 1px; /* nudge label down/right by this to sell the mechanical push */
+
+  /* Hover: light the molded amber bead without moving the plate — a lit LED pip,
+     reserved for action/nav/tool controls, never a decorative warm wash on surfaces. */
+  --chrome-hover-pip: 0 0 0 1px #ecab37, inset 0 1px 0 rgba(255,255,255,0.6);
+  --chrome-hover-plate: #e8ecf9; /* faint cool lift for a hovered periwinkle plate — stays cool, no warmth */
+
+  /* Disabled: a greyed dead plate — flattened bevel, drained warmth, no lit signal. */
+  --chrome-disabled-plate: #c4c4cc;
+  --chrome-disabled-text: #8b8ba0;
+  --chrome-disabled-bevel: inset 1px 1px 0 rgba(255,255,255,0.4), inset -1px -1px 0 #9a9ab0;
+
+  /* Mechanical, not smooth — state changes snap or step, they never ease-glide. */
+  --chrome-motion-instant: 0ms; /* default: bevels flip with no transition */
+  --chrome-motion-click: 60ms steps(2, end); /* stepped press feedback, arcade-quick */
+
+  /* SCREEN LOGIC — console menus change screens, they never glide-scroll.
+     Discrete swaps, a hardware selection cursor, and slot/readout wells,
+     all derived from the existing chassis palette and bevel grammar. */
+  --chrome-screen-swap: 120ms steps(3, end); /* hard stepped cut between screens, kin of --chrome-motion-click */
+  --chrome-screen-shutter: #21242e; /* carbon blackout plate that covers a screen mid-swap */
+  --chrome-cursor-frame: 0 0 0 1px #ffffff, 0 0 0 3px #e48600, inset 0 1px 0 rgba(255,255,255,0.55); /* hardware selection cursor — amber means nav */
+  --chrome-slot-well: inset 2px 2px 0 #9aa0c4, inset -2px -2px 0 #ffffff, inset 0 0 0 1px #5a5f8c; /* deep card-slot recess, deeper kin of --chrome-inset-input */
+  --chrome-readout-text: #206479; /* cool systems-teal readout numerals on inset status wells */
 }
 ```
 
-Buttons are beveled chrome chips: amber rectangles for tools and utilities,
-signal-orange fills or arrow discs for submit and forward, carbon slabs for
-side-rail commands. Inputs are white inset fields with hard borders and
-native-select geometry. Body copy stays small, plain, and subordinate to the
-panel chrome; controls, labels, and metadata are bold uppercase Arial.
+Buttons are beveled chrome chips riding `--chrome-bevel-hard`: amber rectangles
+for tools and utilities, signal-orange fills or arrow discs for submit and
+forward, carbon slabs for side-rail commands. Inputs are white inset fields
+pressed in with `--chrome-inset-input`, hard borders, and native-select geometry.
+Panels are molded periwinkle faceplates with a `--chrome-faceplate-rim`; rows are
+platinum strips parted by `--chrome-divider-dotted`; chips and tabs carry a
+`--chrome-led-pip` amber bead; tables are inset wells with dotted seams between
+lines rather than luxury whitespace. Body copy stays small, plain, and
+subordinate to the panel chrome; controls, labels, and metadata are bold
+uppercase Arial silkscreen legends.
+
+Interaction states are mechanical, not animated fades. **Hover** lights the
+molded bead with `--chrome-hover-pip` (or lifts a cool plate to
+`--chrome-hover-plate`) — warmth appears only on an action, nav, or tool control,
+never as decoration on a resting surface. **Focus** stamps a hard pressed pixel
+ring: `--chrome-focus-ring` (indigo doubled with a white keyline) on cool
+controls, `--chrome-focus-ring-warm` on lit action/nav chips, and the dotted
+`--chrome-focus-outline` on links and text targets — always a crisp zero-blur
+outline, never a soft glow halo. **Active/pressed** inverts the bevel with
+`--chrome-bevel-pressed` (`--chrome-bevel-pressed-deep` on hero plates) and nudges
+the label by `--chrome-press-offset`, so the control physically sinks into the
+chassis; any transition uses `--chrome-motion-click` (stepped, arcade-quick) or
+`--chrome-motion-instant`, never a smooth ease. **Disabled** drops to a greyed
+dead plate — `--chrome-disabled-plate` behind `--chrome-disabled-text`, the seam
+flattened to `--chrome-disabled-bevel`, all warm signal drained. **Selected**
+holds a lit amber pip or an inverted-bevel pressed state; **loading** and **empty**
+stay in cool chrome with a section-label bar so no module reads as a blank island;
+**error** is the sparse `--color-brand-red` identity mark, never a page fill.
+
+Density is desktop-era and fixed-canvas: modules pack onto the faceplate at the
+compact 2–16px control rhythm with 16–48px seams, and narrow screens stack the
+plates inside one bounded machine frame rather than dissolving into airy columns.
+Accessibility intent: routine controls stay at 11–12px (`--text-sm`/`--text-md`)
+or larger with 10px reserved for micro captions; focus is always visible through
+the hard ring or dotted outline; carbon slabs pair `--color-text-alt` on
+`--color-command` and periwinkle plates pair `--color-text` on light plates for
+legible contrast; and touch surfaces get enlarged invisible padding around the
+compact chrome so the dense faceplate stays operable.
 
 The shared material every surface draws on lives in the root nodes that reach
 everywhere: the [command and navigation system](command-nav) that frames the
 top of every faceplate, the [beveled plate and chrome system](plates) that gives
 the chassis its molded depth and texture, the [control system](controls) for
 amber and orange buttons and inset inputs, and the
-[badge and section-label system](badges) that labels every dense module. The
-surfaces — [launch](launch), [dashboard](dashboard), [directory](directory), and
-[utility](utility) — compose this material for their own job.
+[badge and section-label system](badges) that labels every dense module, with
+the [hardware dressing system](hardware-dressing) supplying bezel framing,
+lo-fi image artifacts, the single page-level texture pass, and numbered
+scene sequencing, and the [screen logic system](screen-logic) governing how the
+machine acknowledges input, swaps between screens, and reports its own state.
+Surfaces — launch pages, dashboards, directories, and playful utility screens —
+compose these building blocks for their own job.
 
 ## Composition
 
@@ -273,6 +359,32 @@ Six principles carry the language and are true on every surface:
    product panels, and hero copy to match the user's prompt rather than any
    historical site. Public research informs composition, never permission to reuse
    protected characters or wordmarks.
+
+**Bolting a faceplate from the parts.** Console Chrome 2001 has no fixed page
+types — every surface is a faceplate assembled for its task from the same small
+kit, bolted together in the same order. Frame the top of the chassis with the
+[command and navigation system](command-nav) — a carbon dual-command bar over a
+pale secondary tool strip parted by `--chrome-divider-dotted`; mold the body and
+its box-art hero from the [beveled plate and chrome system](plates) so the first
+impression is a composed faceplate riding a hard `--chrome-bevel-hard` seam,
+never a floating card; wire every interactive move through the
+[control system](controls) with signal-orange forward LEDs and amber utility
+chips; and cap each dense module with the [badge and section-label
+system](badges) so no plate reads as an unlabeled island. Let the task set the
+shape, not a template: when it announces one thing, spend the box-art hero plate
+and a single signal-orange forward disc lit by `--chrome-led-glow`, then tighten
+into supporting modules so the page never reads as empty marketing air; when it
+scans many updates, stack compact platinum rows parted by
+`--chrome-divider-dotted` with trailing orange chevron chips, each bolted in on
+`--chrome-bevel-hard` — never four equal cards where rows belong; when it helps
+find one item in a collection, make the amber tool-chip search cluster (a
+`--chrome-inset-input` well, a native select, a `--chrome-led-pip` Go chip) the
+primary way in and grid the results as tight beveled thumbnail tiles; when it
+enters or submits, press fields into platinum panels with `--chrome-inset-input`
+under section-label bars and mark the one commit in signal orange, support cool.
+Hold the fixed-canvas density and keep warmth meaning direction; if no task
+matches these shapes, never collapse to a generic layout — compose from the same
+parts.
 
 **The universal shell.** Every Console Chrome surface is built inside one fixed
 console shell: a central fixed-canvas chassis (~780–900px when the viewport

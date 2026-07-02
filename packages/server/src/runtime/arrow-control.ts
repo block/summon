@@ -173,7 +173,7 @@ export class ArrowControlStrategy implements BundleRuntimeStrategy {
     const artifactLine: ProtocolLine = { op: 'artifact', path: '/artifact', value: artifact };
     await ctx.writeAcceptedLine(artifactLine);
     await ctx.writeTiming('rendering', 'Rendered accepted artifact', nowMs() - renderStartedAt);
-    return { accepted: true, issues: [], blocker: null as never };
+    return { accepted: true, issues: [], blocker: null as never, acceptedSource: artifact.source };
   }
 }
 

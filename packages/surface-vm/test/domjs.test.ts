@@ -233,7 +233,6 @@ test('unsupported APIs throw repair-phrased errors', async () => {
   const cases: Array<[string, RegExp]> = [
     [`const d = document.createElement('div'); d.innerHTML = '<b>x</b>'; export default d;`, /innerHTML is not supported/],
     [`const d = document.createElement('div'); d.querySelector('x'); export default d;`, /querySelector is not supported/],
-    [`const d = document.createElement('div'); const s = d.style; export default d;`, /style is not supported/],
     [`document.getElementById('x'); export default document.createElement('div');`, /getElementById is not supported/],
   ];
   for (const [entry, re] of cases) {
@@ -243,16 +242,26 @@ test('unsupported APIs throw repair-phrased errors', async () => {
   }
 });
 
-test('appending to a rendered element throws (use region instead)', async () => {
+test('appending to a rendered element emits an implicit-region replacement', async () => {
   const r = await run(`
     const root = document.createElement('div');
+    const label = document.createElement('p');
+    label.textContent = 'first';
+    root.append(label);
     root.addEventListener('click', () => {
-      root.append(document.createElement('span'));  // illegal after mount
+      const extra = document.createElement('span');
+      extra.textContent = 'second';
+      root.append(extra);
     });
     export default root;
   `);
   const tree = r.render!.tree as Extract<SerializedNode, { kind: 'element' }>;
   await r.dispatch({ type: 'event', payload: { handlerId: tree.events.click, event: { type: 'click', currentTargetId: tree.id } } });
   r.destroy();
-  assert.ok(r.errors.some((e) => /cannot append to a rendered element/.test(e)), r.errors.join(' | '));
+
+  assert.equal(r.errors.length, 0, r.errors.join(' | '));
+  const replace = r.patches.find((p) => p.type === 'replace-region') as Extract<VmPatch, { type: 'replace-region' }>;
+  assert.ok(replace, 'append after mount should emit replace-region');
+  assert.equal(replace.regionId, tree.id, 'implicit region id is the element id');
+  assert.equal(replace.children.length, 2, 'payload carries the full child list');
 });

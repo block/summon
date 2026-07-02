@@ -25,7 +25,18 @@ is selected or primary. Status chips report real state through the muted
 `--noir-dot-*` system — idle, run, ok, fail — never an invented color scale, and
 command-style labels reserve the `--noir-gutter` glyph column so they read as
 transcript, not prose. Monospace is a labeling and technical-content system, not
-a paragraph voice.
+a paragraph voice. A chip that reports a capacity or usage value may carry a
+micro-meter — three to five [density-field](density-field) ramp glyphs beside
+the figure (`ctx =+#·· 61%`) — so quantity reads as ink density without a bar
+widget or a colored gauge.
+
+**State steps, never fades.** Control state changes are threshold events, not
+transitions: hover snaps the boundary from `--color-border` to
+`--state-hover-border` in one step, focus draws the ring at once, ink moves from
+one `--noir-ink-*` level to the next without a cross-fade. The surface should
+change the way a terminal repaints — discretely, honestly — because smooth
+easing on chrome implies a theatricality this language refuses. The one blinking
+cursor already spends the entire motion budget.
 
 These controls and labels are shared material that appears on every surface —
 the [terminal evidence](terminal-evidence) command strips and the [tile](tiles)

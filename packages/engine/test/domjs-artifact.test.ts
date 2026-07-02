@@ -46,15 +46,54 @@ test('each unsupported API surfaces a repairable domjs-unsupported-api code', ()
     ['const d = document.createElement("div"); d.innerHTML = "<b>x</b>"; export default d;', 'innerHTML'],
     ['const d = document.createElement("div"); d.querySelector("x"); export default d;', 'querySelector'],
     ['document.getElementById("x"); export default document.createElement("div");', 'getElementById'],
-    ['const d = document.createElement("div"); d.style.color = "red"; export default d;', 'style'],
+    ['const p = d.parentNode; export default document.createElement("div");', 'parentNode'],
     ['const w = window.location; export default document.createElement("div");', 'window'],
-    ['const d = document.createElement("div"); d.insertBefore(d, d); export default d;', 'insertBefore'],
   ];
   for (const [src, api] of cases) {
     const issues = validateDomjsSurfaceArtifact({ runtime: 'domjs', source: { 'main.js': src } });
     assert.ok(
       issues.some((i) => i.code === 'domjs-unsupported-api' && i.message.includes(api)),
       `expected domjs-unsupported-api for ${api}, got: ${issues.map((i) => i.message).join(' | ')}`,
+    );
+  }
+});
+
+test('now-supported DOM APIs (style, insertBefore, removeChild, classList) validate clean', () => {
+  const src = `
+    const d = document.createElement('div');
+    d.style.color = 'red';
+    d.classList.add('card');
+    const a = document.createElement('p');
+    const b = document.createElement('p');
+    d.append(a);
+    d.insertBefore(b, a);
+    d.removeChild(a);
+    export default d;
+  `;
+  const issues = validateDomjsSurfaceArtifact({ runtime: 'domjs', source: { 'main.js': src } });
+  assert.deepEqual(issues.filter((i) => i.code === 'domjs-unsupported-api'), []);
+});
+
+test('prose mentioning "window" in string literals does not false-positive', () => {
+  const src = `
+    const d = document.createElement('div');
+    d.textContent = 'Deploy during the maintenance window. The rollback window is 15 minutes.';
+    const label = "time window";
+    export default d;
+  `;
+  const issues = validateDomjsSurfaceArtifact({ runtime: 'domjs', source: { 'main.js': src } });
+  assert.deepEqual(issues.filter((i) => i.code === 'domjs-unsupported-api'), []);
+});
+
+test('window member and index access are still blocked', () => {
+  for (const src of [
+    'window.setTimeout(() => {}, 0); export default document.createElement("div");',
+    'const t = window["location"]; export default document.createElement("div");',
+  ]) {
+    const issues = validateDomjsSurfaceArtifact({ runtime: 'domjs', source: { 'main.js': src } });
+    assert.ok(
+      issues.some((i) => i.code === 'domjs-unsupported-api' && i.message.includes('window')),
+      `expected window block for: ${src}`,
     );
   }
 });

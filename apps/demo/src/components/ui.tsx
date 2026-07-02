@@ -217,6 +217,7 @@ export function DropdownSelect({
   className,
   triggerClassName,
   contentClassName,
+  showGroupLabels = false,
 }: {
   id?: string;
   value: string;
@@ -232,6 +233,7 @@ export function DropdownSelect({
   className?: string;
   triggerClassName?: string;
   contentClassName?: string;
+  showGroupLabels?: boolean;
 }) {
   const generatedId = useId();
   const triggerId = id ?? `dropdown-select-${generatedId}`;
@@ -441,11 +443,11 @@ export function DropdownSelect({
               role="group"
               aria-label={group.label}
             >
-              {/* {group.label ? (
+              {showGroupLabels && group.label ? (
                 <div className="px-2.5 pb-1 pt-2 font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted first:pt-1">
                   {group.label}
                 </div>
-              ) : null} */}
+              ) : null}
               {group.options.map((option) => {
                 const currentIndex = optionIndex++;
                 const selected = option.value === value;

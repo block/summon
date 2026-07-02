@@ -426,6 +426,7 @@ export function useSurfaceStream({
           ...(agent ? { agent } : {}),
           ...surfaceRequest,
           ...(opts.layout ? { layout: opts.layout } : {}),
+          ...(opts.active.scale ? { scale: opts.active.scale } : {}),
         };
 
     markClientTiming('request-start', 'Generation request started');

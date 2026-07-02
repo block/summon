@@ -32,6 +32,15 @@ and let the green accent stay reserved for the chosen next step; the rare "check
 first" caution rides `--garden-clay-accent`, an earthy hand-thrown terracotta
 rather than a shrill alert red.
 
+**A "Kept" chip marks done work without applause.** Completed steps that settle
+into kept notes under the [kept notes and pick-up moves](kept-notes) wear a
+plain "Kept" chip in the standard quiet recipe — `--garden-chip-face`,
+`--garden-chip-ink`, no success-green fill — because done is a resting state,
+not an achievement to celebrate. The chip exists so a kept note names its state
+in words like every other note; it never grows a count ("12 kept!"), a streak,
+or an exclamation mark. If a surface needs to summarize what got done, a short
+row of kept notes says it better than a number ever could.
+
 These chips ride on the [note panels](note-panels), mark readiness on the
 [good-enough choice and can-wait notes](good-enough), and appear across every
 surface — the readiness chips of the [planner](planner) and [routine](routine),

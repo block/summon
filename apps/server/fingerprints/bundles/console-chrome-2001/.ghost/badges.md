@@ -27,6 +27,14 @@ never real rating-authority marks or friendly rounded pills. A stamp marks
 status, so it never borrows the `--chrome-led-glow` reserved for orange forward
 actions.
 
+**Status readouts as diegetic legends.** Live counts, capacity, sync state, and
+similar machine facts may present as inset readout wells — `--font-mono`
+numerals in cool `--chrome-readout-text` teal pressed into a plate — reading
+like a display on the casing rather than a stat card. A readout reports, it
+never invites: it carries no lit amber or orange, no hover answer, and sits
+beside section-label bars as the machine's own voice. The readout and
+boot-strip grammar lives in the [screen logic system](screen-logic).
+
 **Mascot bubble masthead.** A small original mascot, helper icon, or speech
 bubble may break the masthead grid sparingly with short useful copy, overlapping
 the chrome slightly — never literal real-brand characters or a large illustration

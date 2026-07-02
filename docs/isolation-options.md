@@ -87,3 +87,21 @@ travel with the *format*, not the *engine*.
 
 **One-line stance:** own the protocol, keep the engine swappable, and don't act
 until the governance core is proven.
+
+## Postscript (2026-07-01): surface-vm exists
+
+Since this stance was written, `packages/surface-vm` shipped: Summon-owned
+QuickJS glue (protocol, runner, renderer, mount) powering the `domjs-control`
+runtime. This is exactly the "keep the engine, own the glue" path described
+above — but built for the **domjs dialect**, not as a replacement for arrow.
+
+What changes:
+
+- The stance above now applies **only to the arrow engine path**. The arrow
+  seam remains one function call in `packages/host/src/inline-surface.ts`,
+  unchanged, still behind Summon's own shim.
+- The Tier-3 `SandboxRuntime` formalization proposed in point 4 is partially
+  realized by surface-vm's runner/protocol split; a shared contract across
+  arrow and domjs has not been formalized.
+- Open decision (tracked in `roadmap.md`): converge on one capability-isolated
+  runtime or explicitly own both. Until decided, no further runtimes.

@@ -252,42 +252,47 @@ pre {
 .summon-host-ripple-wave {
   position: absolute;
   inset: 0;
+  --summon-dot-r: 1.2px;
+  /*
+   * Wavefront silhouette. JS sets --summon-shape to a stroked SVG outline
+   * (circle, squircle, star, heart, hexagon) and re-randomizes it on each
+   * animation iteration, so every ripple can be a different shape.
+   */
+  --summon-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='none' stroke='black' stroke-width='6'/%3E%3C/svg%3E");
+  --summon-wave-size: 0px;
   background-image:
     radial-gradient(
       circle,
-      color-mix(in srgb, var(--color-ink) 100%, transparent) 0 1.7px,
-      transparent 2.2px
+      color-mix(in srgb, var(--color-ink) 55%, transparent) 0
+        var(--summon-dot-r),
+      transparent calc(var(--summon-dot-r) + 0.6px)
     );
   background-position: 50% 50%;
-  background-size: 18px 18px;
-  --summon-ring: 0%;
-  --summon-ring-band: 11%;
-  mask-image: radial-gradient(
-    circle at 50% 50%,
-    transparent calc(var(--summon-ring) - var(--summon-ring-band)),
-    black var(--summon-ring),
-    transparent calc(var(--summon-ring) + var(--summon-ring-band))
-  );
-  -webkit-mask-image: radial-gradient(
-    circle at 50% 50%,
-    transparent calc(var(--summon-ring) - var(--summon-ring-band)),
-    black var(--summon-ring),
-    transparent calc(var(--summon-ring) + var(--summon-ring-band))
-  );
+  background-size: 20px 20px;
+  /*
+   * Square vmax sizing keeps shapes undistorted on any aspect ratio and lets
+   * the thin stroked band travel past the viewport corners (~150vmax). The
+   * SVG stroke stays thin, so the ring reads as a travelling ripple rather
+   * than a band that fattens in place.
+   */
+  mask-image: var(--summon-shape);
+  mask-repeat: no-repeat;
+  mask-position: 50% 50%;
+  mask-size: var(--summon-wave-size) var(--summon-wave-size);
+  -webkit-mask-image: var(--summon-shape);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: 50% 50%;
+  -webkit-mask-size: var(--summon-wave-size) var(--summon-wave-size);
   opacity: 0;
-  animation: summon-ripple-wave 3.2s linear infinite;
+  animation: summon-ripple-wave 5s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
 }
 
 .summon-host-ripple-wave:nth-child(2) {
-  animation-delay: 0.8s;
+  animation-delay: 1.65s;
 }
 
 .summon-host-ripple-wave:nth-child(3) {
-  animation-delay: 1.6s;
-}
-
-.summon-host-ripple-wave:nth-child(4) {
-  animation-delay: 2.4s;
+  animation-delay: 3.3s;
 }
 
 .summon-host-preview-sketch {
@@ -387,42 +392,43 @@ pre {
   }
 }
 
-@property --summon-ring {
-  syntax: "<percentage>";
+@property --summon-dot-r {
+  syntax: "<length>";
   inherits: false;
-  initial-value: 0%;
+  initial-value: 1.2px;
 }
 
-@property --summon-ring-band {
-  syntax: "<percentage>";
+@property --summon-wave-size {
+  syntax: "<length>";
   inherits: false;
-  initial-value: 11%;
+  initial-value: 0px;
 }
 
 @keyframes summon-ripple-wave {
   0% {
-    --summon-ring: 0%;
-    --summon-ring-band: 7%;
+    --summon-wave-size: 0px;
+    --summon-dot-r: 0.6px;
     opacity: 0;
   }
 
-  6% {
+  8% {
+    --summon-dot-r: 2.6px;
     opacity: 1;
   }
 
-  40% {
-    --summon-ring-band: 11%;
-    opacity: 0.62;
+  45% {
+    --summon-dot-r: 1.8px;
+    opacity: 0.55;
   }
 
   75% {
-    --summon-ring-band: 15%;
-    opacity: 0.22;
+    --summon-dot-r: 1.1px;
+    opacity: 0.2;
   }
 
   100% {
-    --summon-ring: 100%;
-    --summon-ring-band: 18%;
+    --summon-wave-size: 170vmax;
+    --summon-dot-r: 0.6px;
     opacity: 0;
   }
 }

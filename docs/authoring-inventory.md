@@ -11,7 +11,7 @@ can translate the fingerprint's intent into concrete materials.
 This is opinionated method, not enforced schema. It is prescriptive about *how*
 to document a block; it is agnostic about *what* blocks exist, which medium they
 target, or how many there are. Nothing here adds a layer — inventory is already a
-Ghost principle (`inventory.yml`: "source material, exemplars, tokens, libraries,
+Ghost principle (the inventory lens over the fingerprint's prose nodes: "source material, exemplars, tokens, libraries,
 building blocks"). This is just guidance for authoring that slot well.
 
 ## Where it sits

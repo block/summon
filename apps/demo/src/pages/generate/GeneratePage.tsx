@@ -10,6 +10,8 @@ import {
   type SummonLayout,
   type SurfaceContractView,
   type SurfacePlan,
+  type SurfaceSize,
+  type SurfaceComplexity,
 } from "@anarchitecture/summon/engine";
 import type { ApprovalDecision, ApprovalRequest } from "@anarchitecture/summon";
 import type { DevtoolsEvent } from "@anarchitecture/summon/devtools";
@@ -124,6 +126,15 @@ export function GeneratePage() {
     SHOWCASE_SCENARIOS[0]!.surfacePlan,
   );
   const [layoutId, setLayoutId] = useState("");
+  // Default to an explicit scale so the scale block always ships. Left empty,
+  // the model builds at its untethered instinct, which converges on the same
+  // middleweight layout regardless of fingerprint — the "everything feels
+  // average size/complexity" failure mode. `medium` derives `moderate`
+  // complexity; both remain user-overridable (including back to "" = unset).
+  const [scaleSize, setScaleSize] = useState<SurfaceSize | "">("medium");
+  const [scaleComplexity, setScaleComplexity] = useState<SurfaceComplexity | "">(
+    "",
+  );
   const [playgroundMode, setPlaygroundMode] = useState(false);
   const [agentWardEnabled, setAgentWardEnabled] = useState(true);
   const [customContractEnabled, setCustomContractEnabled] = useState(false);
@@ -517,6 +528,14 @@ export function GeneratePage() {
       ...(!playgroundMode && !agentWard ? { surfacePolicy } : {}),
       surfacePlan,
       ...(layoutId ? { layoutId } : {}),
+      ...(scaleSize || scaleComplexity
+        ? {
+            scale: {
+              ...(scaleSize ? { size: scaleSize } : {}),
+              ...(scaleComplexity ? { complexity: scaleComplexity } : {}),
+            },
+          }
+        : {}),
       fingerprintId,
       modelProvider: modelSelection.modelProvider ?? null,
       ...(modelSelection.generationModel
@@ -541,6 +560,8 @@ export function GeneratePage() {
     fingerprintId,
     experimentalRuntime,
     layoutId,
+    scaleSize,
+    scaleComplexity,
     mode,
     prompt,
     readModelSelection,
@@ -638,6 +659,8 @@ export function GeneratePage() {
     setMode(scenario.mode);
     setSurfacePlan(scenario.surfacePlan);
     setLayoutId(scenario.layoutId ?? "");
+    setScaleSize(scenario.scale?.size ?? "");
+    setScaleComplexity(scenario.scale?.complexity ?? "");
     resetForScenarioChange();
     logLine("op-meta", `scenario -> ${scenario.label}`);
   }
@@ -934,7 +957,10 @@ export function GeneratePage() {
             setShowWelcome(true);
           }}
           experimentalRuntime={experimentalRuntime}
-          onSelectExperimentalRuntime={setExperimentalRuntime}
+          scaleSize={scaleSize}
+          onSelectScaleSize={setScaleSize}
+          scaleComplexity={scaleComplexity}
+          onSelectScaleComplexity={setScaleComplexity}
           running={running}
           onGenerate={generate}
           statusText={statusText}

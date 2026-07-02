@@ -37,6 +37,18 @@ to be read; let it carry the `--garden-chosen-dot` marker (sized at
 `--garden-chosen-marker`, haloed by `--garden-chosen-ring`) in a soft rounded
 callout so the eye lands on the one chosen step to do now.
 
+**Notes rest on the page like paper on paper.** A garden-bed grouping may let a
+small note rest partly on its parent panel — a can-wait slip tucked toward a
+corner, a kept note settled along an edge — the way loose paper actually sits in
+a notebook. This layered-paper feeling comes from position and the shared cream
+tones (`--garden-note-paper` over the panel, `--garden-kept-paper` for settled
+notes), never from extra shadows or cards nested inside cards; the [gentle depth
+rules](gentle-depth) still hold, and the layering reads as belonging, not
+stacking. A note that needs closer reading is picked up under the [kept notes
+and pick-up moves](kept-notes) — held gently above the plan while the rest of
+the page recedes — so a panel never has to cram every detail into its resting
+view.
+
 These panels pair with the [badge and state system](badges) for readiness, time,
 and effort, lean on the [gentle depth rules](gentle-depth) so layering never
 becomes a card pile, and hold the [good-enough choice and can-wait notes](good-enough)

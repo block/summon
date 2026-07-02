@@ -377,11 +377,35 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       return;
     }
 
+    // Render into a dedicated child container rather than `root` directly. The
+    // domjs HostRenderer calls `mountPoint.replaceChildren(...)`, which would
+    // otherwise wipe the `<style data-summon-inline-tokens>` element that
+    // installTokenStyle prepended to `root` — stripping the design tokens from
+    // the surface. The token style stays at the root level and its CSS custom
+    // properties inherit into this container. (The Arrow path sidesteps this by
+    // mounting into a shadow root.)
+    const domjsMountPoint = document.createElement('div');
+    domjsMountPoint.className = 'summon-domjs-mount';
+    root.append(domjsMountPoint);
+
+    // Inject the artifact's own stylesheet (`main.css`), scoped to this surface.
+    // The domjs render path previously dropped it entirely, so surfaces rendered
+    // as unstyled DOM (only inherited design tokens applied). We attach it to
+    // `root` — not `domjsMountPoint` — so the domjs HostRenderer's
+    // `replaceChildren(...)` on the mount point cannot strip it.
+    const artifactCss = artifact.source['main.css'];
+    if (typeof artifactCss === 'string' && artifactCss.trim()) {
+      const styleEl = document.createElement('style');
+      styleEl.dataset.summonInlineArtifactCss = surfaceId;
+      styleEl.textContent = scopeTokenCss(artifactCss, surfaceId);
+      root.prepend(styleEl);
+    }
+
     const { modules, entryPath } = buildDomjsModules({ entry });
     void mountSurface({
       modules,
       entryPath,
-      root,
+      root: domjsMountPoint,
       initialState: cloneState(currentState),
       // The surface-vm bridge forwards every tool call to the same host plumbing
       // the Arrow path uses, so grants/policy/state behave identically.

@@ -96,7 +96,6 @@ assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js
   'buildSurfaceContractBlock',
   'compileSurfaceContractView',
   'compileSystemContracts',
-  'createProtocolHardener',
   'parseProtocolLine',
   'surfaceContractViewFromCompiledPolicy',
   'StreamGraph',
