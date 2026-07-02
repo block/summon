@@ -1,12 +1,30 @@
 ---
 name: summon
-description: "Build, debug, or integrate Summon sandboxed generative UI: SurfacePolicy contracts, Arrow JSONL artifact streaming, host-owned tools/resources, PolicyEngine grants, StreamGraph diagnostics, safety smoke tests, and adoption docs. Use when working in the Summon repo, adding tools/resources/workers/approval actions, debugging validation or sandbox behavior, or creating agent-authored Summon UIs."
+description: "Generate on-brand Summon surfaces from Ghost fingerprints / fingerprint-as-design-authority; build, debug, or integrate the safe drop-in sandbox with SurfacePolicy contracts, Arrow JSONL artifact streaming, host tools/resources, PolicyEngine grants, StreamGraph diagnostics, and safety smoke tests; preserve generation as a contract with conformance verdicts/receipts and adoption docs. Use when working in the Summon repo, adding tools/resources/workers/approval actions, debugging validation or sandbox behavior, checking /ghost-conformance or /ghost-receipt, or creating agent-authored Summon UIs."
 ---
 
 # Summon
 
 Use this skill when working inside the Summon repo or integrating Summon into a
 host app.
+
+## Design Quality
+
+When generating or modifying surfaces, load the relevant Ghost fingerprint as
+the design authority: prose, composition, checks, and token/style CSS. Use the
+`SUMMON_GHOST_ROOTS` presets. Fingerprint-first is the default path, not
+optional flavor.
+
+The bar is: would the brand's design team ship this? Valid-but-generic output
+is a bug with the same severity as a validation failure.
+
+Verify visually. Render the surface, screenshot it with agent-browser, and check
+the `/ghost-conformance` verdict. The protocol validator alone is not a design
+check.
+
+For off-brand output, repair in this order: inspect the fingerprint (compose),
+then `/ghost-conformance` (govern), then `/ghost-receipt` (account), before
+touching runtime code.
 
 ## Start Here
 
@@ -52,6 +70,9 @@ host approval adapter.
 
 ## Safe Output Rules
 
+These are non-negotiable invariants and table stakes; they are not the point of
+the work, design quality is.
+
 - Grant tools from the host with `grantedTools`; never trust artifact-declared
   tools as permission.
 - Keep generated network access disabled by default. Use host tools for product
@@ -72,6 +93,9 @@ For generation failures, inspect `/error`, `/validation-summary`,
 `/validation-blocked`, `/stream-graph-summary`, `/protocol-skip`,
 `/surface-policy`, `/surface-plan`, `/surface-contract`, `/agent-goal`,
 `/agent-policy-resolution`, `/shape`, `/token-overrides`, and `/mode-upgraded`.
+
+For off-brand or generic output, inspect `/ghost-conformance`, the fingerprint
+inputs (graph slice/nodes), and token/style CSS before suspecting runtime code.
 
 For client behavior, inspect Devtools events: `surface-plan`,
 `surface-contract`, `protocol-line`, `protocol-parse-error`, `surface-mounted`,

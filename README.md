@@ -1,13 +1,29 @@
 # Summon
 
-Summon renders AI-generated UI in an inline Arrow sandbox. The generated UI can
-only use host tools you register, so the host keeps control of data, actions,
-credentials, network access, state, and persistence.
+> **Summon — generative UI with a design authority.**
+> Ghost fingerprints carry the brand; Summon composes surfaces that answer to
+> them, inside a sandbox where every action is observable, under a contract
+> that yields a verdict.
 
-Summon is **governable generative UI**: a Ghost fingerprint is the authority for
-how a surface is composed, why, and whether it conformed. See
+Summon exists to close the gap between generated UI and designed UI. A Ghost
+fingerprint is the design authority, so generated output answers to the brand
+instead of the model's taste. Generated code runs in a capability-isolated
+sandbox where every action is a typed, observable tool call, making Summon a
+methodical drop-in home for model-generated code. Generation is a contract:
+output is verified against the fingerprint that requested it, with a verdict
+and receipt.
+
+Summon is **governable generative UI**: generated interfaces composed from a
+design authority, constrained by explicit capabilities, and returned with a
+conformance verdict and receipt. See
 [`docs/positioning.md`](./docs/positioning.md) for the thesis and
 [`docs/roadmap.md`](./docs/roadmap.md) for the build order.
+
+## See it
+
+The Surface Gallery is the identity demo: it is where fingerprint-driven
+surfaces render when Ghost roots are configured. Run `pnpm dev:gallery` and
+open `http://localhost:5174`.
 
 The adopter mental model is intentionally small:
 
@@ -36,6 +52,25 @@ The public package boundary is:
 @anarchitecture/summon-server
 @anarchitecture/summon-react
 ```
+
+## Fingerprint-first path
+
+The default governed path starts from a Ghost fingerprint. When editing
+`apps/server/.env` in the quickstart, set `SUMMON_GHOST_ROOTS` before starting
+the demos. Each configured root should use the canonical
+`.ghost/fingerprint/manifest.yml` package layout. The Surface Gallery adds a
+Ghost fingerprint preset for each root, and the Generate workbench adds a
+`Fingerprint · <id>` option. A fingerprint run is not a bundled visual
+direction: Summon consumes the Ghost relay brief plus the fingerprint's prose,
+inventory, composition, checks, and token/style CSS as product design context.
+Summon then applies host-owned policy, tools, Arrow runtime validation, and
+sandbox boundaries. Summon does not require Summon-named design tokens or
+classify the request into generic response shapes.
+
+The full guided path lives in
+[docs/adoption/quickstart.md](docs/adoption/quickstart.md).
+The architecture boundary is documented in
+[docs/integration-with-ghost.md](docs/integration-with-ghost.md).
 
 ## Quickstart
 
@@ -66,22 +101,6 @@ Open `http://localhost:5173/generate`.
 3. Run it, then submit a generated search such as `chicken pasta`.
 4. Open `http://localhost:5173/adversarial` and confirm the sandbox
    boundary still holds.
-
-To steer generation from a Ghost fingerprint, set `SUMMON_GHOST_ROOTS` in
-`apps/server/.env` before starting the demos. Each configured root should use
-the canonical `.ghost/fingerprint/manifest.yml` package layout. The Surface
-Gallery adds a Ghost fingerprint preset for each root, and the Generate
-workbench adds a `Fingerprint · <id>` option. A fingerprint run is not a bundled
-visual direction: Summon consumes the Ghost relay brief plus the fingerprint's
-prose, inventory, composition, checks, and token/style CSS as product design
-context. Summon then applies host-owned policy, tools, Arrow runtime validation,
-and sandbox boundaries. Summon does not require Summon-named design tokens or
-classify the request into generic response shapes.
-
-The full guided path lives in
-[docs/adoption/quickstart.md](docs/adoption/quickstart.md).
-The architecture boundary is documented in
-[docs/integration-with-ghost.md](docs/integration-with-ghost.md).
 
 ## How It Fits Together
 

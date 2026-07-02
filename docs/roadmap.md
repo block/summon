@@ -1,18 +1,19 @@
 # Roadmap
 
 > Build order derived from [`positioning.md`](./positioning.md). The strategy
-> implies a specific sequence: make the fingerprint's authority real at all
-> three moments, make the governed path the default, and harden the one runtime
-> the guarantee depends on. Add surface area only after the core is provably
-> inspectable.
+> implies a specific sequence: make design from a fingerprint authority visibly
+> real, make the safe drop-in governed home the default, and preserve generation
+> as a contract with a verdict and receipt. Add surface area only after the core
+> is provably inspectable.
 
 ## The organizing test
 
 Before any work goes on this list, it must answer **yes** to one of:
 
-1. Does it make the **governed path the default path**?
-2. Does it make a fingerprint's authority **real** at *compose / govern / account*?
-3. Does it make the conformance claim **inspectable** (credibility)?
+1. Does it make fingerprint-driven output visibly closer to what the brand's design team would ship?
+2. Does it make the **governed path the default path**?
+3. Does it make a fingerprint's authority **real** at *compose / govern / account*?
+4. Does it make the conformance claim **inspectable** (credibility)?
 
 If not, it is runtime-soup and it waits.
 
@@ -90,6 +91,12 @@ The governance guarantee holds fully only for `arrow-control`. Protect it.
   outside the guarantee, opt-in. Makes "html/css/js is an option" safe to offer
   later without reopening the rot.
 
+- [ ] **I. Expressive range, gated on F.**
+  Motion, richer composition, and canvas-class media are in scope only when the
+  fingerprint's design direction calls for them and the governed runtime can
+  render them. This is not a rich-media free-for-all: the fingerprint calls for
+  it, and the governed runtime renders it.
+
 ---
 
 ## Explicit non-goals (right now)
@@ -108,7 +115,6 @@ becoming sad again.
 - ❌ **No lease/approval kernel.** Tier 3 of Bet 3, gated on a real customer.
 - ❌ **No external plugin SDK.** Premature; the near-term value of seams is
   internal discipline.
-- ❌ **No animation / canvas / rich-media chase.** Handled separately.
 - ❌ **No deriving capability from product intent as enforcement.** Advisory
   only, much later, never the wall.
 
@@ -120,5 +126,5 @@ becoming sad again.
 2. ✅ **Fingerprint conformance verdict** (Tier 1A) — first cut shipped; harden per Tier 1A remaining work.
 3. ✅ **Inspectable trace/receipt** (Tier 1B) — first cut shipped; harden per Tier 1B remaining work.
 
-Those three turn "we have a nice generator" into "we have governable generative
-UI" — which is the entire bet.
+Those three turn "we have a nice generator" into "we have generative UI with a
+design authority, a verdict, and a receipt" — which is the core bet.
