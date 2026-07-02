@@ -53,6 +53,17 @@ export interface DomjsBundleRepairRequest extends DomjsBundleRequest {
   attempt: number;
 }
 
+export interface SurfaceDocumentBundleRequest extends SurfaceModelRequest {
+  schema: Record<string, unknown>;
+}
+
+export interface SurfaceDocumentBundleRepairRequest extends SurfaceDocumentBundleRequest {
+  previousBundle: unknown;
+  issues: ContractIssue[];
+  hints: string[];
+  attempt: number;
+}
+
 export interface HtmlBundleRepairRequest extends HtmlBundleRequest {
   previousBundle: unknown;
   issues: ContractIssue[];
@@ -68,6 +79,8 @@ export interface SurfaceModelProvider {
   streamHtmlSurface?(request: HtmlStreamRequest): AsyncIterable<string>;
   generateDomjsBundle?(request: DomjsBundleRequest): Promise<unknown>;
   repairDomjsBundle?(request: DomjsBundleRepairRequest): Promise<unknown>;
+  generateSurfaceDocumentBundle?(request: SurfaceDocumentBundleRequest): Promise<unknown>;
+  repairSurfaceDocumentBundle?(request: SurfaceDocumentBundleRepairRequest): Promise<unknown>;
 }
 
 export interface SurfaceGenerationInput {

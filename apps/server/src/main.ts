@@ -127,6 +127,7 @@ const MODEL_PROFILE_KEY_BY_RUNTIME = {
   'html-static': 'html-static',
   'html-stream': 'html-stream',
   'domjs-control': 'domjs-control',
+  'surface-document': 'surface-document',
 } satisfies Record<SummonOutputRuntime, ModelProfileKey>;
 
 function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?: string } {
@@ -719,6 +720,8 @@ app.post('/api/generate', async (req, res) => {
           streamHtmlSurface: (request) => modelProvider.streamHtmlSurface(request, modelSelection),
           generateDomjsBundle: (request) => modelProvider.generateDomjsBundle(request, modelSelection),
           repairDomjsBundle: (request) => modelProvider.repairDomjsBundle(request, modelSelection),
+          generateSurfaceDocumentBundle: (request) => modelProvider.generateSurfaceDocumentBundle(request, modelSelection),
+          repairSurfaceDocumentBundle: (request) => modelProvider.repairSurfaceDocumentBundle(request, modelSelection),
         },
       }, (line) => {
         writeGenerateLine(res, line);
@@ -832,8 +835,11 @@ function extractArtifactSource(lines: ProtocolLine[]): Record<string, string> | 
     const line = lines[index];
     if (line?.op !== 'artifact') continue;
     const value = line.value as { runtime?: unknown; source?: unknown } | undefined;
+    // Any source-bearing artifact is eligible for conformance evaluation. This
+    // previously filtered to runtime === 'arrow', which silently exempted domjs
+    // surfaces from the Govern moment (no verdict, empty receipt fold).
     if (
-      value?.runtime !== 'arrow' ||
+      (value?.runtime !== 'arrow' && value?.runtime !== 'domjs' && value?.runtime !== 'surface-document') ||
       !value.source ||
       typeof value.source !== 'object' ||
       Array.isArray(value.source)

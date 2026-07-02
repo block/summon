@@ -238,6 +238,8 @@ function acceptedArtifactDescription(runtime: SummonOutputRuntime | undefined): 
       return 'a validated Arrow artifact';
     case 'domjs-control':
       return 'a validated domjs artifact';
+    case 'surface-document':
+      return 'a validated Surface Document artifact';
     case 'html-static':
       return 'a validated HTML artifact';
     case 'html-stream':
@@ -381,6 +383,8 @@ export function runtimeTargetText(runtime: SummonOutputRuntime | undefined): str
       return 'Arrow control';
     case 'domjs-control':
       return 'domjs control';
+    case 'surface-document':
+      return 'Surface Document';
     case 'html-static':
       return 'HTML static';
     case 'html-stream':

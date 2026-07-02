@@ -125,6 +125,21 @@ function htmlArtifact(source: { body: string; css?: string; js?: string }): Prot
   };
 }
 
+function surfaceDocumentArtifact(source: { html: string; css: string; js?: string }): ProtocolLine {
+  return {
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'surface-document',
+      source: {
+        'main.html': source.html,
+        'main.css': source.css,
+        ...(source.js ? { 'main.js': source.js } : {}),
+      },
+    },
+  };
+}
+
 function htmlPatch(html: string, target = 'hero'): ProtocolLine {
   return {
     op: 'patch',
@@ -442,6 +457,59 @@ test('generate page surfaces streamed errors instead of leaving a blank stage', 
   await page.locator('#open-diagnostics').click();
   await expect(page.locator('#diagnostics-stream')).toBeVisible();
   await expect(page.locator('#log')).toContainText('model provider could not produce a surface');
+});
+
+test('surface-document renders in shadow DOM and contains hostile host CSS', async ({ page }) => {
+  await page.route('**/api/generate', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/plain',
+      body: jsonl([
+        { op: 'meta', path: '/surface-plan', value: { ...hostSearchPlan, runtime: 'surface-document' } },
+        surfaceDocumentArtifact({
+          html: '<main class="sd-card"><p id="sd-count">0</p><button id="sd-inc">Increment</button></main>',
+          css: ':root { --sd-blue: rgb(0, 0, 255); } .sd-card { color: var(--sd-blue); } button { border-radius: 17px; }',
+          js: `
+            const s = state({ count: 0 });
+            document.getElementById('sd-count').textContent = () => String(s.count);
+            document.getElementById('sd-inc').onclick = () => { s.count += 1; };
+          `,
+        }),
+        { op: 'meta', path: '/stream-graph-summary', value: { health: { complete: true, blockedCount: 0, warningCount: 0 }, artifacts: [{ revision: 1, runtime: 'surface-document', bytes: 1 }] } },
+      ]),
+    });
+  });
+
+  await page.goto('/generate');
+  await page.addStyleTag({ content: '.sd-card { color: rgb(255, 0, 0) !important; } #sd-inc { border-radius: 0px !important; }' });
+  await page.locator('#go').click();
+
+  await expect(page.locator('#surface-status')).toContainText(/Done/i, { timeout: 20_000 });
+  await expect(page.locator('#sandbox .summon-surface-document-host')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => document.getElementById('sandbox')?.querySelector('#sd-count') === null)).toBe(true);
+
+  const shadowResult = await page.locator('#sandbox .summon-surface-document-host').evaluate(async (host) => {
+    const shadow = (host as HTMLElement).shadowRoot;
+    if (!shadow) throw new Error('missing shadow root');
+    const card = shadow.querySelector('.sd-card') as HTMLElement | null;
+    const count = shadow.querySelector('#sd-count') as HTMLElement | null;
+    const button = shadow.querySelector('#sd-inc') as HTMLButtonElement | null;
+    const artifactStyle = shadow.querySelector('style[data-summon-shadow-artifact-css]');
+    if (!card || !count || !button || !artifactStyle) throw new Error('missing shadow content');
+    button.click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    return {
+      countText: count.textContent,
+      cardColor: getComputedStyle(card).color,
+      buttonRadius: getComputedStyle(button).borderRadius,
+      styleText: artifactStyle.textContent ?? '',
+    };
+  });
+
+  expect(shadowResult.countText).toBe('1');
+  expect(shadowResult.cardColor).toBe('rgb(0, 0, 255)');
+  expect(shadowResult.buttonRadius).toBe('17px');
+  expect(shadowResult.styleText).not.toContain('data-summon-inline-surface');
 });
 
 test('html-static blocks unsafe HTML before mounting an iframe', async ({ page }) => {

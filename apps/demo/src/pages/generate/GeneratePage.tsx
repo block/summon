@@ -5,6 +5,7 @@ import { createSurfaceEnvelope } from "@anarchitecture/summon/envelope";
 import {
   isArrowSurfaceArtifact,
   isHtmlSurfaceArtifact,
+  isSurfaceDocumentArtifact,
   type ProtocolLine,
   type SummonOutputRuntime,
   type SummonLayout,
@@ -1141,7 +1142,7 @@ function findRenderableArtifact(lines: readonly ProtocolLine[]) {
     if (
       line?.op === "artifact" &&
       line.path === "/artifact" &&
-      (isArrowSurfaceArtifact(line.value) || isHtmlSurfaceArtifact(line.value))
+      (isArrowSurfaceArtifact(line.value) || isHtmlSurfaceArtifact(line.value) || isSurfaceDocumentArtifact(line.value))
     ) {
       return line.value;
     }

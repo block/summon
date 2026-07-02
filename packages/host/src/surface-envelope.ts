@@ -2,6 +2,7 @@ import type {
   ArrowSurfaceArtifact,
   ContractIssue,
   HtmlSurfaceArtifact,
+  SurfaceDocumentArtifact,
   ProtocolLine,
   StreamGraphSnapshot,
   SurfacePlan,
@@ -10,13 +11,14 @@ import type {
 import {
   isArrowSurfaceArtifact,
   isHtmlSurfaceArtifact,
+  isSurfaceDocumentArtifact,
   isProtocolLine,
   normalizeSurfacePlan,
   validateProtocolLine,
 } from '@summon-internal/engine';
 
 export const SUMMON_SURFACE_ENVELOPE_VERSION = 4;
-export type SurfaceEnvelopeArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact;
+export type SurfaceEnvelopeArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | SurfaceDocumentArtifact;
 
 export interface SurfaceEnvelope {
   version: 4;
@@ -118,7 +120,7 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
   if (typeof input.id !== 'string' || !input.id) return false;
   if (typeof input.createdAt !== 'string' || Number.isNaN(Date.parse(input.createdAt))) return false;
   if (typeof input.prompt !== 'string') return false;
-  if (!isArrowSurfaceArtifact(input.artifact) && !isHtmlSurfaceArtifact(input.artifact)) return false;
+  if (!isArrowSurfaceArtifact(input.artifact) && !isHtmlSurfaceArtifact(input.artifact) && !isSurfaceDocumentArtifact(input.artifact)) return false;
   if (typeof input.runtimeVersion !== 'string' || !input.runtimeVersion) return false;
 
   const surfacePlan = normalizeSurfacePlan(input.surfacePlan);

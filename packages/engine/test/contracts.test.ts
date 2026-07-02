@@ -10,7 +10,9 @@ import {
   normalizeSurfacePlan,
   suggestSurfacePlan,
   SUMMON_FIXED_INSTRUCTIONS,
+  SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
+  SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
   SURFACE_AUTHORITY_VALUES,
   SURFACE_DATA_VALUES,
   SURFACE_NETWORK_VALUES,
@@ -43,6 +45,22 @@ test('structured output instructions are a tight recency anchor', () => {
   assert.match(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /IDL property bindings/);
   // It is an anchor, not a restatement: the full subset block is not duplicated.
   assert.doesNotMatch(SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS, /namespace-style/);
+});
+
+test('surface-document prompt describes intentional bundle output', () => {
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /Surface Document bundles/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /emit_surface_document/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /summon\.surface-document-bundle\/v1/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /main\.html is inert structure/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /main\.css is fingerprint styling/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /state\(initial\)/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /region\(\(\) =>/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /callTool\(toolName, args\)/);
+
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /schema: "summon\.surface-document-bundle\/v1"/);
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /source\["main\.html"\]/);
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /source\["main\.css"\]/);
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /optional `source\["main\.js"\]`/);
 });
 
 test('token compiler is agnostic to design-source token names', () => {
@@ -182,6 +200,42 @@ test('system compiler uses HTML-static prompt blocks without Arrow bridge leakag
   assert.doesNotMatch(systemText, /@arrow-js\/core/);
   assert.doesNotMatch(systemText, /Runtime is always `arrow`/);
   assert.doesNotMatch(systemText, /Arrow artifact/);
+});
+
+test('system compiler uses surface-document prompt blocks intentionally', () => {
+  const compiled = compileSystemContracts({
+    mode: 'interactive',
+    outputRuntime: 'surface-document',
+    layout: {
+      id: 'surface-slots',
+      slots: [{ id: 'main', purpose: 'Primary surface' }],
+    },
+    tools: {
+      tools: [
+        {
+          name: 'choose',
+          description: 'Pick an option.',
+          argsSchema: '{option: string}',
+          stateShape: '{lastChoice: string}',
+          triggers: ['click'],
+        },
+      ],
+    },
+  });
+
+  assert.deepEqual(
+    compiled.promptBlocks.map((block) => block.id),
+    ['fixed', 'layout:surface-slots', 'tools', 'output-contract'],
+  );
+  const systemText = compiled.promptBlocks.map((block) => block.text).join('\n');
+  assert.match(systemText, /emit_surface_document/);
+  assert.match(systemText, /summon\.surface-document-bundle\/v1/);
+  assert.match(systemText, /Build your Surface Document bundle/);
+  assert.match(systemText, /main\.html is inert structure/);
+  assert.match(systemText, /main\.css is fingerprint styling/);
+  assert.match(systemText, /callTool\(toolName, args\)/);
+  assert.doesNotMatch(systemText, /create_summon_arrow_surface/);
+  assert.doesNotMatch(systemText, /create_summon_html_surface/);
 });
 
 test('system compiler includes compact surface contract view without dropping detail blocks', () => {
@@ -387,4 +441,33 @@ test('contract repair hints are runtime-aware for shared HTML issue codes', () =
   assert.deepEqual(hintsForContractIssue(issue, { outputRuntime: 'html-static' }), [
     'Remove inline event handlers; this HTML runtime must be static HTML/CSS without generated event code.',
   ]);
+  assert.deepEqual(hintsForContractIssue(issue, { outputRuntime: 'surface-document' }), [
+    'Remove inline event handlers from main.html; wire behavior in optional main.js with scoped DOM APIs and granted host tools via callTool().',
+  ]);
+});
+
+test('contract repair hints cover surface-document validation issue codes', () => {
+  const issue = (code: string) => ({
+    source: 'protocol' as const,
+    severity: 'block' as const,
+    code,
+    message: code,
+  });
+
+  const cases: Array<[string, RegExp]> = [
+    ['surface-document-html-inline-handler', /inline on\* attributes.*main\.js/],
+    ['surface-document-html-forbidden-tag', /forbidden.*main\.css.*main\.js/],
+    ['surface-document-html-javascript-url', /javascript: URLs.*callTool/],
+    ['surface-document-css-import', /@import.*main\.css/],
+    ['surface-document-css-external-url', /url\(\).*main\.css/],
+    ['surface-document-network-not-granted', /fetch\/XHR\/WebSocket.*callTool/],
+    ['surface-document-unsupported-api', /scoped Surface Document APIs.*state\(\).*region\(\).*callTool/],
+    ['missing-surface-document-file', /main\.html.*main\.css/],
+    ['missing-surface-document-bundle-html', /main\.html.*main\.css/],
+    ['missing-surface-document-bundle-css', /main\.html.*main\.css/],
+  ];
+
+  for (const [code, expected] of cases) {
+    assert.match(hintsForContractIssue(issue(code), { outputRuntime: 'surface-document' })[0], expected);
+  }
 });

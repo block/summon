@@ -29,6 +29,92 @@ function toNode(value: any): any {
   return value;
 }
 
+function walk(node: any, visit: (node: any) => any): any {
+  const found = visit(node);
+  if (found) return found;
+  const children = node && node.__childNodes;
+  if (!children) return null;
+  for (const child of children) {
+    const childFound = walk(child, visit);
+    if (childFound) return childFound;
+  }
+  return null;
+}
+
+function collect(node: any, visit: (node: any) => boolean, out: any[]): void {
+  if (visit(node)) out.push(node);
+  const children = node && node.__childNodes;
+  if (!children) return;
+  for (const child of children) collect(child, visit, out);
+}
+
+function elementChildren(node: any): any[] {
+  return (node && node.__childNodes) || [];
+}
+
+function queryWithin(node: any, selector: string, includeSelf: boolean): any {
+  const normalized = String(selector || '').trim();
+  const matcher = selectorMatcher(normalized);
+  if (includeSelf) {
+    const found = walk(node, function (candidate: any) { return matcher(candidate) ? candidate : null; });
+    if (found) return found;
+  } else {
+    for (const child of elementChildren(node)) {
+      const found = walk(child, function (candidate: any) { return matcher(candidate) ? candidate : null; });
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function queryAllWithin(node: any, selector: string, includeSelf: boolean): any[] {
+  const normalized = String(selector || '').trim();
+  const matcher = selectorMatcher(normalized);
+  const out: any[] = [];
+  if (includeSelf) collect(node, matcher, out);
+  else for (const child of elementChildren(node)) collect(child, matcher, out);
+  return out;
+}
+
+function selectorMatcher(selector: string): (node: any) => boolean {
+  if (!selector) throw new Error('domjs: querySelector requires a selector.');
+  if (selector.includes(' ') || selector.includes('>') || selector.includes('+') || selector.includes('~') || selector.includes(',')) {
+    throw new Error('domjs: querySelector supports only simple selectors (#id, .class, tag, [data-ref="x"], [data-role="x"]).');
+  }
+  if (selector[0] === '#') {
+    const id = selector.slice(1);
+    if (!id) throw new Error('domjs: querySelector requires a non-empty id selector.');
+    return function (node: any): boolean { return isElement(node) && node.id === id; };
+  }
+  if (selector[0] === '.') {
+    const name = selector.slice(1);
+    if (!name) throw new Error('domjs: querySelector requires a non-empty class selector.');
+    return function (node: any): boolean {
+      return isElement(node) && String(node.attrs['class'] || '').split(/\s+/).includes(name);
+    };
+  }
+  if (selector[0] === '[') {
+    const m = selector.match(/^\[([A-Za-z_:][A-Za-z0-9:_.-]*)(?:=(?:"([^"]*)"|'([^']*)'|([^\]]+)))?\]$/);
+    if (!m) throw new Error('domjs: querySelector supports only simple attribute selectors.');
+    const attr = m[1]!.toLowerCase();
+    if (!attr.startsWith('data-')) throw new Error('domjs: querySelector attribute selectors are limited to data-* attributes.');
+    const expected = m[2] ?? m[3] ?? (m[4] ? m[4].trim() : undefined);
+    return function (node: any): boolean {
+      if (!isElement(node)) return false;
+      const actual = node.attrs[attr];
+      if (expected === undefined) return actual !== undefined;
+      return String(actual) === expected;
+    };
+  }
+  if (!/^[A-Za-z][A-Za-z0-9-]*$/.test(selector)) throw new Error('domjs: querySelector supports only simple selectors.');
+  const tag = selector.toLowerCase();
+  return function (node: any): boolean { return isElement(node) && node.tag === tag; };
+}
+
+function isElement(node: any): boolean {
+  return node && node.__kind === 'element';
+}
+
 function camelToKebab(name: string): string {
   return name.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
 }
@@ -324,7 +410,41 @@ class ElementNode {
     if (this.__live) enqueuePatch({ type: 'clear-event-binding', nodeId: this.__id, eventType: type });
   }
 
-  querySelector(): never { throw new Error('domjs: querySelector is not supported. Hold references to nodes you created.'); }
+  querySelector(selector: string): any {
+    if (!documentRoot) throw new Error('domjs: querySelector is not supported until a Surface Document template root is installed. Hold references to nodes you created.');
+    return queryWithin(this, selector, false);
+  }
+  querySelectorAll(selector: string): any[] {
+    if (!documentRoot) throw new Error('domjs: querySelectorAll is not supported until a Surface Document template root is installed. Hold references to nodes you created.');
+    return queryAllWithin(this, selector, false);
+  }
+}
+
+class FragmentNode {
+  __kind: string;
+  __childNodes: any[];
+
+  constructor() {
+    this.__kind = 'fragment';
+    this.__childNodes = [];
+  }
+
+  append(...nodes: any[]): this {
+    for (const node of nodes) {
+      const child = toNode(node);
+      if (child != null) this.__childNodes.push(child);
+    }
+    return this;
+  }
+  appendChild(node: any): any { this.append(node); return node; }
+  querySelector(selector: string): any {
+    if (!documentRoot) throw new Error('domjs: querySelector is not supported until a Surface Document template root is installed. Hold references to nodes you created.');
+    return queryWithin(this, selector, false);
+  }
+  querySelectorAll(selector: string): any[] {
+    if (!documentRoot) throw new Error('domjs: querySelectorAll is not supported until a Surface Document template root is installed. Hold references to nodes you created.');
+    return queryAllWithin(this, selector, false);
+  }
 }
 
 class RegionNode {
@@ -374,12 +494,30 @@ class RegionNode {
   }
 }
 
+let documentRoot: any = null;
+
 export const document = {
   createElement(tag: string) { return new ElementNode(tag); },
   createElementNS(ns: string, tag: string) { return new ElementNode(tag, ns === SVG_NS ? 'svg' : undefined); },
   createTextNode(text: unknown) { return new TextNode(text); },
-  querySelector: unsupported('document.querySelector', 'Hold references to nodes you created.'),
-  getElementById: unsupported('document.getElementById', 'Hold references to nodes you created.'),
+  createDocumentFragment() { return new FragmentNode(); },
+  __setRoot(root: any) { documentRoot = root; },
+  querySelector(selector: string): any {
+    if (!documentRoot) throw new Error('domjs: document.querySelector is not supported until a Surface Document template root is installed. Hold references to nodes you created.');
+    return queryWithin(documentRoot, selector, true);
+  },
+  querySelectorAll(selector: string): any[] {
+    if (!documentRoot) throw new Error('domjs: document.querySelectorAll is not supported until a Surface Document template root is installed. Hold references to nodes you created.');
+    return queryAllWithin(documentRoot, selector, true);
+  },
+  getElementById(id: string): any {
+    if (!documentRoot) {
+      throw new Error('domjs: document.getElementById is not supported until a Surface Document template root is installed. Hold references to nodes you created.');
+    }
+    return walk(documentRoot, function (node: any) {
+      return node && node.__kind === 'element' && node.id === String(id) ? node : null;
+    });
+  },
 };
 
 export function region(renderFn: () => unknown): RegionNode {
@@ -396,4 +534,4 @@ export function state(initial?: Record<string, unknown>): any {
 }
 export { reactive };
 
-export { ElementNode, TextNode, RegionNode };
+export { ElementNode, TextNode, RegionNode, FragmentNode };

@@ -11,5 +11,5 @@ export { HostRenderer } from './host/renderer.js';
 export type { HostRendererOptions } from './host/renderer.js';
 export { mountSurface } from './host/mount.js';
 export type { MountSurfaceOptions, MountedSurface } from './host/mount.js';
-export { buildDomjsModules } from './engine/domjs/index.js';
-export type { BuildDomjsModulesOptions, DomjsModules } from './engine/domjs/index.js';
+export { buildDomjsModules, buildSurfaceDocumentModules } from './engine/domjs/index.js';
+export type { BuildDomjsModulesOptions, BuildSurfaceDocumentModulesOptions, DomjsModules } from './engine/domjs/index.js';

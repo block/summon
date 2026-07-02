@@ -19,6 +19,7 @@ const MODEL_PROFILE_KEY_BY_RUNTIME = {
   'html-static': 'html-static',
   'html-stream': 'html-stream',
   'domjs-control': 'domjs-control',
+  'surface-document': 'surface-document',
 } satisfies Record<SummonOutputRuntime, RuntimeModelProfileKey>;
 
 export function modelProfileKeyForRuntime(runtime: SummonOutputRuntime): RuntimeModelProfileKey {
@@ -227,7 +228,7 @@ function optionOrDefault<T extends string>(
   return options?.includes(desired) ? desired : fallback;
 }
 
-const STRUCTURED_PROFILES: ModelProfileKey[] = ['arrow-control', 'html-static'];
+const STRUCTURED_PROFILES: ModelProfileKey[] = ['arrow-control', 'html-static', 'surface-document'];
 
 export function isStructuredProfile(key: ModelProfileKey): boolean {
   return STRUCTURED_PROFILES.includes(key);

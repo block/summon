@@ -46,7 +46,11 @@ export interface EvaluateConformanceInput {
 
 const SCHEMA = 'summon.ghost-conformance/v1' as const;
 const DEFAULT_TIMEOUT_MS = 8000;
-const MAX_ARTIFACT_CHARS = 12000;
+// Conformance judges design fidelity, so the prompt must preserve design-bearing
+// files. Blindly truncating the concatenated artifact at 12K hid main.css behind
+// large imperative main.js files, creating false design failures for domjs.
+const MAX_ARTIFACT_TOTAL_CHARS = 48_000;
+const MAX_ARTIFACT_FILE_CHARS = 16_000;
 
 const EVAL_SYSTEM_PROMPT = [
   'You are a design-conformance evaluator.',
@@ -88,16 +92,31 @@ export function extractJsonArray(raw: string): unknown[] | null {
   }
 }
 
-function clampArtifactSource(source: Record<string, string>): string {
+export function formatArtifactSourceForConformance(source: Record<string, string>): string {
   const parts: string[] = [];
-  for (const [file, content] of Object.entries(source)) {
+  for (const [file, content] of orderedSourceEntries(source)) {
     if (typeof content !== 'string' || !content) continue;
-    parts.push(`=== ${file} ===\n${content}`);
+    const trimmed = content.length <= MAX_ARTIFACT_FILE_CHARS
+      ? content
+      : `${content.slice(0, MAX_ARTIFACT_FILE_CHARS)}\n... [${file} truncated after ${MAX_ARTIFACT_FILE_CHARS} of ${content.length} chars]`;
+    parts.push(`=== ${file} ===\n${trimmed}`);
   }
   const joined = parts.join('\n\n');
-  return joined.length <= MAX_ARTIFACT_CHARS
+  return joined.length <= MAX_ARTIFACT_TOTAL_CHARS
     ? joined
-    : `${joined.slice(0, MAX_ARTIFACT_CHARS)}\n... [truncated]`;
+    : `${joined.slice(0, MAX_ARTIFACT_TOTAL_CHARS)}\n... [artifact truncated after ${MAX_ARTIFACT_TOTAL_CHARS} chars]`;
+}
+
+function orderedSourceEntries(source: Record<string, string>): Array<[string, string]> {
+  return Object.entries(source).sort(([a], [b]) => sourcePriority(a) - sourcePriority(b) || a.localeCompare(b));
+}
+
+function sourcePriority(file: string): number {
+  if (file.endsWith('.css')) return 0;
+  if (file === 'main.html' || file === 'body.html' || file.endsWith('.html')) return 1;
+  if (file === 'main.js' || file === 'main.ts') return 2;
+  if (file.endsWith('.js') || file.endsWith('.ts')) return 3;
+  return 4;
 }
 
 function buildEvalPrompt(artifactSource: Record<string, string>, routed: RoutedCheck[]): string {
@@ -111,7 +130,7 @@ function buildEvalPrompt(artifactSource: Record<string, string>, routed: RoutedC
   return [
     '## Generated UI source',
     '',
-    clampArtifactSource(artifactSource),
+    formatArtifactSourceForConformance(artifactSource),
     '',
     '## Checks',
     '',

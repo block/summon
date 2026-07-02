@@ -3,6 +3,7 @@ import type {
   ArrowSurfaceArtifact,
   DomjsSurfaceArtifact,
   HtmlSurfaceArtifact,
+  SurfaceDocumentArtifact,
   HtmlPatchAction,
   HtmlSurfacePatch,
   SurfaceStatus,
@@ -10,9 +11,9 @@ import type {
   ValidationTool,
 } from '@summon-internal/engine';
 
-import { buildDomjsModules, mountSurface } from '@summon-internal/surface-vm';
+import { buildDomjsModules, buildSurfaceDocumentModules, mountSurface } from '@summon-internal/surface-vm';
 
-export type InlineSurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact;
+export type InlineSurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact | SurfaceDocumentArtifact;
 
 export interface HtmlStreamPreviewDelta {
   runtime: 'html';
@@ -446,6 +447,95 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       });
   };
 
+  const renderSurfaceDocumentArtifact = (artifact: SurfaceDocumentArtifact, revision: number) => {
+    teardownDomjsRuntime();
+    teardownHtmlRuntime();
+    if (arrowTeardown) {
+      try {
+        arrowTeardown();
+      } catch {
+        // best effort
+      }
+      arrowTeardown = null;
+    }
+    renderState = 'rendering';
+    clearRuntimeChildren(root);
+
+    const shadowHost = document.createElement('div');
+    shadowHost.className = 'summon-surface-document-host';
+    shadowHost.setAttribute('part', 'surface-document-host');
+    const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+
+    const baseStyle = document.createElement('style');
+    baseStyle.dataset.summonShadowBase = surfaceId;
+    baseStyle.textContent = surfaceDocumentShadowBaseCss();
+    shadowRoot.append(baseStyle);
+
+    if (options.tokensSource?.trim()) {
+      const tokenStyle = document.createElement('style');
+      tokenStyle.dataset.summonShadowTokens = surfaceId;
+      tokenStyle.textContent = shadowSurfaceCss(options.tokensSource);
+      shadowRoot.append(tokenStyle);
+    }
+
+    const artifactCss = artifact.source['main.css'];
+    if (typeof artifactCss === 'string' && artifactCss.trim()) {
+      const styleEl = document.createElement('style');
+      styleEl.dataset.summonShadowArtifactCss = surfaceId;
+      styleEl.textContent = shadowSurfaceCss(artifactCss);
+      shadowRoot.append(styleEl);
+    }
+
+    const mountPoint = document.createElement('div');
+    mountPoint.className = 'summon-surface-document-mount';
+    shadowRoot.append(mountPoint);
+    root.append(shadowHost);
+
+    const { modules, entryPath } = buildSurfaceDocumentModules({
+      html: artifact.source['main.html'],
+      ...(typeof artifact.source['main.js'] === 'string' ? { behaviorEntry: artifact.source['main.js'] } : {}),
+    });
+    void mountSurface({
+      modules,
+      entryPath,
+      root: mountPoint,
+      initialState: cloneState(currentState),
+      hostBridge: (tool, args) => callToolInternal(tool, args as Record<string, unknown>),
+      onError(reason) {
+        if (disposed || revision !== renderRevision) return;
+        renderState = 'failed';
+        teardownDomjsRuntime();
+        clearRuntimeChildren(root);
+        renderRuntimeError(root, `Surface Document runtime error: ${reason}`);
+        reportRuntimeError(options, surfaceId, `Surface Document runtime error: ${reason}`);
+      },
+    })
+      .then((surface) => {
+        if (disposed || revision !== renderRevision) {
+          try {
+            surface.destroy();
+          } catch {
+            // best effort
+          }
+          return;
+        }
+        domjsSurface = surface;
+        const listener = (state: Record<string, unknown>) => surface.pushState(state);
+        subscribers.add(listener);
+        domjsStateListener = listener;
+        renderState = 'rendered';
+        options.events?.push({ kind: 'rendered', at: Date.now(), surfaceId, revision });
+      })
+      .catch((err: unknown) => {
+        if (disposed || revision !== renderRevision) return;
+        renderState = 'failed';
+        const reason = `Surface Document runtime failed to mount: ${err instanceof Error ? err.message : String(err)}`;
+        clearRuntimeChildren(root);
+        renderRuntimeError(root, reason);
+        reportRuntimeError(options, surfaceId, reason);
+      });
+  };
+
   const renderHtmlArtifact = (artifact: HtmlSurfaceArtifact, revision: number) => {
     teardownHtmlRuntime();
     htmlPreviewArtifactCss = artifact.source['main.css'] ?? '';
@@ -534,6 +624,16 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
           bytes: JSON.stringify(artifact.source).length,
         });
         renderDomjsArtifact(artifact, revision);
+        return;
+      }
+      if (artifact.runtime === 'surface-document') {
+        options.events?.push({
+          kind: 'render',
+          at: Date.now(),
+          surfaceId,
+          bytes: JSON.stringify(artifact.source).length,
+        });
+        renderSurfaceDocumentArtifact(artifact, revision);
         return;
       }
       teardownDomjsRuntime();
@@ -1019,6 +1119,40 @@ export function scopeTokenCss(css: string, surfaceId: string): string {
   return scopeCssRules(css, `[data-summon-inline-surface="${escapeCssIdentifier(surfaceId)}"]`);
 }
 
+export function shadowSurfaceCss(css: string): string {
+  return mapCssRootSelectors(css, {
+    root: ':host',
+    document: '.summon-surface-document-mount',
+  });
+}
+
+function surfaceDocumentShadowBaseCss(): string {
+  return `
+:host {
+  display: block;
+  contain: layout paint style;
+  isolation: isolate;
+}
+
+.summon-surface-document-mount {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  color: var(--color-text, CanvasText);
+  background: var(--color-bg, Canvas);
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+
+.summon-surface-document-mount,
+.summon-surface-document-mount *,
+.summon-surface-document-mount *::before,
+.summon-surface-document-mount *::after {
+  box-sizing: border-box;
+}
+`;
+}
+
 function scopeCssRules(css: string, rootSelector: string): string {
   let output = '';
   let cursor = 0;
@@ -1071,15 +1205,74 @@ function scopeOneSelector(selector: string, rootSelector: string): string {
   if (!trimmed) return selector;
   if (trimmed.startsWith(rootSelector)) return selector;
 
-  const rootScoped = trimmed
-    .replace(/^:root\b/, rootSelector)
-    .replace(/^html\b/, rootSelector)
-    .replace(/^body\b/, rootSelector);
+  const rootScoped = mapDocumentRootSelector(trimmed, {
+    root: rootSelector,
+    document: rootSelector,
+  });
   if (rootScoped !== trimmed) {
     return `${leadingTrivia}${rootScoped}${trailingWhitespace}`;
   }
 
   return `${leadingTrivia}${rootSelector} ${trimmed}${trailingWhitespace}`;
+}
+
+function mapCssRootSelectors(css: string, selectors: { root: string; document: string }): string {
+  return transformCssSelectors(css, (selector) => mapOneRootSelector(selector, selectors));
+}
+
+function transformCssSelectors(css: string, transform: (selector: string) => string): string {
+  let output = '';
+  let cursor = 0;
+
+  while (cursor < css.length) {
+    const delimiter = findNextRuleDelimiter(css, cursor);
+    if (!delimiter) {
+      output += css.slice(cursor);
+      break;
+    }
+
+    const prelude = css.slice(cursor, delimiter.index);
+    if (delimiter.char === ';') {
+      output += prelude + delimiter.char;
+      cursor = delimiter.index + 1;
+      continue;
+    }
+
+    const close = findMatchingBlockEnd(css, delimiter.index);
+    if (close < 0) {
+      output += css.slice(cursor);
+      break;
+    }
+
+    const block = css.slice(delimiter.index + 1, close);
+    const atRuleName = parseAtRuleName(prelude);
+    if (atRuleName) {
+      output += prelude + '{' + (atRuleContainsStyleRules(atRuleName) ? transformCssSelectors(block, transform) : block) + '}';
+    } else {
+      output += splitSelectorList(prelude).map(transform).join(',') + '{' + block + '}';
+    }
+    cursor = close + 1;
+  }
+
+  return output;
+}
+
+function mapOneRootSelector(selector: string, selectors: { root: string; document: string }): string {
+  const leadingTriviaLength = leadingCssTriviaLength(selector);
+  const leadingTrivia = selector.slice(0, leadingTriviaLength);
+  const selectorBody = selector.slice(leadingTriviaLength);
+  const trailingWhitespace = selector.match(/\s*$/)?.[0] ?? '';
+  const trimmed = selectorBody.trim();
+  if (!trimmed) return selector;
+  const mapped = mapDocumentRootSelector(trimmed, selectors);
+  return `${leadingTrivia}${mapped}${trailingWhitespace}`;
+}
+
+function mapDocumentRootSelector(selector: string, selectors: { root: string; document: string }): string {
+  return selector
+    .replace(/^:root\b/, selectors.root)
+    .replace(/^html\b/, selectors.document)
+    .replace(/^body\b/, selectors.document);
 }
 
 function leadingCssTriviaLength(value: string): number {

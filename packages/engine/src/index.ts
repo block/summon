@@ -53,6 +53,27 @@ export type {
   DomjsArtifactValidationOptions,
 } from './domjs-artifact.js';
 export {
+  isSurfaceDocumentArtifact,
+  normalizeSurfaceDocumentArtifact,
+  validateSurfaceDocumentArtifact,
+} from './surface-document-artifact.js';
+export type {
+  SurfaceDocumentArtifact,
+  SurfaceDocumentValidationOptions,
+} from './surface-document-artifact.js';
+export {
+  SUMMON_SURFACE_DOCUMENT_BUNDLE_SCHEMA,
+  createSurfaceDocumentBundleJsonSchema,
+  createSurfaceDocumentBundleToolDefinition,
+  isSummonSurfaceDocumentBundle,
+  normalizeSurfaceDocumentBundle,
+  surfaceDocumentArtifactFromBundle,
+} from './surface-document-bundle.js';
+export type {
+  NormalizeSurfaceDocumentBundleResult,
+  SummonSurfaceDocumentBundle,
+} from './surface-document-bundle.js';
+export {
   SUMMON_DOMJS_BUNDLE_SCHEMA,
   domjsArtifactFromBundle,
   createDomjsBundleJsonSchema,
@@ -105,10 +126,14 @@ export {
   SUMMON_FIXED_INSTRUCTIONS,
   SUMMON_FIXED_HTML_INSTRUCTIONS,
   SUMMON_FIXED_DOMJS_INSTRUCTIONS,
+  SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS,
+  SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS as SUMMON_SURFACE_DOCUMENT_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS as SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS,
+  SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
+  SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS as SUMMON_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
   buildLayoutBlock,
   buildScaleBlock,
   buildToolsBlock,

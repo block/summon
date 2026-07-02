@@ -203,7 +203,8 @@ export class HostRenderer {
   private focusKeyWithin(
     element: Element,
   ): { selector: string; value: string; selectionStart: number | null } | null {
-    const active = element.ownerDocument.activeElement;
+    const root = element.getRootNode() as Document | ShadowRoot;
+    const active = 'activeElement' in root ? root.activeElement : element.ownerDocument.activeElement;
     if (!active || !element.contains(active)) return null;
     const input = active as HTMLInputElement;
     const tag = active.tagName.toLowerCase();

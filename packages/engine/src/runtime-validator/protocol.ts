@@ -5,6 +5,7 @@ import {
 } from '../protocol.js';
 import { validateArrowSurfaceArtifact } from '../arrow-artifact.js';
 import { validateDomjsSurfaceArtifact } from '../domjs-artifact.js';
+import { validateSurfaceDocumentArtifact } from '../surface-document-artifact.js';
 import {
   validateHtmlSurfaceArtifact,
   validateHtmlSurfacePatch,
@@ -67,8 +68,12 @@ export function validateProtocolLine(
       issues.push(...validateDomjsSurfaceArtifact(line.value as never, {
         maxSourceBytes: limits.maxProtocolLineBytes,
       }));
+    } else if (runtime === 'surface-document') {
+      issues.push(...validateSurfaceDocumentArtifact(line.value as never, {
+        maxSourceBytes: limits.maxProtocolLineBytes,
+      }));
     } else {
-      issues.push(protocolBlock('invalid-artifact-runtime', 'Artifact runtime must be "arrow" or experimental "html"/"domjs"', line.path));
+      issues.push(protocolBlock('invalid-artifact-runtime', 'Artifact runtime must be "arrow" or experimental "html"/"domjs"/"surface-document"', line.path));
     }
     return issues;
   }

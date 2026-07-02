@@ -3,6 +3,7 @@ import {
   normalizeHtmlSurfacePatch,
   normalizeArrowSurfaceArtifact,
   normalizeDomjsSurfaceArtifact,
+  normalizeSurfaceDocumentArtifact,
   normalizeValidationLimits,
   parseProtocolLine,
   StreamGraph,
@@ -11,10 +12,12 @@ import {
   validateProtocolLine,
   validateArrowSurfaceArtifact,
   validateDomjsSurfaceArtifact,
+  validateSurfaceDocumentArtifact,
   type ContractIssue,
   type ArrowSurfaceArtifact,
   type ArtifactLine,
   type DomjsSurfaceArtifact,
+  type SurfaceDocumentArtifact,
   type HtmlPatchLine,
   type HtmlSurfaceArtifact,
   type HtmlSurfacePatch,
@@ -28,7 +31,7 @@ import {
   type ValidationContext,
 } from '@summon-internal/engine';
 
-export type SurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact;
+export type SurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact | SurfaceDocumentArtifact;
 
 export type SurfaceStreamChunk = string | Uint8Array;
 export type SurfaceStreamSource =
@@ -329,6 +332,10 @@ function compileAcceptedArtifactLine(
       issues.push(...validateDomjsSurfaceArtifact(normalized.artifact, {
         maxSourceBytes: limits.maxProtocolLineBytes,
       }));
+    } else if (normalized.artifact.runtime === 'surface-document') {
+      issues.push(...validateSurfaceDocumentArtifact(normalized.artifact, {
+        maxSourceBytes: limits.maxProtocolLineBytes,
+      }));
     } else {
       issues.push(...validateHtmlSurfaceArtifact(normalized.artifact, {
         allowScript: validationContext?.experimentalHtmlScript === true,
@@ -389,6 +396,9 @@ function normalizeSurfaceArtifact(value: unknown): {
   if (value && typeof value === 'object' && (value as { runtime?: unknown }).runtime === 'domjs') {
     return normalizeDomjsSurfaceArtifact(value);
   }
+  if (value && typeof value === 'object' && (value as { runtime?: unknown }).runtime === 'surface-document') {
+    return normalizeSurfaceDocumentArtifact(value);
+  }
   return normalizeArrowSurfaceArtifact(value);
 }
 
@@ -404,7 +414,8 @@ function isSurfaceArtifactValue(value: unknown): value is SurfaceArtifact {
     !Array.isArray(value) &&
     ((value as { runtime?: unknown }).runtime === 'arrow' ||
       (value as { runtime?: unknown }).runtime === 'html' ||
-      (value as { runtime?: unknown }).runtime === 'domjs') &&
+      (value as { runtime?: unknown }).runtime === 'domjs' ||
+      (value as { runtime?: unknown }).runtime === 'surface-document') &&
     typeof (value as { source?: unknown }).source === 'object' &&
     (value as { source?: unknown }).source !== null &&
     !Array.isArray((value as { source?: unknown }).source)

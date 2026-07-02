@@ -24,7 +24,7 @@ const rippleShapes: string[] = [
 ];
 
 function randomShape(exclude?: string): string {
-  if (rippleShapes.length <= 1) return rippleShapes[0];
+  if (rippleShapes.length <= 1) return rippleShapes[0] ?? "";
   let pick = exclude;
   while (pick === undefined || pick === exclude) {
     pick = rippleShapes[Math.floor(Math.random() * rippleShapes.length)];

@@ -62,6 +62,7 @@ export type ModelProfileKey =
   | 'html-static'
   | 'html-stream'
   | 'domjs-control'
+  | 'surface-document'
   | 'utility';
 
 export type RuntimeModelProfileKey = Exclude<ModelProfileKey, 'utility'>;
@@ -71,6 +72,7 @@ export const MODEL_PROFILE_KEYS: ModelProfileKey[] = [
   'html-static',
   'html-stream',
   'domjs-control',
+  'surface-document',
   'utility',
 ];
 

@@ -229,6 +229,51 @@ Highest-value reminders (full rules above): no \`<script>\`, \`<iframe>\`, \`<fo
 
 The run is incomplete until the bundle contains valid \`body.html\`.`;
 
+export const SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS = `You generate self-contained Surface Document bundles for the experimental Summon surface-document runtime.
+
+You receive a user request and a Ghost design fingerprint. Render one native Surface Document that satisfies the request. The Ghost fingerprint is the sole authority for composition, hierarchy, density, tone, structure, and all visual design — follow it. Summon governs only the runtime, safety, and output format described below; it has no opinion about how the surface should look.
+
+## Structured Surface Document bundle
+
+You return a structured object through the provided emit_surface_document tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with op/path fields, host-owned meta paths, Arrow source, or domjs bundles.
+
+The returned object must include:
+
+- schema: "summon.surface-document-bundle/v1"
+- source["main.html"] with inert semantic structure
+- source["main.css"] with all Ghost fingerprint styling
+- optional source["main.js"] for governed behavior only when behavior is needed
+
+Surface Document file roles:
+
+- main.html is inert structure. Use plain semantic HTML, ids, classes, and data-* attributes as behavior hooks. Do not emit <script>, <style>, <iframe>, <object>, <embed>, inline event handlers such as onclick/oninput/onsubmit, javascript: URLs, or form actions that imply ambient browser authority.
+- main.css is fingerprint styling. Put visual styling here; use class names and fingerprint tokens. Do not use @import, external URLs, data: URLs, javascript: URLs, external images, external fonts, or external stylesheets. Inline SVG in main.html is fine.
+- main.js is optional governed behavior. It runs in the Summon VM against the parsed main.html root. Use scoped DOM APIs only: document.getElementById(), document.querySelector(), root/element querySelector(), createElement/createTextNode, textContent, setAttribute/removeAttribute, className/classList, style property writes, append/appendChild/insertBefore/removeChild/replaceChildren, addEventListener or on<event> properties, and reflected properties such as value/checked/disabled.
+- For local reactive behavior use state(initial) and function bindings; for lists/conditionals use region(() => ...). Mutate state in event handlers; do not manually patch the DOM for reactive values.
+- For granted host tools use await callTool(toolName, args). Use getState() and onState((state) => ...) for host-pushed state when needed. Do not use fetch(), XMLHttpRequest, WebSocket, window, document.body, storage, cookies, eval, dynamic imports, innerHTML, outerHTML, parentNode/parentElement traversal, node.remove(), or unscoped browser APIs.
+- If a requested behavior cannot be expressed with scoped DOM APIs plus granted tools, omit the live control or state the limitation in one short line of copy. Do not fake interactivity with CSS-only state machines.
+
+## Token contract
+
+${formatTokenContract()}
+
+The Ghost fingerprint specifies which tokens carry particular meaning and how to deploy them.
+
+Begin. Return one complete structured Surface Document bundle through the provided tool/schema.`;
+
+export const SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS = `## Output contract — final reminder
+
+Return one structured object through the \`emit_surface_document\` tool/schema. Not Markdown, code fences, transport records, stream lines, \`op\`/\`path\` objects, host-owned meta paths, Arrow source, or domjs bundles.
+
+- \`schema: "summon.surface-document-bundle/v1"\`
+- \`source["main.html"]\` with inert semantic structure
+- \`source["main.css"]\` with fingerprint styling
+- optional \`source["main.js"]\` for governed behavior using scoped DOM APIs, \`state()\`, \`region()\`, and \`callTool()\`
+
+Highest-value reminders (full rules above): keep HTML inert; put styling in \`main.css\`; put behavior only in optional \`main.js\`; no inline handlers, forbidden tags, javascript: URLs, \`@import\`, external/data/javascript CSS URLs, network APIs, \`window\`, \`document.body\`, storage, \`eval\`, \`innerHTML\`, or \`outerHTML\`.
+
+The run is incomplete until the bundle contains valid \`main.html\` and \`main.css\`.`;
+
 export const SUMMON_FIXED_DOMJS_INSTRUCTIONS = `You generate self-contained, interactive HTML/JS web UIs for the experimental Summon domjs runtime.
 
 You receive a user request and a Ghost design fingerprint. Render one interactive surface as imperative JavaScript that builds the DOM. The Ghost fingerprint is the sole authority for composition, hierarchy, density, tone, and all visual design — follow it. Summon governs only the runtime, safety, and output format below.
@@ -325,9 +370,12 @@ export function buildLayoutBlock(
   const slotLines = layout.slots
     .map((slot) => `- \`${slot.id}\` — ${slot.purpose}`)
     .join('\n');
-  const artifactLabel = runtimeProfile(options.outputRuntime).format === 'html'
-    ? 'HTML bundle'
-    : 'Arrow artifact';
+  const format = runtimeProfile(options.outputRuntime).format;
+  const artifactLabel = format === 'surface-document'
+    ? 'Surface Document bundle'
+    : format === 'html'
+      ? 'HTML bundle'
+      : 'Arrow artifact';
 
 return `## Host layout — this generation
 
@@ -377,12 +425,17 @@ export function buildSurfaceContractBlock(
   const outputRuntime = options.outputRuntime ?? 'arrow-control';
   const profile = runtimeProfile(outputRuntime);
   const htmlRuntime = profile.format === 'html';
-  const artifactLine = htmlRuntime
-    ? `It is not a JSON UI schema: you still generate a rich HTML bundle inside these typed boundaries. The output runtime for this generation is \`${outputRuntime}\`; the structured output contract below controls the exact files.`
-    : 'It is not a JSON UI schema: you still generate a rich Arrow source artifact inside these typed boundaries.';
-  const enforcementLine = htmlRuntime
-    ? 'Do not emit `/surface-contract`, `/surface-policy`, or `/surface-plan` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and HTML sandbox boundary.'
-    : 'Do not emit `/surface-contract`, `/surface-policy`, or `/surface-plan` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and inline Arrow tool grants.';
+  const surfaceDocumentRuntime = profile.format === 'surface-document';
+  const artifactLine = surfaceDocumentRuntime
+    ? `It is not a JSON UI schema: you still generate a rich Surface Document bundle inside these typed boundaries. The output runtime for this generation is \`${outputRuntime}\`; the structured output contract below controls the exact files.`
+    : htmlRuntime
+      ? `It is not a JSON UI schema: you still generate a rich HTML bundle inside these typed boundaries. The output runtime for this generation is \`${outputRuntime}\`; the structured output contract below controls the exact files.`
+      : 'It is not a JSON UI schema: you still generate a rich Arrow source artifact inside these typed boundaries.';
+  const enforcementLine = surfaceDocumentRuntime
+    ? 'Do not emit `/surface-contract`, `/surface-policy`, or `/surface-plan` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and Surface Document sandbox boundary.'
+    : htmlRuntime
+      ? 'Do not emit `/surface-contract`, `/surface-policy`, or `/surface-plan` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and HTML sandbox boundary.'
+      : 'Do not emit `/surface-contract`, `/surface-policy`, or `/surface-plan` meta lines. The host owns those lines and enforcement still lives in the runtime validators, PolicyEngine, and inline Arrow tool grants.';
   const toolLines = contract.tools.length
     ? contract.tools.map((tool) => {
         const stateKeys = tool.stateKeys
@@ -524,11 +577,15 @@ export function buildToolsBlock(
     actionsList ? `### Available actions\n\n${actionsList}` : '',
   ].filter(Boolean).join('\n\n');
 
-  if (runtimeProfile(options.outputRuntime).format === 'html') {
+  const runtimeFormat = runtimeProfile(options.outputRuntime).format;
+  if (runtimeFormat === 'html') {
     return buildHtmlToolsBlock({
       outputRuntime: options.outputRuntime ?? 'html-static',
       toolSections,
     });
+  }
+  if (runtimeFormat === 'surface-document') {
+    return buildSurfaceDocumentToolsBlock({ toolSections });
   }
 
   const promptPatterns = (pack.patterns ?? []).filter(
@@ -700,6 +757,40 @@ ${toolSections}
 - Do not render clickable, tappable, or focusable controls that require host execution.
 - Do not fake tool results, loading states, completed actions, approvals, or fetched rows in static markup.
 - If the user request needs live data or a host action, render a clear static state that explains what the host-owned action/data would cover without pretending it has run.`;
+}
+
+function buildSurfaceDocumentToolsBlock({
+  toolSections,
+}: {
+  toolSections: string;
+}): string {
+  return `## Tools — this Surface Document may use host tools
+
+This run returns a structured Surface Document bundle. Keep structure in \`main.html\`, styling in \`main.css\`, and any live behavior in optional \`main.js\`. Host calls are allowed only through granted tools.
+
+### Host bridge in main.js
+
+Use the ambient or imported bridge:
+
+\`\`\`js
+import { callTool, getState, onState } from "host-bridge:summon";
+\`\`\`
+
+- \`await callTool(toolName, args)\` calls a granted host tool and resolves to \`{ ok, state, error? }\`.
+- \`getState()\` reads the latest host-owned state snapshot.
+- \`onState((state) => { ... })\` subscribes to host state updates.
+- Copy host-owned values into local \`state()\` when you need reactive text, attributes, lists, or conditionals.
+
+### Available tools
+
+${toolSections}
+
+### Surface Document interactivity contract
+
+- Every clickable, tappable, or focusable control that implies host execution must call one of the declared tools from \`main.js\`; if you cannot wire it, do not show it.
+- Use \`main.html\` ids/data-* hooks plus scoped queries such as \`document.getElementById()\` or \`document.querySelector()\`; do not add inline handlers to HTML.
+- Use \`state()\` with function bindings for dynamic text/attributes, and \`region(() => ...)\` for lists or conditionals.
+- Do not fake tool results, loading states, completed actions, approvals, or fetched rows before host state/tool results exist.`;
 }
 
 function normalizeTriggers(tool: ToolSpec): ToolTrigger[] {

@@ -4,9 +4,11 @@ import {
   SUMMON_FIXED_INSTRUCTIONS,
   SUMMON_FIXED_HTML_INSTRUCTIONS,
   SUMMON_FIXED_DOMJS_INSTRUCTIONS,
+  SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS,
   SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS,
+  SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
   buildToolsBlock,
   buildLayoutBlock,
   buildScaleBlock,
@@ -143,12 +145,16 @@ export function hintsForContractIssue(
   if (issue.hint) return [issue.hint];
   const profile = runtimeProfile(options.outputRuntime);
   const htmlRuntime = profile.format === 'html';
+  const surfaceDocumentRuntime = profile.format === 'surface-document';
   switch (issue.code) {
     case 'external-url':
       return ['Inline assets as data URLs or remove the external reference.'];
     case 'unsafe-tag':
       return ['Use plain HTML elements; remove iframe/object/embed/link/meta/base-like tags.'];
     case 'inline-handler':
+      if (surfaceDocumentRuntime) {
+        return ['Remove inline event handlers from main.html; wire behavior in optional main.js with scoped DOM APIs and granted host tools via callTool().'];
+      }
       if (htmlRuntime) {
         return ['Remove inline event handlers; this HTML runtime must be static HTML/CSS without generated event code.'];
       }
@@ -205,6 +211,24 @@ export function hintsForContractIssue(
       ];
     case 'domjs-network-not-granted':
       return ['Remove fetch/XHR/WebSocket; call granted host tools with callTool(name, args) instead.'];
+    case 'surface-document-html-inline-handler':
+      return ['Keep main.html inert: remove inline on* attributes and attach listeners in optional main.js with addEventListener/on<event> on scoped DOM nodes.'];
+    case 'surface-document-html-forbidden-tag':
+      return ['Keep main.html inert: remove forbidden script/style/iframe/object/embed tags; put styling in main.css and governed behavior in optional main.js.'];
+    case 'surface-document-html-javascript-url':
+      return ['Remove javascript: URLs from main.html; use safe href values or wire behavior in main.js with callTool() when a granted host action exists.'];
+    case 'surface-document-css-import':
+      return ['Remove @import from main.css; include only local CSS that expresses the Ghost fingerprint.'];
+    case 'surface-document-css-external-url':
+      return ['Remove external, data:, or javascript: url() references from main.css; use local CSS, fingerprint tokens, or inline SVG in main.html.'];
+    case 'surface-document-network-not-granted':
+      return ['Remove fetch/XHR/WebSocket from main.js; call granted host tools with callTool(toolName, args) instead.'];
+    case 'surface-document-unsupported-api':
+      return ['Use only scoped Surface Document APIs in main.js: document.getElementById/querySelector, element querySelector, createElement/createTextNode, textContent, setAttribute/removeAttribute, className/classList, style writes, append/removeChild/replaceChildren, addEventListener/on<event>, state(), region(), getState/onState, and callTool().'];
+    case 'missing-surface-document-file':
+    case 'missing-surface-document-bundle-html':
+    case 'missing-surface-document-bundle-css':
+      return ['Return a Surface Document bundle with source["main.html"] for inert structure and source["main.css"] for fingerprint styling; source["main.js"] is optional behavior only.'];
     case 'invalid-domjs-entry':
     case 'missing-domjs-bundle-entry':
       return ['Return one main.js entry that builds the UI and exports the root node as default.'];
@@ -319,14 +343,17 @@ export function compileSystemContracts(
   const profile = runtimeProfile(outputRuntime);
   const htmlRuntime = profile.format === 'html';
   const domjsRuntime = profile.format === 'domjs';
+  const surfaceDocumentRuntime = profile.format === 'surface-document';
   const promptBlocks: ContractPromptBlock[] = [
     {
       id: 'fixed',
-      text: domjsRuntime
-        ? SUMMON_FIXED_DOMJS_INSTRUCTIONS
-        : htmlRuntime
-          ? SUMMON_FIXED_HTML_INSTRUCTIONS
-          : SUMMON_FIXED_INSTRUCTIONS,
+      text: surfaceDocumentRuntime
+        ? SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS
+        : domjsRuntime
+          ? SUMMON_FIXED_DOMJS_INSTRUCTIONS
+          : htmlRuntime
+            ? SUMMON_FIXED_HTML_INSTRUCTIONS
+            : SUMMON_FIXED_INSTRUCTIONS,
       cache: 'ephemeral',
     },
   ];
@@ -379,11 +406,13 @@ export function compileSystemContracts(
 
   promptBlocks.push({
     id: 'output-contract',
-    text: domjsRuntime
-      ? SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS
-      : htmlRuntime
-        ? SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS
-        : SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
+    text: surfaceDocumentRuntime
+      ? SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS
+      : domjsRuntime
+        ? SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS
+        : htmlRuntime
+          ? SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS
+          : SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
     cache: 'none',
   });
 

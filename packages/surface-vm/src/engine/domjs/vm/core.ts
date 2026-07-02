@@ -221,6 +221,9 @@ function flushPatches(): void {
 // scheduleChildrenReplace.
 export function serialize(node: any): any {
   if (node == null) return null;
+  if (node.__kind === 'fragment') {
+    return { kind: 'fragment', children: node.__childNodes.map(serialize) };
+  }
   if (node.__kind === 'text') {
     node.__live = true; // now handed to host: future value changes emit set-text
     return { kind: 'text', id: node.__id, text: String(node.text) };

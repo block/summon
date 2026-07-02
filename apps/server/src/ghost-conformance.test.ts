@@ -7,7 +7,7 @@ import {
   resolveFingerprintPackage,
 } from '@anarchitecture/ghost/fingerprint';
 import type { GhostGraph } from '@anarchitecture/ghost/core';
-import { evaluateConformance } from './ghost-conformance.js';
+import { evaluateConformance, formatArtifactSourceForConformance } from './ghost-conformance.js';
 import type { TextCompletionRequest } from './model-providers.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -39,6 +39,32 @@ const throwingCompleteText = (): Promise<string> => {
 };
 
 const sampleArtifact = { 'main.ts': 'export const x = 1;', 'main.css': 'body{}' };
+
+describe('formatArtifactSourceForConformance', () => {
+  it('preserves design-bearing CSS even when main.js is huge', () => {
+    const formatted = formatArtifactSourceForConformance({
+      'main.js': 'const x = 1;\n'.repeat(3000),
+      'main.css': ':root { --color-bg: #12100e; }\n.surface { color: var(--color-text); }',
+    });
+
+    assert.match(formatted, /=== main\.css ===/);
+    assert.match(formatted, /--color-bg/);
+    assert.match(formatted, /=== main\.js ===/);
+    assert.match(formatted, /main\.js truncated/);
+    assert.ok(formatted.indexOf('=== main.css ===') < formatted.indexOf('=== main.js ==='));
+  });
+
+  it('preserves the Surface Document file split in governance order', () => {
+    const formatted = formatArtifactSourceForConformance({
+      'main.js': 'document.getElementById("x");',
+      'main.html': '<main id="x"><h1>Title</h1></main>',
+      'main.css': 'main { color: var(--color-text); }',
+    });
+
+    assert.ok(formatted.indexOf('=== main.css ===') < formatted.indexOf('=== main.html ==='));
+    assert.ok(formatted.indexOf('=== main.html ===') < formatted.indexOf('=== main.js ==='));
+  });
+});
 
 describe('evaluateConformance', () => {
   it('empty-checks no-op: no checks dir → evaluated:false, no model call', async () => {

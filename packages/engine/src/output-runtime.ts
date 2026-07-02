@@ -2,11 +2,12 @@ export type SummonOutputRuntime =
   | 'arrow-control'
   | 'html-static'
   | 'html-stream'
-  | 'domjs-control';
+  | 'domjs-control'
+  | 'surface-document';
 
 export const DEFAULT_SUMMON_OUTPUT_RUNTIME: SummonOutputRuntime = 'arrow-control';
 
-export type RuntimeFormat = 'arrow' | 'html' | 'domjs';
+export type RuntimeFormat = 'arrow' | 'html' | 'domjs' | 'surface-document';
 export type RuntimeDelivery = 'bundle' | 'stream';
 export type RuntimeTrust = 'sandboxed' | 'iframe-safe';
 
@@ -23,6 +24,7 @@ export const SUMMON_OUTPUT_RUNTIME_VALUES = [
   'html-static',
   'html-stream',
   'domjs-control',
+  'surface-document',
 ] as const satisfies readonly SummonOutputRuntime[];
 
 export const RUNTIME_PROFILES: Record<SummonOutputRuntime, RuntimeProfile> = {
@@ -53,6 +55,13 @@ export const RUNTIME_PROFILES: Record<SummonOutputRuntime, RuntimeProfile> = {
   'domjs-control': {
     runtime: 'domjs-control',
     format: 'domjs',
+    delivery: 'bundle',
+    trust: 'sandboxed',
+    experimental: true,
+  },
+  'surface-document': {
+    runtime: 'surface-document',
+    format: 'surface-document',
     delivery: 'bundle',
     trust: 'sandboxed',
     experimental: true,

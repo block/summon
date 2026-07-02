@@ -36,6 +36,24 @@ function htmlArtifactLine(body = '<section id="hero"><h1>HTML</h1></section>'): 
   })}\n`;
 }
 
+
+function surfaceDocumentArtifactLine(source: Record<string, string> = {
+  'main.html': '<main><p id="total">0</p><button id="inc">Increment</button></main>',
+  'main.css': 'main { color: var(--color-text); }',
+  'main.js': `const s = state({ count: 0 });
+document.getElementById('total').textContent = () => String(s.count);
+document.getElementById('inc').onclick = () => { s.count += 1; };`,
+}): string {
+  return `${JSON.stringify({
+    op: 'artifact',
+    path: '/artifact',
+    value: {
+      runtime: 'surface-document',
+      source,
+    },
+  })}\n`;
+}
+
 function htmlPatchLine(html = '<section id="hero"><h2>Updated</h2></section>'): string {
   return `${JSON.stringify({
     op: 'patch',
@@ -125,6 +143,42 @@ test('consumeSurfaceStream delivers validated HTML artifacts and patch fragments
   assert.deepEqual(patches, ['<section id="hero"><h2>Updated</h2></section>']);
   assert.equal(result.htmlPatches.length, 1);
   assert.equal(result.streamGraph.artifacts.at(-1)?.runtime, 'html');
+});
+
+
+test('consumeSurfaceStream delivers validated Surface Document artifacts', async () => {
+  const artifacts: string[] = [];
+  const result = await consumeSurfaceStream([
+    surfaceDocumentArtifactLine(),
+  ], {
+    mode: 'static',
+    onArtifact: (artifact) => {
+      if (artifact.runtime === 'surface-document') artifacts.push(artifact.source['main.html']);
+    },
+  });
+
+  assert.deepEqual(artifacts, ['<main><p id="total">0</p><button id="inc">Increment</button></main>']);
+  assert.equal(result.protocolLines.length, 1);
+  assert.equal(result.streamGraph.artifacts.at(-1)?.runtime, 'surface-document');
+  assert.deepEqual(result.validationIssues.map((issue) => issue.code), []);
+});
+
+test('consumeSurfaceStream blocks invalid Surface Document artifacts before callback delivery', async () => {
+  const artifacts: string[] = [];
+  const result = await consumeSurfaceStream([
+    surfaceDocumentArtifactLine({
+      'main.html': '<button onclick="alert(1)">Bad</button>',
+      'main.css': '.bad {}',
+    }),
+  ], {
+    mode: 'static',
+    onArtifact: (artifact) => artifacts.push(artifact.runtime),
+  });
+
+  assert.deepEqual(artifacts, []);
+  assert.equal(result.protocolLines.length, 0);
+  assert.deepEqual(result.validationIssues.map((issue) => issue.code), ['surface-document-html-inline-handler']);
+  assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
 test('consumeSurfaceStream gates scripted HTML artifacts on experimentalHtmlScript', async () => {

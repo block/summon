@@ -337,6 +337,26 @@ function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[])
     'invalid-domjs-bundle-schema',
     'missing-domjs-bundle-entry',
     'invalid-domjs-source-syntax',
+    // Surface Document runtime
+    'invalid-surface-document-artifact',
+    'invalid-surface-document-runtime',
+    'invalid-surface-document-source',
+    'invalid-surface-document-source-path',
+    'invalid-surface-document-source-file',
+    'missing-surface-document-file',
+    'surface-document-source-limit',
+    'surface-document-html-forbidden-tag',
+    'surface-document-html-inline-handler',
+    'surface-document-html-javascript-url',
+    'surface-document-css-import',
+    'surface-document-css-external-url',
+    'surface-document-network-not-granted',
+    'surface-document-unsupported-api',
+    'invalid-surface-document-bundle',
+    'invalid-surface-document-bundle-schema',
+    'missing-surface-document-bundle-html',
+    'missing-surface-document-bundle-css',
+    'invalid-surface-document-source-syntax',
   ]);
   const allowed = allowedCodes && allowedCodes.length > 0 ? new Set(allowedCodes) : null;
   return issues.some((issue) => (

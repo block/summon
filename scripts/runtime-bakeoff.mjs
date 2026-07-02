@@ -11,8 +11,10 @@ const runtimeValues = [
   'html-static',
   'html-stream',
   'domjs-control',
+  'surface-document',
 ];
 const streamRuntimes = new Set(['html-stream']);
+const surfaceVmBundleRuntimes = new Set(['domjs-control', 'surface-document']);
 
 const bundles = [
   // Only technical-noir's prompt file exists in this checkout; the other bundles'
@@ -90,6 +92,16 @@ await writeFile(join(outDir, 'runs.json'), `${JSON.stringify({
   runtimes,
   runs,
 }, null, 2)}\n`);
+for (const run of runs) {
+  if (!run.blockedSource?.source || typeof run.blockedSource.source !== 'object') continue;
+  const dir = join(outDir, 'blocked', `${run.runtime}--${run.promptId}`);
+  await mkdir(dir, { recursive: true });
+  for (const [file, contents] of Object.entries(run.blockedSource.source)) {
+    if (typeof contents !== 'string') continue;
+    await writeFile(join(dir, file.replace(/[\\/]/g, '__')), contents);
+  }
+  await writeFile(join(dir, 'issues.json'), `${JSON.stringify(run.blockIssues, null, 2)}\n`);
+}
 await writeFile(join(outDir, 'report.md'), buildReport(runs, { baseUrl: argv.baseUrl, seed: argv.seed }));
 console.log(`\n[runtime-bakeoff] wrote ${outDir}`);
 
@@ -104,6 +116,9 @@ async function runOne(item, baseUrl) {
   let artifactTti = null;
   let patchTti = null;
   let artifactSeen = false;
+  let conformance = null; // /ghost-conformance verdict — the on-thesis quality metric
+  let blockedSource = null;
+  const blockIssues = [];
   const errors = [];
   const decoder = new TextDecoder();
 
@@ -182,6 +197,9 @@ async function runOne(item, baseUrl) {
     httpStatus: status,
     artifactSeen,
     metrics,
+    conformance: summarizeConformance(conformance),
+    blockIssues,
+    blockedSource,
     errors,
   };
 
@@ -191,6 +209,20 @@ async function runOne(item, baseUrl) {
     const elapsed = roundMs(performance.now() - startedAt);
     if (line.op === 'meta' && line.path === '/run-metrics') {
       serverMetrics = line.value && typeof line.value === 'object' ? line.value : null;
+      return;
+    }
+    if (line.op === 'meta' && line.path === '/ghost-conformance') {
+      if (line.value && typeof line.value === 'object') conformance = line.value;
+      return;
+    }
+    if (line.op === 'meta' && line.path === '/validation-blocked') {
+      if (line.value && typeof line.value === 'object') {
+        blockIssues.push({ code: line.value.code ?? null, message: line.value.message ?? null, path: line.value.path ?? null });
+      }
+      return;
+    }
+    if (line.op === 'meta' && (line.path === '/domjs-blocked-source' || line.path === '/surface-document-blocked-source')) {
+      blockedSource = line.value ?? blockedSource;
       return;
     }
     if (line.op === 'meta' && line.path === '/html-stream-preview' && ttfp === null) {
@@ -204,9 +236,9 @@ async function runOne(item, baseUrl) {
     if (line.op === 'artifact' && line.path === '/artifact') {
       artifactSeen = true;
       if (artifactTti === null) artifactTti = elapsed;
-      // domjs emits no paint/preview event (the surface-vm render tree drives the
-      // live view), so its ttfp is the artifact arrival time.
-      if (ttfp === null && item.runtime === 'domjs-control') ttfp = elapsed;
+      // surface-vm bundle runtimes emit no paint/preview event (the render tree
+      // drives the live view), so their ttfp is the artifact arrival time.
+      if (ttfp === null && surfaceVmBundleRuntimes.has(item.runtime)) ttfp = elapsed;
       return;
     }
     if (line.op === 'patch' && line.path === '/artifact/html-patch' && patchTti === null) {
@@ -240,13 +272,15 @@ function buildReport(runs, options) {
     `Base URL: ${options.baseUrl}`,
     `Seed: ${options.seed}`,
     '',
-    '| Runtime | Runs | Success | Block | TTFB | TTFP | TTI | Complete | Bytes | Repairs | Safety |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Runtime | Runs | Success | Block | Conformance | HighFail | TTFB | TTFP | TTI | Complete | Bytes | Repairs | Safety |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
     ...rows.map((row) => [
       row.runtime,
       row.runs,
       formatRate(row.ok, row.runs),
       formatRate(row.blocked, row.runs),
+      row.conformance ? formatRate(row.conformance.pass, row.conformance.total) : 'n/a',
+      row.conformance ? row.conformance.failedHigh : 'n/a',
       formatMetricMs(row.avgTtfb),
       formatMetricMs(row.avgTtfp),
       formatMetricMs(row.avgTti),
@@ -259,7 +293,7 @@ function buildReport(runs, options) {
     '## Kill Criteria Notes',
     '',
     '- Keep `html-stream` only if TTFP is at least 40% lower than `html-static` and block rate is at most 1.5x `html-static`.',
-    '- `arrow-control` is the secure default. `html-static` (inert) and `html-stream` remain experiments.',
+    '- `arrow-control` is the current default. `domjs-control` and `surface-document` are capability-sandboxed experiments; `html-static`/`html-stream` are inert/iframe experiments.',
     '',
   ].join('\n');
 }
@@ -281,9 +315,40 @@ function aggregateRows(runs) {
         avgBytes: averageNumber(items.map((run) => run.metrics.bytes)),
         avgRepairs: averageNumber(items.map((run) => run.metrics.repairs)),
         safetyViolations: items.reduce((sum, run) => sum + run.metrics.safetyViolations, 0),
+        conformance: aggregateConformance(items),
       };
     })
     .filter(Boolean);
+}
+
+// Reduce a /ghost-conformance verdict to the fields the bakeoff compares.
+// Full check-level detail stays in runs.json via the raw summary counts.
+function summarizeConformance(verdict) {
+  if (!verdict || verdict.evaluated !== true || !verdict.summary) return null;
+  const s = verdict.summary;
+  const total = (s.pass ?? 0) + (s.fail ?? 0) + (s.inconclusive ?? 0);
+  return {
+    surface: verdict.surface ?? null,
+    pass: s.pass ?? 0,
+    fail: s.fail ?? 0,
+    inconclusive: s.inconclusive ?? 0,
+    failedHigh: s.failedHigh ?? 0,
+    total,
+    checks: Array.isArray(verdict.checks)
+      ? verdict.checks
+          .filter((c) => c.verdict !== 'pass')
+          .map((c) => ({ name: c.name, severity: c.severity, verdict: c.verdict, reason: c.reason }))
+      : [],
+  };
+}
+
+function aggregateConformance(items) {
+  const evaluated = items.filter((run) => run.conformance);
+  if (evaluated.length === 0) return null;
+  const pass = evaluated.reduce((sum, run) => sum + run.conformance.pass, 0);
+  const total = evaluated.reduce((sum, run) => sum + run.conformance.total, 0);
+  const failedHigh = evaluated.reduce((sum, run) => sum + run.conformance.failedHigh, 0);
+  return { evaluatedRuns: evaluated.length, pass, total, failedHigh };
 }
 
 function parseArgs(args) {

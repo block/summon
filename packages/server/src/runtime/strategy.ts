@@ -11,6 +11,7 @@ import { ArrowControlStrategy } from './arrow-control.js';
 import { DomjsControlStrategy } from './domjs-control.js';
 import { HtmlBundleStrategy } from './html-bundle.js';
 import { HtmlStreamStrategy } from './html-stream.js';
+import { SurfaceDocumentStrategy } from './surface-document.js';
 
 export type SurfacePhase =
   | 'planning'
@@ -66,18 +67,22 @@ export function createRuntimeStrategy(runtime: SummonOutputRuntime): RuntimeStra
       return new HtmlStreamStrategy();
     case 'domjs-control':
       return new DomjsControlStrategy();
+    case 'surface-document':
+      return new SurfaceDocumentStrategy();
   }
 }
 
 function outputModeFormat(format: string): string {
   if (format === 'arrow') return 'arrow-bundle';
   if (format === 'domjs') return 'domjs-bundle';
+  if (format === 'surface-document') return 'surface-document-bundle';
   return 'html-bundle';
 }
 
 function outputModeSchema(format: string): string {
   if (format === 'arrow') return 'summon.arrow-bundle/v1';
   if (format === 'domjs') return 'summon.domjs-bundle/v1';
+  if (format === 'surface-document') return 'summon.surface-document-bundle/v1';
   return 'summon.html-bundle/v0';
 }
 
@@ -99,8 +104,16 @@ export function missingArtifactIssueForProfile(profile: RuntimeProfile): Contrac
     ? 'missing-arrow-artifact'
     : profile.format === 'domjs'
       ? 'missing-domjs-artifact'
-      : 'missing-html-artifact';
-  const label = profile.format === 'arrow' ? 'Arrow' : profile.format === 'domjs' ? 'domjs' : 'HTML';
+      : profile.format === 'surface-document'
+        ? 'missing-surface-document-artifact'
+        : 'missing-html-artifact';
+  const label = profile.format === 'arrow'
+    ? 'Arrow'
+    : profile.format === 'domjs'
+      ? 'domjs'
+      : profile.format === 'surface-document'
+        ? 'Surface Document'
+        : 'HTML';
   return contractIssue({
     source: 'protocol',
     severity: 'block',

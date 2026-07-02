@@ -10,6 +10,7 @@ import {
   parseHtmlSandboxMessage,
   resolveInlineToolCall,
   scopeTokenCss,
+  shadowSurfaceCss,
 } from '../src/inline-surface.ts';
 
 test('inline bridge rejects a granted tool without a host handler', async () => {
@@ -181,6 +182,40 @@ button, input, textarea::placeholder, a:hover, strong, b {
   assert.match(scoped, /@keyframes pulse\s*\{\s*from \{ opacity: 0; \}\s*to \{ opacity: 1; \}\s*\}/);
   assert.doesNotMatch(scoped, /(^|})\s*button\s*,/);
   assert.doesNotMatch(scoped, /(^|})\s*a:hover\s*\{/);
+});
+
+test('shadow surface CSS maps document-level selectors without prefixing ordinary selectors', () => {
+  const css = shadowSurfaceCss(`
+:root {
+  --color-text: #111;
+}
+
+html, body {
+  margin: 0;
+}
+
+.card, button:hover {
+  color: var(--color-text);
+}
+
+@media (min-width: 40rem) {
+  body {
+    background: black;
+  }
+}
+
+@keyframes pulse {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+`);
+
+  assert.match(css, /:host\s*\{\s*--color-text: #111;/);
+  assert.match(css, /\.summon-surface-document-mount, \.summon-surface-document-mount\s*\{\s*margin: 0;/);
+  assert.match(css, /\.card, button:hover\s*\{\s*color: var\(--color-text\);/);
+  assert.match(css, /@media \(min-width: 40rem\)\s*\{\s*\.summon-surface-document-mount\s*\{\s*background: black;/);
+  assert.match(css, /@keyframes pulse\s*\{\s*from \{ opacity: 0; \}\s*to \{ opacity: 1; \}\s*\}/);
+  assert.doesNotMatch(css, /data-summon-inline-surface/);
 });
 
 test('HTML iframe message parser rejects forged messages', () => {
