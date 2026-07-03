@@ -308,7 +308,7 @@ export function useSurfaceStream({
     }
     if (line.op === 'artifact') {
       const artifact = line.value as { runtime?: string; source?: Record<string, string> } | undefined;
-      const validArtifact = artifact?.runtime === 'surface-document' || artifact?.runtime === 'arrow' || artifact?.runtime === 'html' || artifact?.runtime === 'domjs';
+      const validArtifact = artifact?.runtime === 'surface-document';
       const files = validArtifact && artifact?.source
         ? Object.keys(artifact.source).join(', ')
         : 'invalid';

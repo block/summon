@@ -7,7 +7,7 @@
 // plain-data event snapshots. It never sends a live DOM node or Event across
 // the boundary. Keep it a faithful, boring port; do not "improve" it.
 //
-// Ported from @arrow-js/sandbox's host renderer (MIT), against our protocol.ts.
+// Host renderer for Surface VM patches, against our protocol.ts.
 
 import type {
   SandboxedEventPayload,

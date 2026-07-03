@@ -17,13 +17,14 @@ const ENTRY_PATH = '/main.js';
 
 // The public host-bridge specifier the model imports from. Generated surfaces
 // write `import { callTool, getState, onState } from "host-bridge:summon"`, so
-// the domjs module map must resolve it (the Arrow path supplies the same
+// the domjs module map must resolve it (the alternate path supplies the same
 // specifier). We re-export the host capability glue from the domjs core so both
 // the ambient globals installed by the bootstrap and explicit imports resolve
 // to the identical implementation.
 const HOST_BRIDGE_MODULE_ID = 'host-bridge:summon';
 const HOST_BRIDGE_SOURCE = `
 export { callTool, getState, onState, emit, output } from '${DOMJS_CORE_MODULE_ID}';
+export { document, region, state, reactive } from '${DOMJS_FACADE_MODULE_ID}';
 `;
 
 // The bootstrap installs the facade as ambient globals (`document`, `region`,

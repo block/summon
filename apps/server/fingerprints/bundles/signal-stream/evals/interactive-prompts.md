@@ -1,7 +1,7 @@
 # Signal Stream — interactive bakeoff prompts
 
 Interactive surfaces chosen to stress dynamic lists, local state, and event
-handling — exactly where the arrow dialect's `.map`/IDL-binding quirks tend to
+handling — exactly where the unsupported template dialect's `.map`/IDL-binding quirks tend to
 bite and where the domjs fluency hypothesis is strongest.
 
 ## ss-todo

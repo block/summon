@@ -5,7 +5,7 @@
 // serialized DOM tree (`SerializedNode`) plus a small set of DOM patches
 // (`VmPatch`), with events flowing back as plain-data snapshots
 // (`SandboxedEventPayload`). There is intentionally NOTHING here about how the
-// UI was authored (Arrow, imperative HTML/JS, anything else) — engines produce
+// However UI is authored, engines produce this neutral protocol.
 // these messages; the host renderer consumes them.
 //
 // Shape is deliberately small. Do not grow `VmPatch` without a real prompt that
@@ -18,7 +18,7 @@
 // structural DOM mutation (append/removeChild/textContent reset) crosses the
 // boundary without new ops.
 //
-// Vendored and owned by Summon (originally modeled on @arrow-js/sandbox's
+// Vendored and owned by Summon.
 // shared protocol, MIT). We own it now: it is our cross-platform UI wire format.
 
 /** A plain-data snapshot of an event target. Never a live DOM node. */

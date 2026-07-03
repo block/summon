@@ -66,7 +66,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'host-resource',
         authority: 'read',
         persistence: 'replayable',
@@ -83,7 +83,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['ai'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'host-resource',
         authority: 'read',
         persistence: 'replayable',
@@ -100,7 +100,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['github_lookup'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'host-resource',
         authority: 'read',
         persistence: 'replayable',
@@ -108,7 +108,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       },
     },
   {
-    id: 'arrow-fidelity',
+    id: 'surface-document-fidelity',
     label: 'Job offer call',
     prompt:
       'help me review two job offers, compare the main tradeoffs side by side, and choose the one to accept',
@@ -121,7 +121,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     },
       surfacePlan: {
         purpose: 'review',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -137,7 +137,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'static', purpose: 'compare' },
       surfacePlan: {
         purpose: 'compare',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'none',
         persistence: 'replayable',
@@ -154,7 +154,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'compare', grants: ['choose'] },
       surfacePlan: {
         purpose: 'compare',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -171,7 +171,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
       surfacePlan: {
         purpose: 'collect',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -188,7 +188,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'worker', purpose: 'review', grants: ['analysis', 'compute_score'] },
       surfacePlan: {
         purpose: 'review',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'worker',
         authority: 'host-action',
         persistence: 'replayable',
@@ -205,7 +205,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'approval', purpose: 'operate', grants: ['publish_summary'] },
       surfacePlan: {
         purpose: 'operate',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'approval-gated',
         persistence: 'replayable',
@@ -222,7 +222,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -239,7 +239,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -257,7 +257,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     layoutId: 'card-structured',
       surfacePlan: {
         purpose: 'collect',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -274,7 +274,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search', 'summon'] },
       surfacePlan: {
         purpose: 'explore',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'host-resource',
         authority: 'host-action',
         persistence: 'replayable',
@@ -294,7 +294,7 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
     surfacePolicy: { tier: 'declarative', purpose: 'review', grants: ['choose'] },
       surfacePlan: {
         purpose: 'review',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',

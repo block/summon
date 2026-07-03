@@ -18,7 +18,7 @@ export interface ActionStateKeys {
   error: string;
 }
 
-const ARROW_TRIGGER_DOCS: Array<{ trigger: ToolTrigger; description: string }> = [
+const SURFACE_DOCUMENT_TRIGGER_DOCS: Array<{ trigger: ToolTrigger; description: string }> = [
   {
     trigger: 'click',
     description: 'Fires an action or resource when the element is clicked.',
@@ -46,15 +46,15 @@ export function hasCompleteResourceStateKeys(
 }
 
 export function formatToolProtocolContract(): string {
-  const triggerRows = ARROW_TRIGGER_DOCS.map(
-    (spec) => `- \`${spec.trigger}\` — ${spec.description} Author this as an Arrow event handler or lifecycle call that invokes the granted tool.`,
+  const triggerRows = SURFACE_DOCUMENT_TRIGGER_DOCS.map(
+    (spec) => `- \`${spec.trigger}\` — ${spec.description} Author this in \`main.js\` using scoped DOM events or lifecycle code that invokes the granted tool.`,
   ).join('\n');
 
-  return `### Arrow host bridge
+  return `### Surface Document host bridge
 
-Use Arrow-native interactivity. Import the bridge from \`host-bridge:summon\` inside the generated Arrow entry file:
+Use Surface Document interactivity. Import the bridge from \`host-bridge:summon\` inside optional \`main.js\`:
 
-\`\`\`ts
+\`\`\`js
 import { callTool, getState, onState } from "host-bridge:summon";
 \`\`\`
 
@@ -67,7 +67,7 @@ ${triggerRows}
 - \`await callTool(toolName, args)\` calls a granted host tool and resolves to \`{ ok, state, error? }\`.
 - \`await getState()\` reads the latest host-owned state snapshot.
 - \`onState((state) => { ... })\` subscribes to host \`pushState()\` updates and returns an unsubscribe function.
-- Copy host-owned keys into Arrow \`reactive()\` state before rendering loading, data, error, empty, pending, or done UI.
+- Copy host-owned values into local \`state()\` when rendering loading, data, error, empty, pending, or done UI.
 
 #### Data resources
 

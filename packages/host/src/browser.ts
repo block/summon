@@ -1,11 +1,11 @@
-export { mountInlineSurface } from './inline-surface.js';
+export { mountSummonSurface } from './summon-surface.js';
 export type {
-  InlineSurfaceArtifact,
-  InlineSurfaceHandle,
-  InlineSurfaceOptions,
+  SummonSurfaceArtifact,
+  SummonSurfaceHandle,
+  SummonSurfaceOptions,
   SurfacePreviewNode,
   SurfacePreviewSnapshot,
-} from './inline-surface.js';
+} from './summon-surface.js';
 export { consumeSurfaceStream } from './surface-stream.js';
 export type {
   SurfaceStreamContext,

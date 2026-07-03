@@ -125,7 +125,7 @@ test('planAgentSurface proposes and compiles a declarative policy', async () => 
   assert.deepEqual(plan.compiledPolicy.issues, []);
     assert.deepEqual(plan.compiledPolicy.surfacePlan, {
       purpose: 'explore',
-      runtime: 'arrow',
+      runtime: 'surface-document',
       data: 'host-resource',
       authority: 'read',
       persistence: 'replayable',
@@ -272,7 +272,7 @@ test('planAgentSurface selects host actions only from explicit action phrasing',
   assert.deepEqual(plan.surfacePolicy.grants, ['choose']);
     assert.deepEqual(plan.compiledPolicy.surfacePlan, {
       purpose: 'operate',
-      runtime: 'arrow',
+      runtime: 'surface-document',
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',

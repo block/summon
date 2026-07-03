@@ -1,4 +1,4 @@
-// App-level: mount Surface Document artifacts through mountInlineSurface and
+// App-level: mount Surface Document artifacts through mountSummonSurface and
 // verify render, tool call round-trips through the host bridge, grant
 // enforcement, style containment, and clean runtime-error reporting.
 
@@ -20,7 +20,7 @@ g.HTMLStyleElement = window.HTMLStyleElement;
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createEventStore } from '@summon-internal/devtools';
-import { mountInlineSurface } from '../src/inline-surface.ts';
+import { mountSummonSurface } from '../src/summon-surface.ts';
 import type { SurfaceDocumentArtifact } from '@summon-internal/engine';
 
 function makeRoot(): HTMLElement {
@@ -53,7 +53,7 @@ test('an ungranted tool call is rejected (not executed)', async () => {
     },
   };
 
-  const handle = mountInlineSurface({
+  const handle = mountSummonSurface({
     root,
     artifact,
     grantedTools: [], // nothing granted
@@ -82,7 +82,7 @@ test('token style is installed inside the shadow root', async () => {
     },
   };
 
-  const handle = mountInlineSurface({
+  const handle = mountSummonSurface({
     root,
     artifact,
     grantedTools: [],
@@ -108,7 +108,7 @@ test('artifact main.css is injected into the shadow root without host scoping se
     },
   };
 
-  const handle = mountInlineSurface({ root, artifact, grantedTools: [] });
+  const handle = mountSummonSurface({ root, artifact, grantedTools: [] });
   await wait();
 
   const shadow = surfaceDocumentShadowRoot(root);
@@ -116,7 +116,7 @@ test('artifact main.css is injected into the shadow root without host scoping se
   assert.ok(artifactStyle, 'artifact <style> must be injected for main.css');
   assert.match(artifactStyle?.textContent ?? '', /display: grid/);
   // Shadow containment replaces attribute-scoping; host selectors must not leak in.
-  assert.doesNotMatch(artifactStyle?.textContent ?? '', /data-summon-inline-surface/);
+  assert.doesNotMatch(artifactStyle?.textContent ?? '', /data-summon-surface/);
   handle.dispose();
 });
 
@@ -134,7 +134,7 @@ test('a Surface Document runtime error is reported, not thrown', async () => {
     },
   };
 
-  const handle = mountInlineSurface({
+  const handle = mountSummonSurface({
     root,
     artifact,
     grantedTools: [],
@@ -161,7 +161,7 @@ test('mounts a Surface Document artifact and hydrates behavior', async () => {
     },
   };
 
-  const handle = mountInlineSurface({ root, artifact, grantedTools: [] });
+  const handle = mountSummonSurface({ root, artifact, grantedTools: [] });
   await wait();
 
   const shadow = surfaceDocumentShadowRoot(root);
@@ -173,7 +173,7 @@ test('mounts a Surface Document artifact and hydrates behavior', async () => {
   assert.equal(shadow.querySelector('#total')?.textContent, '1');
   const artifactStyle = shadow.querySelector('style[data-summon-shadow-artifact-css]');
   assert.ok(artifactStyle, 'main.css should be injected in the shadow root');
-  assert.doesNotMatch(artifactStyle.textContent ?? '', /data-summon-inline-surface/);
+  assert.doesNotMatch(artifactStyle.textContent ?? '', /data-summon-surface/);
   handle.dispose();
 });
 
@@ -189,7 +189,7 @@ test('Surface Document host bridge calls granted tools', async () => {
     },
   };
 
-  const handle = mountInlineSurface({
+  const handle = mountSummonSurface({
     root,
     artifact,
     grantedTools: ['save'],

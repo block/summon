@@ -155,7 +155,7 @@ test('system compiler uses surface-document prompt blocks intentionally', () => 
   assert.match(systemText, /main\.html is inert structure/);
   assert.match(systemText, /main\.css is fingerprint styling/);
   assert.match(systemText, /callTool\(toolName, args\)/);
-  assert.doesNotMatch(systemText, /create_summon_arrow_surface/);
+  assert.doesNotMatch(systemText, /create_summon_old_surface/);
   assert.doesNotMatch(systemText, /create_summon_html_surface/);
 });
 
@@ -204,13 +204,13 @@ test('system compiler includes compact surface contract view without dropping de
 test('surface plan normalization and suggestions are stable', () => {
   assert.deepEqual(normalizeSurfacePlan({
     purpose: 'operate',
-    runtime: 'arrow',
+    runtime: 'surface-document',
     data: 'worker',
     authority: 'approval-gated',
     persistence: 'replayable',
   }), {
     purpose: 'operate',
-    runtime: 'arrow',
+    runtime: 'surface-document',
     data: 'worker',
     authority: 'approval-gated',
     persistence: 'replayable',
@@ -235,7 +235,7 @@ test('surface plan normalization and suggestions are stable', () => {
 
   assert.deepEqual(suggestion, {
     purpose: 'compare',
-    runtime: 'arrow',
+    runtime: 'surface-document',
     data: 'embedded',
     authority: 'host-action',
     persistence: 'replayable',
@@ -335,7 +335,7 @@ test('system compiler produces Surface Document interactive tool contracts', () 
   assert.match(toolsBlock?.text ?? '', /onState/);
   assert.match(toolsBlock?.text ?? '', /state\(\)/);
   assert.match(toolsBlock?.text ?? '', /region\(\(\) => \.\.\.\)/);
-  assert.doesNotMatch(toolsBlock?.text ?? '', /Arrow/);
+  assert.doesNotMatch(toolsBlock?.text ?? '', /old runtime/);
 });
 
 test('contract repair hints target Surface Document authoring', () => {

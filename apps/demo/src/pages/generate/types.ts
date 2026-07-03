@@ -31,7 +31,7 @@ export interface ModelProviderInfo {
 export interface ModelCatalogEntry {
   id: string;
   label: string;
-  status: 'stable' | 'preview' | 'latest' | 'legacy';
+  status: 'stable' | 'preview' | 'latest' | 'retired';
   tier: 'fast' | 'balanced' | 'frontier';
   maxOutputTokens: number;
   description?: string;
@@ -84,7 +84,7 @@ export interface ModelSelectionPayload {
   modelProfiles?: Partial<Record<ModelProfileKey, ModelSelectionPayload>>;
 }
 
-export type DiagnosticsTab = 'stream' | 'devtools' | 'timing' | 'history' | 'safety';
+export type DiagnosticsTab = 'stream' | 'devtools' | 'timing' | 'saved' | 'safety';
 
 export type RunProfile = 'fast' | 'quality' | 'custom';
 

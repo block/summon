@@ -33,7 +33,7 @@ export function isMounted(): boolean { return mounted; }
 export function allocNodeId(): string { nextNodeId += 1; return 'snode:' + nextNodeId; }
 export function allocHandlerId(): string { nextHandlerId += 1; return 'shandler:' + nextHandlerId; }
 
-// --- Reactivity (ported from arrow-js's dependency-tracking model) ----------
+// --- Reactivity -----------------------------------------------------------
 // reactive(obj) returns a tracking proxy. A "binding" is an effect: a function
 // that reads reactive state. While it runs, every reactive key it reads records
 // the binding as a dependent. When that key is written, the binding re-runs.

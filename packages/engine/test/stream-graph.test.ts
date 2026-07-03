@@ -51,14 +51,14 @@ test('contract issues update warning and blocked health counters', () => {
   const warning: ContractIssue = {
     source: 'artifact',
     severity: 'warn',
-    code: 'unsupported-arrow-pattern',
-    message: 'Arrow source uses a discouraged pattern',
+    code: 'unsupported-surface-document-pattern',
+    message: 'Surface Document source uses a discouraged pattern',
   };
   const blocked: ContractIssue = {
     source: 'protocol',
     severity: 'block',
-    code: 'invalid-arrow-artifact',
-    message: 'Artifact line value must be an Arrow artifact object',
+    code: 'invalid-surface-document-artifact',
+    message: 'Artifact line value must be a Surface Document artifact object',
     path: '/artifact',
   };
 
@@ -69,7 +69,7 @@ test('contract issues update warning and blocked health counters', () => {
   assert.equal(snap.health.warningCount, 1);
   assert.equal(snap.health.blockedCount, 1);
   assert.equal(snap.health.complete, false);
-  assert.equal(snap.artifacts[0]?.lastIssue?.code, 'invalid-arrow-artifact');
+  assert.equal(snap.artifacts[0]?.lastIssue?.code, 'invalid-surface-document-artifact');
 });
 
 test('validation summary merges aggregate graph health', () => {

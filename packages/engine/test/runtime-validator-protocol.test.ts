@@ -60,7 +60,7 @@ test('accepts valid Surface Document artifacts', () => {
       ...baseContext,
       surfacePlan: {
         purpose: 'operate',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'host-action',
         persistence: 'replayable',
@@ -132,15 +132,15 @@ test('blocks malformed and unsafe Surface Document artifacts', () => {
         op: 'artifact',
         path: '/artifact',
         value: {
-          runtime: 'arrow',
+          runtime: 'surface-document',
           source: {
-            'main.ts': 'export default html`<div>legacy</div>`',
+            'main.ts': 'export default html`<div>unsupported</div>`',
           },
         },
       },
       baseContext,
     )),
-    ['invalid-artifact-runtime'],
+    ['invalid-surface-document-source-path', 'missing-surface-document-file', 'missing-surface-document-file'],
   );
 
   assert.deepEqual(

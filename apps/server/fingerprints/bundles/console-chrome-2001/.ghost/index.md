@@ -357,7 +357,7 @@ Six principles carry the language and are true on every surface:
    specific IP. Use generic mascots, speech bubbles, hardware metaphors, cartridges,
    controllers, stars, arrows, or circuitry as abstract motifs; rename nav, badges,
    product panels, and hero copy to match the user's prompt rather than any
-   historical site. Public research informs composition, never permission to reuse
+   older site. Public research informs composition, never permission to reuse
    protected characters or wordmarks.
 
 **Bolting a faceplate from the parts.** Console Chrome 2001 has no fixed page
@@ -412,4 +412,4 @@ for micro captions, with visible focus outlines or dotted rings and enlarged
 invisible padding when touch use is likely. Generated surfaces must stay
 source-agnostic — generic product naming from the user's prompt, original or
 abstract mascot and hardware motifs, and new layouts generated from the patterns
-rather than traced from historical screenshots.
+rather than traced from older screenshots.

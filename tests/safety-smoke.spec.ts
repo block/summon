@@ -4,7 +4,7 @@ type ProtocolLine = Record<string, unknown>;
 
 const hostSearchPlan = {
   purpose: 'explore',
-  runtime: 'arrow',
+  runtime: 'surface-document',
   data: 'host-resource',
   authority: 'read',
   persistence: 'replayable',
@@ -13,7 +13,7 @@ const hostSearchPlan = {
 
 const staticSummaryPlan = {
   purpose: 'compare',
-  runtime: 'arrow',
+  runtime: 'surface-document',
   data: 'embedded',
   authority: 'none',
   persistence: 'replayable',
@@ -176,7 +176,7 @@ test('generate page boots the inline workbench without server credentials', asyn
 
   await page.goto('/generate');
 
-  await expect(page.locator('#sandbox')).toHaveAttribute('data-summon-inline-surface', /.+/);
+  await expect(page.locator('#sandbox')).toHaveAttribute('data-summon-surface', /.+/);
   await expect(page.locator('#sandbox iframe')).toHaveCount(0);
   await expect(page.locator('#sandbox [data-summon-preview-root]')).toBeAttached();
   await expect(page.locator('#go')).toBeEnabled();
@@ -229,7 +229,7 @@ test('generate page run profiles restore quality defaults and mark manual change
   await expect(page.locator('#run-profile-custom')).toBeChecked();
 });
 
-test('generate page renders a mocked Surface Document artifact through the inline sandbox', async ({ page }) => {
+test('generate page renders a mocked Surface Document artifact through the Summon sandbox', async ({ page }) => {
   let captured: Record<string, unknown> | null = null;
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
@@ -278,15 +278,15 @@ test('generate page renders a mocked Surface Document artifact through the inlin
           path: '/timing',
           value: {
             phase: 'drafting',
-            label: 'Drafting Arrow artifact',
+            label: 'Drafting Surface Document artifact',
             elapsedMs: 12,
             durationMs: 4,
             source: 'server',
           },
         },
         surfaceDocumentArtifact({
-          html: '<section id="arrow-probe"><h1>Dinner Finder</h1><p>Rendered by the Summon VM.</p></section>',
-          css: '#arrow-probe { color: var(--color-text, #111); }',
+          html: '<section id="surface-document-probe"><h1>Dinner Finder</h1><p>Rendered by the Summon VM.</p></section>',
+          css: '#surface-document-probe { color: var(--color-text, #111); }',
         }),
         streamGraphSummary(),
       ]),
@@ -300,7 +300,7 @@ test('generate page renders a mocked Surface Document artifact through the inlin
   await expect(page.locator('#welcome')).toBeHidden();
   const mountedSurface = page.locator('#sandbox .summon-surface-document-host');
   await expect(mountedSurface).toHaveCount(1);
-  await expect.poll(async () => mountedSurface.evaluate((host) => host.shadowRoot?.querySelector('#arrow-probe')?.textContent ?? '')).toContain('Dinner Finder');
+  await expect.poll(async () => mountedSurface.evaluate((host) => host.shadowRoot?.querySelector('#surface-document-probe')?.textContent ?? '')).toContain('Dinner Finder');
   await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.locator('#contract-summary [data-contract-row="ward"]')).toContainText('default');
   await expect(page.locator('#contract-summary [data-contract-row="stream"]')).toContainText('complete');
@@ -463,10 +463,10 @@ test('surface-document renders in shadow DOM and contains hostile host CSS', asy
   expect(shadowResult.countText).toBe('1');
   expect(shadowResult.cardColor).toBe('rgb(0, 0, 255)');
   expect(shadowResult.buttonRadius).toBe('17px');
-  expect(shadowResult.styleText).not.toContain('data-summon-inline-surface');
+  expect(shadowResult.styleText).not.toContain('data-summon-surface');
 });
 
-test('adversarial inline sandbox boundary rejects ambient browser globals and ungranted tools', async ({ page }) => {
+test('adversarial Summon sandbox boundary rejects ambient browser globals and ungranted tools', async ({ page }) => {
   await page.goto('/adversarial');
 
   const summary = page.locator('#summary');
@@ -487,7 +487,7 @@ test('unknown demo routes redirect to the current generate workbench', async ({ 
   await page.goto('/unknown-route');
 
   await expect(page).toHaveURL(/\/generate$/);
-  await expect(page.locator('#sandbox')).toHaveAttribute('data-summon-inline-surface', /.+/);
+  await expect(page.locator('#sandbox')).toHaveAttribute('data-summon-surface', /.+/);
   await expect(page.getByRole('button', { name: 'Hike finder', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',

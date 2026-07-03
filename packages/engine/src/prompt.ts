@@ -1,7 +1,7 @@
 /**
  * System prompt builder.
  *
- * Ownership boundary (see docs/archive/prompt-architecture.md):
+ * Ownership boundary (see docs/spec/prompt-architecture.md):
  *   - Summon layer (this file's fixed/output blocks): runtime mechanics, sandbox
  *     safety, output shape. NO design or composition guidance.
  *   - Ghost layer: all composition, hierarchy, density, tone, visual design.

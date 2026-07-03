@@ -9,7 +9,7 @@ export type SurfacePurpose =
   | 'review'
   | 'export';
 
-type SurfaceRuntime = 'arrow';
+type SurfaceRuntime = 'surface-document';
 export type SurfaceData = 'embedded' | 'host-resource' | 'worker';
 export type SurfaceAuthority = 'none' | 'read' | 'host-action' | 'approval-gated';
 export type SurfacePersistence = 'ephemeral' | 'replayable';
@@ -27,7 +27,7 @@ export const SURFACE_PURPOSE_VALUES = [
 ] as const satisfies readonly SurfacePurpose[];
 
 const SURFACE_RUNTIME_VALUES = [
-  'arrow',
+  'surface-document',
 ] as const satisfies readonly SurfaceRuntime[];
 
 export const SURFACE_NETWORK_VALUES = [
@@ -76,7 +76,7 @@ export interface SurfacePlanInferenceInput {
 
 export const DEFAULT_SURFACE_PLAN: SurfacePlan = {
   purpose: 'inform',
-  runtime: 'arrow',
+  runtime: 'surface-document',
   data: 'embedded',
   authority: 'none',
   persistence: 'replayable',
@@ -107,7 +107,7 @@ export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePla
   if (input.mode === 'static') {
     return {
       purpose: inferPurpose(input.prompt),
-      runtime: 'arrow',
+      runtime: 'surface-document',
       data: 'embedded',
       authority: 'none',
       persistence: input.persistence ?? 'replayable',
@@ -127,7 +127,7 @@ export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePla
 
   return {
     purpose: inferPurpose(input.prompt),
-    runtime: 'arrow',
+    runtime: 'surface-document',
     data: hasWorker ? 'worker' : hasResource ? 'host-resource' : 'embedded',
     authority: hasApproval ? 'approval-gated' : hasAction ? 'host-action' : hasResource ? 'read' : 'none',
     persistence: input.persistence ?? 'replayable',

@@ -8,11 +8,11 @@ import type {
 
 import { buildSurfaceDocumentModules, mountSurface } from '@summon-internal/surface-vm';
 
-export type InlineSurfaceArtifact = SurfaceDocumentArtifact;
+export type SummonSurfaceArtifact = SurfaceDocumentArtifact;
 
-export interface InlineSurfaceOptions {
+export interface SummonSurfaceOptions {
   root: HTMLElement;
-  artifact?: InlineSurfaceArtifact | null;
+  artifact?: SummonSurfaceArtifact | null;
   grantedTools: string[];
   validationTools?: ValidationTool[];
   initialState?: Record<string, unknown>;
@@ -49,10 +49,10 @@ export interface SurfacePreviewSnapshot {
   finalized: boolean;
 }
 
-export interface InlineSurfaceHandle {
+export interface SummonSurfaceHandle {
   surfaceId: string;
   root: HTMLElement;
-  renderArtifact(artifact: InlineSurfaceArtifact): void;
+  renderArtifact(artifact: SummonSurfaceArtifact): void;
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot;
   previewSnapshot(): SurfacePreviewSnapshot;
@@ -61,28 +61,28 @@ export interface InlineSurfaceHandle {
 
 const PREVIEW_ROOT_ATTR = 'data-summon-preview-root';
 
-interface InlineToolCallOptions {
+interface SummonSurfaceToolCallOptions {
   surfaceId: string;
   toolAllowlist: ReadonlySet<string>;
   currentState: Record<string, unknown>;
   tool: unknown;
   rawArgs: unknown;
-  onToolCall?: InlineSurfaceOptions['onToolCall'];
-  onToolRejected?: InlineSurfaceOptions['onToolRejected'];
+  onToolCall?: SummonSurfaceOptions['onToolCall'];
+  onToolRejected?: SummonSurfaceOptions['onToolRejected'];
   events?: EventStore;
 }
 
-interface InlineToolCallResult {
+interface SummonSurfaceToolCallResult {
   ok: boolean;
   state: Record<string, unknown>;
   error?: string;
   stateChanged: boolean;
 }
 
-export async function resolveInlineToolCall(options: InlineToolCallOptions): Promise<InlineToolCallResult> {
+export async function resolveSummonSurfaceToolCall(options: SummonSurfaceToolCallOptions): Promise<SummonSurfaceToolCallResult> {
   const { currentState, events, onToolCall, onToolRejected, rawArgs, surfaceId, tool, toolAllowlist } = options;
   if (typeof tool !== 'string' || !tool) {
-    return rejectInlineToolCall('tool not a non-empty string', {
+    return rejectSummonSurfaceToolCall('tool not a non-empty string', {
       currentState,
       events,
       onToolRejected,
@@ -91,7 +91,7 @@ export async function resolveInlineToolCall(options: InlineToolCallOptions): Pro
     });
   }
   if (!toolAllowlist.has(tool)) {
-    return rejectInlineToolCall(`tool "${tool}" not granted`, {
+    return rejectSummonSurfaceToolCall(`tool "${tool}" not granted`, {
       currentState,
       events,
       onToolRejected,
@@ -100,7 +100,7 @@ export async function resolveInlineToolCall(options: InlineToolCallOptions): Pro
     });
   }
   if (!onToolCall) {
-    return rejectInlineToolCall(`tool "${tool}" has no host handler`, {
+    return rejectSummonSurfaceToolCall(`tool "${tool}" has no host handler`, {
       currentState,
       events,
       onToolRejected,
@@ -129,23 +129,23 @@ export async function resolveInlineToolCall(options: InlineToolCallOptions): Pro
   }
 }
 
-function rejectInlineToolCall(
+function rejectSummonSurfaceToolCall(
   error: string,
   options: {
     currentState: Record<string, unknown>;
     raw: unknown;
-    onToolRejected?: InlineSurfaceOptions['onToolRejected'];
+    onToolRejected?: SummonSurfaceOptions['onToolRejected'];
     events?: EventStore;
     surfaceId?: string;
   },
-): InlineToolCallResult {
+): SummonSurfaceToolCallResult {
   options.events?.push({ kind: 'tool-rejected', at: Date.now(), surfaceId: options.surfaceId, reason: error, raw: options.raw });
   options.onToolRejected?.(error, options.raw);
   return { ok: false, state: cloneState(options.currentState), error, stateChanged: false };
 }
 
 
-export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurfaceHandle {
+export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurfaceHandle {
   const surfaceId = randomSurfaceId();
   const root = options.root;
   const toolAllowlist = new Set(options.grantedTools);
@@ -164,8 +164,8 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
   let renderState: 'preview' | 'rendering' | 'rendered' | 'failed' = 'preview';
   let disposed = false;
 
-  root.dataset.summonInlineSurface = surfaceId;
-  root.classList.add('summon-inline-surface');
+  root.dataset.summonSurface = surfaceId;
+  root.classList.add('summon-surface');
   installTokenStyle(root, surfaceId, options.tokensSource);
 
   const notifyState = () => {
@@ -183,7 +183,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
     tool: unknown,
     rawArgs: unknown,
   ): Promise<{ ok: boolean; state: Record<string, unknown>; error?: string }> => {
-    const result = await resolveInlineToolCall({
+    const result = await resolveSummonSurfaceToolCall({
       surfaceId,
       toolAllowlist,
       currentState,
@@ -295,7 +295,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       });
   };
 
-  const handle: InlineSurfaceHandle = {
+  const handle: SummonSurfaceHandle = {
     surfaceId,
     root,
     renderArtifact(artifact) {
@@ -331,8 +331,8 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
       teardownVmRuntime();
       subscribers.clear();
       root.replaceChildren();
-      root.classList.remove('summon-inline-surface');
-      delete root.dataset.summonInlineSurface;
+      root.classList.remove('summon-surface');
+      delete root.dataset.summonSurface;
       options.events?.push({ kind: 'surface-disposed', at: Date.now(), surfaceId });
     },
   };
@@ -353,7 +353,7 @@ export function mountInlineSurface(options: InlineSurfaceOptions): InlineSurface
 }
 
 function reportRuntimeError(
-  options: Pick<InlineSurfaceOptions, 'events' | 'onRuntimeError'>,
+  options: Pick<SummonSurfaceOptions, 'events' | 'onRuntimeError'>,
   surfaceId: string,
   reason: string,
 ): void {
@@ -450,7 +450,7 @@ function renderPreview(root: HTMLElement, _snapshot: SurfacePreviewSnapshot): vo
 
 function installTokenStyle(root: HTMLElement, surfaceId: string, tokensSource?: string): void {
   const style = document.createElement('style');
-  style.dataset.summonInlineTokens = surfaceId;
+  style.dataset.summonSurfaceTokens = surfaceId;
   style.textContent = [
     scopeTokenCss(tokensSource ?? '', surfaceId),
     defaultPreviewCss(surfaceId),
@@ -460,7 +460,7 @@ function installTokenStyle(root: HTMLElement, surfaceId: string, tokensSource?: 
 
 function clearRuntimeChildren(root: HTMLElement): void {
   for (const child of Array.from(root.children)) {
-    if (child instanceof HTMLStyleElement && child.dataset.summonInlineTokens) continue;
+    if (child instanceof HTMLStyleElement && child.dataset.summonSurfaceTokens) continue;
     child.remove();
   }
 }
@@ -482,7 +482,7 @@ function renderRuntimeError(root: HTMLElement, reason: string): void {
 }
 
 export function scopeTokenCss(css: string, surfaceId: string): string {
-  return scopeCssRules(css, `[data-summon-inline-surface="${escapeCssIdentifier(surfaceId)}"]`);
+  return scopeCssRules(css, `[data-summon-surface="${escapeCssIdentifier(surfaceId)}"]`);
 }
 
 export function shadowSurfaceCss(css: string): string {
@@ -844,13 +844,13 @@ function escapeCssIdentifier(value: string): string {
 
 function defaultPreviewCss(surfaceId: string): string {
   return `
-[data-summon-inline-surface="${surfaceId}"] {
+[data-summon-surface="${surfaceId}"] {
   position: relative;
   background: var(--color-bg, Canvas);
   color: var(--color-text, CanvasText);
   font-family: var(--font-sans, system-ui, sans-serif);
 }
-[data-summon-inline-surface="${surfaceId}"] .summon-preview {
+[data-summon-surface="${surfaceId}"] .summon-preview {
   position: relative;
   isolation: isolate;
   display: grid;
@@ -862,7 +862,7 @@ function defaultPreviewCss(surfaceId: string): string {
     radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-text, CanvasText) 7%, transparent), transparent 34%),
     linear-gradient(180deg, var(--color-bg, Canvas), color-mix(in srgb, var(--color-surface, Canvas) 88%, var(--color-bg, Canvas)));
 }
-[data-summon-inline-surface="${surfaceId}"] .summon-preview__ambient {
+[data-summon-surface="${surfaceId}"] .summon-preview__ambient {
   position: absolute;
   inset: 18%;
   z-index: -1;
@@ -873,7 +873,7 @@ function defaultPreviewCss(surfaceId: string): string {
   opacity: 0.6;
   animation: summon-preview-breathe 2.4s ease-in-out infinite;
 }
-[data-summon-inline-surface="${surfaceId}"] .summon-preview__loader {
+[data-summon-surface="${surfaceId}"] .summon-preview__loader {
   width: 30px;
   height: 30px;
   border: 2px solid color-mix(in srgb, var(--color-text, CanvasText) 16%, transparent);
@@ -881,13 +881,13 @@ function defaultPreviewCss(surfaceId: string): string {
   border-radius: 999px;
   animation: summon-preview-spin 820ms linear infinite;
 }
-[data-summon-inline-surface="${surfaceId}"] .summon-preview__loading-label {
+[data-summon-surface="${surfaceId}"] .summon-preview__loading-label {
   color: var(--color-text-muted, color-mix(in srgb, CanvasText 54%, transparent));
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
-[data-summon-inline-surface="${surfaceId}"] .summon-runtime-error {
+[data-summon-surface="${surfaceId}"] .summon-runtime-error {
   display: grid;
   align-content: center;
   gap: 12px;
@@ -896,14 +896,14 @@ function defaultPreviewCss(surfaceId: string): string {
   background: var(--color-bg, Canvas);
   color: var(--color-text, CanvasText);
 }
-[data-summon-inline-surface="${surfaceId}"] .summon-runtime-error__kicker {
+[data-summon-surface="${surfaceId}"] .summon-runtime-error__kicker {
   color: var(--color-text-muted, color-mix(in srgb, CanvasText 62%, transparent));
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.11em;
   text-transform: uppercase;
 }
-[data-summon-inline-surface="${surfaceId}"] .summon-runtime-error p {
+[data-summon-surface="${surfaceId}"] .summon-runtime-error p {
   max-width: 72ch;
   margin: 0;
   color: var(--color-text, CanvasText);

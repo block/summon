@@ -302,7 +302,7 @@ app.get('/api/ghost-roots', (_req, res) => {
 });
 
 /**
- * Generates a structured Arrow bundle, validates it, and streams server-owned
+ * Generates a structured Surface Document bundle, validates it, and streams server-owned
  * protocol lines to the client.
  */
 app.post('/api/generate', async (req, res) => {
@@ -390,7 +390,7 @@ app.post('/api/generate', async (req, res) => {
   ];
   const unsupportedField = unsupportedGenerationFields.find((field) => req.body?.[field] !== undefined && req.body?.[field] !== null);
   if (unsupportedField) {
-    res.status(400).json({ error: `${unsupportedField} is not supported in Arrow-only policy mode` });
+    res.status(400).json({ error: `${unsupportedField} is not supported in Surface Document policy mode` });
     return;
   }
   const rawAgentOptions = req.body?.agent;
@@ -776,20 +776,17 @@ function ghostLogId(context: ResolvedGhostSteer): string {
 }
 
 /**
- * Extract the accepted Arrow artifact source from the emitted protocol lines:
- * the last `artifact` line whose `value.runtime === 'arrow'`, returning its
- * `value.source` map ({ "main.ts": string, "main.css"?: string }) or null.
+ * Extract the accepted Surface Document artifact source from the emitted protocol lines:
+ * the last `artifact` line whose `value.runtime === 'surface-document'`,
+ * returning its `value.source` file map or null.
  */
 function extractArtifactSource(lines: ProtocolLine[]): Record<string, string> | null {
   for (let index = lines.length - 1; index >= 0; index--) {
     const line = lines[index];
     if (line?.op !== 'artifact') continue;
     const value = line.value as { runtime?: unknown; source?: unknown } | undefined;
-    // Any source-bearing artifact is eligible for conformance evaluation. This
-    // previously filtered to runtime === 'arrow', which silently exempted domjs
-    // surfaces from the Govern moment (no verdict, empty receipt fold).
     if (
-      (value?.runtime !== 'arrow' && value?.runtime !== 'domjs' && value?.runtime !== 'surface-document') ||
+      value?.runtime !== 'surface-document' ||
       !value.source ||
       typeof value.source !== 'object' ||
       Array.isArray(value.source)
@@ -836,15 +833,15 @@ const playgroundPromptBlock: ContractPromptBlock = {
   text: [
     '## Playground mode',
     '',
-    'This run is a best-effort local generative UI playground. Prioritize returning one renderable Arrow bundle over satisfying production policy posture.',
+    'This run is a best-effort local generative UI playground. Prioritize returning one renderable Surface Document bundle over satisfying production policy posture.',
     '',
-    'Hard requirement: return a structured bundle with exactly one entry file in the source object:',
+    'Hard requirement: return a structured Surface Document bundle with main.html and main.css source entries:',
     '',
     '```json',
-    '{ "schema": "summon.arrow-bundle/v1", "source": { "main.ts": "import { html } from \\"@arrow-js/core\\";\\nexport default html`<main>...</main>`;" } }',
+    '{ "schema": "summon.surface-document-bundle/v1", "source": { "main.html": "<main>...</main>", "main.css": "main { color: var(--color-text); }" } }',
     '```',
     '',
-    'Prefer self-contained static or local reactive Arrow UI. Use host tools only when a Tools block explicitly lists them. Do not return source as prose, markdown, or a bare string if you can return source.main.ts.',
+    'Prefer self-contained Surface Document UI. Use host tools only when a Tools block explicitly lists them. Do not return source as prose, markdown, or a bare string if you can return structured source files.',
   ].join('\n'),
 };
 

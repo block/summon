@@ -24,7 +24,7 @@ test('fingerprint selection helpers round-trip explicit catalog picks', () => {
   const selection = fingerprintSelectionValue('editorial-mono');
   assert.equal(selection, 'fingerprint:editorial-mono');
   assert.equal(fingerprintIdFromSelection(selection), 'editorial-mono');
-  assert.equal(fingerprintIdFromSelection('legacy-direction'), null);
+  assert.equal(fingerprintIdFromSelection('old-direction'), null);
 });
 
 test('buildGhostSteeringPayload emits the server ghost contract', () => {

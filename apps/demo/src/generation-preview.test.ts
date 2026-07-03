@@ -14,7 +14,7 @@ import {
 
 const hostResourcePlan: SurfacePlan = {
   purpose: 'explore',
-  runtime: 'arrow',
+  runtime: 'surface-document',
   data: 'host-resource',
   authority: 'read',
   persistence: 'replayable',

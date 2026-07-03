@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
-import { mountInlineSurface } from '@summon-internal/host';
+import { mountSummonSurface } from '@summon-internal/host';
 import { runSurfaceGeneration, type SurfaceModelProvider } from '../src/index.ts';
 
 const window = new Window({ url: 'http://localhost/' });
@@ -112,7 +112,7 @@ test('a valid surface-document bundle can be generated and rendered by the host'
   assert.ok(artifact, 'server should emit an artifact');
 
   const root = makeRoot();
-  const handle = mountInlineSurface({ root, artifact, grantedTools: [] });
+  const handle = mountSummonSurface({ root, artifact, grantedTools: [] });
   await wait();
 
   const shadow = root.querySelector('.summon-surface-document-host')?.shadowRoot;

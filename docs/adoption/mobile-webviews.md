@@ -1,17 +1,23 @@
-# Mobile WebView Requirements
+# Mobile WebViews
 
-Summon is web-first. Native iOS or Android wrappers are not part of the current
-supported runtime, but any WebView host must preserve the same shape: generated
-logic runs inside the Arrow VM boundary, and native privileges stay with the
-host.
+Summon is web-first. A WebView host may embed Summon only if it preserves the same governance boundary as the browser host.
 
-- Generated UI must never receive a native bridge object.
-- Generated Arrow logic must not receive `window`, `document`, storage, native
-  bridges, or ambient WebView APIs.
-- The outer native WebView owns credentials, network, durable state, and native
-  APIs. It may pass safe state into Summon, but generated UI cannot call native
-  APIs directly.
-- If the host cannot prove the Arrow VM boundary holds in its WebView, degrade
-  to read-only surfaces with no executable host tools.
-- Treat WebKit safety tests as the feasible browser proxy for WebView behavior,
-  then add native wrapper tests before enabling privileged mobile bridges.
+## Requirements
+
+- Generated behavior must run inside Summon's descriptor runtime, not directly in the page/native bridge.
+- Native privileges stay with the host app.
+- Product data and side effects flow through registered host tools.
+- Surface Document HTML remains inert; optional behavior runs against the descriptor DOM.
+- The WebView host must not expose ambient native APIs, storage, network, or privileged globals to generated code.
+
+## Degrade safely
+
+If the host cannot prove the runtime boundary holds in a WebView, render inert/static surfaces only or do not mount generated UI.
+
+## Test before shipping
+
+Run the adversarial/safety harness in the target WebView environment, not just desktop Chrome:
+
+```sh
+pnpm test:safety
+```

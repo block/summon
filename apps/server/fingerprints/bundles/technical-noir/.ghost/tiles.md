@@ -19,7 +19,7 @@ as 2-up or 3-up compact warm-dark tiles (stacking on mobile), each with a label,
 a short compatibility/detail line, and one clear action, using tight radius,
 hairline border, muted captions, and monochrome or off-white icons.
 
-**Hairline information rows.** Updates, tasks, command history, incident steps,
+**Hairline information rows.** Updates, tasks, command saved, incident steps,
 and release notes use full-width or panel-contained rows separated by the warm
 `--noir-hairline` with ~16px vertical padding, each scan-friendly (label, short
 title, muted detail, optional compact action) — never equal rounded cards. Mark

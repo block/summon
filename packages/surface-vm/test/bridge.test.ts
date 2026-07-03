@@ -139,7 +139,7 @@ test('state push fires onState and updates getState', async () => {
 test('host-bridge:summon virtual module resolves for explicit imports', async () => {
   // Generated surfaces author `import { callTool, onState } from "host-bridge:summon"`
   // rather than relying on the ambient globals. The domjs module map must resolve
-  // that specifier (matching the Arrow path) instead of throwing
+  // that specifier (matching the alternate path) instead of throwing
   // "Unknown sandbox module".
   const calls: Array<{ tool: string; args: Record<string, unknown> }> = [];
   const bridge: HostBridge = (tool, args) => {

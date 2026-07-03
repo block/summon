@@ -1,6 +1,4 @@
-import {
-  type ToolRegistry,
-} from '@anarchitecture/summon';
+import type { ToolRegistry } from '@anarchitecture/summon';
 import {
   isSurfaceDocumentArtifact,
   type ArtifactLine,
@@ -9,8 +7,8 @@ import {
   type ValidationTool,
 } from '@anarchitecture/summon/engine';
 import {
-  mountInlineSurface,
-  type InlineSurfaceHandle,
+  mountSummonSurface,
+  type SummonSurfaceHandle as MountedSummonSurfaceHandle,
   type SurfacePreviewSnapshot,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
@@ -66,7 +64,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
   ref,
 ) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const handleRef = useRef<InlineSurfaceHandle | null>(null);
+  const handleRef = useRef<MountedSummonSurfaceHandle | null>(null);
   const lastRenderedArtifactRef = useRef<SummonRenderableArtifact | null>(null);
   const events = useMemo(() => createEventStore(), []);
 
@@ -121,7 +119,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     };
     const renderableArtifact = resolveRenderableArtifact(props);
 
-    let handle: InlineSurfaceHandle | null = null;
+    let handle: MountedSummonSurfaceHandle | null = null;
     const policy = new PolicyEngine({
       handlers,
       initialState,
@@ -132,7 +130,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       },
     });
 
-    handle = mountInlineSurface({
+    handle = mountSummonSurface({
       root,
       artifact: renderableArtifact,
       grantedTools,

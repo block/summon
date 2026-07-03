@@ -6,15 +6,15 @@ import {
   formatToolProtocolContract,
 } from '../src/index.ts';
 
-test('tool protocol contract documents Arrow host bridge', () => {
+test('tool protocol contract documents Surface Document host bridge', () => {
   const text = formatToolProtocolContract();
 
-  assert.match(text, /Arrow host bridge/);
+  assert.match(text, /Surface Document host bridge/);
   assert.match(text, /host-bridge:summon/);
   assert.match(text, /callTool/);
   assert.match(text, /getState/);
   assert.match(text, /onState/);
-  assert.match(text, /reactive\(\)/);
+  assert.match(text, /state\(\)/);
 });
 
 test('tool compiler returns prompt, pack, tool names, and validation metadata', () => {
@@ -108,10 +108,10 @@ test('tools block renders Surface Document protocol docs', () => {
   assert.match(text, /Default data: `\[\]`/);
   assert.match(text, /State keys: loading=searching, data=results, error=searchError, empty=noResults/);
   assert.match(text, /Action state: pending=savePending, done=saveDone, error=saveError/);
-  assert.doesNotMatch(text, /Arrow/);
+  assert.doesNotMatch(text, /unsupported runtime/);
 });
 
-test('tools block ignores legacy script patterns', () => {
+test('tools block ignores unsupported script patterns', () => {
   const text = buildToolsBlock({
     tools: [
       {

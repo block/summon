@@ -18,7 +18,7 @@ export interface BaseEvent {
   surfaceId?: string;
 }
 
-/** An inline surface was mounted with the given grant. */
+/** A Summon surface was mounted with the given grant. */
 export interface SurfaceMountedEvent extends BaseEvent {
   kind: 'surface-mounted';
   surfaceId: string;
@@ -33,7 +33,7 @@ export interface SurfaceRuntimeErrorEvent extends BaseEvent {
   reason: string;
 }
 
-/** Host called dispose() on the inline surface handle. */
+/** Host called dispose() on the Summon surface handle. */
 export interface SurfaceDisposedEvent extends BaseEvent {
   kind: 'surface-disposed';
   surfaceId: string;
@@ -153,7 +153,7 @@ export interface SurfaceContractEvent extends BaseEvent {
   };
 }
 
-/** Host pushed an artifact into the inline surface runtime. */
+/** Host pushed an artifact into the Summon surface runtime. */
 export interface RenderEvent extends BaseEvent {
   kind: 'render';
   surfaceId: string;
@@ -161,7 +161,7 @@ export interface RenderEvent extends BaseEvent {
   bytes: number;
 }
 
-/** The inline surface runtime finished mounting the latest artifact. */
+/** The Summon surface runtime finished mounting the latest artifact. */
 export interface RenderedEvent extends BaseEvent {
   kind: 'rendered';
   surfaceId: string;

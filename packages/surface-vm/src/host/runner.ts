@@ -11,7 +11,7 @@
 // cannot hang the host. A tripped budget surfaces as a protocol `error`
 // message; the runner stays alive and destroyable.
 //
-// Ported from @arrow-js/sandbox's quickjs host (MIT), reduced to essentials.
+// QuickJS host runner, reduced to the essentials.
 
 import {
   RELEASE_ASYNC,
@@ -113,7 +113,7 @@ export async function createVmRunner(options: VmRunnerOptions): Promise<VmRunner
   // we parse to a typed VmToHostMessage and hand it to the host. A malformed
   // message is surfaced as a protocol error — never silently dropped (silent
   // failure at this boundary has already cost one misdiagnosis; see
-  // docs/arrow-mount-investigation.md).
+  // Keep Promise resolution explicit so VM jobs drain before rendering completes.
   const hostSend = context.newFunction('__hostSend', (messageHandle: any) => {
     const message = context.getString(messageHandle);
     try {

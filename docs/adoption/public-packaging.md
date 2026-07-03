@@ -1,115 +1,32 @@
-# Summon Public Packaging Plan
+# Public packaging
 
-This note records Summon's public package boundary. Public packages are facades
-over private implementation workspaces so consumer APIs are organized by install
-environment rather than monorepo internals.
+Summon publishes a narrow public package surface and keeps implementation packages private.
 
-## Decision
+## Packages
 
-Publish by install environment, not by internal implementation layer.
+| Package | Purpose |
+| --- | --- |
+| `@anarchitecture/summon` | Core host/engine/policy/envelope/Devtools public API. |
+| `@anarchitecture/summon-server` | Provider-neutral generation lifecycle and model-provider contracts. |
+| `@anarchitecture/summon-react` | React rendering adapter for inline Summon surfaces and replay envelopes. |
 
-```txt
-@anarchitecture/summon
-@anarchitecture/summon-server
-@anarchitecture/summon-react
-```
+Private workspaces such as `packages/engine`, `packages/host`, `packages/server`, and `packages/surface-vm` are implementation details published through the public facades.
 
-`@anarchitecture/summon` is the frameworkless client/core package. Its root
-entrypoint is curated for host-authoring helpers: host tool registries,
-`PolicyEngine`, and `SurfacePolicy` helpers/types. Advanced runtime helpers,
-including compiled `SurfacePlan` APIs, live behind explicit subpaths:
+## Runtime contract
 
-```txt
-@anarchitecture/summon/browser
-@anarchitecture/summon/engine
-@anarchitecture/summon/host
-@anarchitecture/summon/policy
-@anarchitecture/summon/envelope
-@anarchitecture/summon/assets
-@anarchitecture/summon/devtools
-@anarchitecture/summon/tokens.css
-```
+The public docs should describe Surface Document as the preferred generated artifact contract. Lower-level runtime helpers remain coordinated implementation pieces, not separate public products.
 
-Use `/browser` for inline Arrow sandbox mounting and stream consumption. Use
-`/engine` for protocol, validation, prompt contracts, stream diagnostics, and
-hardening. Use `/policy` for direct `PolicyEngine` wiring, `/envelope` for
-saved replay envelopes, `/assets` or `/tokens.css` for bundled token CSS, and
-`/devtools` for event-store types and helpers. Use `/host` only when writing
-adapters that need the full host runtime surface.
+## Release checks
 
-`@anarchitecture/summon-server` is the provider-neutral generation package. It
-owns `runSurfaceGeneration`, prompt/contract assembly, Arrow protocol
-hardening, validation summaries, summary helpers, and model-provider
-interfaces. It may depend on the core package but should not pull in browser or
-React peers.
-
-`@anarchitecture/summon-react` is the React adapter. It owns `SummonSurface` for
-inline Arrow surfaces. It depends on the core package and has `react` /
-`react-dom` as peer dependencies.
-
-Future adapters should follow the same rule:
-
-```txt
-@anarchitecture/summon-svelte
-@anarchitecture/summon-vue
-@anarchitecture/summon-acp
-```
-
-Do not publish separate packages for `engine`, `host`, `sandbox-runtime`, and
-`devtools` unless those layers become independently useful to consumers. They
-are currently coordinated pieces of one core runtime.
-
-## Why
-
-This follows the package boundary used by similar open-source AI UI projects:
-
-- Core/protocol package plus framework adapters: AI SDK, json-render, AG-UI.
-- Server/client split when generation and rendering run in different
-  environments: MCP-UI, CopilotKit.
-- React/Svelte/Vue adapters are separate because they bring framework lifecycle,
-  renderer semantics, and peer dependencies.
-
-For Summon, the public question is "where am I installing this?" rather than
-"how is the monorepo organized internally?"
-
-Useful references:
-
-- AI SDK: https://github.com/vercel/ai
-- json-render: https://github.com/vercel-labs/json-render
-- OpenUI: https://github.com/thesysdev/openui
-- CopilotKit architecture: https://docs.copilotkit.ai/deepagents/concepts/architecture
-- AG-UI JavaScript SDK: https://docs.ag-ui.com/sdk/js/core/overview
-- MCP-UI client package: https://www.npmjs.com/package/@mcp-ui/client
-- assistant-ui packages: https://www.assistant-ui.com/packages
-- Tambo: https://github.com/tambo-ai/tambo
-
-## Implementation Policy
-
-Keep the private implementation graph boring:
-
-- Keep `@summon-internal/*` workspace names private.
-- Keep docs/examples on public package names.
-- Publish only `@anarchitecture/summon`, `@anarchitecture/summon-server`, and
-  `@anarchitecture/summon-react`.
-- Build public packages by copying implementation `dist` output under
-  `dist/_internal/*` and writing explicit public wrapper files.
-- Fail CI if public JS or `.d.ts` imports `@summon-internal/*`, public wrappers
-  use `export *`, public-looking implementation dirs appear at `dist/*`, or
-  wrapper exports drift from `scripts/public-api-manifest.json`.
-- Fail CI if the runtime public API snapshot drifts without an intentional
-  update to `scripts/check-public-api.mjs`.
-- Do source-health work here when it is destination-agnostic: tests, security
-  fixes, API cleanup, build reliability, and package metadata correctness.
-
-## Release Gate
-
-Run this before publishing:
+Before release:
 
 ```sh
+pnpm typecheck
+pnpm test
 pnpm build
 pnpm check:public-packages
 pnpm check:public-api
-pnpm pack:dry-run
 pnpm smoke:public-packages
-pnpm test:safety
 ```
+
+Public API snapshots should fail CI when exports drift unintentionally.

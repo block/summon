@@ -44,7 +44,7 @@ describe('Ghost adapter', () => {
       ok: false,
       error: 'ghost.targetPath must not contain path traversal segments',
     });
-    assert.deepEqual(parseGhostRequest({ source: 'resolved-context', prompt: 'legacy' }, roots), {
+    assert.deepEqual(parseGhostRequest({ source: 'resolved-context', prompt: 'resolved context' }, roots), {
       ok: false,
       error: 'ghost.source must be "root"; resolved-context is no longer supported',
     });
@@ -123,7 +123,7 @@ describe('Ghost adapter', () => {
       mode: 'static',
       surfacePlan: {
         purpose: 'inform',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'none',
         persistence: 'ephemeral',
@@ -159,7 +159,7 @@ describe('Ghost adapter', () => {
       mode: 'static',
       surfacePlan: {
         purpose: 'inform',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'none',
         persistence: 'replayable',
@@ -169,7 +169,7 @@ describe('Ghost adapter', () => {
     assert.equal(prepared.source, 'root');
     assert.match(prepared.prompt, /# Ghost Fingerprint/);
     assert.match(prepared.prompt, /## Summon Surface Brief/);
-    assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=arrow; data=embedded; authority=none; persistence=replayable/);
+    assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=surface-document; data=embedded; authority=none; persistence=replayable/);
     assert.match(prepared.prompt, /Output runtime: surface-document/);
     assert.match(prepared.prompt, /structured Surface Document bundle/);
     assert.match(prepared.prompt, /Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata/);
@@ -295,7 +295,7 @@ describe('Ghost adapter', () => {
       mode: 'static',
       surfacePlan: {
         purpose: 'inform',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'none',
         persistence: 'replayable',
@@ -313,7 +313,7 @@ describe('Ghost adapter', () => {
       mode: 'static',
       surfacePlan: {
         purpose: 'inform',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'none',
         persistence: 'replayable',
@@ -338,7 +338,7 @@ describe('Ghost adapter', () => {
       mode: 'static',
       surfacePlan: {
         purpose: 'inform',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'none',
         persistence: 'replayable',
@@ -349,9 +349,8 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /structured Surface Document bundle/);
     assert.match(prepared.prompt, /emit_surface_document/);
     assert.match(prepared.prompt, /final Surface Document artifact/);
-    assert.doesNotMatch(prepared.prompt, /structured Arrow sandbox bundle/);
-    assert.doesNotMatch(prepared.prompt, /create_summon_arrow_surface/);
-    assert.doesNotMatch(prepared.prompt, /final Arrow artifact/);
+    assert.doesNotMatch(prepared.prompt, /structured Surface Document sandbox bundle/);
+    assert.doesNotMatch(prepared.prompt, /create_summon_old_surface/);
   });
 
   it('extracts arbitrary fingerprint token CSS from the core node body', async () => {
@@ -370,7 +369,7 @@ describe('Ghost adapter', () => {
     assert.match(ctx.tokenSource.css, /--moss: #718c5a/);
   });
 
-  it('builds the receipt from the slice, accepted Arrow artifacts, and the conformance verdict', async () => {
+  it('builds the receipt from the slice, accepted Surface Document artifacts, and the conformance verdict', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);

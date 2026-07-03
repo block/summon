@@ -7,7 +7,7 @@
 // build step. `--check` verifies it is not stale (wired into `pnpm test`).
 //
 // This is the stringify pattern the old hand-written runtime-source.ts header
-// pointed at (Arrow's sync-vm-sources.mjs).
+// pointed at (unsupported runtime's sync-vm-sources.mjs).
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';

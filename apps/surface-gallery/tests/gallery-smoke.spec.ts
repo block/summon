@@ -227,7 +227,7 @@ test('mocked generation renders and generated host tool requests update host sta
           path: '/surface-plan',
           value: {
             purpose: 'compare',
-            runtime: 'arrow',
+            runtime: 'surface-document',
             data: 'embedded',
             authority: 'host-action',
             persistence: 'replayable',
@@ -356,7 +356,7 @@ test('host search resource renders host-owned empty state', async ({ page }) => 
           path: '/surface-plan',
           value: {
             purpose: 'explore',
-            runtime: 'arrow',
+            runtime: 'surface-document',
             data: 'host-resource',
             authority: 'read',
             persistence: 'replayable',
@@ -461,7 +461,7 @@ test('approval refund uses host-owned approval card for approve and deny decisio
           path: '/surface-plan',
           value: {
             purpose: 'operate',
-            runtime: 'arrow',
+            runtime: 'surface-document',
             data: 'embedded',
             authority: 'approval-gated',
             persistence: 'ephemeral',
@@ -556,7 +556,7 @@ test('approval refund uses host-owned approval card for approve and deny decisio
   await expect(surface.locator('#refunded')).toBeHidden();
 });
 
-test('Arrow fidelity preset renders generated visuals without component grants', async ({ page }) => {
+test('Surface Document fidelity preset renders generated visuals without component grants', async ({ page }) => {
   const requests: any[] = [];
 
   await page.route('**/api/generate', async (route) => {
@@ -573,7 +573,7 @@ test('Arrow fidelity preset renders generated visuals without component grants',
           path: '/surface-plan',
           value: {
             purpose: 'review',
-            runtime: 'arrow',
+            runtime: 'surface-document',
             data: 'embedded',
             authority: 'host-action',
             persistence: 'replayable',
@@ -606,7 +606,7 @@ test('Arrow fidelity preset renders generated visuals without component grants',
   });
 
   await page.goto('/');
-  await page.locator('[data-preset-id="arrow-fidelity"]').click();
+  await page.locator('[data-preset-id="surface-document-fidelity"]').click();
   await page.locator('#run').click();
   const surface = page.locator('#sandbox .summon-surface-document-host');
   await expect(surface.locator('#launch-score')).toContainText('Launch score');
@@ -673,7 +673,7 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
           path: '/surface-plan',
           value: {
             purpose: 'review',
-            runtime: 'arrow',
+            runtime: 'surface-document',
             data: 'embedded',
             authority: 'host-action',
             persistence: 'replayable',

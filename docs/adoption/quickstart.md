@@ -25,8 +25,8 @@ The gallery is live-first. It requires `apps/server` and one configured model
 provider key; it does not silently fall back to replay. Set
 `SUMMON_MODEL_PROVIDER` to choose the default provider when more than one key is
 configured. Use the preset cards to generate read-only surfaces,
-host-backed search, host-owned actions, approval flows, direct Arrow
-composition, and background host work.
+host-backed search, host-owned actions, approval flows, Surface Document
+rendering, and background host work.
 
 Each preset chooses a surface config and a short list of allowed host tools.
 In API terms, that config is a `SurfacePolicy`. The server compiles it into the
@@ -100,9 +100,10 @@ When the run starts, the Stream drawer should show `/ghost-context`,
 `/ghost-token-source`, `/ghost-ingestion-contract`, and `/ghost-review-packet`
 metadata. Those lines confirm Ghost relay resolved the fingerprint stack and
 Task Contract, Summon compiled the selected fingerprint material for prompting,
-selected token/style CSS, generated an Arrow surface, and emitted the review
-packet for inspection. Runtime generation does not run a separate Ghost-fidelity
-visual judge; use Ghost package validation and review packets to inspect drift.
+selected token/style CSS, generated a governed surface, and emitted the review
+packet for inspection. Runtime generation also streams conformance diagnostics
+when available; use Ghost package validation, conformance verdicts, and review
+packets to inspect drift.
 
 Useful checks for a configured root:
 
@@ -146,7 +147,7 @@ rendered and interacted with a surface:
 
 - Open the **Stream** drawer to inspect server stream lines, the selected
   ward goal, selected surface config, validation summaries, model-output mode,
-  and Arrow artifact revisions.
+  conformance verdicts, and accepted artifact revisions.
 - Open the **Devtools** drawer to inspect sandbox startup, render events, host
   tool requests, host dispatch, pushed state, runtime errors, and stream
   diagnostics.
@@ -162,7 +163,7 @@ contracts, directions, host tool wiring, visual direction coverage, or
 throughput behavior.
 
 Use the other `/generate` scenarios to exercise static summaries,
-declarative forms, host AI calls, GitHub lookup, direct Arrow composition,
+declarative forms, host AI calls, GitHub lookup, Surface Document generation,
 background host work, approval-required publish, local state and motion,
 token overrides, layout constraints, sibling summon, Ghost steering when
 configured, and validation diagnostics.
@@ -175,11 +176,11 @@ To run the gallery and workbench side by side, use `pnpm dev:demos`.
   provider key and confirm the server is listening on `:3001`.
 - If generated controls do nothing, confirm the run is interactive. Static
   surfaces intentionally have no allowed host tools.
-- If generation returns malformed or unsafe Arrow output, inspect the Stream
-  drawer for `/model-output-mode`, validation summaries, and blocked output.
+- If generation returns malformed or unsafe output, inspect the Stream drawer
+  for `/model-output-mode`, validation summaries, and blocked output.
 - If the sandbox does not update after a generated control is used, inspect
   Devtools for rejected host tool requests, host dispatch, handler completion,
   and pushed state.
-- If the surface stays blank, inspect Stream diagnostics for accepted Arrow
-  `/artifact` revisions, then inspect Devtools for `render`, `rendered`, and
+- If the surface stays blank, inspect Stream diagnostics for accepted `/artifact`
+  revisions, then inspect Devtools for `render`, `rendered`, and
   `surface-runtime-error`.

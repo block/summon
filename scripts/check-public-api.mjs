@@ -20,11 +20,8 @@ const expectedRootExports = [
   'defineToolHandler',
   'defineWorkerAction',
   'defineWorkerResource',
-  'isArrowSurfaceArtifact',
-  'normalizeArrowSurfaceArtifact',
   'normalizeSurfacePolicy',
   'surfaceContractViewFromCompiledPolicy',
-  'validateArrowSurfaceArtifact',
 ].sort();
 
 const expectedServerExports = [
@@ -89,7 +86,7 @@ for (const forbidden of forbiddenRootExports) {
 
 assertHas('@anarchitecture/summon/browser', await importDist('summon', 'browser.js'), [
   'consumeSurfaceStream',
-  'mountInlineSurface',
+  'mountSummonSurface',
 ]);
 assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js'), [
   'buildToolsBlock',
@@ -103,7 +100,7 @@ assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js
 assertHas('@anarchitecture/summon/host', await importDist('summon', 'host.js'), [
   'createToolRegistry',
   'PolicyEngine',
-  'mountInlineSurface',
+  'mountSummonSurface',
 ]);
 assertHas('@anarchitecture/summon/policy', await importDist('summon', 'policy.js'), [
   'PolicyEngine',

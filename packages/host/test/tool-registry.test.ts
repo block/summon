@@ -805,7 +805,7 @@ test('surface envelope serializes replay metadata', () => {
     prompt: 'compare options',
     surfacePlan: {
       purpose: 'compare',
-      runtime: 'arrow',
+      runtime: 'surface-document',
       data: 'embedded',
       authority: 'none',
       persistence: 'replayable',
@@ -839,7 +839,7 @@ test('surface envelope parser accepts valid replay envelopes', () => {
     prompt: 'compare options',
     surfacePlan: {
       purpose: 'compare',
-      runtime: 'arrow',
+      runtime: 'surface-document',
       data: 'embedded',
       authority: 'none',
       persistence: 'replayable',
@@ -856,7 +856,7 @@ test('surface envelope parser accepts valid replay envelopes', () => {
   assert.equal(parseSurfaceEnvelope(JSON.stringify(envelope))?.id, envelope.id);
 });
 
-test('surface envelope parser rejects legacy html artifacts', () => {
+test('surface envelope parser rejects non-Surface Document artifacts', () => {
   const artifact = {
     runtime: 'html' as const,
     source: {
@@ -866,12 +866,12 @@ test('surface envelope parser rejects legacy html artifacts', () => {
   };
   const envelope = {
     version: 4,
-    id: 'legacy-html',
+    id: 'non-surface-document-html',
     createdAt: new Date().toISOString(),
-    prompt: 'stream html',
+    prompt: 'stream html payload',
     surfacePlan: {
       purpose: 'inform',
-      runtime: 'arrow',
+      runtime: 'surface-document',
       data: 'embedded',
       authority: 'none',
       persistence: 'replayable',
@@ -901,7 +901,7 @@ test('surface envelope parser rejects malformed, wrong-version, and escalating e
     prompt: 'pick an option',
     surfacePlan: {
       purpose: 'collect',
-      runtime: 'arrow',
+      runtime: 'surface-document',
       data: 'embedded',
       authority: 'host-action',
       persistence: 'replayable',

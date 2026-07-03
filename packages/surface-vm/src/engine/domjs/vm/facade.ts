@@ -166,8 +166,7 @@ class TextNode {
   }
   // Internal: accept a string OR a function (reactive binding). A function is
   // run as a tracked effect; when the reactive state it reads changes, the
-  // effect re-runs and emits a single set-text patch. This is arrow's
-  // fine-grained model: only this text node updates, no region teardown.
+  // effect re-runs and emits a single set-text patch. This fine-grained model: only this text node updates, no region teardown.
   __setText(value: unknown): void {
     if (typeof value === 'function') {
       const self = this;
@@ -313,7 +312,7 @@ class ElementNode {
 
   setAttribute(name: string, value: unknown): void {
     // A function value is a reactive binding: re-run on state change, patch the
-    // attribute each time (arrow-style reactive attribute bindings).
+    // attribute each time (reactive attribute bindings).
     if (typeof value === 'function') {
       const self = this;
       bind(function () { self.__applyAttr(name, (value as () => unknown)()); });
@@ -526,7 +525,7 @@ export function region(renderFn: () => unknown): RegionNode {
 }
 
 // state() and reactive() both return a tracking proxy. state() is kept as the
-// familiar name; reactive() matches arrow's vocabulary. Reading a key inside a
+// familiar name; reactive() is the public state helper. Reading a key inside a
 // binding (function-valued textContent/attribute, or a region render fn)
 // subscribes that binding; writing the key re-runs subscribers.
 export function state(initial?: Record<string, unknown>): any {

@@ -172,7 +172,7 @@ export function ContractInspector({
           <p className="mt-1 leading-snug">Best-effort Ghost-steered rendering. Ward, shape inference, repair loops, and validation gates are off; diagnostics still stream.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className={toggleClassName} title="Render best-effort Arrow surfaces with validation as diagnostics only">
+          <label className={toggleClassName} title="Render best-effort Surface Documents with validation as diagnostics only">
             <input id="playground-mode" type="checkbox" checked={playgroundMode} onChange={(event) => setPlaygroundMode(event.target.checked)} />
             <span>Diagnostic mode</span>
           </label>

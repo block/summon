@@ -13,7 +13,7 @@ relates:
 
 Hardware dressing is the set decoration of the chassis: the moves that make a
 faceplate read as a manufactured object with a screen, a molding date, and a
-service history — not a webpage wearing retro colors. Every dressing move stays
+service saved — not a webpage wearing retro colors. Every dressing move stays
 machined and flat two-tone; nothing here licenses glossy skeuomorphism.
 
 **Screen-in-bezel module framing.** One or two anchor modules — the hero plate, a

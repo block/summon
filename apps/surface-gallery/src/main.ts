@@ -7,8 +7,8 @@ import {
 } from '@anarchitecture/summon';
 import {
   consumeSurfaceStream,
-  mountInlineSurface,
-  type InlineSurfaceHandle,
+  mountSummonSurface,
+  type SummonSurfaceHandle,
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
@@ -157,7 +157,7 @@ const hostMessages: string[] = [];
 type InspectorTab = 'contract' | 'stream' | 'state';
 
 let selectedPreset = GALLERY_PRESETS[0]!;
-let handle: InlineSurfaceHandle | null = null;
+let handle: SummonSurfaceHandle | null = null;
 let policy: PolicyEngine | null = null;
 let abortController: AbortController | null = null;
 let galleryPresets: GalleryPreset[] = [...GALLERY_PRESETS];
@@ -295,7 +295,7 @@ function remountSurface(): void {
     });
   }
 
-  handle = mountInlineSurface({
+  handle = mountSummonSurface({
     root: surfaceRoot,
     grantedTools: compiledPolicy.mode === 'interactive' ? toolRegistry.tools() : [],
     validationTools: compiledPolicy.mode === 'interactive'
@@ -517,7 +517,7 @@ function renderAuthorityMeter(compiled: CompiledSurfacePolicy): void {
     ['Parent DOM', 'blocked'],
     ['External assets', 'blocked'],
     ['Host tools', grants.length ? grants.join(', ') : 'none'],
-    ['Visual UI', 'Arrow source only'],
+    ['Visual UI', 'Surface Document UI'],
     ['Persistence', plan.persistence],
     ['Approval', plan.authority === 'approval-gated' ? 'host UI required' : 'not granted'],
   ];
@@ -569,7 +569,7 @@ function renderContract(): void {
   surfacePolicyPill.textContent = centerPolicyText(selectedPreset);
   const toolCount = contract?.tools.length ?? grantNames.length;
   surfaceToolsPill.textContent = `${toolCount} host tool${toolCount === 1 ? '' : 's'}`;
-  surfaceComponentsPill.textContent = 'Arrow-only UI';
+  surfaceComponentsPill.textContent = 'Surface Document UI';
   welcomeTitle.textContent = selectedPreset.title;
   welcomeDetail.textContent = selectedPreset.description;
   runButton.disabled = generationInFlight || !canRunSelectedPreset();
@@ -588,7 +588,7 @@ function renderContract(): void {
       ? [['runtime', 'Runtime', `${contract.surface.mode} - ${contract.surface.plan.runtime}`] as [string, string, string]]
       : []),
     ['grants', 'Allowed host tools', allowedHostTools],
-    ['ui', 'Visual UI', 'Arrow source only'],
+    ['ui', 'Visual UI', 'Surface Document UI'],
     ...(selectedPreset.ghost
       ? [['ghost', 'Ghost root', `${selectedPreset.ghost.rootId} - ${selectedPreset.ghost.targetPath}`] as [string, string, string]]
       : [['fingerprint', 'Fingerprint', fingerprint ? `${fingerprint.name ?? fingerprint.id} - ${fingerprint.defaultTargetPath ?? '.'}` : 'missing catalog fingerprint'] as [string, string, string]]
@@ -817,7 +817,7 @@ function generationPhaseLabel(status: string): string {
     case 'contract':
       return 'Binding host contract';
     case 'drafting':
-      return 'Composing Arrow bundle';
+      return 'Composing Surface Document';
     case 'validating':
       return 'Validating bundle';
     case 'rendering':

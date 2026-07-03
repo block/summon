@@ -78,7 +78,7 @@ the work, design quality is.
 - Keep generated network access disabled by default. Use host tools for product
   data and credentials.
 - Prefer Arrow-native generated artifacts with `host-bridge:summon` and
-  `callTool()`. Generated custom scripts, legacy runtime controls, and raw
+  `callTool()`. Generated custom scripts, unsupported runtime controls, and raw
   section/fragment protocols are rejected before generation or at the parser.
 - Use `defineDataResource` for host-backed async data, with loading, error, and
   data state keys.

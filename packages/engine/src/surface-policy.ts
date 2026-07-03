@@ -198,7 +198,7 @@ function planForPolicy(
   if (policy.tier === 'static') {
     return {
       purpose: policy.purpose,
-      runtime: 'arrow',
+      runtime: 'surface-document',
       data: 'embedded',
       authority: 'none',
       persistence: policy.persistence,
@@ -219,7 +219,7 @@ function planForPolicy(
 
   return {
     purpose: policy.purpose,
-    runtime: 'arrow',
+    runtime: 'surface-document',
     data,
     authority,
     persistence: policy.persistence,

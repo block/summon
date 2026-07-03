@@ -103,7 +103,7 @@ export class ToolArgsError extends Error {
 
 export interface PolicyEngineOptions {
   /**
-   * Handlers may be bare functions (legacy, untyped) or schema-bound entries
+   * Handlers may be bare functions (untyped) or schema-bound entries
    * created by {@link defineToolHandler}. The two shapes coexist; migrate
    * incrementally. The `unknown` generic preserves the union without forcing
    * every entry to share a single arg type.

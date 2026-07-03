@@ -141,29 +141,6 @@ export function createDemoToolRegistry(
         'Adjust a shared integer by `delta` (can be negative). Host tracks the running total and returns it.',
       argsSchema: counterArgsSchema,
       stateShape: '{count: number}',
-      patterns: [
-        {
-          name: 'Counter (shared integer state)',
-          code: `import { html, reactive } from "@arrow-js/core";
-import { callTool, onState } from "host-bridge:summon";
-
-const state = reactive({ count: 0 });
-onState((hostState) => {
-  state.count = Number(hostState.count ?? state.count);
-});
-
-async function adjust(delta: number) {
-  const result = await callTool("counter", { delta });
-  if (result.ok) state.count = Number(result.state.count ?? state.count);
-}
-
-export default html\`
-  <button @click="\${() => adjust(-1)}">-</button>
-  <output>\${() => state.count}</output>
-  <button @click="\${() => adjust(1)}">+</button>
-\`;`,
-        },
-      ],
       handler: ({ args, push }) => {
         counterValue += args.delta;
         log(`-> counter ${args.delta > 0 ? '+' : ''}${args.delta} -> ${counterValue}`);
@@ -192,38 +169,6 @@ export default html\`
       argsSchemaText: '{[fieldName: string]: string}',
       stateShape:
         '{submitted: boolean, submittedFields: Record<string, string>, fieldErrors: Record<string, string>, submitError: string | null}',
-      patterns: [
-        {
-          name: 'Form submit (validation)',
-          code: `import { html, reactive } from "@arrow-js/core";
-import { callTool, onState } from "host-bridge:summon";
-
-const state = reactive({ submitted: false, submitError: "" });
-onState((hostState) => {
-  state.submitted = Boolean(hostState.submitted);
-  state.submitError = String(hostState.submitError ?? "");
-});
-
-async function save(event: SubmitEvent) {
-  event.preventDefault();
-  const form = event.currentTarget as HTMLFormElement;
-  const fields = Object.fromEntries(new FormData(form).entries());
-  const result = await callTool("submit", fields);
-  state.submitted = Boolean(result.state.submitted);
-  state.submitError = String(result.state.submitError ?? result.error ?? "");
-}
-
-export default html\`
-  <form @submit="\${save}">
-    <input name="title" placeholder="Title">
-    <input name="notes" placeholder="Notes">
-    <button>Save</button>
-  </form>
-  <p>\${() => state.submitted ? "Saved." : ""}</p>
-  <p>\${() => state.submitError}</p>
-\`;`,
-        },
-      ],
       handler: ({ args, push }) => {
         const entries = Object.entries(args).map(
           ([k, v]) => [k, typeof v === 'string' ? v : String(v ?? '')] as [string, string],
@@ -263,46 +208,6 @@ export default html\`
       triggers: ['submit', 'mount'],
       stateShape:
         '{searching: boolean, query: string, results: Array<{title: string, snippet: string, source: string}> | null, searchError: string | null}',
-      patterns: [
-        {
-          name: 'Search + result list (form submit + foreach + scoped click)',
-          code: `import { html, reactive } from "@arrow-js/core";
-import { callTool, onState } from "host-bridge:summon";
-
-const state = reactive({ searching: false, results: [] as Array<{ title: string; snippet: string }>, searchError: "" });
-onState((hostState) => {
-  state.searching = Boolean(hostState.searching);
-  state.results = Array.isArray(hostState.results) ? hostState.results : [];
-  state.searchError = String(hostState.searchError ?? "");
-});
-
-async function search(event: SubmitEvent) {
-  event.preventDefault();
-  const query = String(new FormData(event.currentTarget as HTMLFormElement).get("query") ?? "");
-  await callTool("search", { query });
-}
-
-async function pick(result: { title: string; snippet: string }) {
-  await callTool("log", { payload: { picked: result } });
-}
-
-export default html\`
-  <form @submit="\${search}">
-    <input name="query" placeholder="Search...">
-    <button class="\${() => state.searching ? "loading" : ""}">\${() => state.searching ? "Searching..." : "Go"}</button>
-  </form>
-  <p>\${() => state.searchError}</p>
-  <ul>
-    \${() => state.results.map((result) => html\`
-      <li @click="\${() => pick(result)}">
-        <strong>\${result.title}</strong>
-        <span>\${result.snippet}</span>
-      </li>
-    \`)}
-  </ul>
-\`;`,
-        },
-      ],
       onStart: ({ query }) => {
         log(`-> search "${query}"`);
         return { query };
@@ -336,35 +241,6 @@ export default html\`
       stateKeys: { loading: 'aiLoading', data: 'aiResponse', error: 'aiError' },
       triggers: ['submit'],
       stateShape: '{aiLoading: boolean, aiResponse: string | null, aiError: string | null}',
-      patterns: [
-        {
-          name: 'AI brainstorm (form submit + show loading + bind output)',
-          code: `import { html, reactive } from "@arrow-js/core";
-import { callTool, onState } from "host-bridge:summon";
-
-const state = reactive({ aiLoading: false, aiResponse: "", aiError: "" });
-onState((hostState) => {
-  state.aiLoading = Boolean(hostState.aiLoading);
-  state.aiResponse = String(hostState.aiResponse ?? "");
-  state.aiError = String(hostState.aiError ?? "");
-});
-
-async function brainstorm(event: SubmitEvent) {
-  event.preventDefault();
-  const prompt = String(new FormData(event.currentTarget as HTMLFormElement).get("prompt") ?? "");
-  await callTool("ai", { prompt });
-}
-
-export default html\`
-  <form @submit="\${brainstorm}">
-    <textarea name="prompt" placeholder="Describe the person..."></textarea>
-    <button class="\${() => state.aiLoading ? "loading" : ""}">\${() => state.aiLoading ? "Generating..." : "Brainstorm"}</button>
-  </form>
-  <p>\${() => state.aiError}</p>
-  <div>\${() => state.aiResponse}</div>
-\`;`,
-        },
-      ],
       onStart: ({ prompt }) => {
         const preview = prompt.slice(0, 80).replace(/\s+/g, ' ');
         log(`-> ai "${preview}${prompt.length > 80 ? '...' : ''}"`);
@@ -400,41 +276,6 @@ export default html\`
       triggers: ['submit', 'mount'],
       stateShape:
         '{githubLoading: boolean, githubUser: {login: string, name: string | null, bio: string | null, followers: number, public_repos: number, avatar: string | null} | null, githubError: string | null}',
-      patterns: [
-        {
-          name: 'GitHub lookup (form submit + show wrapper + bind nested fields)',
-          code: `import { html, reactive } from "@arrow-js/core";
-import { callTool, onState } from "host-bridge:summon";
-
-const state = reactive({ githubLoading: false, githubUser: null as null | Record<string, unknown>, githubError: "" });
-onState((hostState) => {
-  state.githubLoading = Boolean(hostState.githubLoading);
-  state.githubUser = hostState.githubUser && typeof hostState.githubUser === "object" ? hostState.githubUser as Record<string, unknown> : null;
-  state.githubError = String(hostState.githubError ?? "");
-});
-
-async function lookup(event: SubmitEvent) {
-  event.preventDefault();
-  const username = String(new FormData(event.currentTarget as HTMLFormElement).get("username") ?? "");
-  await callTool("github_lookup", { username });
-}
-
-export default html\`
-  <form @submit="\${lookup}">
-    <input name="username" placeholder="GitHub username, e.g. torvalds">
-    <button class="\${() => state.githubLoading ? "loading" : ""}">\${() => state.githubLoading ? "Looking up..." : "Look up"}</button>
-  </form>
-  <p>\${() => state.githubError}</p>
-  \${() => state.githubUser ? html\`
-    <article>
-      <img src="\${String(state.githubUser.avatar ?? "")}" alt="">
-      <strong>@\${String(state.githubUser.login ?? "")}</strong>
-      <p>\${String(state.githubUser.bio ?? "")}</p>
-    </article>
-  \` : ""}
-\`;`,
-        },
-      ],
       onStart: ({ username }) => {
         log(`-> github_lookup "${username}"`);
         return {};
@@ -458,7 +299,7 @@ export default html\`
         };
 
         // Proxy the avatar through the host as a data URL so the generated
-        // Arrow surface never reaches the network directly.
+        // Surface Document never reaches the network directly.
         let avatar: string | null = null;
         if (data.avatar_url) {
           try {
@@ -500,42 +341,6 @@ export default html\`
       triggers: ['submit', 'mount'],
       stateShape:
         '{analysisLoading: boolean, analysisResult: {topic: string, score: number, summary: string, next: string[]} | null, analysisError: string | null}',
-      patterns: [
-        {
-          name: 'Worker analysis (background compute + result binding)',
-          code: `import { html, reactive } from "@arrow-js/core";
-import { callTool, onState } from "host-bridge:summon";
-
-const state = reactive({ analysisLoading: false, analysisResult: null as null | { topic: string; score: number; summary: string; next: string[] }, analysisError: "" });
-onState((hostState) => {
-  state.analysisLoading = Boolean(hostState.analysisLoading);
-  state.analysisResult = hostState.analysisResult as typeof state.analysisResult;
-  state.analysisError = String(hostState.analysisError ?? "");
-});
-
-async function analyze(event: SubmitEvent) {
-  event.preventDefault();
-  const topic = String(new FormData(event.currentTarget as HTMLFormElement).get("topic") ?? "");
-  await callTool("analysis", { topic });
-}
-
-export default html\`
-  <form @submit="\${analyze}">
-    <input name="topic" placeholder="Topic to analyze">
-    <button class="\${() => state.analysisLoading ? "loading" : ""}">\${() => state.analysisLoading ? "Analyzing..." : "Analyze"}</button>
-  </form>
-  <p>\${() => state.analysisError}</p>
-  \${() => state.analysisResult ? html\`
-    <article>
-      <strong>\${state.analysisResult.topic}</strong>
-      <span>\${state.analysisResult.score}</span>
-      <p>\${state.analysisResult.summary}</p>
-      <ul>\${state.analysisResult.next.map((step) => html\`<li>\${step}</li>\`)}</ul>
-    </article>
-  \` : ""}
-\`;`,
-        },
-      ],
       onStart: ({ topic }) => {
         log(`-> analysis "${topic}"`);
         return {};
@@ -612,33 +417,9 @@ export default html\`
       defineAction({
         name: 'summon',
         description:
-          'Ask the host to generate a NEW sibling UI in its own inline Arrow root with its own state. Use sparingly — only when the user benefits from a deeper, separately-stateful surface (e.g., "summon a prep guide for this recipe", "open this option as its own planner"). The `prompt` is the user-tool description for the new UI; the optional `title` labels the child card. Do NOT use summon for things you can render inline with the existing tools.',
+          'Ask the host to generate a NEW sibling UI in its own Summon sandbox root with its own state. Use sparingly — only when the user benefits from a deeper, separately-stateful surface (e.g., "summon a prep guide for this recipe", "open this option as its own planner"). The `prompt` is the user-tool description for the new UI; the optional `title` labels the child card. Do NOT use summon for things you can render inline with the existing tools.',
         argsSchema: summonArgsSchema,
         stateShape: '{summonedCount: number, lastSummoned: string | null, summonError: string | null}',
-        patterns: [
-          {
-            name: 'Summon a sibling UI (new inline root, own state)',
-            code: `import { html, reactive } from "@arrow-js/core";
-import { callTool, onState } from "host-bridge:summon";
-
-const state = reactive({ summonError: "" });
-onState((hostState) => {
-  state.summonError = String(hostState.summonError ?? "");
-});
-
-async function openPrepGuide() {
-  await callTool("summon", {
-    prompt: "a focused 20-minute prep guide for chicken piccata, with timer-style steps",
-    title: "Prep guide",
-  });
-}
-
-export default html\`
-  <button @click="\${openPrepGuide}">Open prep guide -></button>
-  <p>\${() => state.summonError}</p>
-\`;`,
-          },
-        ],
         handler: opts.onSummon,
       }),
     );

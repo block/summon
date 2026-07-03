@@ -31,7 +31,8 @@ The adopter mental model is intentionally small:
 | --- | --- |
 | Surface | The generated UI Summon renders. |
 | Host tool | A host-owned data source or action the surface may request. |
-| Sandbox | The inline Arrow VM and trusted renderer where generated UI runs. |
+| Surface Document | The preferred generated artifact shape: `main.html` structure, `main.css` fingerprint styling, optional governed `main.js` behavior. |
+| Sandbox | The capability-isolated descriptor runtime where generated behavior runs without ambient browser authority. |
 | Surface config | The host's choice of what the surface is allowed to do. |
 | Diagnostics | Stream and Devtools information used when something breaks. |
 
@@ -63,9 +64,13 @@ Ghost fingerprint preset for each root, and the Generate workbench adds a
 `Fingerprint · <id>` option. A fingerprint run is not a bundled visual
 direction: Summon consumes the Ghost relay brief plus the fingerprint's prose,
 inventory, composition, checks, and token/style CSS as product design context.
-Summon then applies host-owned policy, tools, Arrow runtime validation, and
-sandbox boundaries. Summon does not require Summon-named design tokens or
-classify the request into generic response shapes.
+Summon then applies host-owned policy, tools, Surface Document validation,
+runtime isolation, conformance checks, and receipt generation. Summon does not
+require Summon-named design tokens or classify the request into generic response
+shapes.
+
+The Surface Document contract is documented in
+[`docs/spec/surface-document.md`](./docs/spec/surface-document.md).
 
 The full guided path lives in
 [docs/adoption/quickstart.md](docs/adoption/quickstart.md).
@@ -84,7 +89,7 @@ pnpm dev:gallery
 Open `http://localhost:5174`.
 
 The Surface Gallery is the first OSS demo. It shows static surfaces, host-backed
-search, host-owned actions, approval flows, direct Arrow composition, and
+search, host-owned actions, approval flows, Surface Document rendering, and
 background host work without exposing the maintainer workbench.
 
 For the maintainer workbench:
@@ -104,7 +109,11 @@ Open `http://localhost:5173/generate`.
 
 ## How It Fits Together
 
-Summon's supported integration path is narrow:
+Summon's supported integration path is narrow. The preferred generated artifact
+is a Surface Document: `main.html` for inert structure, `main.css` for Ghost
+fingerprint styling, and optional `main.js` for governed behavior. HTML is
+parsed into a descriptor tree; behavior runs in the owned VM without ambient
+browser authority.
 
 1. Register the host tools the surface may use.
 2. Choose a surface config for the run.
@@ -125,8 +134,8 @@ pnpm dev:demos
 ## Demo Map
 
 - `apps/surface-gallery` - primary adopter gallery with curated live
-  presets, compact host tools, Ghost-root presets when configured, an inline
-  Arrow surface, and a small event strip.
+  presets, compact host tools, Ghost-root presets when configured, a generated
+  surface, and a small event strip.
 - `/generate` - diagnostic maintainer workbench for ward-selected
   surface configs, allowed host tools, token overrides, validation summaries,
   replay, Ghost steering, Devtools, and stream diagnostics.
@@ -141,10 +150,9 @@ pnpm dev:demos
   helpers, and explicit subpaths for advanced browser, engine, host, policy,
   envelope, assets, Devtools, and token CSS APIs.
 - `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
-  Arrow protocol hardening, validation summaries, and model-provider
-  interfaces.
+  runtime validation, conformance diagnostics, and model-provider interfaces.
 - `@anarchitecture/summon-react` - `SummonSurface` React adapter for inline
-  Arrow surfaces. `react` and `react-dom` are peer dependencies.
+  Summon surfaces and replay envelopes. `react` and `react-dom` are peer dependencies.
 
 ## Workspace Map
 
@@ -153,7 +161,7 @@ pnpm dev:demos
   `packages/sandbox-runtime`, `packages/server`, `packages/react` - private
   implementation workspaces published only through the public facades.
 - `apps/server` - multi-provider demo server for Anthropic, OpenAI, and Gemini,
-  Ghost fingerprint loading, Arrow protocol diagnostics, and demo backing routes.
+  Ghost fingerprint loading, runtime diagnostics, and demo backing routes.
 - `apps/surface-gallery` - first-run live example app for OSS adopters.
 - `apps/demo` - Vite maintainer workbench for generation, batch runs,
   adversarial checks, Ghost steering, and diagnostics.
@@ -176,14 +184,14 @@ pnpm dev:demos
 
 ## Security Boundary
 
-Summon runs generated Arrow logic inside a QuickJS/WASM VM and mutates the page
-only through Arrow's trusted renderer. The host explicitly chooses the allowed
-host tools for each run; declarations from generated UI are never executable
-authority. Generated network access is off by default and product data should
-flow through host tools.
+Summon runs optional Surface Document behavior inside a QuickJS/WASM VM against
+a descriptor DOM, then mutates the page only through Summon's trusted renderer.
+The host explicitly chooses the allowed host tools for each run; declarations
+from generated UI are never executable authority. Generated network access is
+off by default and product data should flow through host tools.
 
-Run the safety harness before changing the inline runtime, Arrow bridge,
-generated network policy, or tool-dispatch behavior:
+Run the safety harness before changing the descriptor runtime, generated network
+policy, or tool-dispatch behavior:
 
 ```sh
 pnpm test:safety

@@ -112,14 +112,14 @@ test('consumeSurfaceStream blocks invalid Surface Document artifacts before call
   assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
-test('consumeSurfaceStream rejects legacy runtime artifacts', async () => {
+test('consumeSurfaceStream rejects non-Surface Document artifacts', async () => {
   const artifacts: string[] = [];
   const result = await consumeSurfaceStream([
     `${JSON.stringify({
       op: 'artifact',
       path: '/artifact',
       value: {
-        runtime: 'arrow',
+        runtime: 'surface-document',
         source: { 'main.ts': 'export default null;' },
       },
     })}\n`,
@@ -128,7 +128,7 @@ test('consumeSurfaceStream rejects legacy runtime artifacts', async () => {
       path: '/artifact',
       value: {
         runtime: 'html',
-        source: { 'body.html': '<p>legacy</p>' },
+        source: { 'body.html': '<p>unsupported</p>' },
       },
     })}\n`,
   ], {
@@ -142,7 +142,7 @@ test('consumeSurfaceStream rejects legacy runtime artifacts', async () => {
   assert.ok(result.streamGraph.health.blockedCount >= 1);
 });
 
-test('consumeSurfaceStream rejects legacy html patch lines at the parse boundary', async () => {
+test('consumeSurfaceStream rejects html patch lines at the parse boundary', async () => {
   const result = await consumeSurfaceStream([
     `${JSON.stringify({
       op: 'patch',
@@ -243,7 +243,7 @@ test('consumeSurfaceStream accepts Uint8Array and ReadableStream sources', async
   assert.equal(streamResult.protocolLines.length, 1);
 });
 
-test('consumeSurfaceStream rejects legacy section protocol at parse boundary', async () => {
+test('consumeSurfaceStream rejects section protocol at parse boundary', async () => {
   const result = await consumeSurfaceStream([
     '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
     '{"op":"add","path":"/section/hero","html":"<p>Legacy</p>"}\n',
@@ -253,7 +253,7 @@ test('consumeSurfaceStream rejects legacy section protocol at parse boundary', a
       mode: 'interactive',
       surfacePlan: {
         purpose: 'inform',
-        runtime: 'arrow',
+        runtime: 'surface-document',
         data: 'embedded',
         authority: 'none',
         persistence: 'replayable',
@@ -292,8 +292,8 @@ test('consumeSurfaceStream delivers meta lines and collects validation-blocked i
       value: {
         source: 'protocol',
         severity: 'block',
-        code: 'legacy-protocol',
-        message: 'old protocol',
+        code: 'invalid-protocol',
+        message: 'invalid protocol',
       },
     })}\n`,
   ], {
@@ -303,7 +303,7 @@ test('consumeSurfaceStream delivers meta lines and collects validation-blocked i
 
   assert.deepEqual(metas, ['/validation-blocked']);
   assert.equal(result.validationIssues.length, 1);
-  assert.equal(result.validationIssues[0]?.code, 'legacy-protocol');
+  assert.equal(result.validationIssues[0]?.code, 'invalid-protocol');
   assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
@@ -311,8 +311,8 @@ test('consumeSurfaceStream collects validation-summary examples without duplicat
   const blocked = {
     source: 'protocol',
     severity: 'block',
-    code: 'legacy-protocol',
-    message: 'old protocol',
+    code: 'invalid-protocol',
+    message: 'invalid protocol',
   } as const;
   const warning = {
     source: 'token',
@@ -329,7 +329,7 @@ test('consumeSurfaceStream collects validation-summary examples without duplicat
       value: {
         blocked: 1,
         warnings: 1,
-        codes: { 'legacy-protocol': 1, 'unknown-token': 1 },
+        codes: { 'invalid-protocol': 1, 'unknown-token': 1 },
         examples: [blocked, warning],
       },
     })}\n`,
@@ -338,7 +338,7 @@ test('consumeSurfaceStream collects validation-summary examples without duplicat
   });
 
   assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
-    'legacy-protocol',
+    'invalid-protocol',
     'unknown-token',
   ]);
 });

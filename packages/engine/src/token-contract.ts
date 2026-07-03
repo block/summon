@@ -65,6 +65,6 @@ export function formatTokenContract(): string {
   return [
     'The host may ship a stylesheet from the active design source. Treat its CSS custom properties as an opaque design vocabulary for this run; do not assume Summon-specific token names.',
     'Use the token names that are actually listed in the Ghost/direction block. You may define local aliases in `main.css` when helpful, but do not reference unrelated or undefined external variables.',
-    'Token names and values belong to the selected design source; Summon only provides the Arrow runtime and safety boundary.',
+    'Token names and values belong to the selected design source; Summon only provides the Surface Document runtime and safety boundary.',
   ].join('\n');
 }

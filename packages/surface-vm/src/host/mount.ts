@@ -4,7 +4,7 @@
 //              to the caller.
 // host -> VM:  real DOM events become plain-data snapshots and dispatch back in.
 //
-// This is the seam every consumer (Summon's inline-surface, tests, future
+// This is the seam every consumer (Summon's summon-surface, tests, future
 // embedders) mounts through. It is intentionally thin: no policy, no bridge yet
 // (that arrives in M3). Just the render/event loop.
 

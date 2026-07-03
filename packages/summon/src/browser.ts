@@ -1,11 +1,11 @@
 export {
   consumeSurfaceStream,
-  mountInlineSurface,
+  mountSummonSurface,
 } from '@summon-internal/host/browser';
 export type {
-  InlineSurfaceArtifact,
-  InlineSurfaceHandle,
-  InlineSurfaceOptions,
+  SummonSurfaceArtifact,
+  SummonSurfaceHandle,
+  SummonSurfaceOptions,
   SurfacePreviewNode,
   SurfacePreviewSnapshot,
   SurfaceStreamContext,

@@ -42,7 +42,7 @@ export const scenarioCategoryOrder = [
   'Host actions',
   'Worker',
   'Approval',
-  'Arrow behavior',
+  'Surface Document behavior',
   'Design tokens',
   'Layout',
   'Composition',

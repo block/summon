@@ -4,7 +4,7 @@ const cards = [
   {
     href: "/generate",
     title: "Generate",
-    body: "One prompt. Generate a governed Surface Document bundle, stream server-owned diagnostics, render the accepted artifact in the inline sandbox, and inspect validation.",
+    body: "One prompt. Generate a governed Surface Document bundle, stream server-owned diagnostics, render the accepted artifact in the Summon sandbox, and inspect validation.",
     icon: (
       <>
         <path d="M3 12c2-4 3.5-4 5.5 0s3.5 4 5.5 0 3.5-4 5.5 0" />

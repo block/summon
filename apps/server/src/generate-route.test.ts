@@ -33,7 +33,7 @@ const searchTools: ToolPack = {
 
 const surfacePlan: SurfacePlan = {
   purpose: 'explore',
-  runtime: 'arrow',
+  runtime: 'surface-document',
   data: 'host-resource',
   authority: 'read',
   persistence: 'replayable',
@@ -157,7 +157,7 @@ test('api generate rejects the removed unsafe raw runtime as an unknown runtime 
   });
   await waitForHealth(port, app, output);
 
-  for (const runtime of ['unsafe-html-raw-stream', 'html-script', 'arrow-control', 'html-static', 'html-stream', 'domjs-control']) {
+  for (const runtime of ['not-surface-document', 'raw-html']) {
     const response = await fetch(`http://127.0.0.1:${port}/api/generate`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -364,7 +364,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   const policySystemText = policyRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(policySystemText, /Search host-owned dinner data/);
   assert.match(policySystemText, /Surface contract/);
-  assert.match(policySystemText, /Runtime: `arrow`/);
+  assert.match(policySystemText, /Runtime: `surface-document`/);
   assert.match(policySystemText, /data: `host-resource`/);
   assert.doesNotMatch(policySystemText, /Rules for scripts/);
 
@@ -420,7 +420,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   const agentSystemText = agentRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(agentSystemText, /Search host-owned dinner data/);
   assert.match(agentSystemText, /Surface contract/);
-  assert.match(agentSystemText, /Runtime: `arrow`/);
+  assert.match(agentSystemText, /Runtime: `surface-document`/);
 
   const agentLines = agentBody
     .trim()

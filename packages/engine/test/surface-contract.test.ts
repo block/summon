@@ -51,14 +51,14 @@ const tools: ToolPack = {
   ],
 };
 
-test('static policy contract view has no tools and Arrow runtime', () => {
+test('static policy contract view has no tools and Surface Document runtime', () => {
   const view = compileSurfaceContractView({ tier: 'static', purpose: 'inform' }, {
     tools,
   });
 
   assert.deepEqual(view.tools, []);
   assert.equal(view.surface.policy.tier, 'static');
-  assert.equal(view.surface.plan.runtime, 'arrow');
+  assert.equal(view.surface.plan.runtime, 'surface-document');
   assert.equal(view.surface.mode, 'static');
   assert.deepEqual(view.issues, []);
 });
@@ -88,7 +88,7 @@ test('declarative search policy includes only selected resource state keys', () 
     defaultDataShape: '[]',
     surface: { data: 'host-resource', authority: 'read' },
   });
-  assert.equal(view.surface.plan.runtime, 'arrow');
+  assert.equal(view.surface.plan.runtime, 'surface-document');
   assert.equal(view.surface.plan.data, 'host-resource');
   assert.equal(view.surface.plan.authority, 'read');
 });

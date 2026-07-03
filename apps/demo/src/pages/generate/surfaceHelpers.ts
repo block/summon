@@ -58,8 +58,8 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
       return { category: 'Host resources', description: 'Host-owned AI resource with loading, error, and response states.' };
     case 'github-profile-lookup':
       return { category: 'Host resources', description: 'Host-owned external lookup with proxied image data and read authority.' };
-    case 'arrow-fidelity':
-      return { category: 'Host actions', description: 'Arrow-rendered dashboard with host-owned action authority.' };
+    case 'surface-document-fidelity':
+      return { category: 'Host actions', description: 'Surface Document-rendered dashboard with host-owned action authority.' };
     case 'static-summary':
       return { category: 'Static', description: 'Static generated UI with embedded data and no host actions.' };
     case 'declarative-form':
@@ -71,7 +71,7 @@ export function describeScenario(scenario: ShowcaseScenario): { category: string
     case 'approval-publish':
       return { category: 'Approval', description: 'Publish workflow guarded by an approval-gated host action.' };
     case 'local-state-motion':
-      return { category: 'Arrow behavior', description: 'Arrow components, keyed lists, computed local state, styling, and motion.' };
+      return { category: 'Surface Document behavior', description: 'Surface Document components, keyed lists, computed local state, styling, and motion.' };
     case 'layout-card':
       return { category: 'Layout', description: 'Host layout slots constrain the generated card shape.' };
     case 'sibling-summon':

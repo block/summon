@@ -157,7 +157,7 @@ the agent ward's classifier described under "Resolved decisions" below.
   list. Fall back to `core` (true everywhere) when no node matches confidently.
 - **Sample bundles → author fresh node-model fixtures.** Re-author the existing
   bundles' design intent as new node-graph fixtures rather than running
-  `ghost migrate` on the legacy YAML. Cleaner fixtures, no migration cruft, and
+  `ghost migrate` on the old YAML. Cleaner fixtures, no migration cruft, and
   it doubles as a dogfood of authoring against the new model.
 - **Incarnation → essence for v1.** Summon does not pass `--as`. It gathers
   essence (untagged) nodes plus any `any`-tagged nodes — the medium-agnostic

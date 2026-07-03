@@ -465,7 +465,7 @@ function narrowSurfacePolicy(
   if ((tier === 'worker' && grants.length === 0) ||
     (tier === 'approval' && !knownTools.some((tool) => toolAuthority(tool) === 'approval-gated'))) {
     // The proposed tier (worker/approval) cannot be satisfied by the available
-    // tools. Rather than collapse to a dead `static` surface (the historical
+    // tools. Rather than collapse to a dead `static` surface (the older
     // "static cliff"), fall back to the strongest *legal* tier the available
     // tools support. We fail-closed on authority — never granting an approval
     // or worker capability the host didn't authorize — but not on the surface's

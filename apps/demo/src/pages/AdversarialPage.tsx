@@ -69,11 +69,11 @@ export function AdversarialPage() {
     <>
       <AppNav />
       <PageHeader
-        title="Arrow adversarial harness"
-        lede="Loads deliberately hostile Arrow source. Each blocked attempt is a win."
+        title="Surface Document adversarial harness"
+        lede="Loads deliberately hostile Surface Document source. Each blocked attempt is a win."
       />
       <div className={cn(pageWidthClass, 'grid grid-cols-2 gap-5 max-[820px]:grid-cols-1')}>
-        <Pane title="Inline Arrow sandbox">
+        <Pane title="Summon sandbox">
           <SummonSurface
             id="sandbox"
             className="h-[320px]"

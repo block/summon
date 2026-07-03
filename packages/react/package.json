@@ -16,7 +16,8 @@
   ],
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.tsx"
   },
   "dependencies": {
     "@anarchitecture/summon": "workspace:*"
@@ -30,7 +31,8 @@
     "@types/react-dom": "^18.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "happy-dom": "^15.0.0"
   },
   "private": true
 }

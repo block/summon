@@ -18,7 +18,7 @@ building blocks"). This is just guidance for authoring that slot well.
 
 The fingerprint declares intent in agnostic terms. Inventory — written
 optionally, by the fingerprint author — grounds that intent in concrete
-materials. A realizing surface (e.g. Summon, which emits Arrow) *reads* the
+materials. A realizing surface (e.g. Summon, which emits Surface Documents) *reads* the
 inventory; the fingerprint never references the surface. Strip all inventory and
 the fingerprint is still valid and still portable; it just gives the model less
 to draw on. The agent does the matching.
@@ -28,7 +28,7 @@ to draw on. The agent does the matching.
 This trade belongs to the author:
 
 - **Abstract inventory** (principles, arrangement, no concrete components) →
-  maximally portable. The same fingerprint composes onto web, Arrow, iOS,
+  maximally portable. The same fingerprint composes onto web, Surface Document, iOS,
   Android.
 - **Concrete inventory** (named building blocks, possibly medium-specific) →
   strongly grounded, less portable.
@@ -157,7 +157,7 @@ name: button
 ## A note on reuse vs. free-compose
 
 A realizing surface may be a different medium than the inventory — ghost-ui is
-React; Summon emits Arrow. So do not pin inventory by prop or markup shape.
+React; Summon emits Surface Documents. So do not pin inventory by prop or markup shape.
 Document the *purpose* and any *guarantees* a block must hold (e.g. an action
 routes through a declared tool, a control is keyboard-reachable). Let the surface
 author the form. Pinning prop APIs re-imports medium-specific opinion and creates

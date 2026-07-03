@@ -29,7 +29,7 @@ export interface TextCompletionClient {
   completeText(request: TextCompletionRequest): Promise<string>;
 }
 
-export type ModelCatalogStatus = 'stable' | 'preview' | 'latest' | 'legacy';
+export type ModelCatalogStatus = 'stable' | 'preview' | 'latest' | 'retired';
 export type ModelCatalogTier = 'fast' | 'balanced' | 'frontier';
 export type AnthropicThinkingMode = 'adaptive' | 'off';
 export type ModelEffort = 'low' | 'medium' | 'high' | 'max';
@@ -163,8 +163,8 @@ const OPENAI_MODELS: ModelCatalogEntry[] = [
   { id: 'gpt-5.4', label: 'GPT-5.4', status: 'stable', tier: 'balanced', maxOutputTokens: 128000 },
   { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini', status: 'stable', tier: 'fast', maxOutputTokens: 128000 },
   { id: 'gpt-5.4-nano', label: 'GPT-5.4 nano', status: 'stable', tier: 'fast', maxOutputTokens: 128000 },
-  { id: 'gpt-5', label: 'GPT-5', status: 'legacy', tier: 'balanced', maxOutputTokens: 64000 },
-  { id: 'gpt-5-mini', label: 'GPT-5 mini', status: 'legacy', tier: 'fast', maxOutputTokens: 64000 },
+  { id: 'gpt-5', label: 'GPT-5', status: 'retired', tier: 'balanced', maxOutputTokens: 64000 },
+  { id: 'gpt-5-mini', label: 'GPT-5 mini', status: 'retired', tier: 'fast', maxOutputTokens: 64000 },
 ];
 
 const GEMINI_MODELS: ModelCatalogEntry[] = [
@@ -172,8 +172,8 @@ const GEMINI_MODELS: ModelCatalogEntry[] = [
   { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', status: 'stable', tier: 'fast', maxOutputTokens: 64000 },
   { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', status: 'preview', tier: 'frontier', maxOutputTokens: 64000 },
   { id: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview', status: 'preview', tier: 'fast', maxOutputTokens: 64000 },
-  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', status: 'legacy', tier: 'balanced', maxOutputTokens: 64000 },
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', status: 'legacy', tier: 'fast', maxOutputTokens: 64000 },
+  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', status: 'retired', tier: 'balanced', maxOutputTokens: 64000 },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', status: 'retired', tier: 'fast', maxOutputTokens: 64000 },
 ];
 
 export function createModelProviderRegistry(env: NodeJS.ProcessEnv): ModelProviderRegistry {
@@ -442,7 +442,7 @@ function profileModel(selection: ModelSelection, key: ModelProfileKey): string {
 }
 
 function structuredAnthropicOptions(selection: ModelSelection): Partial<Pick<Anthropic.MessageCreateParams, 'thinking' | 'output_config'>> {
-  // Anthropic rejects extended thinking when tool_choice is forced. Structured Arrow/HTML
+  // Anthropic rejects extended thinking when tool_choice is forced. Structured Surface Document
   // bundle generation and repair force tools, so explicitly disable thinking there.
   return { thinking: { type: 'disabled' as const } };
 }
@@ -1112,8 +1112,8 @@ async function readErrorBody(response: Response): Promise<string> {
 
 function anthropicStructuredSurfaceTool(
   schema: Record<string, unknown>,
-  toolName = 'create_summon_arrow_surface',
-  description = 'Create an Arrow sandbox surface bundle for Summon. The server owns streaming protocol and validation; return only the structured bundle fields.',
+  toolName = 'emit_surface_document',
+  description = 'Create a Surface Document bundle for Summon. The server owns streaming protocol and validation; return only the structured bundle fields.',
 ): Anthropic.ToolUnion {
   return {
     name: toolName,
@@ -1128,8 +1128,8 @@ function openAIStructuredBody(
   prompt: string,
   maxTokens: number,
   schema: Record<string, unknown>,
-  toolName = 'create_summon_arrow_surface',
-  description = 'Create an Arrow sandbox surface bundle for Summon.',
+  toolName = 'emit_surface_document',
+  description = 'Create a Surface Document bundle for Summon.',
 ): Record<string, unknown> {
   return {
     model: selectedModel,
@@ -1153,8 +1153,8 @@ function geminiStructuredBody(
   prompt: string,
   maxOutputTokens: number,
   schema: Record<string, unknown>,
-  toolName = 'create_summon_arrow_surface',
-  description = 'Create an Arrow sandbox surface bundle for Summon.',
+  toolName = 'emit_surface_document',
+  description = 'Create a Surface Document bundle for Summon.',
 ): Record<string, unknown> {
   return {
     systemInstruction: {
@@ -1185,7 +1185,7 @@ function geminiStructuredBody(
   };
 }
 
-function extractAnthropicToolInput(content: Anthropic.Message['content'], toolName = 'create_summon_arrow_surface'): unknown {
+function extractAnthropicToolInput(content: Anthropic.Message['content'], toolName = 'emit_surface_document'): unknown {
   for (const block of content) {
     if (block.type === 'tool_use' && block.name === toolName) {
       return block.input;
@@ -1194,7 +1194,7 @@ function extractAnthropicToolInput(content: Anthropic.Message['content'], toolNa
   throw new Error(`Anthropic response did not include ${toolName} tool use`);
 }
 
-function extractOpenAIToolInput(payload: unknown, toolName = 'create_summon_arrow_surface'): unknown {
+function extractOpenAIToolInput(payload: unknown, toolName = 'emit_surface_document'): unknown {
   if (!payload || typeof payload !== 'object') {
     throw new Error('OpenAI response was not an object');
   }
@@ -1236,7 +1236,7 @@ function extractOpenAIToolInput(payload: unknown, toolName = 'create_summon_arro
   throw new Error(`OpenAI response did not include ${toolName} function call`);
 }
 
-function extractGeminiToolInput(payload: unknown, toolName = 'create_summon_arrow_surface'): unknown {
+function extractGeminiToolInput(payload: unknown, toolName = 'emit_surface_document'): unknown {
   if (!payload || typeof payload !== 'object') {
     throw new Error('Gemini response was not an object');
   }

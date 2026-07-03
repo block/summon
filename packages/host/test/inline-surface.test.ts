@@ -2,16 +2,16 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createEventStore } from '@summon-internal/devtools';
 import {
-  resolveInlineToolCall,
+  resolveSummonSurfaceToolCall,
   scopeTokenCss,
   shadowSurfaceCss,
-} from '../src/inline-surface.ts';
+} from '../src/summon-surface.ts';
 
-test('inline bridge rejects a granted tool without a host handler', async () => {
+test('surface bridge rejects a granted tool without a host handler', async () => {
   const events = createEventStore();
   const rejections: Array<{ reason: string; raw: unknown }> = [];
 
-  const result = await resolveInlineToolCall({
+  const result = await resolveSummonSurfaceToolCall({
     surfaceId: 'surface-1',
     toolAllowlist: new Set(['search']),
     currentState: { searchResults: [] },
@@ -35,10 +35,10 @@ test('inline bridge rejects a granted tool without a host handler', async () => 
   }]);
 });
 
-test('inline bridge resolves a granted tool through the supplied host handler', async () => {
+test('surface bridge resolves a granted tool through the supplied host handler', async () => {
   const events = createEventStore();
 
-  const result = await resolveInlineToolCall({
+  const result = await resolveSummonSurfaceToolCall({
     surfaceId: 'surface-2',
     toolAllowlist: new Set(['search']),
     currentState: { searchResults: [] },
@@ -60,7 +60,7 @@ test('inline bridge resolves a granted tool through the supplied host handler', 
   assert.equal(events.filter('tool-rejected').length, 0);
 });
 
-test('inline token CSS scopes fingerprint element selectors to the surface root', () => {
+test('surface token CSS scopes fingerprint element selectors to the surface root', () => {
   const scoped = scopeTokenCss(`
 /* token source header */
 :root {
@@ -92,11 +92,11 @@ button, input, textarea::placeholder, a:hover, strong, b {
 }
 `, 'surface-1');
 
-  assert.match(scoped, /\/\* token source header \*\/\s*\[data-summon-inline-surface="surface-1"\]\s*\{\s*--color-text: #111;/);
-  assert.match(scoped, /\[data-summon-inline-surface="surface-1"\], \[data-summon-inline-surface="surface-1"\]\s*\{\s*margin: 0;/);
-  assert.match(scoped, /\[data-summon-inline-surface="surface-1"\] button, \[data-summon-inline-surface="surface-1"\] input, \[data-summon-inline-surface="surface-1"\] textarea::placeholder, \[data-summon-inline-surface="surface-1"\] a:hover, \[data-summon-inline-surface="surface-1"\] strong, \[data-summon-inline-surface="surface-1"\] b\s*\{/);
-  assert.match(scoped, /@media \(min-width: 40rem\)\s*\{\s*\[data-summon-inline-surface="surface-1"\]\s*\{\s*background: black;/);
-  assert.match(scoped, /\[data-summon-inline-surface="surface-1"\] button, \[data-summon-inline-surface="surface-1"\] a:focus-visible\s*\{\s*outline:/);
+  assert.match(scoped, /\/\* token source header \*\/\s*\[data-summon-surface="surface-1"\]\s*\{\s*--color-text: #111;/);
+  assert.match(scoped, /\[data-summon-surface="surface-1"\], \[data-summon-surface="surface-1"\]\s*\{\s*margin: 0;/);
+  assert.match(scoped, /\[data-summon-surface="surface-1"\] button, \[data-summon-surface="surface-1"\] input, \[data-summon-surface="surface-1"\] textarea::placeholder, \[data-summon-surface="surface-1"\] a:hover, \[data-summon-surface="surface-1"\] strong, \[data-summon-surface="surface-1"\] b\s*\{/);
+  assert.match(scoped, /@media \(min-width: 40rem\)\s*\{\s*\[data-summon-surface="surface-1"\]\s*\{\s*background: black;/);
+  assert.match(scoped, /\[data-summon-surface="surface-1"\] button, \[data-summon-surface="surface-1"\] a:focus-visible\s*\{\s*outline:/);
   assert.match(scoped, /@keyframes pulse\s*\{\s*from \{ opacity: 0; \}\s*to \{ opacity: 1; \}\s*\}/);
   assert.doesNotMatch(scoped, /(^|})\s*button\s*,/);
   assert.doesNotMatch(scoped, /(^|})\s*a:hover\s*\{/);
@@ -133,6 +133,6 @@ html, body {
   assert.match(css, /\.card, button:hover\s*\{\s*color: var\(--color-text\);/);
   assert.match(css, /@media \(min-width: 40rem\)\s*\{\s*\.summon-surface-document-mount\s*\{\s*background: black;/);
   assert.match(css, /@keyframes pulse\s*\{\s*from \{ opacity: 0; \}\s*to \{ opacity: 1; \}\s*\}/);
-  assert.doesNotMatch(css, /data-summon-inline-surface/);
+  assert.doesNotMatch(css, /data-summon-surface/);
 });
 

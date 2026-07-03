@@ -47,7 +47,7 @@ export function DiagnosticsDock({
         <button id="tab-stream" type="button" className={tabClass(diagnosticsTab === 'stream')} data-diagnostics-tab="stream" aria-selected={diagnosticsTab === 'stream'} onClick={() => setDiagnosticsTab('stream')}>Stream <span id="stream-tail" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{statusText}</span></button>
         <button id="tab-devtools" type="button" className={tabClass(diagnosticsTab === 'devtools')} data-diagnostics-tab="devtools" aria-selected={diagnosticsTab === 'devtools'} onClick={() => setDiagnosticsTab('devtools')}>Devtools <span id="devtools-tally" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{devtoolsTally}</span></button>
         <button id="tab-timing" type="button" className={tabClass(diagnosticsTab === 'timing')} data-diagnostics-tab="timing" aria-selected={diagnosticsTab === 'timing'} onClick={() => setDiagnosticsTab('timing')}>Timing <span id="timing-count" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{timingEntries.length}</span></button>
-        <button id="tab-history" type="button" className={tabClass(diagnosticsTab === 'history')} data-diagnostics-tab="history" aria-selected={diagnosticsTab === 'history'} onClick={() => setDiagnosticsTab('history')}>History <span id="saved-count" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{savedSurfaces.length}</span></button>
+        <button id="tab-saved" type="button" className={tabClass(diagnosticsTab === 'saved')} data-diagnostics-tab="saved" aria-selected={diagnosticsTab === 'saved'} onClick={() => setDiagnosticsTab('saved')}>Saved <span id="saved-count" className="ml-1.5 font-mono text-[10px] font-medium opacity-75">{savedSurfaces.length}</span></button>
         <button id="tab-safety" type="button" className={tabClass(diagnosticsTab === 'safety')} data-diagnostics-tab="safety" aria-selected={diagnosticsTab === 'safety'} onClick={() => setDiagnosticsTab('safety')}>Safety</button>
       </div>
 
@@ -97,7 +97,7 @@ export function DiagnosticsDock({
           </div>
         )}
       </div>
-      <div className={panelClassName} id="diagnostics-history" data-diagnostics-panel="history" hidden={diagnosticsTab !== 'history'}>
+      <div className={panelClassName} id="diagnostics-saved" data-diagnostics-panel="saved" hidden={diagnosticsTab !== 'saved'}>
         <div id="saved-surfaces">
           <div id="saved-list" className="grid">
             {savedSurfaces.length === 0 ? (
@@ -126,7 +126,7 @@ export function DiagnosticsDock({
       </div>
       <div className={panelClassName} id="diagnostics-safety" data-diagnostics-panel="safety" hidden={diagnosticsTab !== 'safety'}>
         <div className="flex flex-wrap items-center gap-1.5 p-3.5" aria-label="Safety checks">
-          <a className={buttonClass({ variant: 'chip', size: 'xs', className: 'rounded-card no-underline' })} href="/adversarial">Arrow boundary</a>
+          <a className={buttonClass({ variant: 'chip', size: 'xs', className: 'rounded-card no-underline' })} href="/adversarial">Surface Document boundary</a>
         </div>
       </div>
     </section>

@@ -18,7 +18,7 @@ test('gallery presets are explicit, valid, and policy-complete', () => {
     'host-resource-search',
     'decision-picker',
     'approval-refund',
-    'arrow-fidelity',
+    'surface-document-fidelity',
     'worker-analysis',
     'boundary-stress',
   ];

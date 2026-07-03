@@ -25,7 +25,7 @@ export function parseModelCatalog(raw: unknown): ModelCatalogEntry[] {
     return [{
       id: item.id,
       label: item.label,
-      status: item.status === 'preview' || item.status === 'latest' || item.status === 'legacy'
+      status: item.status === 'preview' || item.status === 'latest' || item.status === 'retired'
         ? item.status
         : 'stable',
       tier: item.tier === 'frontier' || item.tier === 'balanced' ? item.tier : 'fast',

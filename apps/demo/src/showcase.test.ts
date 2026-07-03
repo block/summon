@@ -48,7 +48,7 @@ test('createScopedDemoRegistry aligns prompt pack, validation grants, and handle
   assert.deepEqual(registry.tools(), ['search', 'summon']);
 });
 
-test('narrowToolPack keeps only allowed tools and non-leaking patterns', () => {
+test('narrowToolPack keeps only allowed tools and drops unsupported patterns', () => {
   const full = createScopedDemoRegistry(
     { onSummon: () => {} },
     allDemoToolNames,
@@ -57,11 +57,7 @@ test('narrowToolPack keeps only allowed tools and non-leaking patterns', () => {
   const narrowed = narrowToolPack(full, ['counter']);
 
   assert.deepEqual(narrowed.tools.map((tool) => tool.name), ['counter']);
-  assert.ok(narrowed.patterns?.some((pattern) => pattern.code.includes('"counter"')));
-  assert.equal(
-    narrowed.patterns?.some((pattern) => pattern.code.includes('"summon"') || pattern.code.includes('"search"')),
-    false,
-  );
+  assert.equal(narrowed.patterns, undefined);
 });
 
 test('showcase scenarios declare contract-complete surfaces', () => {
@@ -107,7 +103,7 @@ test('generate showcase mirrors surface gallery presets for shared sandbox paths
     'static-summary',
     'host-resource-search',
     'decision-picker',
-    'arrow-fidelity',
+    'surface-document-fidelity',
     'worker-analysis',
   ];
 
@@ -140,7 +136,7 @@ test('showcase scenarios cover every non-utility demo tool', () => {
   assert.deepEqual(missing, []);
 });
 
-test('showcase menu groups use current Arrow-first labels', () => {
+test('showcase menu groups use current Surface Document-first labels', () => {
   const categories = groupScenarios(SHOWCASE_SCENARIOS).map((group) => group.category);
 
   assert.deepEqual(categories, [
@@ -149,7 +145,7 @@ test('showcase menu groups use current Arrow-first labels', () => {
     'Host actions',
     'Worker',
     'Approval',
-    'Arrow behavior',
+    'Surface Document behavior',
     'Layout',
     'Composition',
   ]);
@@ -183,7 +179,7 @@ test('batch prompt pool covers representative surface intents', () => {
   );
 });
 
-test('Ghost showcase scenarios store explicit fingerprint ids instead of legacy directions', () => {
+test('Ghost showcase scenarios store explicit fingerprint ids instead of old directions', () => {
   const scenario = createGhostShowcaseScenario('checkout');
 
   assert.equal(scenario.fingerprintId, 'checkout');
@@ -208,16 +204,16 @@ test('missing artifact errors include validation-blocked evidence', () => {
       op: 'meta',
       path: '/validation-blocked',
       value: {
-        code: 'invalid-arrow-bundle-entry',
-        message: 'Arrow bundle must include exactly one main.ts or main.js entry file',
+        code: 'missing-surface-document-bundle-css',
+        message: 'Surface Document bundle must include main.html and main.css',
         severity: 'block',
       },
     },
   ]);
 
   assert.match(message, /Generation blocked/);
-  assert.match(message, /invalid-arrow-bundle-entry/);
-  assert.match(message, /exactly one main.ts or main.js/);
+  assert.match(message, /missing-surface-document-bundle-css/);
+  assert.match(message, /main.html and main.css/);
 });
 
 test('missing artifact errors include stream graph evidence', () => {

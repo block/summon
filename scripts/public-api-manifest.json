@@ -76,12 +76,12 @@
       "file": "browser",
       "values": [
         "consumeSurfaceStream",
-        "mountInlineSurface"
+        "mountSummonSurface"
       ],
       "types": [
-        "InlineSurfaceArtifact",
-        "InlineSurfaceHandle",
-        "InlineSurfaceOptions",
+        "SummonSurfaceArtifact",
+        "SummonSurfaceHandle",
+        "SummonSurfaceOptions",
         "SurfacePreviewNode",
         "SurfacePreviewSnapshot",
         "SurfaceStreamContext",
@@ -284,7 +284,7 @@
         "defineWorkerAction",
         "defineWorkerResource",
         "isSurfaceEnvelope",
-        "mountInlineSurface",
+        "mountSummonSurface",
         "parseSurfaceEnvelope"
       ],
       "types": [
@@ -294,9 +294,9 @@
         "ApprovalStateKeys",
         "CreateSurfaceEnvelopeInput",
         "DataResourceDefinition",
-        "InlineSurfaceArtifact",
-        "InlineSurfaceHandle",
-        "InlineSurfaceOptions",
+        "SummonSurfaceArtifact",
+        "SummonSurfaceHandle",
+        "SummonSurfaceOptions",
         "PolicyDispatchResult",
         "PolicyEngineOptions",
         "Schema",
