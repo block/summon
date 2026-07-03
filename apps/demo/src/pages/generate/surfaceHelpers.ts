@@ -1,6 +1,5 @@
 import {
   type ProtocolLine,
-  type SummonOutputRuntime,
   type ToolPack,
   type SurfaceContractView,
   type SurfacePlan,
@@ -191,11 +190,8 @@ export function summarizeStreamGraphMeta(value: unknown): string {
   return `${complete ? 'complete' : 'blocked'} · artifacts=${artifacts} blocked=${blocked}`;
 }
 
-export function missingArtifactMessage(
-  protocolLines: ProtocolLine[],
-  runtime?: SummonOutputRuntime,
-): string {
-  const artifactDescription = acceptedArtifactDescription(runtime);
+export function missingArtifactMessage(protocolLines: ProtocolLine[]): string {
+  const artifactDescription = 'a validated Surface Document artifact';
   const blocked = findLastMetaValue(protocolLines, '/validation-blocked');
   if (isIssueLike(blocked)) {
     return `Generation blocked before ${artifactDescription} was accepted: ${blocked.code}: ${blocked.message}`;
@@ -232,20 +228,6 @@ export function missingArtifactMessage(
   return `Generation ended before ${artifactDescription} was accepted.`;
 }
 
-function acceptedArtifactDescription(runtime: SummonOutputRuntime | undefined): string {
-  switch (runtime ?? 'arrow-control') {
-    case 'arrow-control':
-      return 'a validated Arrow artifact';
-    case 'domjs-control':
-      return 'a validated domjs artifact';
-    case 'surface-document':
-      return 'a validated Surface Document artifact';
-    case 'html-static':
-      return 'a validated HTML artifact';
-    case 'html-stream':
-      return 'an HTML stream scaffold artifact';
-  }
-}
 
 function findLastMetaValue(protocolLines: ProtocolLine[], path: string): unknown {
   for (let index = protocolLines.length - 1; index >= 0; index--) {
@@ -364,7 +346,7 @@ export function buildContractRows({
     ['requested', 'Requested surface config', active.agentWard ? 'warded from prompt' : planText(requested), 'neutral'],
     ['effective', 'Effective safety plan', effective, effectivePlan ? 'good' : 'pending'],
     ['grants', 'Allowed host tools', `${toolCount}: ${hostTools}`, toolCount ? 'neutral' : 'pending'],
-    ['visuals', 'Generated visuals', runtimeTargetText(active.experimentalRuntime), effectivePlan ? 'good' : 'pending'],
+    ['visuals', 'Generated visuals', 'Surface Document', effectivePlan ? 'good' : 'pending'],
     ['runtime', 'Sandbox runtime', runtime, effectivePlan ? 'good' : 'pending'],
     ['validation', 'Validation', validation, validation !== 'pending' && !validation.startsWith('0/') ? 'warn' : validation === 'pending' ? 'pending' : 'good'],
     ['stream', 'Stream diagnostics', stream, stream.startsWith('complete') ? 'good' : stream === 'pending' ? 'pending' : 'warn'],
@@ -377,20 +359,6 @@ export function buildContractRows({
   }>;
 }
 
-export function runtimeTargetText(runtime: SummonOutputRuntime | undefined): string {
-  switch (runtime ?? 'arrow-control') {
-    case 'arrow-control':
-      return 'Arrow control';
-    case 'domjs-control':
-      return 'domjs control';
-    case 'surface-document':
-      return 'Surface Document';
-    case 'html-static':
-      return 'HTML static';
-    case 'html-stream':
-      return 'HTML token preview + commits';
-  }
-}
 
 export function numberOptions(presets: number[] | undefined, selected: number): number[] {
   return Array.from(new Set([...(presets ?? []), selected]))

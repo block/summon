@@ -49,12 +49,12 @@ const tools: ToolPack = {
   ],
 };
 
-function arrowBundle(html: string) {
-  const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+function surfaceDocumentBundle(html: string) {
   return {
-    schema: 'summon.arrow-bundle/v1' as const,
+    schema: 'summon.surface-document-bundle/v1' as const,
     source: {
-      'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\`;`,
+      'main.html': html,
+      'main.css': 'section { color: var(--color-text); }',
     },
   };
 }
@@ -342,8 +342,8 @@ test('host policy resolver can force a static fallback', async () => {
 test('runAgentSurfaceGeneration emits agent diagnostics before policy metadata', async () => {
   const lines: ProtocolLine[] = [];
   const provider: SurfaceModelProvider = {
-    async generateArrowBundle() {
-      return arrowBundle('<section><h1>Dinner finder</h1><p>Ready.</p></section>');
+    async generateSurfaceDocumentBundle() {
+      return surfaceDocumentBundle('<section><h1>Dinner finder</h1><p>Ready.</p></section>');
     },
   };
 

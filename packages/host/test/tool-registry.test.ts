@@ -795,9 +795,10 @@ test('approval action prepares a frozen request for host approval and approved h
 
 test('surface envelope serializes replay metadata', () => {
   const artifact = {
-    runtime: 'arrow' as const,
+    runtime: 'surface-document' as const,
     source: {
-      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+      'main.html': '<p>Saved</p>',
+      'main.css': 'p { color: var(--color-text); }',
     },
   };
   const envelope = createSurfaceEnvelope({
@@ -828,9 +829,10 @@ test('surface envelope serializes replay metadata', () => {
 
 test('surface envelope parser accepts valid replay envelopes', () => {
   const artifact = {
-    runtime: 'arrow' as const,
+    runtime: 'surface-document' as const,
     source: {
-      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+      'main.html': '<p>Saved</p>',
+      'main.css': 'p { color: var(--color-text); }',
     },
   };
   const envelope = createSurfaceEnvelope({
@@ -854,7 +856,7 @@ test('surface envelope parser accepts valid replay envelopes', () => {
   assert.equal(parseSurfaceEnvelope(JSON.stringify(envelope))?.id, envelope.id);
 });
 
-test('surface envelope parser accepts HTML artifacts with validated patch history', () => {
+test('surface envelope parser rejects legacy html artifacts', () => {
   const artifact = {
     runtime: 'html' as const,
     source: {
@@ -862,13 +864,10 @@ test('surface envelope parser accepts HTML artifacts with validated patch histor
       'main.css': '#hero { color: var(--color-text); }',
     },
   };
-  const patch = {
-    runtime: 'html' as const,
-    action: 'replace' as const,
-    target: 'hero',
-    html: '<section id="hero"><h2>Replayed</h2></section>',
-  };
-  const envelope = createSurfaceEnvelope({
+  const envelope = {
+    version: 4,
+    id: 'legacy-html',
+    createdAt: new Date().toISOString(),
     prompt: 'stream html',
     surfacePlan: {
       purpose: 'inform',
@@ -881,22 +880,21 @@ test('surface envelope parser accepts HTML artifacts with validated patch histor
     artifact,
     protocolLines: [
       { op: 'artifact', path: '/artifact', value: artifact },
-      { op: 'patch', path: '/artifact/html-patch', value: patch },
     ],
     grants: { tools: [] },
     metadata: { mode: 'static' },
-  });
+    validationIssues: [],
+  };
 
-  const parsed = parseSurfaceEnvelope(JSON.stringify(envelope));
-  assert.equal(parsed?.artifact.runtime, 'html');
-  assert.equal(parsed?.protocolLines.length, 2);
+  assert.equal(parseSurfaceEnvelope(JSON.stringify(envelope)), null);
 });
 
 test('surface envelope parser rejects malformed, wrong-version, and escalating envelopes', () => {
   const artifact = {
-    runtime: 'arrow' as const,
+    runtime: 'surface-document' as const,
     source: {
-      'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<p>Saved</p>`',
+      'main.html': '<p>Saved</p>',
+      'main.css': 'p { color: var(--color-text); }',
     },
   };
   const envelope = createSurfaceEnvelope({

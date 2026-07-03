@@ -12,7 +12,7 @@ import {
 import { Button, panelClass } from '../../../components/ui.js';
 import { cn } from '../../../lib/cn.js';
 import { createScopedDemoRegistry } from '../../../showcase.js';
-import { childToolNames, GENERATE_RUNTIME } from '../constants.js';
+import { childToolNames } from '../constants.js';
 import {
   buildGenerationPreview,
   reduceSurfacePreviewSnapshot,
@@ -57,7 +57,6 @@ export function ChildSurface({
           body: JSON.stringify({
             prompt: child.prompt,
             validationMode: 'observe',
-            experimentalRuntime: GENERATE_RUNTIME,
             ...(buildFingerprintSteeringPayload({
               id: child.fingerprintId,
               targetPath: child.fingerprintTargetPath,

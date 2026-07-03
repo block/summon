@@ -13,10 +13,6 @@ import {
   type SurfaceComplexity,
   type ContractPromptBlock,
   type ContractIssue,
-  type SummonOutputRuntime,
-  DEFAULT_SUMMON_OUTPUT_RUNTIME,
-  SUMMON_OUTPUT_RUNTIME_VALUES,
-  runtimeProfile,
 } from '@anarchitecture/summon/engine';
 import {
   planAgentSurface,
@@ -119,16 +115,6 @@ app.use(cors({ origin: ALLOWED_ORIGIN }));
 
 const LAYOUT_ID_RE = /^[a-z][a-z0-9-]{0,79}$/;
 const SECTION_ID_RE = /^[a-z][a-z0-9-]{0,19}$/;
-const EXPERIMENTAL_RUNTIME_VALUES: SummonOutputRuntime[] = [
-  ...SUMMON_OUTPUT_RUNTIME_VALUES,
-];
-const MODEL_PROFILE_KEY_BY_RUNTIME = {
-  'arrow-control': 'arrow-control',
-  'html-static': 'html-static',
-  'html-stream': 'html-stream',
-  'domjs-control': 'domjs-control',
-  'surface-document': 'surface-document',
-} satisfies Record<SummonOutputRuntime, ModelProfileKey>;
 
 function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?: string } {
   if (raw === undefined || raw === null) return { layout: null };
@@ -208,24 +194,6 @@ function parseSurfaceScale(raw: unknown): { scale: SurfaceScale | null; error?: 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(value)));
-}
-
-function parseExperimentalRuntime(raw: unknown): { runtime: SummonOutputRuntime; error?: string } {
-  if (raw === undefined || raw === null || raw === '') return { runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME };
-  if (typeof raw !== 'string') {
-    return { runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME, error: 'experimentalRuntime must be a string' };
-  }
-  if (!EXPERIMENTAL_RUNTIME_VALUES.includes(raw as SummonOutputRuntime)) {
-    return {
-      runtime: DEFAULT_SUMMON_OUTPUT_RUNTIME,
-      error: `experimentalRuntime must be one of ${EXPERIMENTAL_RUNTIME_VALUES.join(', ')}`,
-    };
-  }
-  return { runtime: raw as SummonOutputRuntime };
-}
-
-function modelProfileKeyForRuntime(runtime: SummonOutputRuntime): ModelProfileKey {
-  return MODEL_PROFILE_KEY_BY_RUNTIME[runtime];
 }
 
 // Simple concurrency cap for /api/generate — protects against a runaway batch
@@ -343,13 +311,11 @@ app.post('/api/generate', async (req, res) => {
     res.status(400).json({ error: 'prompt required' });
     return;
   }
-  const parsedExperimentalRuntime = parseExperimentalRuntime(req.body?.experimentalRuntime);
-  if (parsedExperimentalRuntime.error) {
-    res.status(400).json({ error: parsedExperimentalRuntime.error });
+  if (req.body?.experimentalRuntime !== undefined && req.body.experimentalRuntime !== 'surface-document') {
+    res.status(400).json({ error: 'experimentalRuntime is retired; the server always generates surface-document bundles' });
     return;
   }
-  const experimentalRuntime = parsedExperimentalRuntime.runtime;
-  const runtimeProfileKey = modelProfileKeyForRuntime(experimentalRuntime);
+  const runtimeProfileKey: ModelProfileKey = 'surface-document';
   const utilityProfileKey: ModelProfileKey = 'utility';
   const resolvedRuntimeProvider = modelProviders.resolve(req.body?.modelProvider ?? req.body?.provider, req.body, runtimeProfileKey);
   if (!resolvedRuntimeProvider.ok) {
@@ -552,7 +518,6 @@ app.post('/api/generate', async (req, res) => {
         userPrompt: prompt,
         mode,
         surfacePlan,
-        outputRuntime: experimentalRuntime,
         tools: hasSurfacePolicy
           ? toolCeiling
           : agentPlan
@@ -574,28 +539,22 @@ app.post('/api/generate', async (req, res) => {
 
     const preludeLines: ProtocolLine[] = [];
 
+    // Let the playground repair loop recover the "valid schema, runtime-fatal"
+    // class (bundle shape, syntax, unsupported facade API, ungranted network)
+    // instead of blocking. Mirrors the repairable codes in runtime/bundle.ts.
     const playgroundRepairIssueCodes = [
-      'invalid-arrow-source-syntax',
-      'invalid-arrow-bundle',
-      'invalid-arrow-bundle-schema',
-      'missing-arrow-bundle-source',
-      'invalid-arrow-bundle-entry',
-      'arrow-bundle-extra-file',
-      'invalid-arrow-bundle-source-file',
-      // domjs: let the repair loop recover the "valid syntax, runtime-fatal"
-      // class (unsupported facade API, ungranted network) instead of blocking.
-      // These mirror the repairable domjs codes in runtime/bundle.ts.
-      'invalid-domjs-source-syntax',
-      'invalid-domjs-source',
-      'invalid-domjs-source-file',
-      'invalid-domjs-source-path',
-      'invalid-domjs-bundle',
-      'invalid-domjs-bundle-schema',
-      'invalid-domjs-entry',
-      'missing-domjs-bundle-entry',
-      'domjs-source-limit',
-      'domjs-unsupported-api',
-      'domjs-network-not-granted',
+      'invalid-surface-document-bundle',
+      'invalid-surface-document-bundle-schema',
+      'missing-surface-document-bundle-html',
+      'missing-surface-document-bundle-css',
+      'missing-surface-document-file',
+      'invalid-surface-document-source',
+      'invalid-surface-document-source-file',
+      'invalid-surface-document-source-path',
+      'invalid-surface-document-source-syntax',
+      'surface-document-source-limit',
+      'surface-document-unsupported-api',
+      'surface-document-network-not-granted',
     ];
 
     if (playgroundMode) {
@@ -705,7 +664,6 @@ app.post('/api/generate', async (req, res) => {
         seedLines,
         validationMode,
         playground: playgroundMode,
-        experimentalRuntime,
         experimentalPromptBlock: playgroundMode ? playgroundPromptBlock : null,
       };
       const summary: SurfaceGenerationSummary = await runSurfaceGeneration({
@@ -713,13 +671,6 @@ app.post('/api/generate', async (req, res) => {
         maxRepairAttempts: playgroundMode ? 1 : clampInt(req.body?.maxRepairAttempts, 0, 3, 1),
         ...(playgroundMode ? { repairIssueCodes: playgroundRepairIssueCodes } : {}),
         modelProvider: {
-          generateArrowBundle: (request) => modelProvider.generateArrowBundle(request, modelSelection),
-          repairArrowBundle: (request) => modelProvider.repairArrowBundle(request, modelSelection),
-          generateHtmlBundle: (request) => modelProvider.generateHtmlBundle(request, modelSelection),
-          repairHtmlBundle: (request) => modelProvider.repairHtmlBundle(request, modelSelection),
-          streamHtmlSurface: (request) => modelProvider.streamHtmlSurface(request, modelSelection),
-          generateDomjsBundle: (request) => modelProvider.generateDomjsBundle(request, modelSelection),
-          repairDomjsBundle: (request) => modelProvider.repairDomjsBundle(request, modelSelection),
           generateSurfaceDocumentBundle: (request) => modelProvider.generateSurfaceDocumentBundle(request, modelSelection),
           repairSurfaceDocumentBundle: (request) => modelProvider.repairSurfaceDocumentBundle(request, modelSelection),
         },
@@ -777,7 +728,7 @@ app.post('/api/generate', async (req, res) => {
               grantedTools: toolCeiling?.tools?.map((tool) => tool.name) ?? [],
               validation: summarizeContractIssues(summary.validationIssues),
               acceptedLines: summary.emittedLines,
-              runtime: runMetrics.runtime ?? experimentalRuntime,
+              runtime: runMetrics.runtime ?? 'surface-document',
               repairs: runMetrics.repairs ?? 0,
               blocked: summary.blocked,
               safetyViolations: runMetrics.safetyViolationCodes ?? [],
@@ -797,7 +748,6 @@ app.post('/api/generate', async (req, res) => {
       };
       console.log(
         `[generate] provider=${modelProvider.id}/${modelSelection.generationModel} utility=${utilityModelProvider.id}/${utilityModelSelection.utilityModel} ghost=${ghostContext ? ghostLogId(ghostContext) : 'none'} mode=${mode}` +
-          ` runtime=${experimentalRuntime}` +
           ` layout=${layout?.id ?? 'none'}` +
           ` surface=${surfacePlan.purpose}/${surfacePlan.runtime}/${surfacePlan.data}/${surfacePlan.authority}/${surfacePlan.persistence}` +
           ` tools=${pack?.tools.length ?? 0}/${toolCeiling?.tools.length ?? 0}` +

@@ -3,7 +3,6 @@ import {
   contractIssue,
   createSurfaceDocumentBundleJsonSchema,
   normalizeSurfaceDocumentBundle,
-  runtimeProfile,
   surfaceDocumentArtifactFromBundle,
   validateProtocolLine,
   validateSurfaceDocumentArtifact,
@@ -19,14 +18,13 @@ import {
   type RuntimeValidationResult,
 } from './bundle.js';
 import {
-  missingArtifactIssueForProfile,
+  missingArtifactIssue,
   nowMs,
   writeInitialOutputMode,
   type RuntimeContext,
 } from './strategy.js';
 
 export class SurfaceDocumentStrategy implements BundleRuntimeStrategy {
-  readonly profile = runtimeProfile('surface-document');
   readonly draftLabel = 'Composing Surface Document bundle';
   readonly receivedLabel = 'Received structured Surface Document bundle';
   readonly repairLabel = 'Repairing Surface Document bundle';
@@ -50,7 +48,7 @@ export class SurfaceDocumentStrategy implements BundleRuntimeStrategy {
   }
 
   missingArtifactIssue(): ContractIssue {
-    return missingArtifactIssueForProfile(this.profile);
+    return missingArtifactIssue();
   }
 
   schema(): Record<string, unknown> {
@@ -58,18 +56,18 @@ export class SurfaceDocumentStrategy implements BundleRuntimeStrategy {
   }
 
   missingProviderIssue(ctx: RuntimeContext): ContractIssue | null {
-    if (ctx.input.modelProvider.generateSurfaceDocumentBundle) return null;
+    if (typeof ctx.input.modelProvider.generateSurfaceDocumentBundle === 'function') return null;
     return contractIssue({
       source: 'protocol',
       severity: 'block',
       code: 'missing-surface-document-provider',
-      message: `Experimental runtime "${this.profile.runtime}" requires a model provider with generateSurfaceDocumentBundle()`,
+      message: 'Surface Document generation requires a model provider with generateSurfaceDocumentBundle()',
       path: '/runtime',
     });
   }
 
   generate(ctx: RuntimeContext, schema: Record<string, unknown>): Promise<unknown> {
-    return ctx.input.modelProvider.generateSurfaceDocumentBundle!({
+    return ctx.input.modelProvider.generateSurfaceDocumentBundle({
       prompt: ctx.input.prompt,
       promptBlocks: ctx.systemContracts.promptBlocks,
       schema,
@@ -88,7 +86,7 @@ export class SurfaceDocumentStrategy implements BundleRuntimeStrategy {
       schema: request.schema,
       previousBundle: request.previousBundle,
       issues: request.issues,
-      hints: hintsForIssues(request.issues, 'surface-document'),
+      hints: hintsForIssues(request.issues),
       attempt: request.attempt,
       signal: ctx.input.signal,
     });

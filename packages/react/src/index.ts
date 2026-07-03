@@ -2,16 +2,8 @@ import {
   type ToolRegistry,
 } from '@anarchitecture/summon';
 import {
-  isArrowSurfaceArtifact,
-  isHtmlSurfaceArtifact,
-  isDomjsSurfaceArtifact,
   isSurfaceDocumentArtifact,
-  normalizeHtmlSurfacePatch,
   type ArtifactLine,
-  type ArrowSurfaceArtifact,
-  type HtmlSurfacePatch,
-  type HtmlSurfaceArtifact,
-  type DomjsSurfaceArtifact,
   type SurfaceDocumentArtifact,
   type SurfaceEvent,
   type ValidationTool,
@@ -19,7 +11,6 @@ import {
 import {
   mountInlineSurface,
   type InlineSurfaceHandle,
-  type HtmlStreamPreviewDelta,
   type SurfacePreviewSnapshot,
 } from '@anarchitecture/summon/browser';
 import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
@@ -64,13 +55,11 @@ export interface SummonSurfaceHandle {
   root: HTMLDivElement | null;
   surfaceId: string | null;
   renderArtifact(artifact: SummonRenderableArtifact): void;
-  applyHtmlPreviewDelta(delta: HtmlStreamPreviewDelta): void;
-  applyHtmlPatch(patch: HtmlSurfacePatch): void;
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot | null;
 }
 
-export type SummonRenderableArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact | SurfaceDocumentArtifact;
+export type SummonRenderableArtifact = SurfaceDocumentArtifact;
 
 export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>(function SummonSurface(
   props,
@@ -91,12 +80,6 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     renderArtifact(artifact: SummonRenderableArtifact) {
       lastRenderedArtifactRef.current = artifact;
       handleRef.current?.renderArtifact(artifact);
-    },
-    applyHtmlPreviewDelta(delta) {
-      handleRef.current?.applyHtmlPreviewDelta(delta);
-    },
-    applyHtmlPatch(patch) {
-      handleRef.current?.applyHtmlPatch(patch);
     },
     pushState(state: Record<string, unknown>) {
       handleRef.current?.pushState(state);
@@ -137,7 +120,6 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       ...(props.initialState ?? {}),
     };
     const renderableArtifact = resolveRenderableArtifact(props);
-    const replayHtmlPatches = htmlPatchesFromEnvelope(props.envelope);
 
     let handle: InlineSurfaceHandle | null = null;
     const policy = new PolicyEngine({
@@ -178,9 +160,6 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     if (lastRenderedArtifactRef.current !== null) {
       handle.renderArtifact(lastRenderedArtifactRef.current);
     }
-    for (const patch of replayHtmlPatches) {
-      handle.applyHtmlPatch(patch);
-    }
 
     return () => {
       handle?.dispose();
@@ -219,21 +198,9 @@ function resolveRenderableArtifact(props: SummonSurfaceProps): SummonRenderableA
     const line = lines[i];
     if (!line || line.op !== 'artifact' || line.path !== '/artifact') continue;
     const value = (line as ArtifactLine).value;
-    if (isArrowSurfaceArtifact(value) || isHtmlSurfaceArtifact(value) || isDomjsSurfaceArtifact(value) || isSurfaceDocumentArtifact(value)) {
+    if (isSurfaceDocumentArtifact(value)) {
       return value;
     }
   }
   return null;
-}
-
-function htmlPatchesFromEnvelope(envelope: SurfaceEnvelope | null | undefined): HtmlSurfacePatch[] {
-  const lines = envelope?.protocolLines;
-  if (!lines) return [];
-  const patches: HtmlSurfacePatch[] = [];
-  for (const line of lines) {
-    if (line.op !== 'patch' || line.path !== '/artifact/html-patch') continue;
-    const normalized = normalizeHtmlSurfacePatch(line.value);
-    if (normalized.patch) patches.push(normalized.patch);
-  }
-  return patches;
 }

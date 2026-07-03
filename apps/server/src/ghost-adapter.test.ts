@@ -170,8 +170,8 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /# Ghost Fingerprint/);
     assert.match(prepared.prompt, /## Summon Surface Brief/);
     assert.match(prepared.prompt, /Surface plan: purpose=inform; runtime=arrow; data=embedded; authority=none; persistence=replayable/);
-    assert.match(prepared.prompt, /Output runtime: arrow-control/);
-    assert.match(prepared.prompt, /structured Arrow sandbox bundle/);
+    assert.match(prepared.prompt, /Output runtime: surface-document/);
+    assert.match(prepared.prompt, /structured Surface Document bundle/);
     assert.match(prepared.prompt, /Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata/);
     assert.match(prepared.prompt, /The agent ward controls host authority and tools/);
     assert.match(prepared.prompt, /The user request is the semantic and task authority/);
@@ -325,7 +325,7 @@ describe('Ghost adapter', () => {
     assert.equal(calls, 0, 'unknown preselected id must not trigger a model call');
   });
 
-  it('uses HTML output wording in the Summon surface brief when requested', async () => {
+  it('uses Surface Document output wording in the Summon surface brief', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -336,7 +336,6 @@ describe('Ghost adapter', () => {
     const prepared = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
-      outputRuntime: 'html-static',
       surfacePlan: {
         purpose: 'inform',
         runtime: 'arrow',
@@ -346,10 +345,10 @@ describe('Ghost adapter', () => {
       },
     });
 
-    assert.match(prepared.prompt, /Output runtime: html-static/);
-    assert.match(prepared.prompt, /structured HTML\/CSS sandbox bundle/);
-    assert.match(prepared.prompt, /create_summon_html_surface/);
-    assert.match(prepared.prompt, /final HTML artifact/);
+    assert.match(prepared.prompt, /Output runtime: surface-document/);
+    assert.match(prepared.prompt, /structured Surface Document bundle/);
+    assert.match(prepared.prompt, /emit_surface_document/);
+    assert.match(prepared.prompt, /final Surface Document artifact/);
     assert.doesNotMatch(prepared.prompt, /structured Arrow sandbox bundle/);
     assert.doesNotMatch(prepared.prompt, /create_summon_arrow_surface/);
     assert.doesNotMatch(prepared.prompt, /final Arrow artifact/);
@@ -385,7 +384,7 @@ describe('Ghost adapter', () => {
       layoutId: 'card-structured',
       grantedTools: ['host_action'],
       validation: { blocked: 0, warnings: 1, codes: { 'unknown-token': 1 } },
-      runtime: 'arrow-control',
+      runtime: 'surface-document',
       repairs: 2,
       blocked: false,
       safetyViolations: [],
@@ -418,9 +417,9 @@ describe('Ghost adapter', () => {
           op: 'artifact',
           path: '/artifact',
           value: {
-            runtime: 'arrow',
+            runtime: 'surface-document',
             source: {
-              'main.ts': 'export default html`<h1>Queue</h1>`',
+              'main.html': '<h1>Queue</h1>',
               'main.css': 'h1 { color: var(--color-text); }',
             },
           },
@@ -458,9 +457,9 @@ describe('Ghost adapter', () => {
     assert.equal(receipt.capability.layoutId, 'card-structured');
 
     // --- generation (what-happened) ---
-    assert.equal(receipt.generation.runtime, 'arrow-control');
-    assert.equal(receipt.generation.artifactRuntime, 'arrow');
-    assert.deepEqual(receipt.generation.artifactFiles, ['main.css', 'main.ts']);
+    assert.equal(receipt.generation.runtime, 'surface-document');
+    assert.equal(receipt.generation.artifactRuntime, 'surface-document');
+    assert.deepEqual(receipt.generation.artifactFiles, ['main.css', 'main.html']);
     assert.equal(receipt.generation.repairs, 2);
     assert.equal(receipt.generation.blocked, false);
     assert.deepEqual(receipt.generation.validation, {
@@ -506,7 +505,7 @@ describe('Ghost adapter', () => {
       layoutId: null,
       grantedTools: [],
       validation: { blocked: 0, warnings: 0, codes: {} },
-      runtime: 'arrow-control',
+      runtime: 'surface-document',
       repairs: 0,
       blocked: false,
       safetyViolations: [],

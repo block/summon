@@ -3,15 +3,8 @@ import {
   type CompiledSystemContracts,
   type ContractIssue,
   type ProtocolLine,
-  type RuntimeProfile,
-  type SummonOutputRuntime,
 } from '@summon-internal/engine';
 import type { SurfaceGenerationInput } from '../types.js';
-import { ArrowControlStrategy } from './arrow-control.js';
-import { DomjsControlStrategy } from './domjs-control.js';
-import { HtmlBundleStrategy } from './html-bundle.js';
-import { HtmlStreamStrategy } from './html-stream.js';
-import { SurfaceDocumentStrategy } from './surface-document.js';
 
 export type SurfacePhase =
   | 'planning'
@@ -31,7 +24,6 @@ export type ServerTimingPhase =
 export interface RuntimeContext {
   input: SurfaceGenerationInput;
   systemContracts: CompiledSystemContracts;
-  profile: RuntimeProfile;
   addValidationIssues(issues: readonly ContractIssue[]): void;
   blockGeneration(issue: ContractIssue): Promise<void>;
   emitServerPreviewScaffold(): Promise<void>;
@@ -51,39 +43,9 @@ export interface RuntimeContext {
 }
 
 export interface RuntimeStrategy {
-  readonly profile: RuntimeProfile;
   writeInitialOutputMode(ctx: RuntimeContext): Promise<void>;
   consume(ctx: RuntimeContext): Promise<void>;
   missingArtifactIssue(): ContractIssue;
-}
-
-export function createRuntimeStrategy(runtime: SummonOutputRuntime): RuntimeStrategy {
-  switch (runtime) {
-    case 'arrow-control':
-      return new ArrowControlStrategy();
-    case 'html-static':
-      return new HtmlBundleStrategy('html-static');
-    case 'html-stream':
-      return new HtmlStreamStrategy();
-    case 'domjs-control':
-      return new DomjsControlStrategy();
-    case 'surface-document':
-      return new SurfaceDocumentStrategy();
-  }
-}
-
-function outputModeFormat(format: string): string {
-  if (format === 'arrow') return 'arrow-bundle';
-  if (format === 'domjs') return 'domjs-bundle';
-  if (format === 'surface-document') return 'surface-document-bundle';
-  return 'html-bundle';
-}
-
-function outputModeSchema(format: string): string {
-  if (format === 'arrow') return 'summon.arrow-bundle/v1';
-  if (format === 'domjs') return 'summon.domjs-bundle/v1';
-  if (format === 'surface-document') return 'summon.surface-document-bundle/v1';
-  return 'summon.html-bundle/v0';
 }
 
 export async function writeInitialOutputMode(ctx: RuntimeContext): Promise<void> {
@@ -91,34 +53,20 @@ export async function writeInitialOutputMode(ctx: RuntimeContext): Promise<void>
     op: 'meta',
     path: '/model-output-mode',
     value: {
-      format: outputModeFormat(ctx.profile.format),
-      schema: outputModeSchema(ctx.profile.format),
-      runtime: ctx.profile.runtime,
+      format: 'surface-document-bundle',
+      schema: 'summon.surface-document-bundle/v1',
+      runtime: 'surface-document',
       repairAttempts: 0,
     },
   });
 }
 
-export function missingArtifactIssueForProfile(profile: RuntimeProfile): ContractIssue {
-  const code = profile.format === 'arrow'
-    ? 'missing-arrow-artifact'
-    : profile.format === 'domjs'
-      ? 'missing-domjs-artifact'
-      : profile.format === 'surface-document'
-        ? 'missing-surface-document-artifact'
-        : 'missing-html-artifact';
-  const label = profile.format === 'arrow'
-    ? 'Arrow'
-    : profile.format === 'domjs'
-      ? 'domjs'
-      : profile.format === 'surface-document'
-        ? 'Surface Document'
-        : 'HTML';
+export function missingArtifactIssue(): ContractIssue {
   return contractIssue({
     source: 'protocol',
     severity: 'block',
-    code,
-    message: `Generation completed without a valid ${label} artifact`,
+    code: 'missing-surface-document-artifact',
+    message: 'Generation completed without a valid Surface Document artifact',
     path: '/artifact',
   });
 }

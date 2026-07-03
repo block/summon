@@ -90,7 +90,7 @@ export interface StatePushedEvent extends BaseEvent {
 /** A server-owned stream line was successfully parsed. */
 export interface ServerLineEvent extends BaseEvent {
   kind: 'server-line';
-  line: { op: 'meta' | 'event' | 'artifact' | 'patch'; path: string; value?: unknown };
+  line: { op: 'meta' | 'event' | 'artifact'; path: string; value?: unknown };
 }
 
 /** A server transport line did not parse as a stream line. */
@@ -115,7 +115,7 @@ export interface StreamGraphEvent extends BaseEvent {
   };
   artifacts: Array<{
     revision: number;
-    runtime: 'arrow' | 'html';
+    runtime: 'surface-document';
     bytes: number;
     firstSeenLine?: number;
     lastUpdatedLine?: number;

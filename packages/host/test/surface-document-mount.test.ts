@@ -1,6 +1,6 @@
-// M3.4 app-level: mount a domjs artifact through mountInlineSurface and verify
-// render, a tool call round-trip through the host bridge, host->VM state sync,
-// and clean runtime-error reporting. Complements M0's VM-level isolation gate.
+// App-level: mount Surface Document artifacts through mountInlineSurface and
+// verify render, tool call round-trips through the host bridge, grant
+// enforcement, style containment, and clean runtime-error reporting.
 
 import { Window } from 'happy-dom';
 
@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createEventStore } from '@summon-internal/devtools';
 import { mountInlineSurface } from '../src/inline-surface.ts';
-import type { DomjsSurfaceArtifact, SurfaceDocumentArtifact } from '@summon-internal/engine';
+import type { SurfaceDocumentArtifact } from '@summon-internal/engine';
 
 function makeRoot(): HTMLElement {
   window.document.body.innerHTML = '';
@@ -39,78 +39,17 @@ function surfaceDocumentShadowRoot(root: HTMLElement): ShadowRoot {
   return host.shadowRoot;
 }
 
-test('mounts a domjs artifact and renders into the root', async () => {
-  const root = makeRoot();
-  const artifact: DomjsSurfaceArtifact = {
-    runtime: 'domjs',
-    source: {
-      'main.js': `
-        const card = document.createElement('div');
-        card.className = 'card';
-        const t = document.createTextNode('hello domjs');
-        card.append(t);
-        export default card;
-      `,
-    },
-  };
-
-  const handle = mountInlineSurface({ root, artifact, grantedTools: [] });
-  await wait();
-
-  assert.equal(root.querySelector('.card')?.textContent, 'hello domjs');
-  handle.dispose();
-});
-
-test('a granted tool call round-trips through the host bridge', async () => {
-  const root = makeRoot();
-  const events = createEventStore();
-  const calls: Array<{ tool: string; args: unknown }> = [];
-
-  const artifact: DomjsSurfaceArtifact = {
-    runtime: 'domjs',
-    source: {
-      'main.js': `
-        const btn = document.createElement('button');
-        btn.textContent = 'save';
-        btn.addEventListener('click', () => { callTool('save', { value: 1 }); });
-        export default btn;
-      `,
-    },
-  };
-
-  const handle = mountInlineSurface({
-    root,
-    artifact,
-    grantedTools: ['save'],
-    events,
-    onToolCall: (tool, args) => {
-      calls.push({ tool, args });
-      return { saved: true };
-    },
-  });
-  await wait();
-
-  const btn = root.querySelector('button') as unknown as HTMLElement;
-  btn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }) as unknown as Event);
-  await wait();
-
-  assert.deepEqual(calls, [{ tool: 'save', args: { value: 1 } }]);
-  handle.dispose();
-});
-
 test('an ungranted tool call is rejected (not executed)', async () => {
   const root = makeRoot();
   const events = createEventStore();
   let executed = false;
 
-  const artifact: DomjsSurfaceArtifact = {
-    runtime: 'domjs',
+  const artifact: SurfaceDocumentArtifact = {
+    runtime: 'surface-document',
     source: {
-      'main.js': `
-        const btn = document.createElement('button');
-        btn.addEventListener('click', () => { callTool('danger', {}); });
-        export default btn;
-      `,
+      'main.html': '<button id="go">Go</button>',
+      'main.css': 'button { color: var(--color-text); }',
+      'main.js': `document.getElementById('go').onclick = () => { callTool('danger', {}); };`,
     },
   };
 
@@ -123,7 +62,8 @@ test('an ungranted tool call is rejected (not executed)', async () => {
   });
   await wait();
 
-  const btn = root.querySelector('button') as unknown as HTMLElement;
+  const shadow = surfaceDocumentShadowRoot(root);
+  const btn = shadow.querySelector('#go') as unknown as HTMLElement;
   btn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }) as unknown as Event);
   await wait();
 
@@ -132,17 +72,13 @@ test('an ungranted tool call is rejected (not executed)', async () => {
   handle.dispose();
 });
 
-test('token style survives a domjs mount (tokens not wiped by replaceChildren)', async () => {
+test('token style is installed inside the shadow root', async () => {
   const root = makeRoot();
-  const artifact: DomjsSurfaceArtifact = {
-    runtime: 'domjs',
+  const artifact: SurfaceDocumentArtifact = {
+    runtime: 'surface-document',
     source: {
-      'main.js': `
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.append(document.createTextNode('styled'));
-        export default card;
-      `,
+      'main.html': '<div class="card">styled</div>',
+      'main.css': '.card { color: var(--color-bg); }',
     },
   };
 
@@ -154,26 +90,20 @@ test('token style survives a domjs mount (tokens not wiped by replaceChildren)',
   });
   await wait();
 
-  // The domjs HostRenderer replaces the mount point's children; the token
-  // <style> must remain at the root level so tokens still apply.
-  const tokenStyle = root.querySelector('style[data-summon-inline-tokens]');
-  assert.ok(tokenStyle, 'token <style> must survive the domjs mount');
+  const shadow = surfaceDocumentShadowRoot(root);
+  const tokenStyle = shadow.querySelector('style[data-summon-shadow-tokens]');
+  assert.ok(tokenStyle, 'token <style> must be installed in the shadow root');
   assert.match(tokenStyle?.textContent ?? '', /--color-bg/);
-  assert.equal(root.querySelector('.card')?.textContent, 'styled');
+  assert.equal(shadow.querySelector('.card')?.textContent, 'styled');
   handle.dispose();
 });
 
-test('domjs artifact main.css is injected and scoped to the surface', async () => {
+test('artifact main.css is injected into the shadow root without host scoping selectors', async () => {
   const root = makeRoot();
-  const artifact: DomjsSurfaceArtifact = {
-    runtime: 'domjs',
+  const artifact: SurfaceDocumentArtifact = {
+    runtime: 'surface-document',
     source: {
-      'main.js': `
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.append(document.createTextNode('styled'));
-        export default card;
-      `,
+      'main.html': '<div class="card">styled</div>',
       'main.css': '.card { display: grid; gap: 8px; }',
     },
   };
@@ -181,23 +111,27 @@ test('domjs artifact main.css is injected and scoped to the surface', async () =
   const handle = mountInlineSurface({ root, artifact, grantedTools: [] });
   await wait();
 
-  const artifactStyle = root.querySelector('style[data-summon-inline-artifact-css]');
+  const shadow = surfaceDocumentShadowRoot(root);
+  const artifactStyle = shadow.querySelector('style[data-summon-shadow-artifact-css]');
   assert.ok(artifactStyle, 'artifact <style> must be injected for main.css');
-  // Rules must be scoped to the surface root, not leak globally.
-  assert.match(artifactStyle?.textContent ?? '', /data-summon-inline-surface/);
   assert.match(artifactStyle?.textContent ?? '', /display: grid/);
-  assert.equal(root.querySelector('.card')?.textContent, 'styled');
+  // Shadow containment replaces attribute-scoping; host selectors must not leak in.
+  assert.doesNotMatch(artifactStyle?.textContent ?? '', /data-summon-inline-surface/);
   handle.dispose();
 });
 
-test('a domjs runtime error is reported, not thrown', async () => {
+test('a Surface Document runtime error is reported, not thrown', async () => {
   const root = makeRoot();
   const errors: string[] = [];
 
-  const artifact: DomjsSurfaceArtifact = {
-    runtime: 'domjs',
-    // throws at build time (unsupported API used at top level)
-    source: { 'main.js': `const d = document.createElement('div'); d.innerHTML = '<b>x</b>'; export default d;` },
+  const artifact: SurfaceDocumentArtifact = {
+    runtime: 'surface-document',
+    source: {
+      'main.html': '<div id="x">x</div>',
+      'main.css': 'div { color: var(--color-text); }',
+      // throws at hydrate time (unsupported API used at top level)
+      'main.js': `document.getElementById('x').innerHTML = '<b>x</b>';`,
+    },
   };
 
   const handle = mountInlineSurface({
@@ -208,7 +142,7 @@ test('a domjs runtime error is reported, not thrown', async () => {
   });
   await wait();
 
-  assert.ok(errors.some((e) => /domjs runtime error/.test(e) && /innerHTML/.test(e)), errors.join(' | '));
+  assert.ok(errors.some((e) => /Surface Document runtime error/.test(e) && /innerHTML/.test(e)), errors.join(' | '));
   handle.dispose();
 });
 

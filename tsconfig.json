@@ -25,7 +25,6 @@
       "@summon-internal/sandbox-runtime/assets": ["packages/sandbox-runtime/src/assets.ts"],
       "@summon-internal/sandbox-runtime/bootstrap.js?raw": ["packages/sandbox-runtime/src/bootstrap.js"],
       "@summon-internal/sandbox-runtime/tokens.css?raw": ["packages/sandbox-runtime/src/tokens.css"],
-      "@arrow-js/sandbox": ["packages/host/src/arrow-sandbox-shim.d.ts"],
       "@summon-internal/server": ["packages/server/src/index.ts"],
       "@summon-internal/surface-vm": ["packages/surface-vm/src/index.ts"],
       "@summon-internal/surface-vm/*": ["packages/surface-vm/src/*"],

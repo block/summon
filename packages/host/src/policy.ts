@@ -1,5 +1,9 @@
 export { PolicyEngine, defineToolHandler, ToolArgsError } from './policy-engine.js';
 export type {
+  Schema,
+  SchemaParseFailure,
+  SchemaParseResult,
+  SchemaParseSuccess,
   ToolContext,
   ToolHandlerEntry,
   ToolHandler,

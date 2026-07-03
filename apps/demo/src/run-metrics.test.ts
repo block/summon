@@ -4,14 +4,14 @@ import { createRunMetricsAccumulator } from './pages/generate/runMetrics.js';
 import type { ProtocolLine, SurfaceEvent } from '@anarchitecture/summon/engine';
 
 test('run metrics maps first byte to ttfb', () => {
-  const metrics = createRunMetricsAccumulator('arrow-control');
+  const metrics = createRunMetricsAccumulator();
   metrics.markFirstByte(12.6);
   metrics.markFirstByte(30);
   assert.equal(metrics.snapshot().ttfb, 13);
 });
 
 test('run metrics maps accepted preview content to ttfp', () => {
-  const metrics = createRunMetricsAccumulator('arrow-control');
+  const metrics = createRunMetricsAccumulator();
   metrics.observeSurfaceEvent({
     type: 'region.add',
     id: 'hero',
@@ -25,36 +25,15 @@ test('run metrics maps accepted preview content to ttfp', () => {
   assert.equal(metrics.snapshot().ttfp, 42);
 });
 
-test('run metrics maps html stream preview delta to ttfp', () => {
-  const metrics = createRunMetricsAccumulator('html-stream');
-  metrics.observeProtocolLine({
-    op: 'meta',
-    path: '/html-stream-preview',
-    value: { runtime: 'html', target: 'hero', action: 'replace', delta: '<p>' },
-  }, 28);
-  assert.equal(metrics.snapshot().ttfp, 28);
-});
-
 test('run metrics maps bundle artifact to tti', () => {
-  const metrics = createRunMetricsAccumulator('html-static');
+  const metrics = createRunMetricsAccumulator();
   metrics.observeProtocolLine(artifactLine(), 55);
+  metrics.observeProtocolLine(artifactLine(), 90);
   assert.equal(metrics.snapshot().tti, 55);
 });
 
-test('run metrics maps streamed html patch to tti with artifact fallback', () => {
-  const metrics = createRunMetricsAccumulator('html-stream');
-  metrics.observeProtocolLine(artifactLine(), 40);
-  assert.equal(metrics.snapshot().tti, 40);
-  metrics.observeProtocolLine({
-    op: 'patch',
-    path: '/artifact/html-patch',
-    value: { runtime: 'html', target: 'hero', action: 'replace', html: '<section id="hero"></section>' },
-  }, 77);
-  assert.equal(metrics.snapshot().tti, 77);
-});
-
 test('run metrics merges server run-metrics meta', () => {
-  const metrics = createRunMetricsAccumulator('arrow-control');
+  const metrics = createRunMetricsAccumulator();
   metrics.setBytes(1234);
   metrics.markComplete(99);
   metrics.observeProtocolLine({
@@ -62,16 +41,16 @@ test('run metrics merges server run-metrics meta', () => {
     path: '/run-metrics',
     value: {
       schema: 'summon.run-metrics/v1',
-      runtime: 'arrow-control',
+      runtime: 'surface-document',
       repairs: 1,
       blocked: true,
       validationCount: 3,
       safetyViolations: 2,
-      safetyViolationCodes: ['external-url'],
+      safetyViolationCodes: ['surface-document-network-not-granted'],
     },
   }, 88);
   assert.deepEqual(metrics.snapshot(), {
-    runtime: 'arrow-control',
+    runtime: 'surface-document',
     ttfb: null,
     ttfp: null,
     tti: null,
@@ -89,8 +68,11 @@ function artifactLine(): ProtocolLine {
     op: 'artifact',
     path: '/artifact',
     value: {
-      runtime: 'html',
-      source: { 'body.html': '<main></main>' },
+      runtime: 'surface-document',
+      source: {
+        'main.html': '<main></main>',
+        'main.css': 'main { color: var(--color-text); }',
+      },
     },
   };
 }

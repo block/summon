@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import { type ToolPack } from '@anarchitecture/summon';
-import {
-  consumeSurfaceStream,
-  type HtmlStreamPreviewDelta,
-} from '@anarchitecture/summon/browser';
+import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
 import {
   buildFingerprintSteeringPayload,
-  SUMMON_OUTPUT_RUNTIME_VALUES,
   type ProtocolLine,
-  type SummonOutputRuntime,
   type ValidationTool,
 } from '@anarchitecture/summon/engine';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
@@ -22,8 +17,6 @@ import { createRunMetricsAccumulator } from './generate/runMetrics.js';
 import type { RunMetrics } from './generate/types.js';
 
 const DEFAULT_FINGERPRINT_ID = 'editorial-mono';
-const DEFAULT_BATCH_RUNTIME: SummonOutputRuntime = 'arrow-control';
-const BATCH_RUNTIME_VALUES = [...SUMMON_OUTPUT_RUNTIME_VALUES] as SummonOutputRuntime[];
 
 interface FingerprintInfo {
   id: string;
@@ -35,7 +28,6 @@ interface FingerprintInfo {
 type SourceMode = 'random' | 'same';
 type Interactivity = 'static' | 'interactive';
 type LayoutMode = 'grid' | 'stacked';
-type RuntimeBatchMode = 'single' | 'matrix';
 
 const maxInteractiveTiles = 8;
 const maxStaticTiles = 12;
@@ -82,7 +74,6 @@ function applyBatchMetaLine(
   handlers: {
     setTool: (value: { text: string; err?: boolean } | null) => void;
     setTokensSource: (value: string) => void;
-    surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
     setStatus: (value: string) => void;
     setStatusClass: (value: string) => void;
   },
@@ -100,11 +91,6 @@ function applyBatchMetaLine(
     if (typeof value?.css === 'string') handlers.setTokensSource(value.css);
     return;
   }
-  if (line.path === '/html-stream-preview') {
-    const delta = parseHtmlStreamPreviewDelta(line.value);
-    if (delta) handlers.surfaceRef.current?.applyHtmlPreviewDelta(delta);
-    return;
-  }
   if (line.path === '/status') {
     const status = String(line.value ?? '');
     handlers.setStatus(status);
@@ -117,38 +103,10 @@ function applyBatchMetaLine(
   }
 }
 
-function parseHtmlStreamPreviewDelta(value: unknown): HtmlStreamPreviewDelta | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const delta = value as Record<string, unknown>;
-  if (delta.runtime !== 'html') return null;
-  if (typeof delta.target !== 'string' || !delta.target) return null;
-  if (
-    delta.action !== 'append' &&
-    delta.action !== 'replace' &&
-    delta.action !== 'update' &&
-    delta.action !== 'remove' &&
-    delta.action !== 'morph'
-  ) {
-    return null;
-  }
-  const text = typeof delta.delta === 'string'
-    ? delta.delta
-    : typeof delta.text === 'string'
-      ? delta.text
-      : '';
-  if (!text) return null;
-  return {
-    runtime: 'html',
-    target: delta.target,
-    action: delta.action,
-    delta: text,
-  };
-}
 
 interface BatchTileRun {
   id: number;
   prompt: string;
-  runtime: SummonOutputRuntime;
   fingerprintId: string;
   fingerprintTargetPath: string;
   tokensCss: string;
@@ -160,12 +118,10 @@ interface TileResult {
   ok: boolean;
   bytes: number;
   ms: number;
-  runtime: SummonOutputRuntime;
   metrics: RunMetrics;
 }
 
-interface RuntimeSummaryRow {
-  runtime: SummonOutputRuntime;
+interface BatchSummaryRow {
   runs: number;
   ok: number;
   blocked: number;
@@ -208,7 +164,7 @@ function BatchTile({
   useEffect(() => {
     let cancelled = false;
     const start = performance.now();
-    const metrics = createRunMetricsAccumulator(run.runtime);
+    const metrics = createRunMetricsAccumulator();
     const elapsedSinceStart = () => performance.now() - start;
     let byteCount = 0;
 
@@ -230,7 +186,6 @@ function BatchTile({
               id: run.fingerprintId,
               targetPath: run.fingerprintTargetPath,
             }) ?? {}),
-            experimentalRuntime: run.runtime,
             tools: run.interactivity === 'interactive' ? toolPack : undefined,
             agent: { enabled: true },
           }),
@@ -258,16 +213,12 @@ function BatchTile({
             applyBatchMetaLine(line, {
               setTool,
               setTokensSource,
-              surfaceRef,
               setStatus,
               setStatusClass,
             });
           },
           onArtifact: (artifact) => {
             surfaceRef.current?.renderArtifact(artifact);
-          },
-          onHtmlPatch: (patch) => {
-            surfaceRef.current?.applyHtmlPatch(patch);
           },
           onSurfaceEvent: (event) => {
             metrics.observeSurfaceEvent(event, elapsedSinceStart());
@@ -295,7 +246,6 @@ function BatchTile({
           ok: true,
           bytes: byteCount,
           ms,
-          runtime: run.runtime,
           metrics: finalMetrics,
         });
       } catch (err) {
@@ -314,7 +264,6 @@ function BatchTile({
           ok: false,
           bytes: byteCount,
           ms,
-          runtime: run.runtime,
           metrics: finalMetrics,
         });
       }
@@ -332,7 +281,7 @@ function BatchTile({
         <div className="text-[13px] font-medium tracking-normal text-ink">{run.prompt}</div>
         <div className="flex justify-between gap-2 font-mono text-[11px] text-ink-muted">
           <span className={statusToneClass(statusClass)}>{status}</span>
-          <span>{run.runtime} · {bytes.toLocaleString()} B</span>
+          <span>{bytes.toLocaleString()} B</span>
         </div>
         {tool ? (
           <div className={cn('border-t border-dashed border-line bg-surface px-3.5 py-2 font-mono text-[11px]', tool.err ? 'text-danger' : 'text-good')}>
@@ -366,13 +315,11 @@ export function BatchPage() {
   const [sourceMode, setSourceMode] = useState<SourceMode>('random');
   const [layout, setLayout] = useState<LayoutMode>('grid');
   const [interactivity, setInteractivity] = useState<Interactivity>('static');
-  const [runtimeMode, setRuntimeMode] = useState<RuntimeBatchMode>('single');
-  const [singleRuntime, setSingleRuntime] = useState<SummonOutputRuntime>(DEFAULT_BATCH_RUNTIME);
   const [count, setCount] = useState(4);
   const [seed, setSeed] = useState('');
   const [samePrompt, setSamePrompt] = useState('');
   const [runs, setRuns] = useState<BatchTileRun[]>([]);
-  const [runtimeRows, setRuntimeRows] = useState<RuntimeSummaryRow[]>([]);
+  const [runtimeRows, setRuntimeRows] = useState<BatchSummaryRow[]>([]);
   const [summary, setSummary] = useState('No run yet.');
   const [running, setRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -415,12 +362,11 @@ export function BatchPage() {
     const avgMs = Math.round(results.reduce((sum, item) => sum + item.ms, 0) / Math.max(1, results.length));
     const seedNote = sourceMode === 'random' ? ` · seed ${seed || 'auto'}` : '';
     const modeNote = interactivity === 'interactive' ? ' · interactive' : '';
-    const runtimeNote = runtimeMode === 'matrix' ? ` · ${BATCH_RUNTIME_VALUES.length} runtimes` : ` · ${singleRuntime}`;
     setRuntimeRows(aggregateRuntimeRows(results));
-    setSummary(`Done in ${(wall / 1000).toFixed(1)}s wall. ${ok} ok · ${failed} failed · avg per-tile ${(avgMs / 1000).toFixed(1)}s · ${totalBytes.toLocaleString()} bytes total${modeNote}${runtimeNote}${seedNote}.`);
+    setSummary(`Done in ${(wall / 1000).toFixed(1)}s wall. ${ok} ok · ${failed} failed · avg per-tile ${(avgMs / 1000).toFixed(1)}s · ${totalBytes.toLocaleString()} bytes total${modeNote}${seedNote}.`);
     setRunning(false);
     abortRef.current = null;
-  }, [interactivity, runtimeMode, runs.length, seed, singleRuntime, sourceMode]);
+  }, [interactivity, runs.length, seed, sourceMode]);
 
   function runBatch() {
     abortRef.current?.abort();
@@ -443,31 +389,25 @@ export function BatchPage() {
         return;
       }
       prompts = new Array(safeCount).fill(prompt);
-      const runtimeCount = runtimeMode === 'matrix' ? BATCH_RUNTIME_VALUES.length : 1;
-      setSummary(`Running ${safeCount} prompt(s) × ${runtimeCount} runtime(s) (${interactivity})...`);
+      setSummary(`Running ${safeCount} prompt(s) (${interactivity})...`);
     } else {
       const numericSeed = seed.trim() ? Number(seed) : ((Date.now() & 0x7fffffff) | 0);
       prompts = sample(ALL_PROMPTS, safeCount, numericSeed);
-      const runtimeCount = runtimeMode === 'matrix' ? BATCH_RUNTIME_VALUES.length : 1;
-      setSummary(`Running ${safeCount} prompt(s) × ${runtimeCount} runtime(s) (${interactivity}) with seed ${numericSeed}...`);
+      setSummary(`Running ${safeCount} prompt(s) (${interactivity}) with seed ${numericSeed}...`);
     }
 
     setRunning(true);
     const tokensCss = defaultTokensSource;
-    const runtimes = runtimeMode === 'matrix' ? BATCH_RUNTIME_VALUES : [singleRuntime];
     const runStartedAt = Date.now();
-    setRuns(prompts.flatMap((prompt, promptIndex) =>
-      runtimes.map((runtime, runtimeIndex) => ({
-        id: runStartedAt + promptIndex * runtimes.length + runtimeIndex,
-        prompt,
-        runtime,
-        fingerprintId,
-        fingerprintTargetPath: fingerprintTargetPath.trim() || '.',
-        tokensCss,
-        interactivity,
-        signal: nextAbort.signal,
-      })),
-    ));
+    setRuns(prompts.map((prompt, promptIndex) => ({
+      id: runStartedAt + promptIndex,
+      prompt,
+      fingerprintId,
+      fingerprintTargetPath: fingerprintTargetPath.trim() || '.',
+      tokensCss,
+      interactivity,
+      signal: nextAbort.signal,
+    })));
   }
 
   return (
@@ -508,25 +448,6 @@ export function BatchPage() {
             setCount((value) => Math.min(value, maxInteractiveTiles));
           }} /><span>Interactive</span></label>
         </ModeGroup>
-        <ModeGroup title="Runtime">
-          <label><input type="radio" name="runtime-mode" value="single" checked={runtimeMode === 'single'} onChange={() => setRuntimeMode('single')} /><span>Single</span></label>
-          <label><input type="radio" name="runtime-mode" value="matrix" checked={runtimeMode === 'matrix'} onChange={() => setRuntimeMode('matrix')} /><span>Matrix</span></label>
-        </ModeGroup>
-        {runtimeMode === 'single' ? (
-          <label className="flex items-center gap-2 text-[13px] text-ink-soft">
-            Runtime
-            <select
-              id="batch-runtime"
-              className={cn(compactSelectClass, 'min-w-40')}
-              value={singleRuntime}
-              onChange={(event) => setSingleRuntime(event.target.value as SummonOutputRuntime)}
-            >
-              {BATCH_RUNTIME_VALUES.map((runtime) => (
-                <option key={runtime} value={runtime}>{runtime}</option>
-              ))}
-            </select>
-          </label>
-        ) : null}
         <label className="flex items-center gap-2 text-[13px] text-ink-soft">Count <input id="count" type="number" className={cn(compactInputClass, 'w-16 text-center')} min="1" max={cap} value={count} onChange={(event) => setCount(Number(event.target.value))} /></label>
         {sourceMode === 'random' ? (
           <label id="seed-wrap" className="flex items-center gap-2 text-[13px] text-ink-soft">Seed <input id="seed" type="number" className={cn(compactInputClass, 'w-[90px] text-center')} value={seed} placeholder="auto" onChange={(event) => setSeed(event.target.value)} /></label>
@@ -569,9 +490,9 @@ export function BatchPage() {
               </tr>
             </thead>
             <tbody>
-              {runtimeRows.map((row) => (
-                <tr key={row.runtime} className="border-t border-line text-ink-soft">
-                  <td className="px-3 py-2 font-mono text-[11px] text-ink">{row.runtime}</td>
+              {runtimeRows.map((row, index) => (
+                <tr key={index} className="border-t border-line text-ink-soft">
+                  <td className="px-3 py-2 font-mono text-[11px] text-ink">surface-document</td>
                   <td className="px-3 py-2">{row.runs}</td>
                   <td className="px-3 py-2">{formatRate(row.ok, row.runs)}</td>
                   <td className="px-3 py-2">{formatRate(row.blocked, row.runs)}</td>
@@ -593,26 +514,20 @@ export function BatchPage() {
   );
 }
 
-function aggregateRuntimeRows(results: TileResult[]): RuntimeSummaryRow[] {
-  return BATCH_RUNTIME_VALUES
-    .map((runtime) => {
-      const runtimeResults = results.filter((result) => result.runtime === runtime);
-      if (runtimeResults.length === 0) return null;
-      return {
-        runtime,
-        runs: runtimeResults.length,
-        ok: runtimeResults.filter((result) => result.ok).length,
-        blocked: runtimeResults.filter((result) => result.metrics.blocked).length,
-        avgTtfb: averageMetric(runtimeResults, (result) => result.metrics.ttfb),
-        avgTtfp: averageMetric(runtimeResults, (result) => result.metrics.ttfp),
-        avgTti: averageMetric(runtimeResults, (result) => result.metrics.tti),
-        avgComplete: averageMetric(runtimeResults, (result) => result.metrics.complete),
-        avgBytes: averageNumber(runtimeResults.map((result) => result.metrics.bytes)),
-        avgRepairs: averageNumber(runtimeResults.map((result) => result.metrics.repairs)),
-        safetyViolations: runtimeResults.reduce((sum, result) => sum + result.metrics.safetyViolations, 0),
-      };
-    })
-    .filter((row): row is RuntimeSummaryRow => row !== null);
+function aggregateRuntimeRows(results: TileResult[]): BatchSummaryRow[] {
+  if (results.length === 0) return [];
+  return [{
+    runs: results.length,
+    ok: results.filter((result) => result.ok).length,
+    blocked: results.filter((result) => result.metrics.blocked).length,
+    avgTtfb: averageMetric(results, (result) => result.metrics.ttfb),
+    avgTtfp: averageMetric(results, (result) => result.metrics.ttfp),
+    avgTti: averageMetric(results, (result) => result.metrics.tti),
+    avgComplete: averageMetric(results, (result) => result.metrics.complete),
+    avgBytes: averageNumber(results.map((result) => result.metrics.bytes)),
+    avgRepairs: averageNumber(results.map((result) => result.metrics.repairs)),
+    safetyViolations: results.reduce((sum, result) => sum + result.metrics.safetyViolations, 0),
+  }];
 }
 
 function averageMetric<T>(items: T[], getter: (item: T) => number | null): number | null {

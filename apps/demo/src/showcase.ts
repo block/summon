@@ -1,6 +1,5 @@
 import type {
   ToolPack,
-  SummonOutputRuntime,
   SurfacePlan,
   SurfacePlanMode,
   SurfaceScale,
@@ -38,7 +37,6 @@ export interface ActiveContract {
   generationModel?: string;
   utilityModel?: string;
   customModel?: boolean;
-  experimentalRuntime?: SummonOutputRuntime;
   modelOptions?: {
     maxOutputTokens?: number;
     anthropicThinking?: 'adaptive' | 'off';

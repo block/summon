@@ -2,11 +2,12 @@
 
 > Date: 2026-07-02
 >
-> Status: planning record. This document captures the proposed successor to the
-> Arrow/domjs split: a governed Surface Document contract where generated UI is
-> emitted as `main.html` + `main.css` + optional `main.js`, rendered through
-> Summon's owned descriptor runtime and governed by Ghost fingerprint
-> conformance + receipts.
+> Status: **adopted** (2026-07-02). Surface Document is the sole Summon
+> runtime. The Arrow/domjs/html runtimes and the `experimentalRuntime` request
+> field were removed the same day — there is no runtime selection anywhere in
+> the system. Generated UI is emitted as `main.html` + `main.css` + optional
+> `main.js`, rendered through Summon's owned descriptor runtime and governed by
+> Ghost fingerprint conformance + receipts.
 
 ## North-star decision
 
@@ -1062,9 +1063,9 @@ Update:
 README.md
 docs/positioning.md
 docs/roadmap.md
-docs/prompt-architecture.md
+docs/archive/prompt-architecture.md (if revived)
 docs/integration-with-ghost.md
-docs/domjs-ergonomics-convergence.md
+docs/archive/domjs-ergonomics-convergence.md (historical context only)
 ```
 
 Wording shift:

@@ -1,9 +1,7 @@
 import {
-  runtimeProfile,
   type ToolPack,
   type ProtocolLine,
   type SurfacePlan,
-  type SummonOutputRuntime,
 } from '@anarchitecture/summon/engine';
 import {
   loadFingerprintPackage,
@@ -94,7 +92,6 @@ export interface GhostSurfacePromptOptions {
   mode: 'static' | 'interactive';
   surfacePlan: SurfacePlan;
   tools?: ToolPack | null;
-  outputRuntime?: SummonOutputRuntime;
   /**
    * Utility-model completion for semantic surface selection. When omitted, the
    * slice stays anchored at `core` (selection is an optional refinement).
@@ -151,7 +148,7 @@ export interface GhostReceipt {
   // --- what-happened ---
   generation: {
     runtime: string;
-    artifactRuntime: 'arrow' | null;
+    artifactRuntime: 'surface-document' | null;
     artifactFiles: string[];
     repairs: number;
     blocked: boolean;
@@ -569,7 +566,7 @@ export function buildGhostReceipt(input: {
     },
     generation: {
       runtime: input.runtime,
-      artifactRuntime: artifactFiles.length > 0 ? 'arrow' : null,
+      artifactRuntime: artifactFiles.length > 0 ? 'surface-document' : null,
       artifactFiles,
       repairs: input.repairs,
       blocked: input.blocked,
@@ -593,22 +590,16 @@ function buildSummonFingerprintSurfaceBrief(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): string {
-  const outputRuntime = options.outputRuntime ?? 'arrow-control';
-  const htmlRuntime = runtimeProfile(outputRuntime).format === 'html';
   const toolNames = options.tools?.tools.map((tool) => tool.name) ?? [];
-  const outputRule = htmlRuntime
-    ? '- Return a structured HTML/CSS sandbox bundle through the `create_summon_html_surface` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, host-owned metadata, or Arrow source.'
-    : '- Return a structured Arrow sandbox bundle through the `create_summon_arrow_surface` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata.';
-  const successRule = htmlRuntime
-    ? '- This generation succeeds only if the final HTML artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.'
-    : '- This generation succeeds only if the final Arrow artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.';
+  const outputRule = '- Return a structured Surface Document bundle through the `emit_surface_document` tool/schema. Do not emit Summon stream lines, transport records, Markdown, code fences, or host-owned metadata.';
+  const successRule = '- This generation succeeds only if the final Surface Document artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.';
   const details = [
     `Product: ${context.product}`,
     `Fingerprint surface: ${context.surface} (cascade: ${sliceCascade(context.slice)})`,
     `Gathered nodes: ${sliceProvenanceList(context.slice) || 'core'}`,
     `User request: ${oneLine(options.userPrompt, 600)}`,
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
-    `Output runtime: ${outputRuntime}`,
+    'Output runtime: surface-document',
     `Mode: ${options.mode}`,
     toolNames.length > 0 ? `Granted host tools: ${toolNames.join(', ')}` : 'Granted host tools: none',
   ].filter((line): line is string => Boolean(line));
@@ -830,7 +821,7 @@ function artifactFilesFromLines(lines: ProtocolLine[]): string[] {
     const line = lines[index];
     if (line?.op !== 'artifact') continue;
     const value = line.value as { runtime?: unknown; source?: unknown } | undefined;
-    if (value?.runtime !== 'arrow' || !value.source || typeof value.source !== 'object' || Array.isArray(value.source)) {
+    if (value?.runtime !== 'surface-document' || !value.source || typeof value.source !== 'object' || Array.isArray(value.source)) {
       continue;
     }
     return Object.keys(value.source).sort();

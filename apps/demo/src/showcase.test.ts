@@ -236,24 +236,6 @@ test('missing artifact errors include stream graph evidence', () => {
   assert.match(message, /blocked=0/);
 });
 
-test('missing artifact errors use the selected output runtime', () => {
-  const message = missingArtifactMessage([
-    {
-      op: 'meta',
-      path: '/validation-blocked',
-      value: {
-        code: 'invalid-html-preview-region',
-        message: 'HTML bundle preview region must be an object',
-        severity: 'block',
-      },
-    },
-  ], 'html-stream');
-
-  assert.match(message, /HTML stream scaffold artifact/);
-  assert.doesNotMatch(message, /Arrow artifact/);
-  assert.match(message, /invalid-html-preview-region/);
-});
-
 test('generate run profile quality restores provider-reported defaults', () => {
   const provider = providerFixture();
 
@@ -278,23 +260,12 @@ test('generate run profile fast falls back to nearest lower output preset', () =
 test('structured runtime profiles force Anthropic thinking off', () => {
   const provider = providerFixture();
 
-  assert.equal(isStructuredProfile('arrow-control'), true);
-  assert.equal(isStructuredProfile('html-static'), true);
-  assert.equal(isStructuredProfile('html-stream'), false);
+  assert.equal(isStructuredProfile('surface-document'), true);
   assert.equal(isStructuredProfile('utility'), false);
 
   assert.equal(
-    defaultsForModelProfile(provider, 'quality', 'arrow-control').anthropicThinking,
+    defaultsForModelProfile(provider, 'quality', 'surface-document').anthropicThinking,
     'off',
-  );
-  assert.equal(
-    defaultsForModelProfile(provider, 'quality', 'html-static').anthropicThinking,
-    'off',
-  );
-  // Stream runtimes may keep adaptive thinking from the provider defaults.
-  assert.equal(
-    defaultsForModelProfile(provider, 'quality', 'html-stream').anthropicThinking,
-    'adaptive',
   );
 });
 
@@ -318,22 +289,21 @@ test('run profile defaults produce an independent profile per runtime', () => {
   }
 
   // Editing one profile must not bleed into another.
-  const edited = { ...profiles, 'html-static': { ...profiles['html-static'], generationModel: 'claude-sonnet-4-6' } };
-  assert.equal(edited['html-static'].generationModel, 'claude-sonnet-4-6');
-  assert.equal(edited['arrow-control'].generationModel, profiles['arrow-control'].generationModel);
-  assert.equal(edited['html-stream'].generationModel, profiles['html-stream'].generationModel);
+  const edited = { ...profiles, 'surface-document': { ...profiles['surface-document'], generationModel: 'claude-sonnet-4-6' } };
+  assert.equal(edited['surface-document'].generationModel, 'claude-sonnet-4-6');
+  assert.equal(edited.utility.utilityModel, profiles.utility.utilityModel);
 });
 
 test('hydrateMissingModelProfiles fills empty slots without clobbering edits', () => {
   const provider = providerFixture();
   const empty = createEmptyModelProfiles();
-  assert.equal(empty['arrow-control'].generationModel, '');
+  assert.equal(empty['surface-document'].generationModel, '');
 
   // Simulate a user edit that must be preserved.
   const withEdit = {
     ...empty,
-    'html-static': {
-      ...empty['html-static'],
+    'surface-document': {
+      ...empty['surface-document'],
       modelProvider: 'anthropic',
       generationModel: 'claude-opus-4-8',
     },
@@ -341,10 +311,8 @@ test('hydrateMissingModelProfiles fills empty slots without clobbering edits', (
 
   const hydrated = hydrateMissingModelProfiles(withEdit, provider, 'quality');
   // Edited slot preserved.
-  assert.equal(hydrated['html-static'].generationModel, 'claude-opus-4-8');
+  assert.equal(hydrated['surface-document'].generationModel, 'claude-opus-4-8');
   // Empty slots filled.
-  assert.equal(hydrated['arrow-control'].generationModel, 'claude-opus-4-8');
-  assert.equal(hydrated['html-stream'].modelProvider, 'anthropic');
   assert.equal(hydrated.utility.utilityModel, 'claude-sonnet-4-6');
 });
 

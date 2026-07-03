@@ -3,7 +3,7 @@ import type { ProtocolLine, SurfaceEvent } from './protocol.js';
 
 export interface StreamGraphArtifact {
   revision: number;
-  runtime: 'arrow' | 'html' | 'domjs' | 'surface-document';
+  runtime: 'surface-document';
   bytes: number;
   firstSeenLine?: number;
   lastUpdatedLine?: number;
@@ -60,10 +60,6 @@ export class StreamGraph {
 
     if (line.op === 'event') {
       this.applyEvent(line.value);
-      return;
-    }
-
-    if (line.op === 'patch') {
       return;
     }
 
@@ -135,7 +131,7 @@ export class StreamGraph {
     const latest = this.artifacts.at(-1);
     const next: StreamGraphArtifact = {
       revision: (latest?.revision ?? 0) + 1,
-      runtime: artifactRuntime(value),
+      runtime: 'surface-document',
       bytes: artifactBytes(value),
       firstSeenLine: latest?.firstSeenLine ?? this.lineCount,
       lastUpdatedLine: this.lineCount,
@@ -194,15 +190,7 @@ export class StreamGraph {
   }
 }
 
-function artifactRuntime(value: unknown): StreamGraphArtifact['runtime'] {
-  if (value && typeof value === 'object') {
-    const runtime = (value as { runtime?: unknown }).runtime;
-    if (runtime === 'html' || runtime === 'domjs' || runtime === 'surface-document') {
-      return runtime;
-    }
-  }
-  return 'arrow';
-}
+
 
 function artifactBytes(value: unknown): number {
   if (!value || typeof value !== 'object') return 0;

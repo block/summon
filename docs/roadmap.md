@@ -73,23 +73,23 @@ build the authorization kernel yet.**
 
 ## Tier 3 — Harden the runtime the moat depends on
 
-The governance guarantee holds fully only for `arrow-control`. Protect it.
+The governance guarantee holds fully only for capability-isolated runtimes. `surface-document` is now the leading successor candidate; protect the owned descriptor/VM boundary.
 
 - [ ] **F. Verify `.value=` / IDL bindings actually execute in the QuickJS sandbox.**
   We removed the validator blocks but never confirmed runtime behavior. Load one
   interactive surface and confirm it behaves, not just validates. Load-bearing
   for the "rich experiences" claim.
 
-- [ ] **G. Decide the long-term isolation-primitive stance** (see
-  [`docs/isolation-options.md`](./isolation-options.md)). Do **not** vendor-snapshot
+- [ ] **G. Decide the long-term isolation-primitive stance** (historical analysis:
+  [`docs/archive/isolation-options.md`](./archive/isolation-options.md)). Do **not** vendor-snapshot
   or fork yet — premature. The open question is whether Summon should own a thin
   descriptor/render protocol over a swappable isolation engine. Track it; don't
   act until the governance core (Tier 1) is proven.
 
-- [ ] **H. Name the trust spectrum in the README.**
-  `arrow-control` = fully governed; `html-static` = inert-safe; future scripted =
-  outside the guarantee, opt-in. Makes "html/css/js is an option" safe to offer
-  later without reopening the rot.
+- [x] **H. Name the trust spectrum.** Resolved by collapsing it (2026-07-02):
+  `surface-document` is the only runtime. There is no trust spectrum to
+  document because there is no runtime choice — generated UI is a governed
+  Surface Document bundle, full stop.
 
 - [ ] **I. Expressive range, gated on F.**
   Motion, richer composition, and canvas-class media are in scope only when the
@@ -104,14 +104,14 @@ The governance guarantee holds fully only for `arrow-control`. Protect it.
 As important as the build list — this is the discipline that keeps the repo from
 becoming sad again.
 
-- ❌ **No new runtimes.** The seam exists conceptually; instantiating plugins
-  before the governance core is solid is the trap.
-  *Honest note:* `domjs-control` (via `packages/surface-vm`) shipped after this
-  rule was written. It keeps the same capability-isolated posture and
-  `callTool` chokepoint, so it does not widen the guarantee — but it is a
-  second runtime to maintain. Decision pending: converge on one
-  capability-isolated runtime or explicitly own both. No further runtimes
-  until that call is made.
+- ❌ **No new runtimes.** Decided 2026-07-02: converged on `surface-document`
+  as the sole runtime. `arrow-control`, `html-static`, `html-stream`, and
+  `domjs-control` were removed from the protocol, the server strategies, the
+  validators, and the renderer — not deprecated, deleted. `experimentalRuntime`
+  no longer exists as a request field. The surface-vm capability sandbox
+  (owned QuickJS VM, descriptor renderer, `callTool` chokepoint) is the only
+  execution engine. Any future runtime proposal reopens this decision
+  explicitly rather than adding a flag.
 - ❌ **No lease/approval kernel.** Tier 3 of Bet 3, gated on a real customer.
 - ❌ **No external plugin SDK.** Premature; the near-term value of seams is
   internal discipline.

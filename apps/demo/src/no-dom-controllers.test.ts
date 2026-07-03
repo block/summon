@@ -32,30 +32,27 @@ test('demo host pages stay React-state driven instead of DOM-controller driven',
   assert.deepEqual(violations, []);
 });
 
-test('generate is pinned to the Surface Document runtime with no picker', () => {
-  const constants = readFileSync(join(srcRoot, 'pages/generate/constants.ts'), 'utf8');
+test('generate has no runtime axis: Surface Document is the only runtime', () => {
   const page = readFileSync(join(srcRoot, 'pages/generate/GeneratePage.tsx'), 'utf8');
   const runs = readFileSync(join(srcRoot, 'pages/generate/hooks/useGenerationRuns.ts'), 'utf8');
   const stage = readFileSync(join(srcRoot, 'pages/generate/components/GenerationStage.tsx'), 'utf8');
   const stream = readFileSync(join(srcRoot, 'pages/generate/hooks/useSurfaceStream.ts'), 'utf8');
   const child = readFileSync(join(srcRoot, 'pages/generate/components/ChildSurface.tsx'), 'utf8');
+  const batch = readFileSync(join(srcRoot, 'pages/BatchPage.tsx'), 'utf8');
 
-  // The pinned runtime is declared once and flows through every request path.
-  assert.match(constants, /GENERATE_RUNTIME: SummonOutputRuntime = 'surface-document'/);
-  assert.match(page, /experimentalRuntime: GENERATE_RUNTIME/);
-  assert.match(runs, /experimentalRuntime: GENERATE_RUNTIME/);
-  assert.match(child, /experimentalRuntime: GENERATE_RUNTIME/);
-  assert.match(stream, /experimentalRuntime: opts\.experimentalRuntime/);
-
-  // No runtime picker UI and no per-run runtime state on the generate page.
-  assert.doesNotMatch(stage, /stream-type-picker/);
-  assert.doesNotMatch(stage, /experimentalRuntime/);
-  assert.doesNotMatch(page, /setExperimentalRuntime/);
+  // No runtime selection exists anywhere — not a picker, not a variable, not a
+  // request field. Surface Document is the protocol, not a choice.
+  for (const [name, source] of [['page', page], ['runs', runs], ['stage', stage], ['stream', stream], ['child', child], ['batch', batch]] as const) {
+    assert.doesNotMatch(source, /experimentalRuntime/, `${name} must not send a runtime`);
+    assert.doesNotMatch(source, /SummonOutputRuntime/, `${name} must not import the retired runtime type`);
+    assert.doesNotMatch(source, /stream-type-picker|batch-runtime/, `${name} must not render a runtime picker`);
+  }
   assert.doesNotMatch(page, /unsafe/);
 
-  // The pinned bundle runtime leaves no html-stream plumbing behind.
-  assert.doesNotMatch(stream, /html-stream-preview|applyHtmlPreviewDelta|onHtmlPatch/);
-  assert.doesNotMatch(child, /html-stream-preview|applyHtmlPreviewDelta|onHtmlPatch/);
+  // No html-runtime plumbing survives the retirement.
+  for (const source of [stream, child, batch]) {
+    assert.doesNotMatch(source, /html-stream-preview|applyHtmlPreviewDelta|onHtmlPatch|applyHtmlPatch/);
+  }
 });
 
 test('generate defaults to showcase mode with ward and a catalog fingerprint', () => {
@@ -88,10 +85,6 @@ test('generation callers use fingerprint steering instead of plain directionId p
   assert.doesNotMatch(child, /\bdirectionId\b/);
   assert.match(batch, /\/api\/fingerprints/);
   assert.match(batch, /buildFingerprintSteeringPayload/);
-  assert.match(batch, /experimentalRuntime: run\.runtime/);
-  assert.match(batch, /name="runtime-mode"/);
-  assert.match(batch, /id="batch-runtime"/);
-  assert.match(batch, /SUMMON_OUTPUT_RUNTIME_VALUES/);
   assert.doesNotMatch(batch, /\bdirectionId\b/);
 });
 

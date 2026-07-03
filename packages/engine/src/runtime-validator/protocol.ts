@@ -3,13 +3,7 @@ import {
   isSurfaceEvent,
   type ProtocolLine,
 } from '../protocol.js';
-import { validateArrowSurfaceArtifact } from '../arrow-artifact.js';
-import { validateDomjsSurfaceArtifact } from '../domjs-artifact.js';
 import { validateSurfaceDocumentArtifact } from '../surface-document-artifact.js';
-import {
-  validateHtmlSurfaceArtifact,
-  validateHtmlSurfacePatch,
-} from '../html-artifact.js';
 import { normalizeValidationLimits } from '../validation-limits.js';
 import { protocolBlock } from './issues.js';
 import type { ValidationContext } from './types.js';
@@ -51,38 +45,14 @@ export function validateProtocolLine(
       return issues;
     }
     const runtime = (line.value as { runtime?: unknown }).runtime;
-    if (runtime === 'arrow') {
-      issues.push(...validateArrowSurfaceArtifact(line.value as never, {
-        maxSourceBytes: limits.maxProtocolLineBytes,
-        network: context.surfacePlan?.network ?? 'none',
-      }));
-    } else if (runtime === 'html') {
-      issues.push(...validateHtmlSurfaceArtifact(line.value as never, {
-        allowScript: context.experimentalHtmlScript === true,
-        maxSourceBytes: limits.maxProtocolLineBytes,
-        maxCssBytes: limits.maxCssBytes,
-        maxDomDepth: limits.maxDomDepth,
-        maxDomNodes: limits.maxDomNodes,
-      }));
-    } else if (runtime === 'domjs') {
-      issues.push(...validateDomjsSurfaceArtifact(line.value as never, {
-        maxSourceBytes: limits.maxProtocolLineBytes,
-      }));
-    } else if (runtime === 'surface-document') {
+    if (runtime === 'surface-document') {
       issues.push(...validateSurfaceDocumentArtifact(line.value as never, {
         maxSourceBytes: limits.maxProtocolLineBytes,
       }));
     } else {
-      issues.push(protocolBlock('invalid-artifact-runtime', 'Artifact runtime must be "arrow" or experimental "html"/"domjs"/"surface-document"', line.path));
+      issues.push(protocolBlock('invalid-artifact-runtime', 'Artifact runtime must be "surface-document"', line.path));
     }
     return issues;
-  }
-
-  if (line.op === 'patch') {
-    issues.push(...validateHtmlSurfacePatch(line.value as never, {
-      maxDomDepth: limits.maxDomDepth,
-      maxDomNodes: limits.maxDomNodes,
-    }));
   }
 
   return issues;

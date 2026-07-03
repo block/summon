@@ -11,8 +11,7 @@ import type {
   ToolSurface,
 } from '@summon-internal/engine';
 import { compileToolContract } from '@summon-internal/engine';
-import type { ZodType, ZodTypeAny } from 'zod';
-import { defineToolHandler, type ToolHandlerEntry, type ToolHandler } from './policy-engine.js';
+import { defineToolHandler, type Schema, type ToolHandlerEntry, type ToolHandler } from './policy-engine.js';
 
 export type { ActionStateKeys, ResourceStateKeys } from '@summon-internal/engine';
 
@@ -21,7 +20,7 @@ export type StateShapeDescriptor = string | Record<string, unknown>;
 export interface ToolDefinition<T = unknown> {
   name: string;
   description: string;
-  argsSchema: ZodType<T>;
+  argsSchema: Schema<T>;
   /** Optional override for prompt-facing schema text when Zod introspection is too lossy. */
   argsSchemaText?: string;
   stateShape: StateShapeDescriptor;
@@ -40,7 +39,7 @@ export interface ToolDefinition<T = unknown> {
 export interface ActionDefinition<T = unknown> {
   name: string;
   description: string;
-  argsSchema: ZodType<T>;
+  argsSchema: Schema<T>;
   argsSchemaText?: string;
   stateShape: StateShapeDescriptor;
   triggers?: ToolTrigger[];
@@ -53,9 +52,9 @@ export interface ActionDefinition<T = unknown> {
 export interface DataResourceDefinition<In = unknown, Out = unknown> {
   name: string;
   description: string;
-  argsSchema: ZodType<In>;
+  argsSchema: Schema<In>;
   argsSchemaText?: string;
-  resultSchema: ZodType<Out>;
+  resultSchema: Schema<Out>;
   resultSchemaText?: string;
   defaultData?: Out | null;
   stateShape?: StateShapeDescriptor;
@@ -480,7 +479,7 @@ function formatDefaultDataShape(value: unknown): string {
 
 function deriveResourceStateShape(
   keys: ResourceStateKeys,
-  resultSchema: ZodTypeAny,
+  resultSchema: Schema,
   resultSchemaText?: string,
 ): string {
   const result = resultSchemaText ?? formatZodSchema(resultSchema);
@@ -586,23 +585,23 @@ function normalizeApprovalDecision(decision: ApprovalDecision): { status: 'appro
   return decision;
 }
 
-export function formatZodSchema(schema: ZodTypeAny): string {
+export function formatZodSchema(schema: Schema): string {
   return formatZodType(schema, '{...}');
 }
 
-function formatZodType(schema: ZodTypeAny, fallback: string): string {
+function formatZodType(schema: Schema, fallback: string): string {
   const def = getDef(schema);
   const typeName = def?.typeName;
 
   switch (typeName) {
     case 'ZodOptional':
-      return formatZodType(def?.innerType as ZodTypeAny, fallback);
+      return formatZodType(def?.innerType as Schema, fallback);
     case 'ZodNullable':
-      return `${formatZodType(def?.innerType as ZodTypeAny, fallback)} | null`;
+      return `${formatZodType(def?.innerType as Schema, fallback)} | null`;
     case 'ZodDefault':
-      return formatZodType((def?.innerType ?? def?.schema) as ZodTypeAny, fallback);
+      return formatZodType((def?.innerType ?? def?.schema) as Schema, fallback);
     case 'ZodEffects':
-      return formatZodType(def?.schema as ZodTypeAny, fallback);
+      return formatZodType(def?.schema as Schema, fallback);
     case 'ZodObject':
       return formatZodObject(schema, fallback);
     case 'ZodString':
@@ -624,17 +623,17 @@ function formatZodType(schema: ZodTypeAny, fallback: string): string {
     case 'ZodUnknown':
       return 'any';
     case 'ZodArray': {
-      const inner = (def?.type ?? def?.element) as ZodTypeAny | undefined;
+      const inner = (def?.type ?? def?.element) as Schema | undefined;
       return inner ? `${formatZodType(inner, 'any')}[]` : 'any[]';
     }
     case 'ZodTuple': {
-      const items = Array.isArray(def?.items) ? (def.items as ZodTypeAny[]) : [];
+      const items = Array.isArray(def?.items) ? (def.items as Schema[]) : [];
       return items.length > 0
         ? `[${items.map((item) => formatZodType(item, 'any')).join(', ')}]`
         : '[]';
     }
     case 'ZodRecord': {
-      const valueType = def?.valueType as ZodTypeAny | undefined;
+      const valueType = def?.valueType as Schema | undefined;
       return `{[key: string]: ${valueType ? formatZodType(valueType, 'any') : 'any'}}`;
     }
     case 'ZodLiteral':
@@ -648,16 +647,16 @@ function formatZodType(schema: ZodTypeAny, fallback: string): string {
       return values.length > 0 ? values.map((value) => JSON.stringify(value)).join(' | ') : fallback;
     }
     case 'ZodUnion': {
-      const options = Array.isArray(def?.options) ? (def.options as ZodTypeAny[]) : [];
+      const options = Array.isArray(def?.options) ? (def.options as Schema[]) : [];
       return options.length > 0
         ? options.map((option) => formatZodType(option, 'any')).join(' | ')
         : fallback;
     }
     case 'ZodDiscriminatedUnion': {
       const options = def?.options instanceof Map
-        ? Array.from(def.options.values()) as ZodTypeAny[]
+        ? Array.from(def.options.values()) as Schema[]
         : Array.isArray(def?.options)
-          ? def.options as ZodTypeAny[]
+          ? def.options as Schema[]
           : [];
       return options.length > 0
         ? options.map((option) => formatZodType(option, 'any')).join(' | ')
@@ -668,12 +667,12 @@ function formatZodType(schema: ZodTypeAny, fallback: string): string {
   }
 }
 
-function formatZodObject(schema: ZodTypeAny, fallback: string): string {
+function formatZodObject(schema: Schema, fallback: string): string {
   const def = getDef(schema);
   const rawShape = typeof def?.shape === 'function' ? def.shape() : def?.shape;
   if (!rawShape || typeof rawShape !== 'object') return fallback;
 
-  const fields = Object.entries(rawShape as Record<string, ZodTypeAny>).map(([key, field]) => {
+  const fields = Object.entries(rawShape as Record<string, Schema>).map(([key, field]) => {
     const optional = isOptionalField(field);
     const marker = optional ? '?' : '';
     return `${formatObjectKey(key)}${marker}: ${formatZodType(field, 'any')}`;
@@ -682,11 +681,11 @@ function formatZodObject(schema: ZodTypeAny, fallback: string): string {
   return `{${fields.join(', ')}}`;
 }
 
-function isOptionalField(schema: ZodTypeAny): boolean {
+function isOptionalField(schema: Schema): boolean {
   const typeName = getDef(schema)?.typeName;
   if (typeName === 'ZodOptional' || typeName === 'ZodDefault') return true;
   if (typeName === 'ZodEffects') {
-    const inner = getDef(schema)?.schema as ZodTypeAny | undefined;
+    const inner = getDef(schema)?.schema as Schema | undefined;
     return inner ? isOptionalField(inner) : false;
   }
   return false;
@@ -713,6 +712,6 @@ function formatObjectKey(key: string): string {
   return /^[A-Za-z_$][\w$]*$/.test(key) ? key : JSON.stringify(key);
 }
 
-function getDef(schema: ZodTypeAny): Record<string, any> | undefined {
+function getDef(schema: Schema): Record<string, any> | undefined {
   return (schema as unknown as { _def?: Record<string, any> })._def;
 }

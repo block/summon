@@ -5,8 +5,29 @@
  */
 
 import type { EventStore } from '@summon-internal/devtools';
-import type { ZodType } from 'zod';
 import type { ApprovalRequest } from './tool-registry.js';
+
+export interface SchemaParseSuccess<T> {
+  success: true;
+  data: T;
+}
+
+export interface SchemaParseFailure {
+  success: false;
+  error: unknown;
+}
+
+export type SchemaParseResult<T> = SchemaParseSuccess<T> | SchemaParseFailure;
+
+/**
+ * Minimal structural schema contract used by Summon tool handlers. Zod schemas
+ * satisfy this interface, but Summon does not require Zod to be installed unless
+ * the host chooses to author schemas with it.
+ */
+export interface Schema<T = unknown> {
+  safeParse(value: unknown): SchemaParseResult<T>;
+  _def?: unknown;
+}
 
 export interface ToolContext<T = Record<string, unknown>> {
   /**
@@ -37,7 +58,7 @@ export type ToolHandler<T = Record<string, unknown>> = (
  * with a structured Zod error and the run is skipped.
  */
 export interface TypedToolHandlerEntry<T> {
-  schema: ZodType<T>;
+  schema: Schema<T>;
   run: ToolHandler<T>;
 }
 
@@ -55,7 +76,7 @@ export type ToolHandlerEntry<T = Record<string, unknown>> =
  *     });
  */
 export function defineToolHandler<T>(
-  schema: ZodType<T>,
+  schema: Schema<T>,
   run: ToolHandler<T>,
 ): TypedToolHandlerEntry<T> {
   return { schema, run };

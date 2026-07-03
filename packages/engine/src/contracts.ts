@@ -1,13 +1,6 @@
-import { ARROW_CONTROLLED_INPUT_HINTS, ARROW_MAP_CALLBACK_HINTS } from './arrow-subset.js';
 import type { ProtocolLine } from './protocol.js';
 import {
-  SUMMON_FIXED_INSTRUCTIONS,
-  SUMMON_FIXED_HTML_INSTRUCTIONS,
-  SUMMON_FIXED_DOMJS_INSTRUCTIONS,
   SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS,
-  SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
-  SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
-  SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
   buildToolsBlock,
   buildLayoutBlock,
@@ -33,10 +26,6 @@ import type {
   ValidationTool,
   ValidationContext,
 } from './runtime-validator.js';
-import {
-  runtimeProfile,
-  type SummonOutputRuntime,
-} from './output-runtime.js';
 
 export type ContractIssueSource =
   | 'protocol'
@@ -106,7 +95,6 @@ export interface CompiledToolContract {
 
 export interface SystemContractInput {
   mode: ValidationContext['mode'];
-  outputRuntime?: SummonOutputRuntime;
   ghost?: GhostGenerationContext | null;
   layout?: SummonLayout | null;
   scale?: SurfaceScale | null;
@@ -116,8 +104,6 @@ export interface SystemContractInput {
   surfaceContract?: SurfaceContractView | null;
   activeTokensCss?: string | null;
 }
-
-export type { SummonOutputRuntime } from './output-runtime.js';
 
 export interface CompiledSystemContracts {
   promptBlocks: ContractPromptBlock[];
@@ -138,79 +124,12 @@ export function withIssueSeverity(
   return { ...issue, severity };
 }
 
-export function hintsForContractIssue(
-  issue: ContractIssue,
-  options: { outputRuntime?: SummonOutputRuntime } = {},
-): string[] {
+export function hintsForContractIssue(issue: ContractIssue): string[] {
   if (issue.hint) return [issue.hint];
-  const profile = runtimeProfile(options.outputRuntime);
-  const htmlRuntime = profile.format === 'html';
-  const surfaceDocumentRuntime = profile.format === 'surface-document';
   switch (issue.code) {
-    case 'external-url':
-      return ['Inline assets as data URLs or remove the external reference.'];
-    case 'unsafe-tag':
-      return ['Use plain HTML elements; remove iframe/object/embed/link/meta/base-like tags.'];
-    case 'inline-handler':
-      if (surfaceDocumentRuntime) {
-        return ['Remove inline event handlers from main.html; wire behavior in optional main.js with scoped DOM APIs and granted host tools via callTool().'];
-      }
-      if (htmlRuntime) {
-        return ['Remove inline event handlers; this HTML runtime must be static HTML/CSS without generated event code.'];
-      }
-      return ['Use Arrow event handlers inside the template and call granted host tools with `callTool()` from `host-bridge:summon`.'];
-    case 'static-script':
-    case 'html-script-not-enabled':
-      return ['Remove script tags in static mode, or express the UI without interactivity.'];
-    case 'unsafe-html-script':
-      return ['Remove generated script APIs that access network, storage, parent/top/opener windows, workers, eval, or dynamic imports.'];
-    case 'missing-html-body':
-      return ['Return a complete HTML bundle with source["body.html"] containing the static body fragment.'];
-    case 'invalid-html-bundle-schema':
-      return ['Use schema "summon.html-bundle/v0" for experimental HTML runs.'];
-    case 'html-bundle-extra-file':
-      return ['Only source["body.html"], optional source["main.css"], and optional experiment-gated source["main.js"] are supported.'];
-    case 'unsupported-html-attribute':
-      return ['Use semantic HTML, ARIA/data attributes, safe SVG attributes, and CSS classes instead of unsupported browser attributes.'];
-    case 'script-not-granted':
-    case 'surface-script-policy-removed':
-      return ['Return an Arrow artifact that uses `reactive()`, Arrow event handlers, and `host-bridge:summon` instead of generated script tags.'];
     case 'unknown-tool':
     case 'tool-trigger-not-granted':
       return ['Use only the granted tools and triggers listed in the Tools block.'];
-    case 'invalid-args-json':
-      return ['Build tool args as plain objects in the Arrow event handler before calling `callTool()`.'];
-    case 'unknown-resource':
-    case 'non-resource-tool':
-    case 'resource-state-keys-incomplete':
-      return ['Use only data resources listed under Available data resources.'];
-    case 'resource-loading-not-rendered':
-      return ['Copy the listed resource loading key into Arrow `reactive()` state and render a visible loading affordance from it.'];
-    case 'resource-error-not-rendered':
-      return ['Copy the listed resource error key into Arrow `reactive()` state and render visible host error text from it.'];
-    case 'resource-data-not-rendered':
-      return ['Copy the listed resource data key into Arrow `reactive()` state and render result rows only from host data.'];
-    case 'resource-empty-not-rendered':
-      return ['Copy the listed empty-state key into Arrow `reactive()` state and render no-results copy only from that key.'];
-    case 'action-pending-not-rendered':
-      return ['Copy the listed pending key into Arrow `reactive()` state and render a busy label or disabled-looking state from it.'];
-    case 'action-error-not-rendered':
-      return ['Copy the listed action error key into Arrow `reactive()` state and render visible host error text from it.'];
-    case 'unsafe-attr-binding':
-    case 'bad-attr-binding-placement':
-      return ['Use normal quoted Arrow attributes and sanitize dynamic values before rendering them.'];
-    case 'unsupported-arrow-idl-binding':
-      return ARROW_CONTROLLED_INPUT_HINTS;
-    case 'arrow-map-callback-not-function':
-      return ARROW_MAP_CALLBACK_HINTS;
-    case 'domjs-unsupported-api':
-      return [
-        'Write standard imperative DOM code: document.createElement/createTextNode, textContent, setAttribute/removeAttribute, className/classList, el.style.*, append/appendChild/insertBefore/removeChild/replaceChildren, addEventListener or on<event> properties, and property setters like value/checked/disabled.',
-        'Do not use innerHTML, outerHTML, querySelector, getElementById, node.remove(), parentNode traversal, window, or document.body. Hold references to nodes you create.',
-        'For dynamic values use reactive state(...) with function bindings — textContent = () => s.value, el.setAttribute(name, () => ...) — and mutate state (including s.items.push(...)) in event handlers. No manual update calls needed.',
-      ];
-    case 'domjs-network-not-granted':
-      return ['Remove fetch/XHR/WebSocket; call granted host tools with callTool(name, args) instead.'];
     case 'surface-document-html-inline-handler':
       return ['Keep main.html inert: remove inline on* attributes and attach listeners in optional main.js with addEventListener/on<event> on scoped DOM nodes.'];
     case 'surface-document-html-forbidden-tag':
@@ -229,23 +148,11 @@ export function hintsForContractIssue(
     case 'missing-surface-document-bundle-html':
     case 'missing-surface-document-bundle-css':
       return ['Return a Surface Document bundle with source["main.html"] for inert structure and source["main.css"] for fingerprint styling; source["main.js"] is optional behavior only.'];
-    case 'invalid-domjs-entry':
-    case 'missing-domjs-bundle-entry':
-      return ['Return one main.js entry that builds the UI and exports the root node as default.'];
-    case 'unsupported-arrow-open-tag-expression':
+    case 'invalid-surface-document-bundle-schema':
+      return ['Use schema "summon.surface-document-bundle/v1".'];
+    case 'invalid-surface-document-source-syntax':
       return [
-        'Remove bare `${...}` expressions from opening tags. Do not write `<button ${() => "disabled"}>` or `<section ${dynamicAttrs}>`.',
-        'Put dynamic values inside named, quoted attributes instead, such as `disabled="${() => state.loading}"`, `class="${() => state.active ? \'active\' : \'\'}"`, or `aria-expanded="${() => state.open ? \'true\' : \'false\'}"`.',
-        'If the expression creates child content, move it between tags: `<button>${() => state.label}</button>`.',
-      ];
-    case 'invalid-arrow-bundle-entry':
-      return [
-        'Return exactly one Arrow entry file under source: either "main.ts" or "main.js", not both and not neither.',
-        'If both entry files were returned, keep the complete Arrow implementation in one file and remove the other entry file. Optional CSS may remain in "main.css".',
-      ];
-    case 'invalid-arrow-source-syntax':
-      return [
-        'Fix the TypeScript/JavaScript syntax error in the Arrow entry file before returning the bundle.',
+        'Fix the JavaScript syntax error in main.js before returning the bundle.',
         'Check nested template literals carefully: quote generated copy, escape accidental backticks, and keep apostrophes inside double-quoted strings when needed.',
         'Return the full corrected source file, not a patch or Markdown fence.',
       ];
@@ -291,7 +198,6 @@ export function compileTokenContract(input: TokenContractInput = {}): CompiledTo
 
 export function compileToolContract(
   pack: ToolPack | null | undefined,
-  options: { outputRuntime?: SummonOutputRuntime } = {},
 ): CompiledToolContract {
   const normalized: ToolPack = pack ?? { tools: [] };
   const initialState: Record<string, unknown> = {};
@@ -325,7 +231,7 @@ export function compileToolContract(
     promptBlock: normalized.tools.length > 0
       ? {
           id: 'tools',
-          text: buildToolsBlock(normalized, options),
+          text: buildToolsBlock(normalized),
           cache: 'ephemeral',
         }
       : null,
@@ -339,21 +245,10 @@ export function compileToolContract(
 export function compileSystemContracts(
   input: SystemContractInput,
 ): CompiledSystemContracts {
-  const outputRuntime = input.outputRuntime ?? 'arrow-control';
-  const profile = runtimeProfile(outputRuntime);
-  const htmlRuntime = profile.format === 'html';
-  const domjsRuntime = profile.format === 'domjs';
-  const surfaceDocumentRuntime = profile.format === 'surface-document';
   const promptBlocks: ContractPromptBlock[] = [
     {
       id: 'fixed',
-      text: surfaceDocumentRuntime
-        ? SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS
-        : domjsRuntime
-          ? SUMMON_FIXED_DOMJS_INSTRUCTIONS
-          : htmlRuntime
-            ? SUMMON_FIXED_HTML_INSTRUCTIONS
-            : SUMMON_FIXED_INSTRUCTIONS,
+      text: SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS,
       cache: 'ephemeral',
     },
   ];
@@ -374,7 +269,7 @@ export function compileSystemContracts(
   if (input.layout) {
     promptBlocks.push({
       id: `layout:${input.layout.id}`,
-      text: buildLayoutBlock(input.layout, { outputRuntime }),
+      text: buildLayoutBlock(input.layout),
       cache: 'ephemeral',
     });
   }
@@ -394,25 +289,19 @@ export function compileSystemContracts(
   if (input.surfaceContract) {
     promptBlocks.push({
       id: 'surface-contract',
-      text: buildSurfaceContractBlock(input.surfaceContract, { outputRuntime }),
+      text: buildSurfaceContractBlock(input.surfaceContract),
       cache: 'ephemeral',
     });
   }
 
-  const tool = compileToolContract(input.tools, { outputRuntime });
+  const tool = compileToolContract(input.tools);
   if (tool.promptBlock) promptBlocks.push(tool.promptBlock);
   issues.push(...tool.issues);
 
 
   promptBlocks.push({
     id: 'output-contract',
-    text: surfaceDocumentRuntime
-      ? SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS
-      : domjsRuntime
-        ? SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS
-        : htmlRuntime
-          ? SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS
-          : SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
+    text: SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
     cache: 'none',
   });
 
@@ -427,8 +316,6 @@ export function compileSystemContracts(
       tools: tool.validationTools,
       surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
-      // Scripted HTML runtime was removed; generated scripts are never allowed.
-      experimentalHtmlScript: false,
     },
   };
 }

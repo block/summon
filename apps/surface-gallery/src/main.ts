@@ -8,7 +8,6 @@ import {
 import {
   consumeSurfaceStream,
   mountInlineSurface,
-  type HtmlStreamPreviewDelta,
   type InlineSurfaceHandle,
   type SurfaceStreamContext,
 } from '@anarchitecture/summon/browser';
@@ -380,11 +379,6 @@ async function generateSelectedSurface(): Promise<void> {
         welcome.hidden = true;
         handle?.renderArtifact(artifact);
       },
-      onHtmlPatch: (patch) => {
-        surfaceRenderedDuringRun = true;
-        welcome.hidden = true;
-        handle?.applyHtmlPatch(patch);
-      },
       onParseError: (raw) => {
         events.push({ kind: 'transport-parse-error', at: Date.now(), raw });
         selectInspectorTab('stream');
@@ -488,19 +482,6 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
     if (typeof value.health?.blockedCount === 'number') blockedLines = value.health.blockedCount;
     if (blockedLines > 0) selectInspectorTab('stream');
   }
-  if (line.path === '/html-stream-preview') {
-    const delta = parseHtmlStreamPreviewDelta(line.value);
-    if (delta) handle?.applyHtmlPreviewDelta(delta);
-  }
-  if (line.path === '/html-stream-summary') {
-    const value = line.value as { previewDeltaCount?: unknown; committedPatchCount?: unknown; blockedPatchReasons?: unknown } | undefined;
-    const previewDeltaCount = typeof value?.previewDeltaCount === 'number' ? value.previewDeltaCount : 0;
-    const committedPatchCount = typeof value?.committedPatchCount === 'number' ? value.committedPatchCount : 0;
-    const blockedPatchReasons = Array.isArray(value?.blockedPatchReasons)
-      ? value.blockedPatchReasons.filter((reason): reason is string => typeof reason === 'string')
-      : [];
-    pushHostMessage(`html stream preview=${previewDeltaCount} patches=${committedPatchCount}${blockedPatchReasons.length ? ` blocked=${blockedPatchReasons.join(',')}` : ''}`);
-  }
   if (line.path === '/ghost-token-source') {
     const value = line.value as { css?: unknown };
     if (typeof value.css === 'string' && value.css.trim()) {
@@ -521,34 +502,6 @@ function handleMeta(line: Extract<ProtocolLine, { op: 'meta' }>): void {
   blockedCountEl.textContent = String(blockedLines);
 }
 
-function parseHtmlStreamPreviewDelta(value: unknown): HtmlStreamPreviewDelta | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const delta = value as Record<string, unknown>;
-  const action = delta.action;
-  const text = typeof delta.delta === 'string'
-    ? delta.delta
-    : typeof delta.text === 'string'
-      ? delta.text
-      : '';
-  if (delta.runtime !== 'html') return null;
-  if (typeof delta.target !== 'string' || !delta.target) return null;
-  if (
-    action !== 'append' &&
-    action !== 'replace' &&
-    action !== 'update' &&
-    action !== 'remove' &&
-    action !== 'morph'
-  ) {
-    return null;
-  }
-  if (!text) return null;
-  return {
-    runtime: 'html',
-    target: delta.target,
-    action,
-    delta: text,
-  };
-}
 
 function renderAuthorityMeter(compiled: CompiledSurfacePolicy): void {
   const plan = compiled.surfacePlan;

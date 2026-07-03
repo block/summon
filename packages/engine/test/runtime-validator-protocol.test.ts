@@ -43,15 +43,15 @@ test('blocks generated host-owned surface meta paths', () => {
   );
 });
 
-test('accepts valid Arrow artifacts', () => {
+test('accepts valid Surface Document artifacts', () => {
   const issues = validateProtocolLine(
     {
       op: 'artifact',
       path: '/artifact',
       value: {
-        runtime: 'arrow',
+        runtime: 'surface-document',
         source: {
-          'main.ts': 'import { html } from "@arrow-js/core";\nexport default html`<button>Save</button>`',
+          'main.html': '<main><button id="save">Save</button></main>',
           'main.css': 'button { color: var(--color-text); }',
         },
       },
@@ -71,7 +71,7 @@ test('accepts valid Arrow artifacts', () => {
   assert.deepEqual(issues, []);
 });
 
-test('accepts arbitrary inert data-* attributes in Arrow artifacts', () => {
+test('accepts arbitrary inert data-* attributes in Surface Document artifacts', () => {
   // data-* attributes are ordinary inert HTML attributes; the renderer reads
   // none of them, so they carry no risk and must not be rejected.
   const issues = validateProtocolLine(
@@ -79,39 +79,16 @@ test('accepts arbitrary inert data-* attributes in Arrow artifacts', () => {
       op: 'artifact',
       path: '/artifact',
       value: {
-        runtime: 'arrow',
+        runtime: 'surface-document',
         source: {
-          'main.ts': [
-            'import { html } from "@arrow-js/core";',
-            'export default html`',
+          'main.html': [
             '<section data-state="{&quot;open&quot;:false}">',
             '<button data-role="save" data-label="label">Save</button>',
             '<p data-error="saveError"></p>',
             '<div data-region="search"></div>',
-            '</section>`;',
+            '</section>',
           ].join('\n'),
-        },
-      },
-    },
-    baseContext,
-  );
-  assert.deepEqual(codes(issues), []);
-});
-
-test('accepts data-* component metadata attributes in Arrow artifacts', () => {
-  const issues = validateProtocolLine(
-    {
-      op: 'artifact',
-      path: '/artifact',
-      value: {
-        runtime: 'arrow',
-        source: {
-          'main.ts': [
-            'import { html } from "@arrow-js/core";',
-            'export default html`',
-            '<div data-component="MetricCard" data-component-id="metric-1" data-props="{&quot;label&quot;:&quot;Revenue&quot;}"></div>',
-            '`;',
-          ].join('\n'),
+          'main.css': 'section { color: var(--color-text); }',
         },
       },
     },
@@ -131,41 +108,22 @@ test('parser rejects unsupported section protocol ops', () => {
   );
 });
 
-test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
+test('blocks malformed and unsafe Surface Document artifacts', () => {
   assert.deepEqual(
     codes(validateProtocolLine(
       {
         op: 'artifact',
         path: '/artifact',
         value: {
-          runtime: 'arrow',
+          runtime: 'surface-document',
           source: {
-            'main.ts': 'export default html`<div>A</div>`',
-            'main.js': 'export default html`<div>B</div>`',
+            'main.css': 'main { color: var(--color-text); }',
           },
         },
       },
       baseContext,
     )),
-    ['invalid-arrow-entry'],
-  );
-
-  assert.deepEqual(
-    codes(validateProtocolLine(
-      {
-        op: 'artifact',
-        path: '/artifact',
-        value: {
-          runtime: 'arrow',
-          network: 'restricted-fetch',
-          source: {
-            'main.ts': 'export default html`<div>Weather</div>`',
-          },
-        },
-      },
-      baseContext,
-    )),
-    ['arrow-network-not-granted'],
+    ['missing-surface-document-file'],
   );
 
   assert.deepEqual(
@@ -176,94 +134,67 @@ test('blocks malformed Arrow artifacts and ungranted restricted fetch', () => {
         value: {
           runtime: 'arrow',
           source: {
-            'main.ts': [
-              'import { html } from "@arrow-js/core";',
-              'void fetch("https://example.test/track");',
-              'export default html`<div>Weather</div>`;',
-            ].join('\n'),
+            'main.ts': 'export default html`<div>legacy</div>`',
           },
         },
       },
       baseContext,
     )),
-    ['arrow-network-not-granted'],
+    ['invalid-artifact-runtime'],
   );
 
-  // IDL property bindings (`.value=`) are a verified @arrow-js/sandbox compiler
-  // limitation, so the validator blocks them as a repairable issue (rewrite to
-  // attribute + event bindings) rather than letting them crash at runtime.
   assert.deepEqual(
     codes(validateProtocolLine(
       {
         op: 'artifact',
         path: '/artifact',
         value: {
-          runtime: 'arrow',
+          runtime: 'surface-document',
           source: {
-            'main.ts': 'import { html } from "@arrow-js/core"; export default html`<input .value="${() => "nope"}" />`',
+            'main.html': '<main><button onclick="evil()">Save</button></main>',
+            'main.css': 'main {}',
           },
         },
       },
       baseContext,
     )),
-    ['unsupported-arrow-idl-binding'],
+    ['surface-document-html-inline-handler'],
   );
 
-  // Passing a tagged template directly to .map() is valid syntax but crashes
-  // at VM boot with `TypeError: not a function`, because .map calls its
-  // argument. The validator blocks it as a repairable issue so the repair loop
-  // rewrites it to a function callback before it reaches the sandbox.
   assert.deepEqual(
     codes(validateProtocolLine(
       {
         op: 'artifact',
         path: '/artifact',
         value: {
-          runtime: 'arrow',
+          runtime: 'surface-document',
           source: {
-            'main.ts': 'import { html } from "@arrow-js/core"; const items = []; export default html`<ul>${() => items.map(html`<li>x</li>`)}</ul>`',
+            'main.html': '<main>ok</main>',
+            'main.css': '@import url("https://evil.test/steal.css");',
           },
         },
       },
       baseContext,
     )),
-    ['arrow-map-callback-not-function'],
+    ['surface-document-css-external-url', 'surface-document-css-import'],
   );
 
-  // The correct function-callback form must NOT be flagged.
   assert.deepEqual(
     codes(validateProtocolLine(
       {
         op: 'artifact',
         path: '/artifact',
         value: {
-          runtime: 'arrow',
+          runtime: 'surface-document',
           source: {
-            'main.ts': 'import { html } from "@arrow-js/core"; const items = []; export default html`<ul>${() => items.map((item) => html`<li>${() => item}</li>`)}</ul>`',
+            'main.html': '<main>ok</main>',
+            'main.css': 'main {}',
+            'main.js': 'void fetch("https://example.test/track");',
           },
         },
       },
       baseContext,
     )),
-    [],
-  );
-
-  // Subset restriction removed (experiment 2026-06-25): open-tag template
-  // expressions are now accepted, not blocked.
-  assert.deepEqual(
-    codes(validateProtocolLine(
-      {
-        op: 'artifact',
-        path: '/artifact',
-        value: {
-          runtime: 'arrow',
-          source: {
-            'main.ts': 'import { html } from "@arrow-js/core"; export default html`<button ${() => "disabled"}>Save</button>`',
-          },
-        },
-      },
-      baseContext,
-    )),
-    [],
+    ['surface-document-network-not-granted'],
   );
 });

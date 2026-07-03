@@ -14,7 +14,6 @@ export interface ValidationContext {
   definedTokens?: ReadonlySet<string>;
   surfacePlan?: SurfacePlan;
   limits?: Partial<ValidationLimits>;
-  experimentalHtmlScript?: boolean;
 }
 
 export interface ValidationTool {

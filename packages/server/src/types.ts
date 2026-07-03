@@ -6,7 +6,6 @@ import type {
   ProtocolLine,
   StreamGraphSnapshot,
   SummonLayout,
-  SummonOutputRuntime,
   SurfacePolicy,
   SurfaceScale,
   SurfaceGoalProvenance,
@@ -21,38 +20,6 @@ export interface SurfaceModelRequest {
   signal?: AbortSignal;
 }
 
-export interface ArrowBundleRequest extends SurfaceModelRequest {
-  schema: Record<string, unknown>;
-}
-
-export interface HtmlBundleRequest extends SurfaceModelRequest {
-  schema: Record<string, unknown>;
-  runtime: SummonOutputRuntime;
-  allowScript?: boolean;
-}
-
-export interface HtmlStreamRequest extends SurfaceModelRequest {
-  runtime: 'html-stream';
-}
-
-export interface ArrowBundleRepairRequest extends ArrowBundleRequest {
-  previousBundle: unknown;
-  issues: ContractIssue[];
-  hints: string[];
-  attempt: number;
-}
-
-export interface DomjsBundleRequest extends SurfaceModelRequest {
-  schema: Record<string, unknown>;
-}
-
-export interface DomjsBundleRepairRequest extends DomjsBundleRequest {
-  previousBundle: unknown;
-  issues: ContractIssue[];
-  hints: string[];
-  attempt: number;
-}
-
 export interface SurfaceDocumentBundleRequest extends SurfaceModelRequest {
   schema: Record<string, unknown>;
 }
@@ -64,22 +31,8 @@ export interface SurfaceDocumentBundleRepairRequest extends SurfaceDocumentBundl
   attempt: number;
 }
 
-export interface HtmlBundleRepairRequest extends HtmlBundleRequest {
-  previousBundle: unknown;
-  issues: ContractIssue[];
-  hints: string[];
-  attempt: number;
-}
-
 export interface SurfaceModelProvider {
-  generateArrowBundle(request: ArrowBundleRequest): Promise<unknown>;
-  repairArrowBundle?(request: ArrowBundleRepairRequest): Promise<unknown>;
-  generateHtmlBundle?(request: HtmlBundleRequest): Promise<unknown>;
-  repairHtmlBundle?(request: HtmlBundleRepairRequest): Promise<unknown>;
-  streamHtmlSurface?(request: HtmlStreamRequest): AsyncIterable<string>;
-  generateDomjsBundle?(request: DomjsBundleRequest): Promise<unknown>;
-  repairDomjsBundle?(request: DomjsBundleRepairRequest): Promise<unknown>;
-  generateSurfaceDocumentBundle?(request: SurfaceDocumentBundleRequest): Promise<unknown>;
+  generateSurfaceDocumentBundle(request: SurfaceDocumentBundleRequest): Promise<unknown>;
   repairSurfaceDocumentBundle?(request: SurfaceDocumentBundleRepairRequest): Promise<unknown>;
 }
 
@@ -104,7 +57,6 @@ export interface SurfaceGenerationInput {
   preludeLines?: ProtocolLine[];
   seedLines?: ProtocolLine[];
   validationMode?: ProtocolValidationMode;
-  experimentalRuntime?: SummonOutputRuntime;
   playground?: boolean;
   maxRepairAttempts?: number;
   repairIssueCodes?: string[];

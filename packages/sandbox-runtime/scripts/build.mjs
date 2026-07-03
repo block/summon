@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,6 +16,7 @@ async function main() {
     return;
   }
 
+  await rm(dist, { recursive: true, force: true });
   await mkdir(dist, { recursive: true });
   await Promise.all([
     writeFile(join(dist, 'tokens.css'), tokensSource),

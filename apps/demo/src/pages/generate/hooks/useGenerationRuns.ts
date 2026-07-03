@@ -2,11 +2,7 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import type { SummonSurfaceHandle } from '@anarchitecture/summon-react';
 import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
 import {
-  isArrowSurfaceArtifact,
-  isHtmlSurfaceArtifact,
   isSurfaceDocumentArtifact,
-  normalizeHtmlSurfacePatch,
-  type HtmlSurfacePatch,
   type SummonLayout,
   type SurfaceContractView,
   type SurfacePlan,
@@ -14,7 +10,6 @@ import {
 import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
 import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
 import type { ActiveContract, Mode } from '../../../showcase.js';
-import { GENERATE_RUNTIME } from '../constants.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
 import type { ChildSurfaceModel, LogEntry, StreamOptions, StreamResult, TimingEntry } from '../types.js';
 
@@ -121,7 +116,6 @@ export function useGenerationRuns({
         prompt: runPrompt,
         active: activeContract,
         fingerprintId,
-        experimentalRuntime: GENERATE_RUNTIME,
         fingerprintTargetPath: fingerprintTargetPath.trim() || '.',
         layout: readLayout(),
         playgroundMode,
@@ -188,7 +182,6 @@ export function useGenerationRuns({
       logLine('op-error', 'saved surface has no renderable artifact');
       return;
     }
-    const htmlPatches = htmlPatchesAfterArtifact(envelope.protocolLines);
     artifactRevisionRef.current = envelope.protocolLines.length;
     setArtifactRevision(artifactRevisionRef.current);
     setActiveTokensSourceOverride(envelope.tokenCss ?? null);
@@ -209,15 +202,11 @@ export function useGenerationRuns({
     setBytes(new TextEncoder().encode(JSON.stringify(artifact.source)).byteLength);
     window.setTimeout(() => {
       surfaceRef.current?.renderArtifact(artifact);
-      for (const patch of htmlPatches) {
-        surfaceRef.current?.applyHtmlPatch(patch);
-      }
     }, 0);
     appendDevEvent({ kind: 'surface-plan', at: Date.now(), plan: envelope.surfacePlan });
     appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: true });
     logLine('op-meta', `replayed ${envelope.surfacePlan.purpose}/${envelope.surfacePlan.runtime}`);
     logLine('op-add', `replayed ${artifact.runtime} artifact /artifact -> ${Object.keys(artifact.source).join(', ')}`);
-    if (htmlPatches.length > 0) logLine('op-artifact', `replayed ${htmlPatches.length} html patch${htmlPatches.length === 1 ? '' : 'es'}`);
   }, [
     abortRef,
     appendDevEvent,
@@ -254,7 +243,7 @@ function findRenderableArtifact(lines: SurfaceEnvelope['protocolLines']) {
     if (
       line.op === 'artifact' &&
       line.path === '/artifact' &&
-      (isArrowSurfaceArtifact(line.value) || isHtmlSurfaceArtifact(line.value) || isSurfaceDocumentArtifact(line.value))
+      isSurfaceDocumentArtifact(line.value)
     ) {
       return line.value;
     }
@@ -262,20 +251,3 @@ function findRenderableArtifact(lines: SurfaceEnvelope['protocolLines']) {
   return null;
 }
 
-function htmlPatchesAfterArtifact(lines: SurfaceEnvelope['protocolLines']) {
-  let artifactIndex = -1;
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i];
-    if (line?.op === 'artifact' && line.path === '/artifact') {
-      artifactIndex = i;
-      break;
-    }
-  }
-  const patches: HtmlSurfacePatch[] = [];
-  for (const line of lines.slice(Math.max(0, artifactIndex + 1))) {
-    if (line.op !== 'patch' || line.path !== '/artifact/html-patch') continue;
-    const normalized = normalizeHtmlSurfacePatch(line.value);
-    if (normalized.patch) patches.push(normalized.patch);
-  }
-  return patches;
-}

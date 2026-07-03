@@ -344,7 +344,7 @@ export function useSurfaceStream({
     const surfaceRequest = opts.playgroundMode ? {} : surfaceRequestFor(active);
     const agent = opts.playgroundMode ? undefined : agentWardRequestFor(active);
     const streamStartedAt = performance.now();
-    const metrics = createRunMetricsAccumulator(opts.experimentalRuntime);
+    const metrics = createRunMetricsAccumulator();
     const elapsedSinceStart = () => performance.now() - streamStartedAt;
     const markClientTiming = (
       phase: string,
@@ -366,7 +366,6 @@ export function useSurfaceStream({
       allowedTools: toolPack.tools.map((tool) => tool.name),
       tools: toolPack.tools,
       surfacePlan: active.surfacePlan,
-      experimentalHtmlScript: false,
     };
 
     const modelSelectionPayload = {
@@ -387,7 +386,6 @@ export function useSurfaceStream({
           playground: true,
           validationMode: 'observe',
           maxRepairAttempts: 0,
-          experimentalRuntime: opts.experimentalRuntime,
           ...modelSelectionPayload,
           ...steeringPayload,
           tools: toolPack,
@@ -395,7 +393,6 @@ export function useSurfaceStream({
       : {
           prompt: opts.prompt,
           validationMode: 'enforce',
-          experimentalRuntime: opts.experimentalRuntime,
           ...modelSelectionPayload,
           ...steeringPayload,
           tools: toolPack,
@@ -505,7 +502,7 @@ export function useSurfaceStream({
     if (
       !result.protocolLines.some((line) => line.op === 'artifact' && line.path === '/artifact')
     ) {
-      throw new Error(missingArtifactMessage(result.protocolLines, opts.experimentalRuntime));
+      throw new Error(missingArtifactMessage(result.protocolLines));
     }
 
     return {

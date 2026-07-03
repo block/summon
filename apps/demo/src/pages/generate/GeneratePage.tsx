@@ -3,8 +3,6 @@ import { type SummonSurfaceHandle } from "@anarchitecture/summon-react";
 import type { SurfacePreviewSnapshot } from "@anarchitecture/summon/browser";
 import { createSurfaceEnvelope } from "@anarchitecture/summon/envelope";
 import {
-  isArrowSurfaceArtifact,
-  isHtmlSurfaceArtifact,
   isSurfaceDocumentArtifact,
   type ProtocolLine,
   type SummonLayout,
@@ -28,7 +26,7 @@ import { ApprovalStack } from "./components/ApprovalStack.js";
 import { ContractInspector } from "./components/ContractInspector.js";
 import { DiagnosticsDock } from "./components/DiagnosticsDock.js";
 import { GenerationStage } from "./components/GenerationStage.js";
-import { GENERATE_RUNTIME, layoutPresets } from "./constants.js";
+import { layoutPresets } from "./constants.js";
 import { displayEventKind, type ExtraDevtoolsEvent } from "./devtools.js";
 import { buildGenerationPreview } from "./generationPreview.js";
 import { useGenerationRuns } from "./hooks/useGenerationRuns.js";
@@ -41,14 +39,12 @@ import {
   fallbackCatalog,
   hydrateMissingModelProfiles,
   isStructuredProfile,
-  modelProfileKeyForRuntime,
   modelProfilesForRunProfile,
 } from "./modelProviders.js";
 import { loadSavedSurfaces } from "./savedSurfaces.js";
 import {
   buildContractRows,
   generationPhaseLabel,
-  runtimeTargetText,
   scenarioUsesFixedPolicy,
   surfacePolicyForPlan,
 } from "./surfaceHelpers.js";
@@ -213,8 +209,7 @@ export function GeneratePage() {
       ) ?? showcaseScenarios[0]!,
     [selectedScenarioId, showcaseScenarios],
   );
-  const activeModelProfileKey: ModelProfileKey =
-    modelProfileKeyForRuntime(GENERATE_RUNTIME);
+  const activeModelProfileKey: ModelProfileKey = "surface-document";
   const activeModelProfile = modelProfiles[activeModelProfileKey];
   const utilityModelProfile = modelProfiles.utility;
 
@@ -542,7 +537,6 @@ export function GeneratePage() {
         ? { utilityModel: modelSelection.utilityModel }
         : {}),
       ...(modelSelection.customModel ? { customModel: true } : {}),
-      experimentalRuntime: GENERATE_RUNTIME,
       ...(modelSelection.modelOptions
         ? { modelOptions: modelSelection.modelOptions }
         : {}),
@@ -784,7 +778,7 @@ export function GeneratePage() {
   const statusText = bytes
     ? `${statusLabel} · ${bytes.toLocaleString()} B`
     : statusLabel;
-  const runtimeLabel = runtimeTargetText(GENERATE_RUNTIME);
+  const runtimeLabel = "Surface Document";
   const generationPreview = useMemo(
     () =>
       buildGenerationPreview({
@@ -1135,7 +1129,7 @@ function findRenderableArtifact(lines: readonly ProtocolLine[]) {
     if (
       line?.op === "artifact" &&
       line.path === "/artifact" &&
-      (isArrowSurfaceArtifact(line.value) || isHtmlSurfaceArtifact(line.value) || isSurfaceDocumentArtifact(line.value))
+      isSurfaceDocumentArtifact(line.value)
     ) {
       return line.value;
     }

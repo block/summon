@@ -29,9 +29,7 @@
     "typecheck": "pnpm -r typecheck",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm check:release && changeset publish",
-    "eval:runtime-bakeoff:fixtures": "node scripts/runtime-bakeoff-fixtures.mjs",
-    "runtime-bakeoff": "node scripts/runtime-bakeoff.mjs"
+    "release": "pnpm check:release && changeset publish"
   },
   "packageManager": "pnpm@10.33.0",
   "engines": {

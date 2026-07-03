@@ -93,23 +93,6 @@ function jsonl(lines: ProtocolLine[]): string {
   return `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`;
 }
 
-function arrowHtmlArtifact(html: string): ProtocolLine {
-  const source = html
-    .replace(/\\/g, '\\\\')
-    .replace(/`/g, '\\`')
-    .replace(/\$\{/g, '\\${');
-  return {
-    op: 'artifact',
-    path: '/artifact',
-    value: {
-      runtime: 'arrow',
-      source: {
-        'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`${source}\`;`,
-      },
-    },
-  };
-}
-
 function surfaceDocumentArtifact(source: { html: string; css: string; js?: string }): ProtocolLine {
   return {
     op: 'artifact',
@@ -135,7 +118,7 @@ function streamGraphSummary(): ProtocolLine {
         blockedCount: 0,
         warningCount: 0,
       },
-      artifacts: [{ revision: 1, runtime: 'arrow', bytes: 1 }],
+      artifacts: [{ revision: 1, runtime: 'surface-document', bytes: 1 }],
     },
   };
 }
@@ -188,7 +171,7 @@ test.beforeEach(async ({ page }) => {
   await stubCatalogRoutes(page);
 });
 
-test('generate page boots the inline Arrow workbench without server credentials', async ({ page }) => {
+test('generate page boots the inline workbench without server credentials', async ({ page }) => {
   const pageErrors = collectPageErrors(page);
 
   await page.goto('/generate');
@@ -246,7 +229,7 @@ test('generate page run profiles restore quality defaults and mark manual change
   await expect(page.locator('#run-profile-custom')).toBeChecked();
 });
 
-test('generate page renders a mocked Arrow artifact through the inline sandbox', async ({ page }) => {
+test('generate page renders a mocked Surface Document artifact through the inline sandbox', async ({ page }) => {
   let captured: Record<string, unknown> | null = null;
   await page.route('**/api/generate', async (route) => {
     captured = route.request().postDataJSON();
@@ -301,7 +284,10 @@ test('generate page renders a mocked Arrow artifact through the inline sandbox',
             source: 'server',
           },
         },
-        arrowHtmlArtifact('<section id="arrow-probe"><h1>Dinner Finder</h1><p>Rendered by Arrow.</p></section>'),
+        surfaceDocumentArtifact({
+          html: '<section id="arrow-probe"><h1>Dinner Finder</h1><p>Rendered by the Summon VM.</p></section>',
+          css: '#arrow-probe { color: var(--color-text, #111); }',
+        }),
         streamGraphSummary(),
       ]),
     });
@@ -312,8 +298,9 @@ test('generate page renders a mocked Arrow artifact through the inline sandbox',
 
   await expect(page.locator('#surface-status')).toContainText(/Done/i, { timeout: 20_000 });
   await expect(page.locator('#welcome')).toBeHidden();
-  await expect(page.locator('#sandbox arrow-sandbox #arrow-probe')).toBeVisible();
-  await expect(page.locator('#sandbox arrow-sandbox #arrow-probe')).toContainText('Dinner Finder');
+  const mountedSurface = page.locator('#sandbox .summon-surface-document-host');
+  await expect(mountedSurface).toHaveCount(1);
+  await expect.poll(async () => mountedSurface.evaluate((host) => host.shadowRoot?.querySelector('#arrow-probe')?.textContent ?? '')).toContain('Dinner Finder');
   await page.getByRole('button', { name: 'Options' }).click();
   await expect(page.locator('#contract-summary [data-contract-row="ward"]')).toContainText('default');
   await expect(page.locator('#contract-summary [data-contract-row="stream"]')).toContainText('complete');
@@ -331,13 +318,13 @@ test('generate page renders a mocked Arrow artifact through the inline sandbox',
   expect(captured?.surfacePlan).toBeUndefined();
 });
 
-test('generate page surfaces syntax validation blocks instead of mounting malformed Arrow source', async ({ page }) => {
+test('generate page surfaces syntax validation blocks instead of mounting malformed source', async ({ page }) => {
   const malformedIssue = {
     source: 'protocol',
     severity: 'block',
-    code: 'invalid-arrow-source-syntax',
-    path: '/artifact/main.ts',
-    message: 'Arrow source syntax error in main.ts:34:71: Unterminated string literal.\n\nSource excerpt:\n  31 | const title = "Draft";\n> 34 | export default html`<p>${() => "broken}</p>`;',
+    code: 'invalid-surface-document-source-syntax',
+    path: '/artifact/main.js',
+    message: 'Surface Document source syntax error in main.js:2:24: Unterminated string literal.\n\nSource excerpt:\n  1 | const s = state({});\n> 2 | s.title = "broken;',
   };
 
   await page.route('**/api/generate', async (route) => {
@@ -354,7 +341,7 @@ test('generate page surfaces syntax validation blocks instead of mounting malfor
           value: {
             blocked: 1,
             warnings: 0,
-            codes: { 'invalid-arrow-source-syntax': 1 },
+            codes: { 'invalid-surface-document-source-syntax': 1 },
             examples: [malformedIssue],
           },
         },
@@ -381,12 +368,12 @@ test('generate page surfaces syntax validation blocks instead of mounting malfor
   await expect(page.locator('#stage-notice')).toContainText(
     'Generation blocked before a validated Surface Document artifact was accepted',
   );
-  await expect(page.locator('#stage-notice')).toContainText('invalid-arrow-source-syntax');
+  await expect(page.locator('#stage-notice')).toContainText('invalid-surface-document-source-syntax');
   await expect(page.locator('#stage-notice')).toContainText('Source excerpt');
-  await expect(page.locator('#sandbox arrow-sandbox')).toHaveCount(0);
+  await expect(page.locator('#sandbox .summon-surface-document-host')).toHaveCount(0);
   await page.locator('#open-diagnostics').click();
   await expect(page.locator('#diagnostics-stream')).toBeVisible();
-  await expect(page.locator('#log')).toContainText('invalid-arrow-source-syntax');
+  await expect(page.locator('#log')).toContainText('invalid-surface-document-source-syntax');
   await expect(page.locator('#log')).toContainText('Source excerpt');
 });
 
@@ -479,7 +466,7 @@ test('surface-document renders in shadow DOM and contains hostile host CSS', asy
   expect(shadowResult.styleText).not.toContain('data-summon-inline-surface');
 });
 
-test('adversarial inline Arrow boundary rejects ambient browser globals and ungranted tools', async ({ page }) => {
+test('adversarial inline sandbox boundary rejects ambient browser globals and ungranted tools', async ({ page }) => {
   await page.goto('/adversarial');
 
   const summary = page.locator('#summary');
@@ -491,7 +478,7 @@ test('adversarial inline Arrow boundary rejects ambient browser globals and ungr
 
   const results = page.locator('#results');
   await expect(results).toContainText('global-window');
-  await expect(results).toContainText('global-document');
+  await expect(results).toContainText('document-body');
   await expect(results).toContainText('tool="exfiltrate"');
   await expect(results).toContainText('tool="escalate"');
 });

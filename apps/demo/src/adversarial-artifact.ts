@@ -1,9 +1,6 @@
-import type { ArrowSurfaceArtifact } from '@anarchitecture/summon/engine';
+import type { SurfaceDocumentArtifact } from '@anarchitecture/summon/engine';
 
 const adversarialMain = `
-import { html } from "@arrow-js/core";
-import { callTool } from "host-bridge:summon";
-
 async function report(test, status, detail = "") {
   await callTool("report", { test, status, detail: String(detail) });
 }
@@ -20,7 +17,7 @@ async function expectBlocked(name, fn) {
 function missingGlobal(name) {
   return () => {
     if (typeof globalThis[name] === "undefined") {
-      throw new Error(name + " unavailable inside Arrow VM");
+      throw new Error(name + " unavailable inside the Summon VM");
     }
     return name + " was present";
   };
@@ -37,7 +34,6 @@ async function rejectedTool(name, tool, args) {
 async function runAll() {
   const globals = [
     "window",
-    "document",
     "parent",
     "top",
     "location",
@@ -55,7 +51,6 @@ async function runAll() {
     "Image",
     "HTMLScriptElement",
     "HTMLIFrameElement",
-    "HTMLElement",
     "MessageChannel",
     "Notification",
     "importScripts",
@@ -67,26 +62,38 @@ async function runAll() {
   for (const name of globals) {
     await expectBlocked("global-" + name, missingGlobal(name));
   }
+  await expectBlocked("document-body", () => {
+    if (typeof document.body === "undefined" || document.body === null) {
+      throw new Error("document.body unavailable inside the Summon VM");
+    }
+    return "document.body was present";
+  });
   await expectBlocked("emit-unknown-tool", () => rejectedTool("emit-unknown-tool", "exfiltrate", { data: "secret" }));
   await expectBlocked("emit-declared-but-not-granted", () => rejectedTool("emit-declared-but-not-granted", "escalate", { test: "emit-declared-but-not-granted" }));
   await expectBlocked("empty-tool-name", () => rejectedTool("empty-tool-name", "", {}));
+  const marker = document.getElementById("marker");
+  if (marker) marker.textContent = "Tests complete";
   await report("__DONE__", "info", "");
 }
 
 void runAll();
-
-export default html\`
-  <div style="padding:var(--space-4);font-family:var(--font-mono);font-size:var(--text-xs)">
-    <div style="font-weight:600;margin-bottom:var(--space-2)">Adversarial sandbox</div>
-    <div>Running Arrow VM boundary checks and reporting back through callTool().</div>
-    <div id="marker" style="margin-top:var(--space-3);color:var(--color-text-muted)">Tests started</div>
-  </div>
-\`;
 `;
 
-export const ADVERSARIAL_ARTIFACT: ArrowSurfaceArtifact = {
-  runtime: 'arrow',
+export const ADVERSARIAL_ARTIFACT: SurfaceDocumentArtifact = {
+  runtime: 'surface-document',
   source: {
-    'main.ts': adversarialMain,
+    'main.html': [
+      '<div class="adversarial">',
+      '  <div class="adversarial-title">Adversarial sandbox</div>',
+      '  <div>Running Summon VM boundary checks and reporting back through callTool().</div>',
+      '  <div id="marker" class="adversarial-marker">Tests started</div>',
+      '</div>',
+    ].join('\n'),
+    'main.css': [
+      '.adversarial { padding: var(--space-4); font-family: var(--font-mono); font-size: var(--text-xs); }',
+      '.adversarial-title { font-weight: 600; margin-bottom: var(--space-2); }',
+      '.adversarial-marker { margin-top: var(--space-3); color: var(--color-text-muted); }',
+    ].join('\n'),
+    'main.js': adversarialMain,
   },
 };

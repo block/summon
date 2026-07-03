@@ -1,7 +1,4 @@
 import {
-  type SummonOutputRuntime,
-} from '@anarchitecture/summon/engine';
-import {
   MODEL_PROFILE_KEYS,
   type ModelCatalogEntry,
   type ModelOptions,
@@ -10,21 +7,8 @@ import {
   type ModelProviderControls,
   type ModelProviderDefaults,
   type ModelProviderInfo,
-  type RuntimeModelProfileKey,
   type RunProfile,
 } from './types.js';
-
-const MODEL_PROFILE_KEY_BY_RUNTIME = {
-  'arrow-control': 'arrow-control',
-  'html-static': 'html-static',
-  'html-stream': 'html-stream',
-  'domjs-control': 'domjs-control',
-  'surface-document': 'surface-document',
-} satisfies Record<SummonOutputRuntime, RuntimeModelProfileKey>;
-
-export function modelProfileKeyForRuntime(runtime: SummonOutputRuntime): RuntimeModelProfileKey {
-  return MODEL_PROFILE_KEY_BY_RUNTIME[runtime];
-}
 
 export function parseModelCatalog(raw: unknown): ModelCatalogEntry[] {
   if (!Array.isArray(raw)) return [];
@@ -228,7 +212,7 @@ function optionOrDefault<T extends string>(
   return options?.includes(desired) ? desired : fallback;
 }
 
-const STRUCTURED_PROFILES: ModelProfileKey[] = ['arrow-control', 'html-static', 'surface-document'];
+const STRUCTURED_PROFILES: ModelProfileKey[] = ['surface-document'];
 
 export function isStructuredProfile(key: ModelProfileKey): boolean {
   return STRUCTURED_PROFILES.includes(key);

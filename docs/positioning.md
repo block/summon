@@ -68,19 +68,19 @@ Therefore the stance must be the path of least resistance. Summon must be *easie
 
 **Design rule:** when a choice exists between making the fingerprint-first, governed path the default or an opt-in, the fingerprint-first governed path is the default.
 
-## The trust spectrum is a feature, not a liability
+## One runtime, one guarantee
 
-The governance guarantee holds fully only for the capability-isolated runtime. That is a feature once it is named honestly:
+There is no trust spectrum, because there is no runtime choice (decided
+2026-07-02; see `docs/surface-document-plan.md`). Generated UI is a **Surface
+Document** — inert `main.html`, fingerprint-expressing `main.css`, optional
+governed `main.js` — executed in Summon's capability-isolated VM
+(`packages/surface-vm`: owned QuickJS engine, descriptor renderer, no real
+DOM). All behavior flows through the `callTool` chokepoint. The governance
+guarantee is unconditional precisely because there is no less-governed runtime
+to fall back to.
 
-| Runtime | Posture | Governance |
-| --- | --- | --- |
-| `arrow-control` | Capability-isolated (QuickJS/WASM, no DOM) | **Fully governed** — behavior flows through `callTool` |
-| `domjs-control` | Capability-isolated (QuickJS/WASM via `packages/surface-vm`, descriptor renderer, no real DOM) | **Fully governed** — same `callTool` chokepoint, Summon-owned glue |
-| `html-static` | Inert HTML/CSS, scripts blocked | Inert-safe, partially governed (no behavior to govern) |
-| `html-stream` | Inert streamed preview (`script-src 'none'`), validated patch commits | Inert-safe, partially governed |
-| _(future)_ scripted/iframe | Real DOM, real JS | **Outside** the behavioral guarantee, explicit opt-in |
-
-A powerful but less-isolated runtime is safe to offer *later* because money-moving tools declare a `minTrust` that simply cannot be satisfied from it. The trust spectrum becomes "how much of the governance guarantee applies," and where fingerprint conformance is fully enforceable or only partially inspectable.
+Any future proposal for a differently-isolated runtime reopens that decision
+explicitly. It does not arrive as a flag.
 
 ## Standalone, and composable
 

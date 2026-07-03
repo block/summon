@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { dirname, extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { packPublicPackages } from './pack-public-packages.mjs';
 
 const rootDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 const publicApiManifest = JSON.parse(
@@ -8,6 +9,56 @@ const publicApiManifest = JSON.parse(
 );
 const publicPackages = Object.keys(publicApiManifest);
 const inspectedExtensions = new Set(['.js', '.d.ts']);
+
+const packageBudgets = {
+  'packages/summon': {
+    maxUnpackedBytes: 700 * 1024,
+    allowedFiles: [
+      'package.json',
+      'dist/assets.d.ts',
+      'dist/assets.js',
+      'dist/browser.d.ts',
+      'dist/browser.js',
+      'dist/devtools.d.ts',
+      'dist/devtools.js',
+      'dist/engine.d.ts',
+      'dist/engine.js',
+      'dist/envelope.d.ts',
+      'dist/envelope.js',
+      'dist/host.d.ts',
+      'dist/host.js',
+      'dist/index.d.ts',
+      'dist/index.js',
+      'dist/policy.d.ts',
+      'dist/policy.js',
+      'dist/_internal/devtools/**',
+      'dist/_internal/engine/**',
+      'dist/_internal/host/**',
+      'dist/_internal/sandbox-runtime/assets.d.ts',
+      'dist/_internal/sandbox-runtime/assets.js',
+      'dist/_internal/sandbox-runtime/tokens.css',
+      'dist/_internal/surface-vm/**',
+    ],
+  },
+  'packages/summon-server': {
+    maxUnpackedBytes: 300 * 1024,
+    allowedFiles: [
+      'package.json',
+      'dist/index.d.ts',
+      'dist/index.js',
+      'dist/_internal/server/**',
+    ],
+  },
+  'packages/summon-react': {
+    maxUnpackedBytes: 60 * 1024,
+    allowedFiles: [
+      'package.json',
+      'dist/index.d.ts',
+      'dist/index.js',
+      'dist/_internal/react/**',
+    ],
+  },
+};
 
 async function* walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -167,6 +218,57 @@ function assertPublicPackageVersions(publicPackageManifests, failures) {
   }
 }
 
+function globToRegExp(glob) {
+  const escaped = glob
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*\*/g, '\0')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\0/g, '.*');
+  return new RegExp(`^${escaped}$`);
+}
+
+function matchesAny(path, patterns) {
+  return patterns.some((pattern) => globToRegExp(pattern).test(path));
+}
+
+function formatBytes(bytes) {
+  return `${Math.round(bytes / 1024)} KiB`;
+}
+
+async function assertPackedPackages(failures) {
+  const packed = await packPublicPackages({ dryRun: true });
+  for (const entry of packed) {
+    const budget = packageBudgets[entry.packageDir];
+    if (!budget) {
+      failures.push(`${entry.packageDir} has no public package size/packlist budget`);
+      continue;
+    }
+
+    const unpackedSize = entry.unpackedSize ?? entry.files?.reduce((sum, file) => sum + file.size, 0) ?? 0;
+    if (unpackedSize > budget.maxUnpackedBytes) {
+      failures.push(
+        `${entry.name} unpacked size ${formatBytes(unpackedSize)} exceeds budget ${formatBytes(budget.maxUnpackedBytes)}`,
+      );
+    }
+
+    const filePaths = (entry.files ?? []).map((file) => file.path).sort();
+    for (const path of filePaths) {
+      if (!matchesAny(path, budget.allowedFiles)) {
+        failures.push(`${entry.name} publishes unexpected file: ${path}`);
+      }
+      if (path.endsWith('.map')) {
+        failures.push(`${entry.name} publishes source map: ${path}`);
+      }
+    }
+
+    for (const expected of budget.allowedFiles.filter((pattern) => !pattern.includes('*'))) {
+      if (!filePaths.includes(expected)) {
+        failures.push(`${entry.name} is missing expected packed file: ${expected}`);
+      }
+    }
+  }
+}
+
 const failures = [];
 const publicPackageManifests = await readPublicPackageManifests();
 
@@ -203,9 +305,11 @@ for (const { packageDir, manifest } of publicPackageManifests) {
   }
 }
 
+await assertPackedPackages(failures);
+
 if (failures.length > 0) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
 
-console.log('public package API and dist are clean');
+console.log('public package API, dist, packlists, and size budgets are clean');

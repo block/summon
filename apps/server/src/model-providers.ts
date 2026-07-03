@@ -3,13 +3,6 @@ import type {
   ContractPromptBlock,
 } from '@anarchitecture/summon/engine';
 import type {
-  ArrowBundleRepairRequest,
-  ArrowBundleRequest,
-  HtmlBundleRepairRequest,
-  HtmlBundleRequest,
-  HtmlStreamRequest,
-  DomjsBundleRepairRequest,
-  DomjsBundleRequest,
   SurfaceDocumentBundleRepairRequest,
   SurfaceDocumentBundleRequest,
 } from '@anarchitecture/summon-server';
@@ -40,8 +33,8 @@ export type ModelCatalogStatus = 'stable' | 'preview' | 'latest' | 'legacy';
 export type ModelCatalogTier = 'fast' | 'balanced' | 'frontier';
 export type AnthropicThinkingMode = 'adaptive' | 'off';
 export type ModelEffort = 'low' | 'medium' | 'high' | 'max';
-export type ModelProfileKey = 'arrow-control' | 'html-static' | 'html-stream' | 'domjs-control' | 'surface-document' | 'utility';
-export const MODEL_PROFILE_KEYS: ModelProfileKey[] = ['arrow-control', 'html-static', 'html-stream', 'domjs-control', 'surface-document', 'utility'];
+export type ModelProfileKey = 'surface-document' | 'utility';
+export const MODEL_PROFILE_KEYS: ModelProfileKey[] = ['surface-document', 'utility'];
 
 export interface ModelCatalogEntry {
   id: string;
@@ -106,15 +99,8 @@ export interface ModelSelection {
 }
 
 export interface ModelProviderAdapter extends ModelProviderInfo, TextCompletionClient {
-  generateArrowBundle(request: ArrowBundleRequest, selection?: ModelSelection): Promise<unknown>;
-  repairArrowBundle(request: ArrowBundleRepairRequest, selection?: ModelSelection): Promise<unknown>;
-  generateHtmlBundle(request: HtmlBundleRequest, selection?: ModelSelection): Promise<unknown>;
-  generateDomjsBundle(request: DomjsBundleRequest, selection?: ModelSelection): Promise<unknown>;
-  repairDomjsBundle(request: DomjsBundleRepairRequest, selection?: ModelSelection): Promise<unknown>;
   generateSurfaceDocumentBundle(request: SurfaceDocumentBundleRequest, selection?: ModelSelection): Promise<unknown>;
   repairSurfaceDocumentBundle(request: SurfaceDocumentBundleRepairRequest, selection?: ModelSelection): Promise<unknown>;
-  repairHtmlBundle(request: HtmlBundleRepairRequest, selection?: ModelSelection): Promise<unknown>;
-  streamHtmlSurface(request: HtmlStreamRequest, selection?: ModelSelection): AsyncIterable<string>;
   completeText(request: TextCompletionRequest, selection?: ModelSelection): Promise<string>;
   resolveSelection(raw: unknown): { ok: true; selection: ModelSelection } | { ok: false; error: string };
 }
@@ -138,11 +124,6 @@ const DEFAULT_GEMINI_UTILITY_MODEL = 'gemini-2.5-flash';
 const DEFAULT_GENERATION_MAX_TOKENS = 128000;
 const STRUCTURED_GENERATION_MAX_TOKENS = 128000;
 const DEFAULT_LONG_MODEL_TIMEOUT_MS = 60 * 60 * 1000;
-const ARROW_SURFACE_TOOL_NAME = 'create_summon_arrow_surface';
-const HTML_SURFACE_TOOL_NAME = 'create_summon_html_surface';
-const HTML_SURFACE_TOOL_DESCRIPTION = 'Create an experimental HTML/CSS sandbox surface bundle for Summon. The server owns streaming protocol and validation; return only the structured bundle fields.';
-const DOMJS_SURFACE_TOOL_NAME = 'emit_domjs_surface';
-const DOMJS_SURFACE_TOOL_DESCRIPTION = 'Create a domjs HTML/JS surface bundle for Summon. The server owns validation, repair, and artifact delivery; return only the structured bundle fields.';
 const SURFACE_DOCUMENT_TOOL_NAME = 'emit_surface_document';
 const SURFACE_DOCUMENT_TOOL_DESCRIPTION = 'Create a Summon Surface Document bundle: inert main.html structure, main.css fingerprint styling, and optional governed main.js behavior.';
 const MIN_OUTPUT_TOKENS = 1000;
@@ -451,10 +432,6 @@ function modelProfilesFromEnv(env: NodeJS.ProcessEnv, generationModel: string, u
 
 function defaultModelProfiles(generationModel: string, utilityModel: string): Record<ModelProfileKey, string> {
   return {
-    'arrow-control': generationModel,
-    'html-static': generationModel,
-    'html-stream': generationModel,
-    'domjs-control': generationModel,
     'surface-document': generationModel,
     utility: utilityModel,
   };
@@ -598,78 +575,6 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     controls,
     missingEnv: 'ANTHROPIC_API_KEY',
     resolveSelection,
-    async generateArrowBundle(request, selection = defaultsToSelection(defaults)) {
-      const result = await ensureClient().messages.create({
-        model: profileModel(selection, 'arrow-control'),
-        max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
-        system: anthropicSystemBlocks(request.promptBlocks),
-        messages: [{ role: 'user', content: request.prompt }],
-        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
-        tools: [anthropicStructuredSurfaceTool(request.schema)],
-        tool_choice: { type: 'tool' as const, name: ARROW_SURFACE_TOOL_NAME },
-      });
-      return extractAnthropicToolInput(result.content);
-    },
-    async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
-      const result = await ensureClient().messages.create({
-        model: profileModel(selection, 'arrow-control'),
-        max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
-        system: anthropicSystemBlocks(request.promptBlocks),
-        messages: [{ role: 'user', content: repairPrompt(request) }],
-        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
-        tools: [anthropicStructuredSurfaceTool(request.schema)],
-        tool_choice: { type: 'tool' as const, name: ARROW_SURFACE_TOOL_NAME },
-      });
-      return extractAnthropicToolInput(result.content);
-    },
-    async generateHtmlBundle(request, selection = defaultsToSelection(defaults)) {
-      const result = await ensureClient().messages.create({
-        model: profileModel(selection, 'html-static'),
-        max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
-        system: anthropicSystemBlocks(request.promptBlocks),
-        messages: [{ role: 'user', content: request.prompt }],
-        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
-        tools: [anthropicStructuredSurfaceTool(request.schema, HTML_SURFACE_TOOL_NAME, HTML_SURFACE_TOOL_DESCRIPTION)],
-        tool_choice: { type: 'tool' as const, name: HTML_SURFACE_TOOL_NAME },
-      });
-      return extractAnthropicToolInput(result.content, HTML_SURFACE_TOOL_NAME);
-    },
-    async repairHtmlBundle(request, selection = defaultsToSelection(defaults)) {
-      const result = await ensureClient().messages.create({
-        model: profileModel(selection, 'html-static'),
-        max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
-        system: anthropicSystemBlocks(request.promptBlocks),
-        messages: [{ role: 'user', content: repairHtmlPrompt(request) }],
-        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
-        tools: [anthropicStructuredSurfaceTool(request.schema, HTML_SURFACE_TOOL_NAME, HTML_SURFACE_TOOL_DESCRIPTION)],
-        tool_choice: { type: 'tool' as const, name: HTML_SURFACE_TOOL_NAME },
-      });
-      return extractAnthropicToolInput(result.content, HTML_SURFACE_TOOL_NAME);
-    },
-    async generateDomjsBundle(request, selection = defaultsToSelection(defaults)) {
-      const result = await ensureClient().messages.create({
-        model: profileModel(selection, 'domjs-control'),
-        max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
-        system: anthropicSystemBlocks(request.promptBlocks),
-        messages: [{ role: 'user', content: request.prompt }],
-        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
-        tools: [anthropicStructuredSurfaceTool(request.schema, DOMJS_SURFACE_TOOL_NAME, DOMJS_SURFACE_TOOL_DESCRIPTION)],
-        tool_choice: { type: 'tool' as const, name: DOMJS_SURFACE_TOOL_NAME },
-      });
-      return extractAnthropicToolInput(result.content, DOMJS_SURFACE_TOOL_NAME);
-    },
-    async repairDomjsBundle(request, selection = defaultsToSelection(defaults)) {
-      const result = await ensureClient().messages.create({
-        model: profileModel(selection, 'domjs-control'),
-        max_tokens: Math.min(selection.options.maxOutputTokens, STRUCTURED_GENERATION_MAX_TOKENS),
-        system: anthropicSystemBlocks(request.promptBlocks),
-        messages: [{ role: 'user', content: repairDomjsPrompt(request) }],
-        ...anthropicGenerationOptions(selection, { forceToolChoice: true }),
-        tools: [anthropicStructuredSurfaceTool(request.schema, DOMJS_SURFACE_TOOL_NAME, DOMJS_SURFACE_TOOL_DESCRIPTION)],
-        tool_choice: { type: 'tool' as const, name: DOMJS_SURFACE_TOOL_NAME },
-      });
-      return extractAnthropicToolInput(result.content, DOMJS_SURFACE_TOOL_NAME);
-    },
     async generateSurfaceDocumentBundle(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
         model: profileModel(selection, 'surface-document'),
@@ -693,9 +598,6 @@ function createAnthropicProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         tool_choice: { type: 'tool' as const, name: SURFACE_DOCUMENT_TOOL_NAME },
       });
       return extractAnthropicToolInput(result.content, SURFACE_DOCUMENT_TOOL_NAME);
-    },
-    async *streamHtmlSurface(request, selection = defaultsToSelection(defaults)) {
-      yield* streamAnthropicText(ensureClient(), request, selection);
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const result = await ensureClient().messages.create({
@@ -782,98 +684,6 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     controls,
     missingEnv: 'OPENAI_API_KEY',
     resolveSelection,
-    async generateArrowBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        '/responses',
-        openAIStructuredBody(
-          profileModel(selection, 'arrow-control'),
-          promptBlocksToText(request.promptBlocks),
-          request.prompt,
-          selection.options.maxOutputTokens,
-          request.schema,
-        ),
-        request.signal,
-      );
-      return extractOpenAIToolInput(await response.json());
-    },
-    async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        '/responses',
-        openAIStructuredBody(
-          profileModel(selection, 'arrow-control'),
-          promptBlocksToText(request.promptBlocks),
-          repairPrompt(request),
-          selection.options.maxOutputTokens,
-          request.schema,
-        ),
-        request.signal,
-      );
-      return extractOpenAIToolInput(await response.json());
-    },
-    async generateHtmlBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        '/responses',
-        openAIStructuredBody(
-          profileModel(selection, 'html-static'),
-          promptBlocksToText(request.promptBlocks),
-          request.prompt,
-          selection.options.maxOutputTokens,
-          request.schema,
-          HTML_SURFACE_TOOL_NAME,
-          HTML_SURFACE_TOOL_DESCRIPTION,
-        ),
-        request.signal,
-      );
-      return extractOpenAIToolInput(await response.json(), HTML_SURFACE_TOOL_NAME);
-    },
-    async repairHtmlBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        '/responses',
-        openAIStructuredBody(
-          profileModel(selection, 'html-static'),
-          promptBlocksToText(request.promptBlocks),
-          repairHtmlPrompt(request),
-          selection.options.maxOutputTokens,
-          request.schema,
-          HTML_SURFACE_TOOL_NAME,
-          HTML_SURFACE_TOOL_DESCRIPTION,
-        ),
-        request.signal,
-      );
-      return extractOpenAIToolInput(await response.json(), HTML_SURFACE_TOOL_NAME);
-    },
-    async generateDomjsBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        '/responses',
-        openAIStructuredBody(
-          profileModel(selection, 'domjs-control'),
-          promptBlocksToText(request.promptBlocks),
-          request.prompt,
-          selection.options.maxOutputTokens,
-          request.schema,
-          DOMJS_SURFACE_TOOL_NAME,
-          DOMJS_SURFACE_TOOL_DESCRIPTION,
-        ),
-        request.signal,
-      );
-      return extractOpenAIToolInput(await response.json(), DOMJS_SURFACE_TOOL_NAME);
-    },
-    async repairDomjsBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        '/responses',
-        openAIStructuredBody(
-          profileModel(selection, 'domjs-control'),
-          promptBlocksToText(request.promptBlocks),
-          repairDomjsPrompt(request),
-          selection.options.maxOutputTokens,
-          request.schema,
-          DOMJS_SURFACE_TOOL_NAME,
-          DOMJS_SURFACE_TOOL_DESCRIPTION,
-        ),
-        request.signal,
-      );
-      return extractOpenAIToolInput(await response.json(), DOMJS_SURFACE_TOOL_NAME);
-    },
     async generateSurfaceDocumentBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         '/responses',
@@ -905,9 +715,6 @@ function createOpenAIProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         request.signal,
       );
       return extractOpenAIToolInput(await response.json(), SURFACE_DOCUMENT_TOOL_NAME);
-    },
-    async *streamHtmlSurface(request, selection = defaultsToSelection(defaults)) {
-      yield* streamOpenAIText(post, request, selection);
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
@@ -980,98 +787,6 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
     controls,
     missingEnv: 'GEMINI_API_KEY',
     resolveSelection,
-    async generateArrowBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        profileModel(selection, 'arrow-control'),
-        'generateContent',
-        geminiStructuredBody(
-          promptBlocksToText(request.promptBlocks),
-          request.prompt,
-          selection.options.maxOutputTokens,
-          request.schema,
-        ),
-        request.signal,
-      );
-      return extractGeminiToolInput(await response.json());
-    },
-    async repairArrowBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        profileModel(selection, 'arrow-control'),
-        'generateContent',
-        geminiStructuredBody(
-          promptBlocksToText(request.promptBlocks),
-          repairPrompt(request),
-          selection.options.maxOutputTokens,
-          request.schema,
-        ),
-        request.signal,
-      );
-      return extractGeminiToolInput(await response.json());
-    },
-    async generateHtmlBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        profileModel(selection, 'html-static'),
-        'generateContent',
-        geminiStructuredBody(
-          promptBlocksToText(request.promptBlocks),
-          request.prompt,
-          selection.options.maxOutputTokens,
-          request.schema,
-          HTML_SURFACE_TOOL_NAME,
-          HTML_SURFACE_TOOL_DESCRIPTION,
-        ),
-        request.signal,
-      );
-      return extractGeminiToolInput(await response.json(), HTML_SURFACE_TOOL_NAME);
-    },
-    async repairHtmlBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        profileModel(selection, 'html-static'),
-        'generateContent',
-        geminiStructuredBody(
-          promptBlocksToText(request.promptBlocks),
-          repairHtmlPrompt(request),
-          selection.options.maxOutputTokens,
-          request.schema,
-          HTML_SURFACE_TOOL_NAME,
-          HTML_SURFACE_TOOL_DESCRIPTION,
-        ),
-        request.signal,
-      );
-      return extractGeminiToolInput(await response.json(), HTML_SURFACE_TOOL_NAME);
-    },
-    async generateDomjsBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        profileModel(selection, 'domjs-control'),
-        'generateContent',
-        geminiStructuredBody(
-          promptBlocksToText(request.promptBlocks),
-          request.prompt,
-          selection.options.maxOutputTokens,
-          request.schema,
-          DOMJS_SURFACE_TOOL_NAME,
-          DOMJS_SURFACE_TOOL_DESCRIPTION,
-        ),
-        request.signal,
-      );
-      return extractGeminiToolInput(await response.json(), DOMJS_SURFACE_TOOL_NAME);
-    },
-    async repairDomjsBundle(request, selection = defaultsToSelection(defaults)) {
-      const response = await post(
-        profileModel(selection, 'domjs-control'),
-        'generateContent',
-        geminiStructuredBody(
-          promptBlocksToText(request.promptBlocks),
-          repairDomjsPrompt(request),
-          selection.options.maxOutputTokens,
-          request.schema,
-          DOMJS_SURFACE_TOOL_NAME,
-          DOMJS_SURFACE_TOOL_DESCRIPTION,
-        ),
-        request.signal,
-      );
-      return extractGeminiToolInput(await response.json(), DOMJS_SURFACE_TOOL_NAME);
-    },
     async generateSurfaceDocumentBundle(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
         profileModel(selection, 'surface-document'),
@@ -1103,9 +818,6 @@ function createGeminiProvider(env: NodeJS.ProcessEnv): ModelProviderAdapter {
         request.signal,
       );
       return extractGeminiToolInput(await response.json(), SURFACE_DOCUMENT_TOOL_NAME);
-    },
-    async *streamHtmlSurface(request, selection = defaultsToSelection(defaults)) {
-      yield* streamGeminiText(post, request, selection);
     },
     async completeText(request, selection = defaultsToSelection(defaults)) {
       const response = await post(
@@ -1362,77 +1074,8 @@ function geminiUsage(payload: Record<string, unknown>): ProviderUsageSnapshot | 
 }
 
 
-async function* streamAnthropicText(
-  client: Anthropic,
-  request: { prompt: string; promptBlocks: ContractPromptBlock[]; signal?: AbortSignal },
-  selection: ModelSelection,
-): AsyncIterable<string> {
-  const stream = client.messages.stream({
-    model: profileModel(selection, 'html-stream'),
-    max_tokens: selection.options.maxOutputTokens,
-    system: anthropicSystemBlocks(request.promptBlocks),
-    messages: [{ role: 'user', content: request.prompt }],
-    ...anthropicGenerationOptions(selection),
-  });
-  for await (const event of stream) {
-    if (
-      event.type === 'content_block_delta' &&
-      event.delta.type === 'text_delta' &&
-      event.delta.text
-    ) {
-      yield event.delta.text;
-    }
-  }
-}
 
-async function* streamOpenAIText(
-  post: (path: string, body: Record<string, unknown>, signal?: AbortSignal) => Promise<Response>,
-  request: { prompt: string; promptBlocks: ContractPromptBlock[]; signal?: AbortSignal },
-  selection: ModelSelection,
-): AsyncIterable<string> {
-  const response = await post(
-    '/responses',
-    responsesBody(
-      profileModel(selection, 'html-stream'),
-      promptBlocksToText(request.promptBlocks),
-      request.prompt,
-      selection.options.maxOutputTokens,
-      true,
-    ),
-    request.signal,
-  );
-  for await (const event of readSseEvents(response.body)) {
-    if (event.data === '[DONE]') break;
-    const payload = parseJsonObject(event.data);
-    if (!payload) continue;
-    const type = typeof payload.type === 'string' ? payload.type : event.event;
-    const delta = openAITextDelta(payload, type);
-    if (delta) yield delta;
-  }
-}
 
-async function* streamGeminiText(
-  post: (model: string, method: 'generateContent' | 'streamGenerateContent', body: Record<string, unknown>, signal?: AbortSignal) => Promise<Response>,
-  request: { prompt: string; promptBlocks: ContractPromptBlock[]; signal?: AbortSignal },
-  selection: ModelSelection,
-): AsyncIterable<string> {
-  const response = await post(
-    profileModel(selection, 'html-stream'),
-    'streamGenerateContent',
-    geminiBody(
-      promptBlocksToText(request.promptBlocks),
-      request.prompt,
-      selection.options.maxOutputTokens,
-    ),
-    request.signal,
-  );
-  for await (const event of readSseEvents(response.body)) {
-    const payload = parseJsonObject(event.data);
-    if (!payload) continue;
-    const delta = extractGeminiText(payload);
-    if (delta) yield delta;
-  }
-}
 
 function defaultsToSelection(defaults: ModelProviderDefaults): ModelSelection {
   return {
@@ -1629,61 +1272,7 @@ function parseStructuredArguments(value: unknown): unknown {
   return value;
 }
 
-function repairPrompt(request: ArrowBundleRepairRequest): string {
-  const issues = request.issues.map((issue) => {
-    const path = issue.path ? ` at ${issue.path}` : '';
-    return `- ${issue.code}${path}: ${issue.message}`;
-  }).join('\n');
-  const hints = request.hints.length > 0
-    ? request.hints.map((hint) => `- ${hint}`).join('\n')
-    : '- Return one complete corrected bundle.';
-  return [
-    request.prompt,
-    '',
-    'The previous structured Arrow bundle failed Summon validation.',
-    '',
-    'Validation issues:',
-    issues || '- unknown validation issue',
-    '',
-    'Repair hints:',
-    hints,
-    '',
-    'Previous bundle:',
-    JSON.stringify(request.previousBundle, null, 2),
-    '',
-    'Return a complete replacement bundle using the create_summon_arrow_surface tool. Do not widen host authority, add ungranted tools, add generated network access, or change the schema.',
-    // Issue-specific guidance (e.g. open-tag expression rewrites) flows through
-    // `Repair hints` above, sourced from the shared hintsForContractIssue table.
-    // No hardcoded per-issue reminders here — that was a drift risk.
-  ].join('\n');
-}
 
-function repairDomjsPrompt(request: DomjsBundleRepairRequest): string {
-  const issues = request.issues.map((issue) => {
-    const path = issue.path ? ` at ${issue.path}` : '';
-    return `- ${issue.code}${path}: ${issue.message}`;
-  }).join('\n');
-  const hints = request.hints.length > 0
-    ? request.hints.map((hint) => `- ${hint}`).join('\n')
-    : '- Return one complete corrected bundle.';
-  return [
-    request.prompt,
-    '',
-    'The previous structured domjs bundle failed Summon validation.',
-    '',
-    'Validation issues:',
-    issues || '- unknown validation issue',
-    '',
-    'Repair hints:',
-    hints,
-    '',
-    'Previous bundle:',
-    JSON.stringify(request.previousBundle, null, 2),
-    '',
-    'Return a complete replacement bundle using the emit_domjs_surface tool. Do not widen host authority, add ungranted tools, add network access, or change the schema.',
-    'Required schema: "summon.domjs-bundle/v1". Required source key: "main.js" that exports the root node as default. Use only the supported facade API; use region(...).update() for dynamic content; no innerHTML/querySelector/el.style/window/fetch.',
-  ].join('\n');
-}
 
 function repairSurfaceDocumentPrompt(request: SurfaceDocumentBundleRepairRequest): string {
   const issues = request.issues.map((issue) => {
@@ -1712,32 +1301,3 @@ function repairSurfaceDocumentPrompt(request: SurfaceDocumentBundleRepairRequest
   ].join('\n');
 }
 
-function repairHtmlPrompt(request: HtmlBundleRepairRequest): string {
-  const issues = request.issues.map((issue) => {
-    const path = issue.path ? ` at ${issue.path}` : '';
-    return `- ${issue.code}${path}: ${issue.message}`;
-  }).join('\n');
-  const hints = request.hints.length > 0
-    ? request.hints.map((hint) => `- ${hint}`).join('\n')
-    : '- Return one complete corrected HTML bundle.';
-  return [
-    request.prompt,
-    '',
-    'The previous structured HTML bundle failed Summon validation.',
-    '',
-    'Validation issues:',
-    issues || '- unknown validation issue',
-    '',
-    'Repair hints:',
-    hints,
-    '',
-    'Previous bundle:',
-    JSON.stringify(request.previousBundle, null, 2),
-    '',
-    'Return a complete replacement bundle using the create_summon_html_surface tool. Do not widen host authority, add external URLs, add scripts, add forms, or change the schema.',
-    'Required schema: "summon.html-bundle/v0". Required source key: "body.html". Optional source key: "main.css". source["main.js"] is forbidden unless this request explicitly sets allowScript=true.',
-    request.allowScript
-      ? 'This run is the scripted iframe experiment; even then, main.js must not use network, storage, workers, eval, dynamic imports, parent/top/opener access, or cookies.'
-      : 'This run is static HTML/CSS; remove main.js and all <script> tags.',
-  ].join('\n');
-}

@@ -6,22 +6,23 @@ import {
 } from '../src/index.ts';
 
 const artifact = {
-  runtime: 'arrow',
+  runtime: 'surface-document',
   source: {
-    'main.ts': 'export default html`<p>Hello</p>`',
+    'main.html': '<p>Hello</p>',
+    'main.css': 'p { color: var(--color-text); }',
   },
 };
 
-test('artifact lines create ordered Arrow revisions', () => {
+test('artifact lines create ordered Surface Document revisions', () => {
   const graph = new StreamGraph();
   graph.applyLine({ op: 'artifact', path: '/artifact', value: artifact });
   graph.applyLine({
     op: 'artifact',
     path: '/artifact',
     value: {
-      runtime: 'arrow',
+      runtime: 'surface-document',
       source: {
-        'main.ts': 'export default html`<p>Updated</p>`',
+        'main.html': '<p>Updated</p>',
         'main.css': 'p { color: var(--color-text); }',
       },
     },
@@ -37,8 +38,8 @@ test('artifact lines create ordered Arrow revisions', () => {
       lastUpdatedLine,
     })),
     [
-      { revision: 1, runtime: 'arrow', firstSeenLine: 1, lastUpdatedLine: 1 },
-      { revision: 2, runtime: 'arrow', firstSeenLine: 1, lastUpdatedLine: 2 },
+      { revision: 1, runtime: 'surface-document', firstSeenLine: 1, lastUpdatedLine: 1 },
+      { revision: 2, runtime: 'surface-document', firstSeenLine: 1, lastUpdatedLine: 2 },
     ],
   );
   assert.equal(snap.health.complete, true);

@@ -1,6 +1,6 @@
 import type { ApprovalRequest, SurfacePolicy } from '@anarchitecture/summon';
 import type { SurfaceStreamResult } from '@anarchitecture/summon/browser';
-import type { SummonLayout, SummonOutputRuntime, SurfacePlan } from '@anarchitecture/summon/engine';
+import type { SummonLayout, SurfacePlan } from '@anarchitecture/summon/engine';
 import type { ActiveContract } from '../../showcase.js';
 
 export interface GhostRootInfo {
@@ -57,21 +57,9 @@ export interface ModelOptions {
   effort?: 'low' | 'medium' | 'high' | 'max';
 }
 
-export type ModelProfileKey =
-  | 'arrow-control'
-  | 'html-static'
-  | 'html-stream'
-  | 'domjs-control'
-  | 'surface-document'
-  | 'utility';
-
-export type RuntimeModelProfileKey = Exclude<ModelProfileKey, 'utility'>;
+export type ModelProfileKey = 'surface-document' | 'utility';
 
 export const MODEL_PROFILE_KEYS: ModelProfileKey[] = [
-  'arrow-control',
-  'html-static',
-  'html-stream',
-  'domjs-control',
   'surface-document',
   'utility',
 ];
@@ -111,7 +99,7 @@ export interface TimingEntry {
 }
 
 export interface RunMetrics {
-  runtime: SummonOutputRuntime;
+  runtime: 'surface-document';
   ttfb: number | null;
   ttfp: number | null;
   tti: number | null;
@@ -127,7 +115,6 @@ export interface StreamOptions {
   prompt: string;
   active: ActiveContract;
   fingerprintId: string | null;
-  experimentalRuntime: SummonOutputRuntime;
   fingerprintTargetPath: string;
   layout?: SummonLayout | null;
   playgroundMode: boolean;

@@ -72,7 +72,7 @@ test('tool compiler returns prompt, pack, tool names, and validation metadata', 
   assert.match(contract.promptBlock?.text ?? '', /Available data resources/);
 });
 
-test('tools block renders Arrow-native protocol docs', () => {
+test('tools block renders Surface Document protocol docs', () => {
   const text = buildToolsBlock({
     tools: [
       {
@@ -96,36 +96,22 @@ test('tools block renders Arrow-native protocol docs', () => {
         actionStateKeys: { pending: 'savePending', done: 'saveDone', error: 'saveError' },
       },
     ],
-    patterns: [
-      {
-        name: 'script search',
-        code: '<button id="go">Go</button><script>document.getElementById("go")?.addEventListener("click", () => sandbox.emit("search", {query:"boots"}))</script>',
-      },
-      {
-        name: 'arrow search',
-        code: 'import { callTool, onState } from "host-bridge:summon";\nconst run = () => callTool("search", { query: "boots" });\nonState(() => {});',
-      },
-    ],
   });
 
   assert.match(text, /Available data resources/);
-  assert.match(text, /Arrow-native interactivity/);
+  assert.match(text, /Surface Document may use host tools/);
   assert.match(text, /host-bridge:summon/);
-  assert.match(text, /reactive\(\)/);
   assert.match(text, /callTool/);
   assert.match(text, /getState/);
   assert.match(text, /onState/);
+  assert.match(text, /state\(\)/);
   assert.match(text, /Default data: `\[\]`/);
-  assert.match(text, /Never hallucinate fetched rows/);
-  assert.match(text, /Render "no results" from the declared empty key/);
   assert.match(text, /State keys: loading=searching, data=results, error=searchError, empty=noResults/);
   assert.match(text, /Action state: pending=savePending, done=saveDone, error=saveError/);
-  assert.match(text, /Controlled actions expose host-owned pending\/done\/error keys/);
-  assert.doesNotMatch(text, /document\.getElementById/);
-  assert.match(text, /arrow search/);
+  assert.doesNotMatch(text, /Arrow/);
 });
 
-test('tools block filters script patterns', () => {
+test('tools block ignores legacy script patterns', () => {
   const text = buildToolsBlock({
     tools: [
       {
@@ -143,7 +129,7 @@ test('tools block filters script patterns', () => {
     ],
   });
 
-  assert.match(text, /Host tool bridge/);
-  assert.doesNotMatch(text, /Rules for scripts/);
-  assert.doesNotMatch(text, /document\.getElementById/);
+  assert.match(text, /Host bridge in main\.js/);
+  assert.doesNotMatch(text, /script choose/);
+  assert.doesNotMatch(text, /document\.getElementById\("x"\)/);
 });

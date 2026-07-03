@@ -13,45 +13,11 @@ export type {
   SurfaceStatus,
   SurfaceEventLine,
   ArtifactLine,
-  HtmlPatchLine,
   ProtocolParseErrorCode,
   ProtocolParseOptions,
   ProtocolSkipMetaValue,
   ProtocolValidationMode,
 } from './protocol.js';
-export {
-  isArrowSurfaceArtifact,
-  normalizeArrowSurfaceArtifact,
-  validateArrowSurfaceArtifact,
-} from './arrow-artifact.js';
-export type {
-  ArrowNetworkPolicy,
-  ArrowSurfaceArtifact,
-  ArrowArtifactValidationOptions,
-} from './arrow-artifact.js';
-export {
-  SUMMON_ARROW_BUNDLE_SCHEMA,
-  arrowArtifactFromBundle,
-  createArrowBundleJsonSchema,
-  createArrowBundleToolDefinition,
-  isSummonArrowBundle,
-  normalizeArrowBundle,
-} from './arrow-bundle.js';
-export type {
-  NormalizeArrowBundleResult,
-  SummonArrowBundle,
-  SummonArrowPreview,
-  SummonArrowPreviewRegion,
-} from './arrow-bundle.js';
-export {
-  isDomjsSurfaceArtifact,
-  normalizeDomjsSurfaceArtifact,
-  validateDomjsSurfaceArtifact,
-} from './domjs-artifact.js';
-export type {
-  DomjsSurfaceArtifact,
-  DomjsArtifactValidationOptions,
-} from './domjs-artifact.js';
 export {
   isSurfaceDocumentArtifact,
   normalizeSurfaceDocumentArtifact,
@@ -74,42 +40,6 @@ export type {
   SummonSurfaceDocumentBundle,
 } from './surface-document-bundle.js';
 export {
-  SUMMON_DOMJS_BUNDLE_SCHEMA,
-  domjsArtifactFromBundle,
-  createDomjsBundleJsonSchema,
-  createDomjsBundleToolDefinition,
-  isSummonDomjsBundle,
-  normalizeDomjsBundle,
-} from './domjs-bundle.js';
-export type {
-  NormalizeDomjsBundleResult,
-  SummonDomjsBundle,
-} from './domjs-bundle.js';
-export {
-  SUMMON_HTML_BUNDLE_SCHEMA,
-  canonicalizeHtmlFragment,
-  createHtmlBundleJsonSchema,
-  createHtmlBundleToolDefinition,
-  htmlArtifactFromBundle,
-  isHtmlSurfaceArtifact,
-  isSummonHtmlBundle,
-  normalizeHtmlBundle,
-  normalizeHtmlSurfaceArtifact,
-  normalizeHtmlSurfacePatch,
-  validateHtmlSurfaceArtifact,
-  validateHtmlSurfacePatch,
-} from './html-artifact.js';
-export type {
-  HtmlArtifactValidationOptions,
-  HtmlPatchAction,
-  HtmlSurfaceArtifact,
-  HtmlSurfacePatch,
-  NormalizeHtmlBundleResult,
-  SummonHtmlBundle,
-  SummonHtmlPreview,
-  SummonHtmlPreviewRegion,
-} from './html-artifact.js';
-export {
   DEFAULT_VALIDATION_LIMITS,
   normalizeValidationLimits,
 } from './validation-limits.js';
@@ -123,15 +53,8 @@ export type {
   StreamGraphSnapshot,
 } from './stream-graph.js';
 export {
-  SUMMON_FIXED_INSTRUCTIONS,
-  SUMMON_FIXED_HTML_INSTRUCTIONS,
-  SUMMON_FIXED_DOMJS_INSTRUCTIONS,
   SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS,
   SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS as SUMMON_SURFACE_DOCUMENT_INSTRUCTIONS,
-  SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS as SUMMON_ARROW_ARTIFACT_INSTRUCTIONS,
-  SUMMON_STRUCTURED_ARROW_BUNDLE_INSTRUCTIONS,
-  SUMMON_STRUCTURED_HTML_BUNDLE_INSTRUCTIONS,
-  SUMMON_STRUCTURED_DOMJS_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
   SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS as SUMMON_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
   buildLayoutBlock,
@@ -147,26 +70,11 @@ export type {
   SurfaceScale,
   SurfaceSize,
   SurfaceComplexity,
-  PromptRuntimeOptions,
   ToolSpec,
   DataResourceSpec,
   ToolPattern,
   ToolPack,
 } from './prompt.js';
-export {
-  DEFAULT_SUMMON_OUTPUT_RUNTIME,
-  RUNTIME_PROFILES,
-  SUMMON_OUTPUT_RUNTIME_VALUES,
-  isHtmlOutputRuntime,
-  runtimeProfile,
-} from './output-runtime.js';
-export type {
-  RuntimeDelivery,
-  RuntimeFormat,
-  RuntimeProfile,
-  RuntimeTrust,
-  SummonOutputRuntime,
-} from './output-runtime.js';
 export {
   compileTokenContract,
   compileToolContract,

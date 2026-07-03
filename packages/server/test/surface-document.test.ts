@@ -3,8 +3,6 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 import { mountInlineSurface } from '@summon-internal/host';
 import { runSurfaceGeneration, type SurfaceModelProvider } from '../src/index.ts';
-import { SurfaceDocumentStrategy } from '../src/runtime/surface-document.ts';
-import { createRuntimeStrategy } from '../src/runtime/strategy.ts';
 
 const window = new Window({ url: 'http://localhost/' });
 const g = globalThis as unknown as Record<string, unknown>;
@@ -41,31 +39,23 @@ const GOOD_SURFACE_DOCUMENT = {
   },
 };
 
-const arrowOnlyProvider: SurfaceModelProvider = {
-  async generateArrowBundle() {
-    return { schema: 'summon.arrow-bundle/v1', source: { 'main.ts': 'export default null;' } };
-  },
-};
+// A provider that lies about its capabilities at runtime (e.g. a JS consumer
+// without type checking) — generateSurfaceDocumentBundle is absent.
+const incapableProvider = {} as unknown as SurfaceModelProvider;
 
 const surfaceDocumentProvider: SurfaceModelProvider = {
-  ...arrowOnlyProvider,
   async generateSurfaceDocumentBundle() {
     return GOOD_SURFACE_DOCUMENT;
   },
 };
 
-test('runtime strategy factory maps surface-document', () => {
-  assert.ok(createRuntimeStrategy('surface-document') instanceof SurfaceDocumentStrategy);
-});
-
 test('surface-document strategy blocks when provider lacks generateSurfaceDocumentBundle', async () => {
   const lines: any[] = [];
   const summary = await runSurfaceGeneration({
     prompt: 'surface document without provider',
-    experimentalRuntime: 'surface-document',
     playground: true,
     surfacePolicy: { tier: 'static', purpose: 'inform' },
-    modelProvider: arrowOnlyProvider,
+    modelProvider: incapableProvider,
   }, (line) => lines.push(line));
 
   assert.equal(summary.blocked, true);
@@ -77,7 +67,6 @@ test('surface-document output mode reports the bundle schema', async () => {
   const lines: any[] = [];
   await runSurfaceGeneration({
     prompt: 'surface document output mode',
-    experimentalRuntime: 'surface-document',
     playground: true,
     surfacePolicy: { tier: 'static', purpose: 'inform' },
     modelProvider: surfaceDocumentProvider,
@@ -94,7 +83,6 @@ test('a valid surface-document bundle flows through to an accepted artifact', as
   const lines: any[] = [];
   const summary = await runSurfaceGeneration({
     prompt: 'a counter',
-    experimentalRuntime: 'surface-document',
     playground: true,
     surfacePolicy: { tier: 'static', purpose: 'inform' },
     modelProvider: surfaceDocumentProvider,
@@ -114,7 +102,6 @@ test('a valid surface-document bundle can be generated and rendered by the host'
   const lines: any[] = [];
   const summary = await runSurfaceGeneration({
     prompt: 'a renderable counter',
-    experimentalRuntime: 'surface-document',
     playground: true,
     surfacePolicy: { tier: 'static', purpose: 'inform' },
     modelProvider: surfaceDocumentProvider,
@@ -128,19 +115,20 @@ test('a valid surface-document bundle can be generated and rendered by the host'
   const handle = mountInlineSurface({ root, artifact, grantedTools: [] });
   await wait();
 
-  assert.equal(root.querySelector('#total')?.textContent, '0');
-  const btn = root.querySelector('#inc') as unknown as HTMLElement;
+  const shadow = root.querySelector('.summon-surface-document-host')?.shadowRoot;
+  assert.ok(shadow, 'surface-document renders into a shadow root');
+  assert.equal(shadow.querySelector('#total')?.textContent, '0');
+  const btn = shadow.querySelector('#inc') as unknown as HTMLElement;
   btn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }) as unknown as Event);
   await wait();
-  assert.equal(root.querySelector('#total')?.textContent, '1');
-  assert.ok(root.querySelector('style[data-summon-inline-artifact-css]'), 'main.css should be injected');
+  assert.equal(shadow.querySelector('#total')?.textContent, '1');
+  assert.ok(shadow.querySelector('style[data-summon-shadow-artifact-css]'), 'main.css should be injected into the shadow root');
   handle.dispose();
 });
 
 test('surface-document bundle-shape failures can repair', async () => {
   let repaired = false;
   const provider: SurfaceModelProvider = {
-    ...arrowOnlyProvider,
     async generateSurfaceDocumentBundle() {
       return {
         schema: 'summon.surface-document-bundle/v1',
@@ -155,7 +143,6 @@ test('surface-document bundle-shape failures can repair', async () => {
   const lines: any[] = [];
   const summary = await runSurfaceGeneration({
     prompt: 'missing css then repaired',
-    experimentalRuntime: 'surface-document',
     playground: true,
     maxRepairAttempts: 1,
     surfacePolicy: { tier: 'static', purpose: 'inform' },
@@ -177,14 +164,12 @@ test('surface-document inertness and JS authority violations are blocked', async
 
   for (const [bundle, code] of cases) {
     const provider: SurfaceModelProvider = {
-      ...arrowOnlyProvider,
       async generateSurfaceDocumentBundle() { return bundle; },
     };
     const lines: any[] = [];
     const summary = await runSurfaceGeneration({
       prompt: `bad ${code}`,
-      experimentalRuntime: 'surface-document',
-      playground: true,
+        playground: true,
       surfacePolicy: { tier: 'static', purpose: 'inform' },
       modelProvider: provider,
     }, (line) => lines.push(line));

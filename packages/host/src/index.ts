@@ -1,17 +1,5 @@
-export {
-  HTML_IFRAME_SANDBOX,
-  buildHtmlPreviewCsp,
-  buildHtmlPreviewSrcdoc,
-  buildHtmlSandboxCsp,
-  buildHtmlSandboxSrcdoc,
-  mountInlineSurface,
-  parseHtmlSandboxMessage,
-} from './inline-surface.js';
+export { mountInlineSurface } from './inline-surface.js';
 export type {
-  HtmlSandboxMessage,
-  HtmlSandboxSrcdocOptions,
-  HtmlPreviewSrcdocOptions,
-  HtmlStreamPreviewDelta,
   InlineSurfaceArtifact,
   InlineSurfaceHandle,
   InlineSurfaceOptions,
@@ -20,6 +8,10 @@ export type {
 } from './inline-surface.js';
 export { PolicyEngine, defineToolHandler, ToolArgsError } from './policy-engine.js';
 export type {
+  Schema,
+  SchemaParseFailure,
+  SchemaParseResult,
+  SchemaParseSuccess,
   ToolContext,
   ToolHandlerEntry,
   ToolHandler,

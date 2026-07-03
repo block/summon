@@ -40,12 +40,11 @@ const surfacePlan: SurfacePlan = {
   network: 'none',
 };
 
-function arrowBundle(html: string) {
-  const source = html.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+function surfaceDocumentBundle(html: string) {
   return {
-    schema: 'summon.arrow-bundle/v1',
+    schema: 'summon.surface-document-bundle/v1',
     source: {
-      'main.ts': `import { html } from "@arrow-js/core";\nexport default html\`<main class="surface test-fingerprint-shell">${source}</main>\`;`,
+      'main.html': `<main class="surface test-fingerprint-shell">${html}</main>`,
       'main.css': `.surface.test-fingerprint-shell { min-height: 100%; padding: var(--space-6); color: var(--color-text); background: var(--color-bg); font-family: var(--font-sans); display: grid; gap: var(--space-4); border: 1px solid var(--color-border); } .surface.test-fingerprint-shell h1 { margin: 0; font-size: var(--text-xl); letter-spacing: var(--tracking-tight); line-height: var(--leading-section); } .surface.test-fingerprint-shell p { margin: 0; color: var(--color-text-muted); } /* Ghost fixture vocabulary: compact editorial brief dominant newspaper claim short evidence bands clear next action comparison layouts tradeoffs visible shared criteria compact editorial spread columns rows aligned criteria strong horizontal vertical rules recommended option border weight ink block editorial label square panels ruled evidence folio broadsheet ledger shell compact metadata comparison row status current state compact exacting workflows quiet density queue var(--color-surface) var(--color-accent) var(--space-5) var(--space-8) var(--radius-lg). */`,
     },
   };
@@ -60,41 +59,8 @@ function anthropicBundleMessage(id: string, html: string, model = 'claude-opus-4
     content: [{
       type: 'tool_use',
       id: `${id}_tool`,
-      name: 'create_summon_arrow_surface',
-      input: arrowBundle(html),
-    }],
-    stop_reason: 'tool_use',
-    stop_sequence: null,
-    usage: { input_tokens: 12, output_tokens: 24 },
-  };
-}
-
-function htmlBundle(html: string) {
-  return {
-    schema: 'summon.html-bundle/v0',
-    preview: {
-      kind: 'inform',
-      title: 'HTML dinner finder',
-      regions: [{ id: 'hero', role: 'summary', label: 'Hero' }],
-    },
-    source: {
-      'body.html': html,
-      'main.css': '#hero { color: var(--color-text); background: var(--color-bg); }',
-    },
-  };
-}
-
-function anthropicHtmlBundleMessage(id: string, html: string, model = 'claude-opus-4-8') {
-  return {
-    id,
-    type: 'message',
-    role: 'assistant',
-    model,
-    content: [{
-      type: 'tool_use',
-      id: `${id}_tool`,
-      name: 'create_summon_html_surface',
-      input: htmlBundle(html),
+      name: 'emit_surface_document',
+      input: surfaceDocumentBundle(html),
     }],
     stop_reason: 'tool_use',
     stop_sequence: null,
@@ -106,8 +72,8 @@ function openAIResponseBundle(html: string) {
   return {
     output: [{
       type: 'function_call',
-      name: 'create_summon_arrow_surface',
-      arguments: JSON.stringify(arrowBundle(html)),
+      name: 'emit_surface_document',
+      arguments: JSON.stringify(surfaceDocumentBundle(html)),
     }],
     usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
   };
@@ -119,8 +85,8 @@ function geminiResponseBundle(html: string) {
       content: {
         parts: [{
           functionCall: {
-            name: 'create_summon_arrow_surface',
-            args: arrowBundle(html),
+            name: 'emit_surface_document',
+            args: surfaceDocumentBundle(html),
           },
         }],
       },
@@ -191,7 +157,7 @@ test('api generate rejects the removed unsafe raw runtime as an unknown runtime 
   });
   await waitForHealth(port, app, output);
 
-  for (const runtime of ['unsafe-html-raw-stream', 'html-script']) {
+  for (const runtime of ['unsafe-html-raw-stream', 'html-script', 'arrow-control', 'html-static', 'html-stream', 'domjs-control']) {
     const response = await fetch(`http://127.0.0.1:${port}/api/generate`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -202,7 +168,7 @@ test('api generate rejects the removed unsafe raw runtime as an unknown runtime 
       }),
     });
     assert.equal(response.status, 400, `runtime ${runtime} should be rejected`);
-    assert.match(await response.text(), /experimentalRuntime must be one of/);
+    assert.match(await response.text(), /experimentalRuntime is retired/);
   }
 });
 
@@ -217,18 +183,13 @@ test('api generate sends narrowed contract and stream meta shape through package
     const request = JSON.parse(await readBody(req));
     anthropicRequests.push(request);
     if (Array.isArray(request.tools)) {
-      const toolName = typeof request.tools[0]?.name === 'string'
-        ? request.tools[0].name
-        : 'create_summon_arrow_surface';
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify(
-        toolName === 'create_summon_html_surface'
-          ? anthropicHtmlBundleMessage('msg_test_html', '<section id="hero"><h1>Dinner finder</h1><p>Ready.</p></section>', request.model)
-          : anthropicBundleMessage('msg_test', '<section><h1>Dinner finder</h1><p>Ready.</p></section>', request.model),
+        anthropicBundleMessage('msg_test', '<section><h1>Dinner finder</h1><p>Ready.</p></section>', request.model),
       ));
       return;
     }
-    const generatedText = [JSON.stringify(arrowBundle('<section><h1>Dinner finder</h1><p>Ready.</p></section>'))];
+    const generatedText = [JSON.stringify(surfaceDocumentBundle('<section><h1>Dinner finder</h1><p>Ready.</p></section>'))];
     res.writeHead(200, {
       'content-type': 'text/event-stream',
       'cache-control': 'no-cache',
@@ -345,11 +306,11 @@ test('api generate sends narrowed contract and stream meta shape through package
   const systemText = request.system?.map((block) => block.text ?? '').join('\n') ?? '';
   assert.match(systemText, /Search host-owned dinner data/);
   assert.match(systemText, /host-resource/);
-  assert.match(systemText, /Arrow-native interactivity/);
+  assert.match(systemText, /Surface Document may use host tools/);
   assert.match(systemText, /host-bridge:summon/);
   assert.match(systemText, /onState/);
-  assert.match(systemText, /Structured Arrow sandbox bundle/);
-  assert.match(systemText, /create_summon_arrow_surface/);
+  assert.match(systemText, /Structured Surface Document bundle/);
+  assert.match(systemText, /emit_surface_document/);
   assert.doesNotMatch(systemText, /Rules for scripts/);
   assert.doesNotMatch(systemText, /\bchoose\b/);
 
@@ -545,53 +506,6 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.match(ghostBody, /resolved-context is no longer supported/);
   assert.equal(anthropicRequests.length, 3);
 
-  const htmlResponse = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      prompt: 'build a dinner finder as static html',
-      fingerprint: { id: 'editorial-mono' },
-      experimentalRuntime: 'html-static',
-      surfacePolicy: {
-        tier: 'declarative',
-        purpose: 'explore',
-        grants: ['search'],
-      },
-      tools: searchTools,
-    }),
-  });
-  const htmlBody = await htmlResponse.text();
-  assert.equal(htmlResponse.status, 200, htmlBody);
-
-  assert.equal(anthropicRequests.length, 4);
-  const htmlRequest = anthropicRequests[3] as {
-    system?: Array<{ text?: string }>;
-    tools?: Array<{ name?: string }>;
-    tool_choice?: { name?: string };
-  };
-  assert.equal(htmlRequest.tools?.[0]?.name, 'create_summon_html_surface');
-  assert.equal(htmlRequest.tool_choice?.name, 'create_summon_html_surface');
-  const htmlSystemText = htmlRequest.system?.map((block) => block.text ?? '').join('\n') ?? '';
-  assert.match(htmlSystemText, /Output runtime: html-static/);
-  assert.match(htmlSystemText, /structured HTML\/CSS sandbox bundle/);
-  assert.match(htmlSystemText, /create_summon_html_surface/);
-  assert.match(htmlSystemText, /host-owned context for static HTML/);
-  assert.match(htmlSystemText, /does not receive a host tool bridge/);
-  assert.doesNotMatch(htmlSystemText, /structured Arrow sandbox bundle/);
-  assert.doesNotMatch(htmlSystemText, /create_summon_arrow_surface/);
-  assert.doesNotMatch(htmlSystemText, /host-bridge:summon/);
-  assert.doesNotMatch(htmlSystemText, /@arrow-js\/core/);
-  assert.doesNotMatch(htmlSystemText, /Runtime is always `arrow`/);
-  assert.doesNotMatch(htmlSystemText, /Arrow artifact/);
-
-  const htmlLines = htmlBody
-    .trim()
-    .split(/\n/)
-    .filter(Boolean)
-    .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.ok(htmlLines.some((line) => line.op === 'meta' && line.path === '/model-output-mode' && (line.value as { runtime?: unknown }).runtime === 'html-static'));
-  const htmlArtifact = htmlLines.find((line) => line.op === 'artifact');
-  assert.equal((htmlArtifact?.value as { runtime?: unknown } | undefined)?.runtime, 'html');
 });
 
 test('api generate playground repairs invalid entry-file bundles', async (t) => {
@@ -607,13 +521,12 @@ test('api generate playground repairs invalid entry-file bundles', async (t) => 
     if (Array.isArray(request.tools)) {
       const input = anthropicRequests.length === 1
         ? {
-            schema: 'summon.arrow-bundle/v1',
+            schema: 'summon.surface-document-bundle/v1',
             source: {
-              'main.ts': 'export {};',
-              'main.js': 'export {};',
+              'main.html': '<main>Missing stylesheet</main>',
             },
           }
-        : arrowBundle('<section><h1>Repaired playground bundle</h1></section>');
+        : surfaceDocumentBundle('<section><h1>Repaired playground bundle</h1></section>');
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({
         id: `msg_playground_${anthropicRequests.length}`,
@@ -623,7 +536,7 @@ test('api generate playground repairs invalid entry-file bundles', async (t) => 
         content: [{
           type: 'tool_use',
           id: `msg_playground_${anthropicRequests.length}_tool`,
-          name: 'create_summon_arrow_surface',
+          name: 'emit_surface_document',
           input,
         }],
         stop_reason: 'tool_use',
@@ -679,7 +592,7 @@ test('api generate playground repairs invalid entry-file bundles', async (t) => 
 
   assert.equal(anthropicRequests.length, 2);
   const repairRequest = anthropicRequests[1] as { messages?: Array<{ content?: string }> };
-  assert.match(repairRequest.messages?.[0]?.content ?? '', /invalid-arrow-bundle-entry/);
+  assert.match(repairRequest.messages?.[0]?.content ?? '', /missing-surface-document-bundle-css/);
 
   const lines = body
     .trim()
@@ -688,7 +601,7 @@ test('api generate playground repairs invalid entry-file bundles', async (t) => 
     .map((raw) => JSON.parse(raw) as ProtocolLine);
   const playgroundMeta = firstMetaLine(lines, '/playground-mode').value as { repairIssueCodes?: unknown };
   assert.ok(Array.isArray(playgroundMeta.repairIssueCodes));
-  assert.ok(playgroundMeta.repairIssueCodes.includes('invalid-arrow-bundle-entry'));
+  assert.ok(playgroundMeta.repairIssueCodes.includes('missing-surface-document-bundle-css'));
   assert.ok(lines.some((line) => line.op === 'meta' && line.path === '/model-output-mode' && (line.value as { repairAttempts?: unknown }).repairAttempts === 1));
   assert.ok(lines.some((line) => line.op === 'artifact' && line.path === '/artifact'));
   assert.equal(lines.some((line) => line.op === 'meta' && line.path === '/validation-blocked'), false);
@@ -743,7 +656,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
         index: 0,
         delta: {
           type: 'text_delta',
-          text: JSON.stringify(arrowBundle('<section><h1>Checkout queue</h1></section>')),
+          text: JSON.stringify(surfaceDocumentBundle('<section><h1>Checkout queue</h1></section>')),
         },
       }),
       sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
@@ -874,8 +787,8 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   }
   assert.equal(receipt.fingerprint?.tokenSource?.kind, 'ghost-config');
   assert.ok(Array.isArray(receipt.fingerprint?.routedChecks));
-  assert.equal(receipt.generation?.artifactRuntime, 'arrow');
-  assert.deepEqual(receipt.generation?.artifactFiles, ['main.css', 'main.ts']);
+  assert.equal(receipt.generation?.artifactRuntime, 'surface-document');
+  assert.deepEqual(receipt.generation?.artifactFiles, ['main.css', 'main.html']);
 
   // /ghost-receipt is the LAST ghost meta — emitted after the artifact line.
   const artifactIndex = lines.findIndex((line) => line.op === 'artifact');
@@ -942,7 +855,7 @@ test('api generate forwards Anthropic model overrides and speed options', async 
         index: 0,
         delta: {
           type: 'text_delta',
-          text: JSON.stringify(arrowBundle('<section><h1>Fast model</h1></section>')),
+          text: JSON.stringify(surfaceDocumentBundle('<section><h1>Fast model</h1></section>')),
         },
       }),
       sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
@@ -1057,7 +970,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
     res.end([
       sse('response.output_text.delta', {
         type: 'response.output_text.delta',
-        delta: JSON.stringify(arrowBundle('<section><h1>OpenAI surface</h1></section>')),
+        delta: JSON.stringify(surfaceDocumentBundle('<section><h1>OpenAI surface</h1></section>')),
       }),
       sse('response.completed', {
         type: 'response.completed',
@@ -1190,7 +1103,7 @@ test('api generate can stream with Gemini provider', async (t) => {
         candidates: [{
           content: {
             parts: [{
-              text: JSON.stringify(arrowBundle('<section><h1>Gemini surface</h1></section>')),
+              text: JSON.stringify(surfaceDocumentBundle('<section><h1>Gemini surface</h1></section>')),
             }],
           },
         }],
@@ -1352,7 +1265,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
         index: 0,
         delta: {
           type: 'text_delta',
-          text: JSON.stringify(arrowBundle('<section><h1>Preflight streamed</h1></section>')),
+          text: JSON.stringify(surfaceDocumentBundle('<section><h1>Preflight streamed</h1></section>')),
         },
       }),
       sse('content_block_stop', { type: 'content_block_stop', index: 0 }),

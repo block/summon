@@ -3,7 +3,6 @@ import {
   compileSurfacePolicy,
   surfaceContractViewFromCompiledPolicy,
   compileSystemContracts,
-  DEFAULT_SUMMON_OUTPUT_RUNTIME,
   type CompiledSurfacePolicy,
   type CompiledSystemContracts,
   type ContractIssue,
@@ -11,10 +10,8 @@ import {
   type SurfaceContractView,
   type SurfaceEventLine,
   type SurfacePlan,
-  type SummonOutputRuntime,
 } from '@summon-internal/engine';
 import {
-  createRuntimeStrategy,
   nowMs,
   roundMs,
   type RuntimeContext,
@@ -22,6 +19,7 @@ import {
   type ServerTimingPhase,
   type SurfacePhase,
 } from './runtime/strategy.js';
+import { SurfaceDocumentStrategy } from './runtime/surface-document.js';
 import { writeFinalSummaries } from './summary.js';
 import type {
   SurfaceGenerationInput,
@@ -46,8 +44,7 @@ export class SurfaceGenerationSession {
     private readonly emit: (line: ProtocolLine) => void | Promise<void>,
   ) {
     this.timingStartedAt = timingStartedAtFromSeedLines(input.seedLines) ?? nowMs();
-    const runtimeTarget = this.runtimeTarget();
-    this.strategy = createRuntimeStrategy(runtimeTarget);
+    this.strategy = new SurfaceDocumentStrategy();
     this.surfacePolicy = input.surfacePolicy
       ? compileSurfacePolicy(input.surfacePolicy, {
           tools: input.tools ?? null,
@@ -58,7 +55,6 @@ export class SurfaceGenerationSession {
       : null;
     this.systemContracts = compileSystemContracts({
       mode: this.surfacePolicy?.mode ?? 'static',
-      outputRuntime: runtimeTarget,
       ghost: input.ghost ?? null,
       layout: input.layout ?? null,
       scale: input.scale ?? null,
@@ -129,7 +125,6 @@ export class SurfaceGenerationSession {
       op: 'meta',
       path: '/run-metrics',
       value: buildRunMetrics({
-        runtime: this.strategy.profile.runtime,
         repairs: this.repairAttempts,
         blocked: this.blocked,
         validationIssues: this.validationIssues,
@@ -160,7 +155,6 @@ export class SurfaceGenerationSession {
     return {
       input: this.input,
       systemContracts: this.systemContracts,
-      profile: this.strategy.profile,
       addValidationIssues: (issues) => {
         this.validationIssues.push(...issues);
       },
@@ -273,10 +267,6 @@ export class SurfaceGenerationSession {
     return this.input.validationMode === 'observe';
   }
 
-  private runtimeTarget(): SummonOutputRuntime {
-    return this.input.experimentalRuntime ?? DEFAULT_SUMMON_OUTPUT_RUNTIME;
-  }
-
   private async writeObservedValidationIssue(issue: ContractIssue): Promise<void> {
     await this.writeProtocolLine({ op: 'meta', path: '/validation-observed', value: issue });
   }
@@ -293,18 +283,15 @@ export class SurfaceGenerationSession {
 }
 
 const SAFETY_VIOLATION_CODES = new Set([
-  'unsafe-tag',
-  'external-url',
-  'inline-handler',
-  'static-script',
-  'html-script-not-enabled',
-  'unsafe-html-script',
-  'arrow-network-not-granted',
-  'invalid-arrow-network',
+  'surface-document-html-forbidden-tag',
+  'surface-document-html-inline-handler',
+  'surface-document-html-javascript-url',
+  'surface-document-css-external-url',
+  'surface-document-network-not-granted',
+  'surface-document-unsupported-api',
 ]);
 
 function buildRunMetrics(input: {
-  runtime: SummonOutputRuntime;
   repairs: number;
   blocked: boolean;
   validationIssues: readonly ContractIssue[];
@@ -314,7 +301,7 @@ function buildRunMetrics(input: {
     .map((issue) => issue.code);
   return {
     schema: 'summon.run-metrics/v1',
-    runtime: input.runtime,
+    runtime: 'surface-document',
     repairs: input.repairs,
     blocked: input.blocked,
     validationCount: input.validationIssues.length,

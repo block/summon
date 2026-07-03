@@ -1,26 +1,13 @@
 import {
-  normalizeHtmlSurfaceArtifact,
-  normalizeHtmlSurfacePatch,
-  normalizeArrowSurfaceArtifact,
-  normalizeDomjsSurfaceArtifact,
   normalizeSurfaceDocumentArtifact,
   normalizeValidationLimits,
   parseProtocolLine,
   StreamGraph,
-  validateHtmlSurfaceArtifact,
-  validateHtmlSurfacePatch,
   validateProtocolLine,
-  validateArrowSurfaceArtifact,
-  validateDomjsSurfaceArtifact,
   validateSurfaceDocumentArtifact,
   type ContractIssue,
-  type ArrowSurfaceArtifact,
   type ArtifactLine,
-  type DomjsSurfaceArtifact,
   type SurfaceDocumentArtifact,
-  type HtmlPatchLine,
-  type HtmlSurfaceArtifact,
-  type HtmlSurfacePatch,
   type MetaLine,
   type ProtocolLine,
   type ProtocolValidationMode,
@@ -31,7 +18,7 @@ import {
   type ValidationContext,
 } from '@summon-internal/engine';
 
-export type SurfaceArtifact = ArrowSurfaceArtifact | HtmlSurfaceArtifact | DomjsSurfaceArtifact | SurfaceDocumentArtifact;
+export type SurfaceArtifact = SurfaceDocumentArtifact;
 
 export type SurfaceStreamChunk = string | Uint8Array;
 export type SurfaceStreamSource =
@@ -83,11 +70,6 @@ export interface SurfaceStreamOptions {
     line: ArtifactLine,
     context: SurfaceStreamContext,
   ) => void | Promise<void>;
-  onHtmlPatch?: (
-    patch: HtmlSurfacePatch,
-    line: HtmlPatchLine,
-    context: SurfaceStreamContext,
-  ) => void | Promise<void>;
   onParseError?: (
     raw: string,
     context: SurfaceStreamContext,
@@ -107,7 +89,6 @@ export interface SurfaceStreamOptions {
 export interface SurfaceStreamResult {
   protocolLines: ProtocolLine[];
   surfaceEvents: SurfaceEvent[];
-  htmlPatches: HtmlSurfacePatch[];
   streamGraph: StreamGraphSnapshot;
   validationIssues: ContractIssue[];
   parseErrors: SurfaceStreamParseError[];
@@ -122,7 +103,6 @@ export async function consumeSurfaceStream(
   const graph = options.streamGraph ?? new StreamGraph();
   const protocolLines: ProtocolLine[] = [];
   const surfaceEvents: SurfaceEvent[] = [];
-  const htmlPatches: HtmlSurfacePatch[] = [];
   const validationIssues: ContractIssue[] = [];
   const parseErrors: SurfaceStreamParseError[] = [];
   const decoder = new TextDecoder();
@@ -219,15 +199,6 @@ export async function consumeSurfaceStream(
       }
       return;
     }
-    if (acceptedLine.op === 'patch') {
-      await emitGraph(ctx);
-      if (isHtmlSurfacePatchValue(acceptedLine.value)) {
-        htmlPatches.push(acceptedLine.value);
-        await options.onHtmlPatch?.(acceptedLine.value, acceptedLine, ctx);
-      }
-      return;
-    }
-
     await emitGraph(ctx);
   };
 
@@ -259,7 +230,6 @@ export async function consumeSurfaceStream(
   return {
     protocolLines,
     surfaceEvents,
-    htmlPatches,
     streamGraph: graph.snapshot(),
     validationIssues,
     parseErrors,
@@ -277,9 +247,6 @@ function compileAcceptedLine(
 ): ProtocolLine | null {
   if (line.op === 'artifact') {
     return compileAcceptedArtifactLine(line, validationContext, validationMode, validationIssues, graph);
-  }
-  if (line.op === 'patch') {
-    return compileAcceptedPatchLine(line, validationContext, validationMode, validationIssues, graph);
   }
   if (line.op === 'event') {
     return compileAcceptedEventLine(line, validationContext, validationIssues, graph);
@@ -316,35 +283,16 @@ function compileAcceptedArtifactLine(
   validationIssues: ContractIssue[],
   graph: StreamGraph,
 ): ArtifactLine | null {
-  const normalized = normalizeSurfaceArtifact(line.value);
+  const normalized = normalizeSurfaceDocumentArtifact(line.value);
   const observedArtifact = validationMode === 'observe'
     ? artifactFromObservedValue(line.value)
     : null;
   const issues = [...normalized.issues];
   if (normalized.artifact) {
     const limits = normalizeValidationLimits(validationContext?.limits);
-    if (normalized.artifact.runtime === 'arrow') {
-      issues.push(...validateArrowSurfaceArtifact(normalized.artifact, {
-        maxSourceBytes: limits.maxProtocolLineBytes,
-        network: validationContext?.surfacePlan?.network ?? 'none',
-      }));
-    } else if (normalized.artifact.runtime === 'domjs') {
-      issues.push(...validateDomjsSurfaceArtifact(normalized.artifact, {
-        maxSourceBytes: limits.maxProtocolLineBytes,
-      }));
-    } else if (normalized.artifact.runtime === 'surface-document') {
-      issues.push(...validateSurfaceDocumentArtifact(normalized.artifact, {
-        maxSourceBytes: limits.maxProtocolLineBytes,
-      }));
-    } else {
-      issues.push(...validateHtmlSurfaceArtifact(normalized.artifact, {
-        allowScript: validationContext?.experimentalHtmlScript === true,
-        maxSourceBytes: limits.maxProtocolLineBytes,
-        maxCssBytes: limits.maxCssBytes,
-        maxDomDepth: limits.maxDomDepth,
-        maxDomNodes: limits.maxDomNodes,
-      }));
-    }
+    issues.push(...validateSurfaceDocumentArtifact(normalized.artifact, {
+      maxSourceBytes: limits.maxProtocolLineBytes,
+    }));
   }
 
   let blocked = false;
@@ -357,51 +305,6 @@ function compileAcceptedArtifactLine(
   return { ...line, value: normalized.artifact ?? observedArtifact };
 }
 
-function compileAcceptedPatchLine(
-  line: HtmlPatchLine,
-  validationContext: ValidationContext | undefined,
-  validationMode: ProtocolValidationMode,
-  validationIssues: ContractIssue[],
-  graph: StreamGraph,
-): HtmlPatchLine | null {
-  const normalized = normalizeHtmlSurfacePatch(line.value);
-  const observedPatch = validationMode === 'observe' && isHtmlSurfacePatchValue(line.value)
-    ? line.value
-    : null;
-  const issues = [...normalized.issues];
-  if (normalized.patch) {
-    const limits = normalizeValidationLimits(validationContext?.limits);
-    issues.push(...validateHtmlSurfacePatch(normalized.patch, {
-      maxDomDepth: limits.maxDomDepth,
-      maxDomNodes: limits.maxDomNodes,
-    }));
-  }
-  let blocked = false;
-  for (const issue of issues) {
-    pushValidationIssue(validationIssues, issue);
-    graph.recordIssue(issue);
-    if (issue.severity === 'block') blocked = true;
-  }
-  if ((blocked && validationMode !== 'observe') || (!normalized.patch && !observedPatch)) return null;
-  return { ...line, value: normalized.patch ?? observedPatch };
-}
-
-function normalizeSurfaceArtifact(value: unknown): {
-  artifact: SurfaceArtifact | null;
-  issues: ContractIssue[];
-} {
-  if (value && typeof value === 'object' && (value as { runtime?: unknown }).runtime === 'html') {
-    return normalizeHtmlSurfaceArtifact(value);
-  }
-  if (value && typeof value === 'object' && (value as { runtime?: unknown }).runtime === 'domjs') {
-    return normalizeDomjsSurfaceArtifact(value);
-  }
-  if (value && typeof value === 'object' && (value as { runtime?: unknown }).runtime === 'surface-document') {
-    return normalizeSurfaceDocumentArtifact(value);
-  }
-  return normalizeArrowSurfaceArtifact(value);
-}
-
 function artifactFromObservedValue(value: unknown): SurfaceArtifact | null {
   if (!isSurfaceArtifactValue(value)) return null;
   return value;
@@ -412,24 +315,10 @@ function isSurfaceArtifactValue(value: unknown): value is SurfaceArtifact {
     !!value &&
     typeof value === 'object' &&
     !Array.isArray(value) &&
-    ((value as { runtime?: unknown }).runtime === 'arrow' ||
-      (value as { runtime?: unknown }).runtime === 'html' ||
-      (value as { runtime?: unknown }).runtime === 'domjs' ||
-      (value as { runtime?: unknown }).runtime === 'surface-document') &&
+    (value as { runtime?: unknown }).runtime === 'surface-document' &&
     typeof (value as { source?: unknown }).source === 'object' &&
     (value as { source?: unknown }).source !== null &&
     !Array.isArray((value as { source?: unknown }).source)
-  );
-}
-
-function isHtmlSurfacePatchValue(value: unknown): value is HtmlSurfacePatch {
-  return (
-    !!value &&
-    typeof value === 'object' &&
-    !Array.isArray(value) &&
-    (value as { runtime?: unknown }).runtime === 'html' &&
-    typeof (value as { action?: unknown }).action === 'string' &&
-    typeof (value as { target?: unknown }).target === 'string'
   );
 }
 

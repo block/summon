@@ -2,12 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createEventStore } from '@summon-internal/devtools';
 import {
-  HTML_IFRAME_SANDBOX,
-  buildHtmlPreviewCsp,
-  buildHtmlPreviewSrcdoc,
-  buildHtmlSandboxCsp,
-  buildHtmlSandboxSrcdoc,
-  parseHtmlSandboxMessage,
   resolveInlineToolCall,
   scopeTokenCss,
   shadowSurfaceCss,
@@ -64,82 +58,6 @@ test('inline bridge resolves a granted tool through the supplied host handler', 
   assert.equal(result.stateChanged, true);
   assert.deepEqual(events.filter('tool-called').map((event) => event.tool), ['search']);
   assert.equal(events.filter('tool-rejected').length, 0);
-});
-
-test('HTML iframe srcdoc uses strict sandbox and nonce-bound CSP', () => {
-  assert.equal(HTML_IFRAME_SANDBOX, 'allow-scripts');
-  const csp = buildHtmlSandboxCsp('nonce-1');
-  assert.match(csp, /default-src 'none'/);
-  assert.match(csp, /connect-src 'none'/);
-  assert.match(csp, /script-src 'nonce-nonce-1'/);
-  assert.doesNotMatch(csp, /frame-ancestors/);
-  assert.doesNotMatch(csp, /allow-same-origin/);
-
-  const srcdoc = buildHtmlSandboxSrcdoc({
-    sandboxId: 'surface-1-1',
-    bootstrapNonce: 'nonce-1',
-    tokensSource: ':root { --color-text: #111; }',
-    artifact: {
-      runtime: 'html',
-      source: {
-        'body.html': '<section id="hero"><h1>Ready</h1></section>',
-        'main.css': '#hero { color: var(--color-text); }',
-      },
-    },
-  });
-  assert.match(srcdoc, /Content-Security-Policy/);
-  assert.match(srcdoc, /<main id="summon-html-root"><section id="hero">/);
-  assert.match(srcdoc, /SUMMON_HTML_READY/);
-  assert.doesNotMatch(srcdoc, /allow-same-origin/);
-
-  const scriptedSrcdoc = buildHtmlSandboxSrcdoc({
-    sandboxId: 'surface-1-2',
-    bootstrapNonce: 'nonce-2',
-    artifact: {
-      runtime: 'html',
-      source: {
-        'body.html': '<section id="hero"><button id="probe">Probe</button></section>',
-        'main.js': 'document.getElementById("probe");</script><script>window.evil = true</script>',
-      },
-    },
-  });
-  assert.match(scriptedSrcdoc, /script-src 'nonce-nonce-2'/);
-  assert.match(scriptedSrcdoc, /document\.getElementById\("probe"\);<\\\/script><script>window\.evil = true<\\\/script>/);
-  assert.doesNotMatch(scriptedSrcdoc, /<\/script><script>window\.evil/);
-});
-
-test('HTML stream preview srcdoc is inert and scriptless', () => {
-  const csp = buildHtmlPreviewCsp();
-  assert.match(csp, /default-src 'none'/);
-  assert.match(csp, /connect-src 'none'/);
-  assert.match(csp, /script-src 'none'/);
-  assert.doesNotMatch(csp, /frame-ancestors/);
-
-  const srcdoc = buildHtmlPreviewSrcdoc({
-    tokensSource: ':root { --color-text: #111; }',
-    artifactCss: '#hero { color: var(--color-text); }',
-    bodyHtml: [
-      '<section id="hero" onclick="evil()">',
-      '<script>window.evil = true</script>',
-      '<a href="javascript:evil()">bad</a>',
-      '<img src="https://example.test/pixel.png" alt="x">',
-      '<object data="https://example.test/embed"></object>',
-      '<form action="https://example.test"><button>Submit</button></form>',
-      '<h1>Preview</h1>',
-      '</section>',
-    ].join(''),
-  });
-  assert.match(srcdoc, /Content-Security-Policy/);
-  assert.match(srcdoc, /script-src 'none'/);
-  assert.match(srcdoc, /summon-html-stream-preview-root/);
-  assert.match(srcdoc, /#hero \{ color: var\(--color-text\); \}/);
-  assert.match(srcdoc, /<h1>Preview<\/h1>/);
-  assert.doesNotMatch(srcdoc, /window\.evil/);
-  assert.doesNotMatch(srcdoc, /onclick/);
-  assert.doesNotMatch(srcdoc, /javascript:evil/);
-  assert.doesNotMatch(srcdoc, /https:\/\/example\.test/);
-  assert.doesNotMatch(srcdoc, /<object\b/);
-  assert.doesNotMatch(srcdoc, /<form\b/);
 });
 
 test('inline token CSS scopes fingerprint element selectors to the surface root', () => {
@@ -218,27 +136,3 @@ html, body {
   assert.doesNotMatch(css, /data-summon-inline-surface/);
 });
 
-test('HTML iframe message parser rejects forged messages', () => {
-  assert.equal(parseHtmlSandboxMessage({ type: 'SUMMON_HTML_READY', sandboxId: 'wrong' }, 'surface-1'), null);
-  assert.deepEqual(
-    parseHtmlSandboxMessage({ type: 'SUMMON_HTML_READY', sandboxId: 'surface-1' }, 'surface-1'),
-    { type: 'SUMMON_HTML_READY', sandboxId: 'surface-1' },
-  );
-  assert.deepEqual(
-    parseHtmlSandboxMessage({
-      type: 'SUMMON_HTML_TOOL',
-      sandboxId: 'surface-1',
-      requestId: 'r1',
-      tool: 'choose',
-      args: { id: 'a' },
-    }, 'surface-1'),
-    {
-      type: 'SUMMON_HTML_TOOL',
-      sandboxId: 'surface-1',
-      requestId: 'r1',
-      tool: 'choose',
-      args: { id: 'a' },
-    },
-  );
-  assert.equal(parseHtmlSandboxMessage({ type: 'SUMMON_HTML_TOOL', sandboxId: 'surface-1', tool: 'choose' }, 'surface-1'), null);
-});

@@ -9,35 +9,7 @@ import {
 
 const encoder = new TextEncoder();
 
-function artifactLine(source = 'import { html } from "@arrow-js/core";\nexport default html`<p>Arrow</p>`'): string {
-  return `${JSON.stringify({
-    op: 'artifact',
-    path: '/artifact',
-    value: {
-      runtime: 'arrow',
-      source: {
-        'main.ts': source,
-      },
-    },
-  })}\n`;
-}
-
-function htmlArtifactLine(body = '<section id="hero"><h1>HTML</h1></section>'): string {
-  return `${JSON.stringify({
-    op: 'artifact',
-    path: '/artifact',
-    value: {
-      runtime: 'html',
-      source: {
-        'body.html': body,
-        'main.css': '#hero { color: var(--color-text); }',
-      },
-    },
-  })}\n`;
-}
-
-
-function surfaceDocumentArtifactLine(source: Record<string, string> = {
+function artifactLine(source: Record<string, string> = {
   'main.html': '<main><p id="total">0</p><button id="inc">Increment</button></main>',
   'main.css': 'main { color: var(--color-text); }',
   'main.js': `const s = state({ count: 0 });
@@ -54,34 +26,14 @@ document.getElementById('inc').onclick = () => { s.count += 1; };`,
   })}\n`;
 }
 
-function htmlPatchLine(html = '<section id="hero"><h2>Updated</h2></section>'): string {
-  return `${JSON.stringify({
-    op: 'patch',
-    path: '/artifact/html-patch',
-    value: {
-      runtime: 'html',
-      action: 'replace',
-      target: 'hero',
-      html,
-    },
-  })}\n`;
+function simpleArtifactLine(html: string): string {
+  return artifactLine({
+    'main.html': html,
+    'main.css': 'main { color: var(--color-text); }',
+  });
 }
 
-function htmlScriptArtifactLine(js: string): string {
-  return `${JSON.stringify({
-    op: 'artifact',
-    path: '/artifact',
-    value: {
-      runtime: 'html',
-      source: {
-        'body.html': '<section id="hero"><button id="probe">Probe</button></section>',
-        'main.js': js,
-      },
-    },
-  })}\n`;
-}
-
-test('consumeSurfaceStream parses split chunks and delivers Arrow artifacts', async () => {
+test('consumeSurfaceStream parses split chunks and delivers Surface Document artifacts', async () => {
   const artifacts: string[] = [];
   const graphSnapshots: number[] = [];
   const lines: ProtocolLine[] = [];
@@ -93,13 +45,13 @@ test('consumeSurfaceStream parses split chunks and delivers Arrow artifacts', as
     mode: 'interactive',
     onLine: (accepted) => lines.push(accepted),
     onGraph: (snapshot) => graphSnapshots.push(snapshot.health.blockedCount),
-    onArtifact: (artifact) => artifacts.push(artifact.source['main.ts'] ?? ''),
+    onArtifact: (artifact) => artifacts.push(artifact.source['main.html'] ?? ''),
   });
 
   assert.equal(result.protocolLines.length, 1);
   assert.deepEqual(lines.map((accepted) => accepted.op), ['artifact']);
   assert.equal(artifacts.length, 1);
-  assert.match(artifacts[0]!, /Arrow/);
+  assert.match(artifacts[0]!, /Increment/);
   assert.equal(result.streamGraph.health.complete, true);
   assert.ok(graphSnapshots.length >= 1);
 });
@@ -125,31 +77,10 @@ test('consumeSurfaceStream delivers valid semantic preview events before artifac
   assert.equal(result.protocolLines.map((line) => line.op).join(','), 'event,artifact');
 });
 
-test('consumeSurfaceStream delivers validated HTML artifacts and patch fragments', async () => {
-  const artifacts: string[] = [];
-  const patches: string[] = [];
-  const result = await consumeSurfaceStream([
-    htmlArtifactLine(),
-    htmlPatchLine(),
-  ], {
-    mode: 'static',
-    onArtifact: (artifact) => {
-      if (artifact.runtime === 'html') artifacts.push(artifact.source['body.html']);
-    },
-    onHtmlPatch: (patch) => patches.push(patch.html ?? ''),
-  });
-
-  assert.deepEqual(artifacts, ['<section id="hero"><h1>HTML</h1></section>']);
-  assert.deepEqual(patches, ['<section id="hero"><h2>Updated</h2></section>']);
-  assert.equal(result.htmlPatches.length, 1);
-  assert.equal(result.streamGraph.artifacts.at(-1)?.runtime, 'html');
-});
-
-
 test('consumeSurfaceStream delivers validated Surface Document artifacts', async () => {
   const artifacts: string[] = [];
   const result = await consumeSurfaceStream([
-    surfaceDocumentArtifactLine(),
+    artifactLine(),
   ], {
     mode: 'static',
     onArtifact: (artifact) => {
@@ -166,7 +97,7 @@ test('consumeSurfaceStream delivers validated Surface Document artifacts', async
 test('consumeSurfaceStream blocks invalid Surface Document artifacts before callback delivery', async () => {
   const artifacts: string[] = [];
   const result = await consumeSurfaceStream([
-    surfaceDocumentArtifactLine({
+    artifactLine({
       'main.html': '<button onclick="alert(1)">Bad</button>',
       'main.css': '.bad {}',
     }),
@@ -181,52 +112,71 @@ test('consumeSurfaceStream blocks invalid Surface Document artifacts before call
   assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
-test('consumeSurfaceStream gates scripted HTML artifacts on experimentalHtmlScript', async () => {
-  const withoutScriptTrust: string[] = [];
-  const blocked = await consumeSurfaceStream([
-    htmlScriptArtifactLine('document.getElementById("probe")?.setAttribute("data-ready", "true");'),
+test('consumeSurfaceStream rejects legacy runtime artifacts', async () => {
+  const artifacts: string[] = [];
+  const result = await consumeSurfaceStream([
+    `${JSON.stringify({
+      op: 'artifact',
+      path: '/artifact',
+      value: {
+        runtime: 'arrow',
+        source: { 'main.ts': 'export default null;' },
+      },
+    })}\n`,
+    `${JSON.stringify({
+      op: 'artifact',
+      path: '/artifact',
+      value: {
+        runtime: 'html',
+        source: { 'body.html': '<p>legacy</p>' },
+      },
+    })}\n`,
   ], {
     mode: 'static',
-    onArtifact: (artifact) => {
-      if (artifact.runtime === 'html') withoutScriptTrust.push(artifact.source['main.js'] ?? '');
-    },
+    onArtifact: (artifact) => artifacts.push(artifact.runtime),
   });
 
-  assert.deepEqual(withoutScriptTrust, []);
-  assert.deepEqual(blocked.validationIssues.map((issue) => issue.code), ['html-script-not-enabled']);
-
-  const withScriptTrust: string[] = [];
-  const accepted = await consumeSurfaceStream([
-    htmlScriptArtifactLine('document.getElementById("probe")?.setAttribute("data-ready", "true");'),
-  ], {
-    mode: 'static',
-    validationContext: {
-      mode: 'static',
-      allowedTools: [],
-      tools: [],
-      experimentalHtmlScript: true,
-    },
-    onArtifact: (artifact) => {
-      if (artifact.runtime === 'html') withScriptTrust.push(artifact.source['main.js'] ?? '');
-    },
-  });
-
-  assert.deepEqual(accepted.validationIssues.map((issue) => issue.code), []);
-  assert.deepEqual(withScriptTrust, ['document.getElementById("probe")?.setAttribute("data-ready", "true");']);
+  assert.deepEqual(artifacts, []);
+  assert.equal(result.protocolLines.length, 0);
+  assert.ok(result.validationIssues.length >= 1);
+  assert.ok(result.streamGraph.health.blockedCount >= 1);
 });
 
-test('consumeSurfaceStream blocks invalid HTML patches before callback delivery', async () => {
-  const patches: string[] = [];
+test('consumeSurfaceStream rejects legacy html patch lines at the parse boundary', async () => {
   const result = await consumeSurfaceStream([
-    htmlPatchLine('<img src="https://example.test/a.png" alt="x">'),
+    `${JSON.stringify({
+      op: 'patch',
+      path: '/artifact/html-patch',
+      value: { runtime: 'html', action: 'replace', target: 'hero', html: '<h2>Updated</h2>' },
+    })}\n`,
+    artifactLine(),
   ], {
     mode: 'static',
-    onHtmlPatch: (patch) => patches.push(patch.html ?? ''),
   });
 
-  assert.deepEqual(patches, []);
-  assert.deepEqual(result.validationIssues.map((issue) => issue.code), ['external-url']);
+  assert.equal(result.parseErrors.length, 1);
+  assert.deepEqual(result.protocolLines.map((line) => line.op), ['artifact']);
+});
+
+test('consumeSurfaceStream blocks unsafe main.js network access before callback delivery', async () => {
+  const artifacts: string[] = [];
+  const result = await consumeSurfaceStream([
+    artifactLine({
+      'main.html': '<main>weather</main>',
+      'main.css': 'main {}',
+      'main.js': 'void fetch("https://example.test/track");',
+    }),
+  ], {
+    mode: 'interactive',
+    onArtifact: (artifact) => artifacts.push(artifact.source['main.js'] ?? ''),
+  });
+
+  assert.deepEqual(artifacts, []);
   assert.equal(result.protocolLines.length, 0);
+  assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
+    'surface-document-network-not-granted',
+  ]);
+  assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
 test('consumeSurfaceStream accepts host-owned contract and rendering phases', async () => {
@@ -293,54 +243,6 @@ test('consumeSurfaceStream accepts Uint8Array and ReadableStream sources', async
   assert.equal(streamResult.protocolLines.length, 1);
 });
 
-test('consumeSurfaceStream blocks Arrow artifacts that use ungranted network access before callback delivery', async () => {
-  const artifacts: string[] = [];
-  const result = await consumeSurfaceStream([
-    artifactLine('import { html } from "@arrow-js/core";\nvoid fetch("https://example.test/track");\nexport default html`<div>Weather</div>`'),
-  ], {
-    mode: 'interactive',
-    onArtifact: (artifact) => artifacts.push(artifact.source['main.ts'] ?? ''),
-  });
-
-  assert.deepEqual(artifacts, []);
-  assert.equal(result.protocolLines.length, 0);
-  assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
-    'arrow-network-not-granted',
-  ]);
-  assert.equal(result.streamGraph.health.blockedCount, 1);
-});
-
-test('consumeSurfaceStream blocks IDL bindings (verified sandbox limit) but accepts open-tag bindings', async () => {
-  // IDL property bindings (`.value=`) are a verified @arrow-js/sandbox compiler
-  // limitation, so they are blocked (repairable → rewrite to attribute + event).
-  // Open-tag template expressions, by contrast, were an over-strict Summon
-  // dialect rule and remain removed.
-  const idlArtifacts: string[] = [];
-  const idlResult = await consumeSurfaceStream([
-    artifactLine('import { html } from "@arrow-js/core";\nexport default html`<input .value=${state.title}>`'),
-  ], {
-    mode: 'interactive',
-    onArtifact: (artifact) => idlArtifacts.push(artifact.source['main.ts'] ?? ''),
-  });
-  assert.deepEqual(idlArtifacts, []);
-  assert.deepEqual(idlResult.validationIssues.map((issue) => issue.code), [
-    'unsupported-arrow-idl-binding',
-  ]);
-  assert.equal(idlResult.streamGraph.health.blockedCount, 1);
-
-  const openTagArtifacts: string[] = [];
-  const openTagResult = await consumeSurfaceStream([
-    artifactLine('import { html } from "@arrow-js/core";\nexport default html`<button ${() => "disabled"}>Save</button>`'),
-  ], {
-    mode: 'interactive',
-    onArtifact: (artifact) => openTagArtifacts.push(artifact.source['main.ts'] ?? ''),
-  });
-  assert.equal(openTagArtifacts.length, 1);
-  assert.match(openTagArtifacts[0]!, /disabled/);
-  assert.deepEqual(openTagResult.validationIssues.map((issue) => issue.code), []);
-  assert.equal(openTagResult.streamGraph.health.blockedCount, 0);
-});
-
 test('consumeSurfaceStream rejects legacy section protocol at parse boundary', async () => {
   const result = await consumeSurfaceStream([
     '{"op":"set","path":"/screen","value":{"sections":["hero"]}}\n',
@@ -390,7 +292,7 @@ test('consumeSurfaceStream delivers meta lines and collects validation-blocked i
       value: {
         source: 'protocol',
         severity: 'block',
-        code: 'arrow-only-protocol',
+        code: 'legacy-protocol',
         message: 'old protocol',
       },
     })}\n`,
@@ -401,7 +303,7 @@ test('consumeSurfaceStream delivers meta lines and collects validation-blocked i
 
   assert.deepEqual(metas, ['/validation-blocked']);
   assert.equal(result.validationIssues.length, 1);
-  assert.equal(result.validationIssues[0]?.code, 'arrow-only-protocol');
+  assert.equal(result.validationIssues[0]?.code, 'legacy-protocol');
   assert.equal(result.streamGraph.health.blockedCount, 1);
 });
 
@@ -409,7 +311,7 @@ test('consumeSurfaceStream collects validation-summary examples without duplicat
   const blocked = {
     source: 'protocol',
     severity: 'block',
-    code: 'arrow-only-protocol',
+    code: 'legacy-protocol',
     message: 'old protocol',
   } as const;
   const warning = {
@@ -427,7 +329,7 @@ test('consumeSurfaceStream collects validation-summary examples without duplicat
       value: {
         blocked: 1,
         warnings: 1,
-        codes: { 'arrow-only-protocol': 1, 'unknown-token': 1 },
+        codes: { 'legacy-protocol': 1, 'unknown-token': 1 },
         examples: [blocked, warning],
       },
     })}\n`,
@@ -436,7 +338,7 @@ test('consumeSurfaceStream collects validation-summary examples without duplicat
   });
 
   assert.deepEqual(result.validationIssues.map((issue) => issue.code), [
-    'arrow-only-protocol',
+    'legacy-protocol',
     'unknown-token',
   ]);
 });
@@ -446,7 +348,7 @@ test('consumeSurfaceStream can discard or stop before applying a line', async ()
   let decisions = 0;
   const discardResult = await consumeSurfaceStream([
     artifactLine(),
-    artifactLine('import { html } from "@arrow-js/core";\nexport default html`<p>Keep</p>`'),
+    simpleArtifactLine('<main>Keep</main>'),
   ], {
     mode: 'static',
     shouldApplyLine: () => decisions++ === 0 ? 'discard' : 'apply',

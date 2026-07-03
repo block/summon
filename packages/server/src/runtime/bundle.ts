@@ -1,11 +1,6 @@
 import {
   hintsForContractIssue,
   type ContractIssue,
-  type ProtocolLine,
-  type SurfaceEventLine,
-  type SummonArrowBundle,
-  type SummonHtmlBundle,
-  type SummonOutputRuntime,
 } from '@summon-internal/engine';
 import type { RuntimeContext, RuntimeStrategy } from './strategy.js';
 import { nowMs } from './strategy.js';
@@ -111,61 +106,6 @@ export function bundleDiagnostic(bundle: unknown, attempt: number): Record<strin
     diagnostic.sourceObjectKeys = Object.keys(source as Record<string, unknown>).sort();
   }
   return diagnostic;
-}
-
-export function previewLinesFromBundle(
-  bundle: SummonArrowBundle | SummonHtmlBundle,
-  runtimeLabel: 'Arrow' | 'HTML',
-): SurfaceEventLine[] {
-  const preview = bundle.preview;
-  if (!preview) {
-    return [{
-      op: 'event',
-      path: '/surface',
-      value: {
-        type: 'surface.status',
-        status: 'rendering',
-        text: `Rendering accepted ${runtimeLabel} artifact`,
-      },
-    }];
-  }
-  const lines: SurfaceEventLine[] = [{
-    op: 'event',
-    path: '/surface',
-    value: {
-      type: 'surface.start',
-      id: 'main',
-      kind: preview.kind,
-      ...(preview.title ? { title: preview.title } : {}),
-    },
-  }];
-  for (const region of preview.regions ?? []) {
-    lines.push({
-      op: 'event',
-      path: '/surface',
-      value: {
-        type: 'region.add',
-        id: region.id,
-        parent: 'main',
-        role: region.role,
-        ...(region.label ? { label: region.label } : {}),
-      },
-    });
-    if (region.summary) {
-      lines.push({
-        op: 'event',
-        path: '/surface',
-        value: {
-          type: 'node.add',
-          id: `${region.id}-summary`,
-          parent: region.id,
-          kind: 'text',
-          props: { text: region.summary },
-        },
-      });
-    }
-  }
-  return lines;
 }
 
 async function runBundleRepairLoop(
@@ -283,61 +223,12 @@ async function runFidelityReview(
   return issues;
 }
 
-export function hintsForIssues(
-  issues: readonly ContractIssue[],
-  outputRuntime: SummonOutputRuntime,
-): string[] {
-  return issues.flatMap((issue) => hintsForContractIssue(issue, { outputRuntime }));
+export function hintsForIssues(issues: readonly ContractIssue[]): string[] {
+  return issues.flatMap((issue) => hintsForContractIssue(issue));
 }
 
 function isRepairable(issues: ContractIssue[], allowedCodes?: readonly string[]): boolean {
   const repairable = new Set([
-    'invalid-arrow-entry',
-    'invalid-arrow-source',
-    'invalid-arrow-source-path',
-    'arrow-source-limit',
-    'arrow-network-not-granted',
-    'unsupported-arrow-idl-binding',
-    'unsupported-arrow-open-tag-expression',
-    'arrow-map-callback-not-function',
-    'invalid-arrow-source-syntax',
-    'invalid-arrow-network',
-    'invalid-arrow-bundle',
-    'invalid-arrow-bundle-schema',
-    'missing-arrow-bundle-source',
-    'invalid-arrow-bundle-entry',
-    'arrow-bundle-extra-file',
-    'invalid-arrow-bundle-source-file',
-    'invalid-html-bundle',
-    'invalid-html-bundle-schema',
-    'missing-html-bundle-source',
-    'missing-html-body',
-    'html-bundle-extra-file',
-    'invalid-html-bundle-source-file',
-    'html-source-limit',
-    'html-css-limit',
-    'invalid-css',
-    'invalid-html-fragment',
-    'unsafe-tag',
-    'static-script',
-    'inline-handler',
-    'external-url',
-    'unsupported-html-attribute',
-    'html-script-not-enabled',
-    'unsafe-html-script',
-    // domjs runtime
-    'invalid-domjs-entry',
-    'invalid-domjs-source',
-    'invalid-domjs-source-path',
-    'invalid-domjs-source-file',
-    'domjs-source-limit',
-    'domjs-network-not-granted',
-    'domjs-unsupported-api',
-    'invalid-domjs-bundle',
-    'invalid-domjs-bundle-schema',
-    'missing-domjs-bundle-entry',
-    'invalid-domjs-source-syntax',
-    // Surface Document runtime
     'invalid-surface-document-artifact',
     'invalid-surface-document-runtime',
     'invalid-surface-document-source',
