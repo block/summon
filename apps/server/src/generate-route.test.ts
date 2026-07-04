@@ -326,7 +326,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'event /surface',
     'meta /status',
-    'meta /conjuror',
+    'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /surface-policy',
@@ -381,7 +381,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'event /surface',
     'meta /status',
-    'meta /conjuror',
+    'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /surface-policy',
@@ -436,7 +436,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /status',
     'event /surface',
     'meta /status',
-    'meta /conjuror',
+    'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /agent-goal',
@@ -738,7 +738,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     'meta /status',
     'event /surface',
     'meta /status',
-    'meta /conjuror',
+    'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /agent-goal',
@@ -753,10 +753,10 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   const ghostAgentResolution = firstMetaLine(lines, '/agent-policy-resolution');
   assert.equal((ghostAgentResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
 
-  const conjurorMeta = firstMetaLine(lines, '/conjuror').value as { schema?: unknown; strategy?: unknown; selectedNodes?: unknown };
-  assert.equal(conjurorMeta.schema, 'summon.conjuror-packet/v1');
-  assert.equal(conjurorMeta.strategy, 'full-corpus');
-  assert.ok(Array.isArray(conjurorMeta.selectedNodes));
+  const gatherMeta = firstMetaLine(lines, '/ghost-gather').value as { schema?: unknown; strategy?: unknown; selectedNodes?: unknown };
+  assert.equal(gatherMeta.schema, 'summon.ghost-gather/v1');
+  assert.equal(gatherMeta.strategy, 'full-corpus');
+  assert.ok(Array.isArray(gatherMeta.selectedNodes));
 
   const ghostContext = lines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
   const contextMeta = ghostContext.value as {
@@ -806,7 +806,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   assert.ok(receiptIndex > artifactIndex);
 });
 
-test('api generate emits compiled Conjuror packet for root contexts', async (t) => {
+test('api generate emits compiled Ghost gather packet for root contexts', async (t) => {
   const root = await makeCompiledRouteGhostFixture();
   t.after(async () => {
     await rm(root, { recursive: true, force: true });
@@ -861,7 +861,7 @@ test('api generate emits compiled Conjuror packet for root contexts', async (t) 
       SUMMON_INFER_SHAPE: '0',
       SUMMON_GHOST_SURFACE_SELECT: '0',
       SUMMON_GHOST_CONFORMANCE: '0',
-      SUMMON_CONJUROR_STRATEGY: 'compiled',
+      SUMMON_GHOST_GATHER_STRATEGY: 'compiled',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -898,19 +898,19 @@ test('api generate emits compiled Conjuror packet for root contexts', async (t) 
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
 
-  const conjurorMeta = firstMetaLine(lines, '/conjuror').value as {
+  const gatherMeta = firstMetaLine(lines, '/ghost-gather').value as {
     schema?: unknown;
     strategy?: unknown;
     selectedNodes?: unknown;
     excludedNodes?: unknown;
     warnings?: unknown;
   };
-  assert.equal(conjurorMeta.schema, 'summon.conjuror-packet/v1');
-  assert.equal(conjurorMeta.strategy, 'compiled');
-  assert.ok(Array.isArray(conjurorMeta.selectedNodes));
-  assert.ok(Array.isArray(conjurorMeta.excludedNodes));
-  assert.ok(Array.isArray(conjurorMeta.warnings));
-  const selectedIds = (conjurorMeta.selectedNodes as Array<{ id?: unknown }>).map((node) => node.id);
+  assert.equal(gatherMeta.schema, 'summon.ghost-gather/v1');
+  assert.equal(gatherMeta.strategy, 'compiled');
+  assert.ok(Array.isArray(gatherMeta.selectedNodes));
+  assert.ok(Array.isArray(gatherMeta.excludedNodes));
+  assert.ok(Array.isArray(gatherMeta.warnings));
+  const selectedIds = (gatherMeta.selectedNodes as Array<{ id?: unknown }>).map((node) => node.id);
   assert.ok(selectedIds.includes('index'));
   assert.ok(selectedIds.includes('tokens'));
 
@@ -1193,7 +1193,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
     'meta /status',
     'event /surface',
     'meta /status',
-    'meta /conjuror',
+    'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /surface-policy',
@@ -1314,7 +1314,7 @@ test('api generate can stream with Gemini provider', async (t) => {
     'meta /status',
     'event /surface',
     'meta /status',
-    'meta /conjuror',
+    'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /surface-policy',
@@ -1484,7 +1484,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
     'meta /status',
     'event /surface',
     'meta /status',
-    'meta /conjuror',
+    'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /agent-goal',

@@ -35,10 +35,12 @@ import {
   publicGhostRoots,
   resolveCatalogGhostGenerationContext,
   resolveGhostGenerationContext,
-  type ConjurorStrategyOption,
+  evaluateConformance,
+  emptyConformanceVerdict,
+  type ConformanceVerdict,
+  type GhostGatherStrategyOption,
   type ResolvedGhostSteer,
-} from './ghost-adapter.js';
-import { evaluateConformance, emptyConformanceVerdict, type ConformanceVerdict } from './ghost-conformance.js';
+} from '@anarchitecture/summon-server/ghost';
 import {
   loadFingerprintCatalog,
   parseFingerprintRequest,
@@ -203,20 +205,20 @@ function readEnvInt(name: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function readConjurorOptions(env: NodeJS.ProcessEnv): {
-  strategy?: ConjurorStrategyOption;
+function readGhostGatherOptions(env: NodeJS.ProcessEnv): {
+  strategy?: GhostGatherStrategyOption;
   fullPullNodeLimit?: number;
   maxNodes?: number;
   maxChars?: number;
 } {
-  if (env.SUMMON_CONJUROR === '0') return { strategy: 'full-corpus' };
-  const rawStrategy = env.SUMMON_CONJUROR_STRATEGY;
+  if (env.SUMMON_GHOST_GATHER === '0') return { strategy: 'full-corpus' };
+  const rawStrategy = env.SUMMON_GHOST_GATHER_STRATEGY;
   const strategy = rawStrategy === 'auto' || rawStrategy === 'full-corpus' || rawStrategy === 'compiled'
     ? rawStrategy
     : undefined;
-  const fullPullNodeLimit = readEnvInt('SUMMON_CONJUROR_FULL_PULL_NODE_LIMIT');
-  const maxNodes = readEnvInt('SUMMON_CONJUROR_MAX_NODES');
-  const maxChars = readEnvInt('SUMMON_CONJUROR_MAX_CHARS');
+  const fullPullNodeLimit = readEnvInt('SUMMON_GHOST_GATHER_FULL_PULL_NODE_LIMIT');
+  const maxNodes = readEnvInt('SUMMON_GHOST_GATHER_MAX_NODES');
+  const maxChars = readEnvInt('SUMMON_GHOST_GATHER_MAX_CHARS');
   return {
     ...(strategy ? { strategy } : {}),
     ...(fullPullNodeLimit !== undefined ? { fullPullNodeLimit } : {}),
@@ -384,11 +386,15 @@ app.post('/api/generate', async (req, res) => {
 
   let ghostContext: ResolvedGhostSteer | null = null;
   try {
-    ghostContext = fingerprintRequest
-      ? await resolveCatalogGhostGenerationContext(fingerprintRequest, fingerprintCatalog)
-      : ghostRequest
+    if (fingerprintRequest) {
+      const entry = fingerprintCatalog.byId.get(fingerprintRequest.id);
+      if (!entry) throw new Error(`unknown fingerprint "${fingerprintRequest.id}"`);
+      ghostContext = await resolveCatalogGhostGenerationContext(entry, fingerprintRequest.targetPath);
+    } else {
+      ghostContext = ghostRequest
         ? await resolveGhostGenerationContext(ghostRequest, ghostRoots)
         : null;
+    }
   } catch (err) {
     res.status(400).json({
       error: err instanceof Error ? err.message : String(err),
@@ -533,7 +539,7 @@ app.post('/api/generate', async (req, res) => {
         completeText: process.env.SUMMON_GHOST_SURFACE_SELECT === '0'
           ? undefined
           : (request) => utilityModelProvider.completeText(request, utilityModelSelection),
-        conjuror: readConjurorOptions(process.env),
+        gather: readGhostGatherOptions(process.env),
       });
       writeGenerateTiming(
         res,
@@ -580,11 +586,11 @@ app.post('/api/generate', async (req, res) => {
     }
 
     if (ghostContext) {
-      if (ghostContext.conjuror) {
+      if (ghostContext.gather) {
         preludeLines.push({
           op: 'meta',
-          path: '/conjuror',
-          value: ghostContext.conjuror,
+          path: '/ghost-gather',
+          value: ghostContext.gather,
         });
       }
       preludeLines.push({

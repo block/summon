@@ -1,9 +1,9 @@
 # Integrating Summon with Ghost (flat-corpus model)
 
 > **Status: implemented.** This is the record of how Summon consumes Ghost and
-> why. The live code is `apps/server/src/ghost-adapter.ts`,
-> `apps/server/src/fingerprint-catalog.ts`,
-> `apps/server/src/ghost-conformance.ts`, and the receipt in
+> why. The live Ghost binding code is `packages/server/src/ghost/adapter.ts`,
+> `packages/server/src/ghost/conformance.ts`, and `packages/server/src/ghost/conjuror.ts`;
+> the demo catalog remains in `apps/server/src/fingerprint-catalog.ts`. The receipt lives in
 > `buildGhostReceipt`. Pinned upstream: `@anarchitecture/ghost-fingerprint`
 > 0.19.x (the flat-corpus + haunts model).
 
@@ -109,28 +109,28 @@ corpus**, ordered front door → anchor → rest-by-id.
   extracted from the front door's `## Signature look & feel` section, output
   rules) is appended after the corpus, exactly as before.
 
-## Conjuror — context compilation
+## Ghost gather — context compilation
 
 Summon still consumes Ghost through the library APIs, never by shelling out to
 `ghost gather` or `ghost pull`; the CLI path appends to `.ghost/.events`, which
 would make served fingerprints mutable. For small corpora Summon keeps the
-historical full-corpus pull. Above `SUMMON_CONJUROR_FULL_PULL_NODE_LIMIT`
-(default `12`), Conjuror compiles a selected packet instead: `index` and every
+historical full-corpus pull. Above `SUMMON_GHOST_GATHER_FULL_PULL_NODE_LIMIT`
+(default `12`), Summon compiles a selected gather packet instead: `index` and every
 fenced-CSS token node are mandatory, selector-chosen lead/support nodes fill the
 remaining budget, all ids are host-validated, and missing/model-invalid choices
 fall back safely. Checks and haunts are loaded for governance only and never
 enter generation context.
 
-The stream emits `/conjuror` with schema `summon.conjuror-packet/v1` so hosts can
+The stream emits `/ghost-gather` with schema `summon.ghost-gather/v1` so hosts can
 inspect the strategy, selected/excluded nodes, authority stack, and warnings.
 
 | Env flag | Effect |
 | --- | --- |
-| `SUMMON_CONJUROR=0` | Disable compilation and force full-corpus behavior. |
-| `SUMMON_CONJUROR_STRATEGY` | `auto` (default), `full-corpus`, or `compiled`. |
-| `SUMMON_CONJUROR_FULL_PULL_NODE_LIMIT` | Node-count threshold for `auto` full-corpus mode; default `12`. |
-| `SUMMON_CONJUROR_MAX_NODES` | Maximum selected nodes in a compiled packet, after mandatory inclusions. |
-| `SUMMON_CONJUROR_MAX_CHARS` | Character budget for the rendered compiled Ghost prompt. |
+| `SUMMON_GHOST_GATHER=0` | Disable compilation and force full-corpus behavior. |
+| `SUMMON_GHOST_GATHER_STRATEGY` | `auto` (default), `full-corpus`, or `compiled`. |
+| `SUMMON_GHOST_GATHER_FULL_PULL_NODE_LIMIT` | Node-count threshold for `auto` full-corpus mode; default `12`. |
+| `SUMMON_GHOST_GATHER_MAX_NODES` | Maximum selected nodes in a compiled packet, after mandatory inclusions. |
+| `SUMMON_GHOST_GATHER_MAX_CHARS` | Character budget for the rendered compiled Ghost prompt. |
 
 ### 3. Token / visual vocabulary
 
@@ -175,12 +175,12 @@ there is no corridor to mirror anymore:
 
 Ordered, each independently verifiable:
 
-1. ✅ **Bundle content migration** — `scripts/migrate-ghost-bundles.mjs`:
-   strips `relates:` (rejected key) into a trailing `Related: …` prose line,
-   moves `.ghost/checks/` → `.ghost/haunts/checks/` + `haunt.yml`, rewrites
+1. ✅ **Bundle content migration** (one-shot, since retired): stripped
+   `relates:` (rejected key) into a trailing `Related: …` prose line,
+   moved `.ghost/checks/` → `.ghost/haunts/checks/` + `haunt.yml`, rewrote
    `surface: core` → `references: [index]` (the loader requires ≥1 reference;
    `index` is the faithful home for a fingerprint-wide check). Gated on
-   `ghost validate` — all 8 bundles pass with 0 errors. Also surfaced one
+   `ghost validate` — all 8 bundles passed with 0 errors. Also surfaced one
    latent YAML bug (unquoted `description` with a nested-mapping colon in
    `technical-contrast/drafting-marks.md`).
 2. ✅ **Dependency repointed** — `@anarchitecture/ghost` (graph-era `next`
