@@ -6,15 +6,14 @@ import {
 import {
   loadFingerprintPackage,
   resolveFingerprintPackage,
-} from '@anarchitecture/ghost/fingerprint';
+  type LoadedFingerprintPackage,
+} from '@anarchitecture/ghost-fingerprint/fingerprint';
 import {
-  GHOST_GRAPH_ROOT_ID,
-  buildGraphMenu,
-  resolveGraphSlice,
-  type GhostGraph,
-  type GraphSlice,
-  type GraphSliceProvenance,
-} from '@anarchitecture/ghost/core';
+  buildCatalogMenu,
+  parseGlossary,
+  type GhostCatalog,
+} from '@anarchitecture/ghost-fingerprint/core';
+import { readFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
   type FingerprintCatalog,
@@ -30,10 +29,45 @@ import type { TextCompletionRequest } from './model-providers.js';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
+/**
+ * The fingerprint's front door: the `index` node is the curated entrypoint of
+ * a flat-corpus Ghost package (the flat model has no root/cascade — `index` is
+ * a convention, not a graph position). It anchors the brief when no other
+ * node is selected.
+ */
+export const GHOST_FRONT_DOOR_ID = 'index';
+
+/**
+ * One check loaded from the fingerprint's `checks` haunt. Ghost does not
+ * export this type from a public subpath, so it is derived from the loaded
+ * package — the map value IS the integration contract.
+ */
+export type GhostLoadedCheck =
+  LoadedFingerprintPackage['checks'] extends Map<string, infer C> ? C : never;
+
+/**
+ * Why a pulled node is in the context: the curated front door (`index`), the
+ * semantically selected anchor (lead composition), or the rest of the flat
+ * corpus. Summon pulls the whole corpus — vendored fingerprints are small and
+ * the generator cannot call back mid-run to expand a menu — so "reason" labels
+ * emphasis, not inclusion.
+ */
+export type GhostPullReason = 'front-door' | 'anchor' | 'corpus';
+
+export interface PulledGhostNode {
+  id: string;
+  kind?: string;
+  body: string;
+  reason: GhostPullReason;
+}
+
 export interface GhostRootRequest {
   source: 'root';
   rootId: string;
   targetPath: string;
+  /** Relative Ghost package directory under the trusted root. */
+  packageDir: string | null;
+  /** Backward-compatible alias for packageDir; accepted on input and mirrored in parsed requests. */
   memoryDir: string | null;
 }
 
@@ -59,12 +93,23 @@ export interface GhostTokenSource {
   warnings: string[];
 }
 
+export interface GhostGlossaryEntry {
+  name: string;
+  purpose: string;
+}
+
 interface BaseGhostSteer {
+  /** The anchor node id — `index` by default, refined by semantic selection. */
   surface: string;
-  /** The resolved `.ghost` package dir — routing input for step-5 conformance. */
+  /** The resolved `.ghost` package dir — kept for diagnostics/receipts. */
   packageDir: string;
-  graph: GhostGraph;
-  slice: GraphSlice;
+  catalog: GhostCatalog;
+  /** Package glossary categories and their meanings, surfaced for generation. */
+  glossary: GhostGlossaryEntry[];
+  /** Checks from the `checks` haunt (never part of the generation context). */
+  checks: Map<string, GhostLoadedCheck>;
+  /** The full corpus, pulled in prompt order (front door → anchor → corpus). */
+  pulled: PulledGhostNode[];
   prompt: string;
   product: string;
   tokenSource: GhostTokenSource;
@@ -93,14 +138,14 @@ export interface GhostSurfacePromptOptions {
   surfacePlan: SurfacePlan;
   tools?: ToolPack | null;
   /**
-   * Utility-model completion for semantic surface selection. When omitted, the
-   * slice stays anchored at `core` (selection is an optional refinement).
+   * Utility-model completion for semantic anchor selection. When omitted, the
+   * brief stays anchored at `index` (selection is an optional refinement).
    */
   completeText?: (request: TextCompletionRequest) => Promise<string>;
   surfaceSelectTimeoutMs?: number;
   signal?: AbortSignal;
   /**
-   * Pre-selected anchor surface id. When provided, `prepareGhostSurfacePrompt`
+   * Pre-selected anchor node id. When provided, `prepareGhostSurfacePrompt`
    * skips its own `selectGhostSurface` model call and uses this anchor directly.
    * The caller is responsible for having resolved it via `selectGhostSurface`
    * (e.g. running it concurrently with the agent ward to avoid a second
@@ -118,19 +163,19 @@ export interface GhostReceiptValidation {
 
 export interface GhostReceiptGatheredNode {
   id: string;
-  provenance: GraphSliceProvenance['kind'];
+  reason: GhostPullReason;
 }
 
 export interface GhostReceipt {
-  schema: 'summon.ghost-receipt/v1';
+  schema: 'summon.ghost-receipt/v2';
   // --- spec-in ---
   fingerprint: {
     source: 'root' | 'catalog';
     id: string;
     name?: string;
     product: string;
+    /** The anchor node id (`index` when no lead composition was selected). */
     surface: string;
-    cascade: string[];
     gatheredNodes: GhostReceiptGatheredNode[];
     tokenSource: {
       kind: GhostTokenSource['kind'];
@@ -138,7 +183,7 @@ export interface GhostReceipt {
       definedTokenCount: number;
       warnings: string[];
     };
-    routedChecks: Array<{ name: string; severity: string }>;
+    offeredChecks: Array<{ name: string; severity: string }>;
   };
   capability: {
     mode: 'static' | 'interactive';
@@ -231,13 +276,16 @@ export function parseGhostRequest(
   const target = normalizeTargetPath(obj.targetPath);
   if (!target.ok) return { ok: false, error: target.error };
 
-  let memoryDir: string | null = null;
-  if (obj.memoryDir !== undefined && obj.memoryDir !== null && obj.memoryDir !== '') {
-    if (typeof obj.memoryDir !== 'string') {
-      return { ok: false, error: 'ghost.memoryDir must be a string' };
+  let packageDir: string | null = null;
+  const rawPackageDir = obj.packageDir !== undefined && obj.packageDir !== null && obj.packageDir !== ''
+    ? obj.packageDir
+    : obj.memoryDir;
+  if (rawPackageDir !== undefined && rawPackageDir !== null && rawPackageDir !== '') {
+    if (typeof rawPackageDir !== 'string') {
+      return { ok: false, error: obj.packageDir !== undefined ? 'ghost.packageDir must be a string' : 'ghost.memoryDir must be a string' };
     }
     try {
-      memoryDir = normalizeGhostMemoryDir(obj.memoryDir);
+      packageDir = normalizeGhostPackageDir(rawPackageDir, obj.packageDir !== undefined ? 'ghost.packageDir' : 'ghost.memoryDir');
     } catch (err) {
       return {
         ok: false,
@@ -252,7 +300,8 @@ export function parseGhostRequest(
       source: 'root',
       rootId: obj.rootId,
       targetPath: target.path,
-      memoryDir,
+      packageDir,
+      memoryDir: packageDir,
     },
   };
 }
@@ -275,24 +324,27 @@ export async function resolveGhostGenerationContext(
     throw new Error('ghost.targetPath must stay within the configured root');
   }
 
-  const ghostDir = join(root, request.memoryDir ?? '.ghost');
+  const ghostDir = join(root, request.packageDir ?? request.memoryDir ?? '.ghost');
   const paths = resolveFingerprintPackage(ghostDir, process.cwd());
-  const { graph } = await loadFingerprintPackage(paths);
-  const slice = resolveGraphSlice(graph, GHOST_GRAPH_ROOT_ID);
+  const { catalog, checks } = await loadFingerprintPackage(paths);
+  const glossary = await loadGhostGlossary(paths.glossary);
+  const pulled = pullCorpus(catalog, GHOST_FRONT_DOOR_ID);
 
   const product = request.rootId;
-  const css = extractSliceCss(slice);
-  const tokenSource = resolveGraphTokenSource(css);
+  const css = extractCorpusCss(pulled);
+  const tokenSource = resolveCorpusTokenSource(css);
 
   return {
     source: 'root',
     request,
     root,
-    surface: 'core',
+    surface: GHOST_FRONT_DOOR_ID,
     packageDir: paths.packageDir,
-    graph,
-    slice,
-    prompt: renderSlicePrompt(slice),
+    catalog,
+    glossary,
+    checks,
+    pulled,
+    prompt: renderCorpusPrompt(pulled, GHOST_FRONT_DOOR_ID, glossary),
     product,
     tokenSource,
   };
@@ -306,12 +358,13 @@ export async function resolveCatalogGhostGenerationContext(
   if (!entry) throw new Error(`unknown fingerprint "${request.id}"`);
 
   const paths = resolveFingerprintPackage(entry.ghostDir, process.cwd());
-  const { graph } = await loadFingerprintPackage(paths);
-  const slice = resolveGraphSlice(graph, GHOST_GRAPH_ROOT_ID);
+  const { catalog: nodeCatalog, checks } = await loadFingerprintPackage(paths);
+  const glossary = await loadGhostGlossary(paths.glossary);
+  const pulled = pullCorpus(nodeCatalog, GHOST_FRONT_DOOR_ID);
 
   const product = entry.name || request.id;
-  const css = extractSliceCss(slice);
-  const tokenSource = resolveGraphTokenSource(css);
+  const css = extractCorpusCss(pulled);
+  const tokenSource = resolveCorpusTokenSource(css);
   if (!css.trim()) {
     tokenSource.warnings.push(`Fingerprint "${request.id}" .ghost has no token css block`);
   }
@@ -325,11 +378,13 @@ export async function resolveCatalogGhostGenerationContext(
     },
     catalogEntry: entry,
     root: entry.root,
-    surface: 'core',
+    surface: GHOST_FRONT_DOOR_ID,
     packageDir: paths.packageDir,
-    graph,
-    slice,
-    prompt: renderSlicePrompt(slice),
+    catalog: nodeCatalog,
+    glossary,
+    checks,
+    pulled,
+    prompt: renderCorpusPrompt(pulled, GHOST_FRONT_DOOR_ID, glossary),
     product,
     tokenSource,
   };
@@ -339,37 +394,28 @@ export async function prepareGhostSurfacePrompt(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): Promise<ResolvedGhostSteer> {
-  // Surface selection happens at prepare-time (both prompt + graph are
-  // available here). The resolve fns default to `core`; this refines the choice
-  // once the user prompt is known. Selection is semantic (model-driven over the
-  // gather menu) and optional — without a `completeText` it stays at `core`.
+  // Anchor selection happens at prepare-time (prompt + catalog are both
+  // available here). The resolve fns default to `index`; this refines the
+  // choice once the user prompt is known. Selection is semantic (model-driven
+  // over the gather menu) and optional — without a `completeText` it stays at
+  // `index`. Summon pulls the WHOLE corpus either way: the anchor only hoists
+  // the lead composition node, it never changes what the generator sees, so
+  // the token CSS is anchor-independent by construction.
   let resolved = context;
-  // Use a pre-resolved anchor when the caller already ran selection (e.g.
-  // concurrently with the agent ward). Validate it against the graph menu and
-  // fall back to `core` for an unknown id, matching selectGhostSurface's
-  // contract (which also accepts `core` and rejects out-of-menu answers).
   const chosen = options.preselectedSurface !== undefined
-    ? validatePreselectedSurface(context.graph, options.preselectedSurface)
-    : await selectGhostSurface(context.graph, options.userPrompt, {
+    ? validatePreselectedSurface(context.catalog, options.preselectedSurface)
+    : await selectGhostSurface(context.catalog, options.userPrompt, {
         completeText: options.completeText,
         timeoutMs: options.surfaceSelectTimeoutMs,
         signal: options.signal,
       });
   if (chosen !== context.surface) {
-    const slice = resolveGraphSlice(context.graph, chosen);
-    // Rebuild the token CSS from the new slice, but preserve the kind/source
-    // already resolved at load-time. This keeps the token plumbing stable while
-    // the slice/prose follow the selected surface.
-    const tokenSource: GhostTokenSource = {
-      ...context.tokenSource,
-      css: extractSliceCss(slice),
-    };
+    const pulled = pullCorpus(context.catalog, chosen);
     resolved = {
       ...context,
       surface: chosen,
-      slice,
-      tokenSource,
-      prompt: renderSlicePrompt(slice),
+      pulled,
+      prompt: renderCorpusPrompt(pulled, chosen, context.glossary),
     };
   }
 
@@ -386,8 +432,8 @@ export async function prepareGhostSurfacePrompt(
 export interface SelectGhostSurfaceOptions {
   /**
    * Utility-model text completion (same path conformance uses). When absent,
-   * selection is skipped entirely and the slice stays anchored at `core` —
-   * surface choice is an optional refinement, never a required gate.
+   * selection is skipped entirely and the brief stays anchored at `index` —
+   * anchor choice is an optional refinement, never a required gate.
    */
   completeText?: (request: TextCompletionRequest) => Promise<string>;
   timeoutMs?: number;
@@ -397,44 +443,43 @@ export interface SelectGhostSurfaceOptions {
 const SURFACE_SELECT_TIMEOUT_MS = 8000;
 
 const SURFACE_SELECT_SYSTEM_PROMPT = [
-  'You pick the single best-fitting composition archetype for a UI generation',
+  'You pick the single best-fitting composition node for a UI generation',
   'request against a design fingerprint. You are given the user request and a',
-  'menu of candidate archetypes (id + a one-line "reach when" description). Pick',
+  'menu of candidate nodes (id + a one-line "reach when" description). Pick',
   'the one id whose description best matches what the user is asking to build.',
-  'Prefer a concrete archetype whenever one plausibly fits — it only focuses the',
-  'lead composition; the generator still sees the full fingerprint vocabulary, so',
-  'a confident-but-imperfect pick is better than defaulting to the shared base.',
-  'Answer "core" only when the request is genuinely generic or truly matches no',
-  'archetype. Answer with ONLY the chosen id, nothing else.',
+  'Prefer a concrete node whenever one plausibly fits — it only focuses the',
+  'lead composition; the generator still sees the full fingerprint corpus, so',
+  'a confident-but-imperfect pick is better than defaulting to the front door.',
+  'Answer "index" only when the request is genuinely generic or truly matches',
+  'no node. Answer with ONLY the chosen id, nothing else.',
 ].join(' ');
 
 /**
- * Semantic surface selection — the host hands Ghost's gather menu to the model
- * and lets it pick the anchoring surface, exactly as Ghost intends ("the agent
+ * Semantic anchor selection — the host hands Ghost's gather menu to the model
+ * and lets it pick the anchoring node, exactly as Ghost intends ("the agent
  * matches a natural-language ask against descriptions and picks; Ghost does no
- * NLP"). Summon does not re-implement that matching in code.
+ * NLP and no selection"). Summon does not re-implement that matching in code.
  *
  * Selection is an *optional refinement*, never a gate:
- * - single-surface (only `core`) graphs always return `core` with no model call;
- * - no `completeText` provided → no model call, returns `core`;
- * - any timeout, error, empty, or out-of-menu answer → falls back to `core`.
+ * - single-node (only `index`) corpora always return `index` with no model call;
+ * - no `completeText` provided → no model call, returns `index`;
+ * - any timeout, error, empty, or out-of-menu answer → falls back to `index`.
  *
- * Falling back to `core` is safe by construction: `core` is always on the spine,
- * so its slice carries the full shared material and spoke pointers to every
- * surface — the model still sees everything, just unfocused. The directory
- * walls do the slice composition; this only chooses where to anchor.
+ * Falling back to `index` is safe by construction: Summon pulls the whole flat
+ * corpus regardless of anchor — the model still sees everything, just without
+ * a hoisted lead composition. The anchor labels emphasis, nothing else.
  */
 export async function selectGhostSurface(
-  graph: GhostGraph,
+  catalog: GhostCatalog,
   prompt: string,
   options: SelectGhostSurfaceOptions = {},
 ): Promise<string> {
-  const menu = buildGraphMenu(graph);
-  const candidates = menu.filter((entry) => entry.id !== GHOST_GRAPH_ROOT_ID);
-  if (candidates.length === 0) return GHOST_GRAPH_ROOT_ID;
+  const menu = buildCatalogMenu(catalog);
+  const candidates = menu.filter((entry) => entry.id !== GHOST_FRONT_DOOR_ID);
+  if (candidates.length === 0) return GHOST_FRONT_DOOR_ID;
 
   const { completeText } = options;
-  if (!completeText) return GHOST_GRAPH_ROOT_ID;
+  if (!completeText) return GHOST_FRONT_DOOR_ID;
 
   const menuText = candidates
     .map((entry) => `- ${entry.id}: ${entry.description ?? '(no description)'}`)
@@ -442,7 +487,7 @@ export async function selectGhostSurface(
   const userPrompt = [
     `User request:\n${prompt.trim()}`,
     '',
-    `Candidate surfaces:\n${menuText}\n- core: the shared base; pick this when no surface clearly fits.`,
+    `Candidate nodes:\n${menuText}\n- index: the curated front door; pick this when no node clearly fits.`,
     '',
     'Chosen id:',
   ].join('\n');
@@ -460,11 +505,11 @@ export async function selectGhostSurface(
       temperature: 0,
       signal: controller.signal,
     });
-    const chosen = raw.trim().toLowerCase().split(/[^a-z0-9._-]+/)[0] ?? '';
-    if (chosen === GHOST_GRAPH_ROOT_ID || chosen === '') return GHOST_GRAPH_ROOT_ID;
-    return candidates.some((entry) => entry.id === chosen) ? chosen : GHOST_GRAPH_ROOT_ID;
+    const chosen = raw.trim().toLowerCase().split(/[^a-z0-9._/-]+/)[0] ?? '';
+    if (chosen === GHOST_FRONT_DOOR_ID || chosen === '') return GHOST_FRONT_DOOR_ID;
+    return candidates.some((entry) => entry.id === chosen) ? chosen : GHOST_FRONT_DOOR_ID;
   } catch {
-    return GHOST_GRAPH_ROOT_ID;
+    return GHOST_FRONT_DOOR_ID;
   } finally {
     clearTimeout(timer);
     options.signal?.removeEventListener('abort', onAbort);
@@ -472,17 +517,14 @@ export async function selectGhostSurface(
 }
 
 /**
- * Validate a caller-supplied anchor id against the graph menu. Accepts `core`
- * and any candidate surface; an unknown id falls back to `core`. Mirrors the
- * out-of-menu guard in `selectGhostSurface` so a pre-resolved anchor is held to
- * the same contract as a freshly selected one.
+ * Validate a caller-supplied anchor id against the catalog menu. Accepts
+ * `index` and any catalog node; an unknown id falls back to `index`. Mirrors
+ * the out-of-menu guard in `selectGhostSurface` so a pre-resolved anchor is
+ * held to the same contract as a freshly selected one.
  */
-function validatePreselectedSurface(graph: GhostGraph, surfaceId: string): string {
-  if (surfaceId === GHOST_GRAPH_ROOT_ID) return GHOST_GRAPH_ROOT_ID;
-  const menu = buildGraphMenu(graph);
-  return menu.some((entry) => entry.id === surfaceId)
-    ? surfaceId
-    : GHOST_GRAPH_ROOT_ID;
+function validatePreselectedSurface(catalog: GhostCatalog, surfaceId: string): string {
+  if (surfaceId === GHOST_FRONT_DOOR_ID) return GHOST_FRONT_DOOR_ID;
+  return catalog.nodes.has(surfaceId) ? surfaceId : GHOST_FRONT_DOOR_ID;
 }
 
 export function ghostContextMeta(ctx: ResolvedGhostContext) {
@@ -498,7 +540,7 @@ export function ghostContextMeta(ctx: ResolvedGhostContext) {
     } : {}),
     product: ctx.product,
     surface: ctx.surface,
-    gatheredNodes: sliceNodeIds(ctx.slice),
+    gatheredNodes: ctx.pulled.map((node) => node.id),
     styleSource: ctx.tokenSource.kind,
   };
 }
@@ -536,17 +578,16 @@ export function buildGhostReceipt(input: {
   const ctx = input.context;
   const conformance = input.conformance;
   return {
-    schema: 'summon.ghost-receipt/v1',
+    schema: 'summon.ghost-receipt/v2',
     fingerprint: {
       source: ctx.source,
       id: ctx.source === 'root' ? ctx.request.rootId : ctx.request.fingerprintId,
       ...(ctx.source === 'catalog' ? { name: ctx.catalogEntry.name } : {}),
       product: ctx.product,
       surface: ctx.surface,
-      cascade: [ctx.surface, ...ctx.slice.ancestors],
-      gatheredNodes: ctx.slice.nodes.map((node) => ({
+      gatheredNodes: ctx.pulled.map((node) => ({
         id: node.id,
-        provenance: node.provenance.kind,
+        reason: node.reason,
       })),
       tokenSource: {
         kind: ctx.tokenSource.kind,
@@ -554,7 +595,7 @@ export function buildGhostReceipt(input: {
         definedTokenCount: countDefinedTokens(ctx.tokenSource.css),
         warnings: ctx.tokenSource.warnings,
       },
-      routedChecks: conformance.checks.map((check) => ({
+      offeredChecks: conformance.checks.map((check) => ({
         name: check.name,
         severity: check.severity,
       })),
@@ -595,8 +636,8 @@ function buildSummonFingerprintSurfaceBrief(
   const successRule = '- This generation succeeds only if the final Surface Document artifact is visually rich and recognizably faithful to the supplied Ghost fingerprint.';
   const details = [
     `Product: ${context.product}`,
-    `Fingerprint surface: ${context.surface} (cascade: ${sliceCascade(context.slice)})`,
-    `Gathered nodes: ${sliceProvenanceList(context.slice) || 'core'}`,
+    `Fingerprint anchor: ${context.surface}${context.surface === GHOST_FRONT_DOOR_ID ? ' (front door)' : ' (lead composition)'}`,
+    `Gathered nodes: ${pulledNodeList(context.pulled) || GHOST_FRONT_DOOR_ID}`,
     `User request: ${oneLine(options.userPrompt, 600)}`,
     `Surface plan: purpose=${options.surfacePlan.purpose}; runtime=${options.surfacePlan.runtime}; data=${options.surfacePlan.data}; authority=${options.surfacePlan.authority}; persistence=${options.surfacePlan.persistence}`,
     'Output runtime: surface-document',
@@ -605,13 +646,13 @@ function buildSummonFingerprintSurfaceBrief(
   ].filter((line): line is string => Boolean(line));
 
   // The differentiating content: this fingerprint's signature moves (mandatory,
-  // brand-defining), injected regardless of the anchored surface so a `core`
-  // anchor is never a generic base. Composition itself is authored entirely in
-  // the fingerprint's own `core` prose (the grammar) and building-block nodes
+  // brand-defining), injected regardless of the anchor so an `index` anchor is
+  // never a generic base. Composition itself is authored entirely in the
+  // fingerprint's own front-door prose (the grammar) and building-block nodes
   // (the composable vocabulary) rendered verbatim above — Summon injects NO
   // composition voice of its own, so distinct fingerprints cannot collapse to a
   // shared Summon-authored layout.
-  const signatureBlock = buildSignatureMovesBlock(context.graph);
+  const signatureBlock = buildSignatureMovesBlock(context.catalog);
 
   return [
     '## Summon Surface Brief',
@@ -631,7 +672,7 @@ function buildSummonFingerprintSurfaceBrief(
     successRule,
     '- A technically valid but generic surface is a failed generation.',
     '- The user request is the semantic and task authority: satisfy its workflow, content, data need, and intended action before choosing structure.',
-    '- The Ghost fingerprint is the sole composition authority: its `core` prose states how this language composes a surface, and its building-block nodes are the parts you compose from. Follow them; do not substitute a generic layout of your own.',
+    '- The Ghost fingerprint is the sole composition authority: its front-door (`index`) prose states how this language composes a surface, and its building-block nodes are the parts you compose from. Follow them; do not substitute a generic layout of your own.',
     '- Summon safety restricts APIs, host authority, and runtime behavior. It does not require bland UI, and it has no opinion about how the surface should look.',
     '',
     'Authoring mechanics (design-neutral):',
@@ -645,16 +686,16 @@ function buildSummonFingerprintSurfaceBrief(
 
 /**
  * The fingerprint's brand-defining "Signature look & feel" moves, extracted
- * verbatim from the `core` root node's `## Signature look & feel` section and
- * voiced as mandatory requirements for THIS run. Generic "don't be generic"
- * instructions do not prevent generic output; naming the fingerprint's own
- * unmistakable moves as must-haves does. Returns '' when the fingerprint has no
- * signature section (older packages) so the brief degrades gracefully.
+ * verbatim from the front-door (`index`) node's `## Signature look & feel`
+ * section and voiced as mandatory requirements for THIS run. Generic "don't be
+ * generic" instructions do not prevent generic output; naming the fingerprint's
+ * own unmistakable moves as must-haves does. Returns '' when the fingerprint
+ * has no signature section (older packages) so the brief degrades gracefully.
  */
-function buildSignatureMovesBlock(graph: GhostGraph): string {
-  const root = graph.nodes.get(GHOST_GRAPH_ROOT_ID);
-  if (!root?.body) return '';
-  const section = extractMarkdownSection(root.body, 'Signature look & feel');
+function buildSignatureMovesBlock(catalog: GhostCatalog): string {
+  const frontDoor = catalog.nodes.get(GHOST_FRONT_DOOR_ID);
+  if (!frontDoor?.body) return '';
+  const section = extractMarkdownSection(frontDoor.body, 'Signature look & feel');
   if (!section) return '';
   return [
     'Signature moves — non-negotiable for this fingerprint:',
@@ -687,46 +728,59 @@ function extractMarkdownSection(markdown: string, title: string): string | null 
   return body || null;
 }
 
-const PROVENANCE_RANK: Record<GraphSliceProvenance['kind'], number> = {
-  own: 0,
-  ancestor: 1,
-  edge: 2,
-};
+/**
+ * Pull the whole flat corpus in prompt order: front door first, the anchor
+ * hoisted second (when it is a distinct node), then the rest sorted by id.
+ * Ghost's contract is agent-side selection over the gather menu; for Summon's
+ * vendored fingerprints (small, curated corpora feeding a single-shot
+ * generation that cannot call back to pull more) selecting EVERYTHING is the
+ * fidelity-preserving choice — it matches what the old core slice carried.
+ */
+function pullCorpus(catalog: GhostCatalog, anchor: string): PulledGhostNode[] {
+  const pulled: PulledGhostNode[] = [];
+  const push = (id: string, reason: GhostPullReason) => {
+    const node = catalog.nodes.get(id);
+    if (!node || !node.body.trim()) return;
+    pulled.push({
+      id: node.id,
+      ...(node.kind !== undefined ? { kind: node.kind } : {}),
+      body: node.body,
+      reason,
+    });
+  };
 
-function provenanceLabel(provenance: GraphSliceProvenance): string {
-  switch (provenance.kind) {
-    case 'own':
-      return 'own';
-    case 'ancestor':
-      return `from \`${provenance.from}\``;
-    case 'edge':
-      return provenance.via
-        ? `${provenance.via} \`${provenance.from}\``
-        : `relates \`${provenance.from}\``;
+  push(GHOST_FRONT_DOOR_ID, 'front-door');
+  if (anchor !== GHOST_FRONT_DOOR_ID) push(anchor, 'anchor');
+  const rest = [...catalog.nodes.keys()]
+    .filter((id) => id !== GHOST_FRONT_DOOR_ID && id !== anchor)
+    .sort((a, b) => a.localeCompare(b));
+  for (const id of rest) push(id, 'corpus');
+  return pulled;
+}
+
+function reasonLabel(node: PulledGhostNode): string {
+  switch (node.reason) {
+    case 'front-door':
+      return 'front door';
+    case 'anchor':
+      return 'lead composition';
+    case 'corpus':
+      return node.kind ? `(${node.kind})` : '';
   }
 }
 
-function sliceCascade(slice: GraphSlice): string {
-  return slice.surface === GHOST_GRAPH_ROOT_ID && slice.ancestors.length === 0
-    ? slice.surface
-    : [slice.surface, ...slice.ancestors].join(' → ');
-}
-
-// Strip the fenced ```css block(s) from a node body: the token VALUES are
-// already extracted into tokenSource.css / injected as activeTokensCss, so the
-// prose should carry only the intent (no duplication). Tidy trailing blanks.
-function renderSlicePrompt(slice: GraphSlice): string {
+function renderCorpusPrompt(
+  pulled: PulledGhostNode[],
+  anchor: string,
+  glossary: GhostGlossaryEntry[] = [],
+): string {
   const blocks: string[] = [
     '# Ghost Fingerprint',
-    `Cascade: ${sliceCascade(slice)}`,
+    `Anchor: ${anchor}`,
   ];
-  // Provenance-ordered: own first, then ancestors, then edges (mirrors Ghost's
-  // gather formatter). Spokes are omitted for Summon v1 (decision 2) — the model
-  // cannot call back to expand them in a single generation.
-  const ordered = [...slice.nodes].sort(
-    (a, b) => PROVENANCE_RANK[a.provenance.kind] - PROVENANCE_RANK[b.provenance.kind],
-  );
-  for (const node of ordered) {
+  const glossaryBlock = renderGlossaryPrompt(glossary);
+  if (glossaryBlock) blocks.push(glossaryBlock);
+  for (const node of pulled) {
     // Keep the node body verbatim — including any fenced ```css token block.
     // The fingerprint prose is the ONLY place the model sees the token CSS:
     // activeTokensCss is consumed solely for validation (parseDefinedTokens) and
@@ -735,29 +789,60 @@ function renderSlicePrompt(slice: GraphSlice): string {
     // own (e.g. --canvas instead of --color-bg). So the prose carries the values.
     const body = node.body.trim();
     if (!body) continue;
-    blocks.push(`## ${node.id} — ${provenanceLabel(node.provenance)}`, body);
+    const label = reasonLabel(node);
+    blocks.push(label ? `## ${node.id} — ${label}` : `## ${node.id}`, body);
   }
   return blocks.join('\n\n');
 }
 
-function sliceNodeIds(slice: GraphSlice): string[] {
-  return slice.nodes.map((node) => node.id);
+function pulledNodeList(pulled: PulledGhostNode[]): string {
+  return pulled
+    .map((node) => `${node.id} (${node.reason})`)
+    .join(', ');
 }
 
-function sliceProvenanceList(slice: GraphSlice): string {
-  const ordered = [...slice.nodes].sort(
-    (a, b) => PROVENANCE_RANK[a.provenance.kind] - PROVENANCE_RANK[b.provenance.kind],
-  );
-  return ordered
-    .map((node) => `${node.id} (${node.provenance.kind})`)
-    .join(', ');
+function renderGlossaryPrompt(glossary: GhostGlossaryEntry[]): string {
+  const entries = glossary
+    .filter((entry) => entry.name.trim().length > 0)
+    .map((entry) => {
+      const purpose = entry.purpose.replace(/\s+/g, ' ').trim();
+      return `- **${entry.name}**${purpose ? ` — ${purpose}` : ''}`;
+    });
+  if (entries.length === 0) return '';
+  return ['## Fingerprint glossary', '', ...entries].join('\n');
+}
+
+async function loadGhostGlossary(path: string): Promise<GhostGlossaryEntry[]> {
+  try {
+    const raw = await readFile(path, 'utf-8');
+    const result = parseGlossary(raw);
+    if (result.glossary === null) return [];
+    return result.glossary.categories.map((category) => ({
+      name: category.name,
+      purpose: category.purpose,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 const CSS_BLOCK_RE = /```css\n([\s\S]*?)```/g;
 
-function extractSliceCss(slice: GraphSlice): string {
+/**
+ * Extract fenced ```css blocks across the pulled corpus for deterministic
+ * token injection. Extraction order follows pull order but is normalized to
+ * front door → id order (never anchor-hoisted), so the resulting CSS — and
+ * therefore last-write-wins token resolution — is stable regardless of which
+ * anchor was selected for the run.
+ */
+function extractCorpusCss(pulled: PulledGhostNode[]): string {
+  const ordered = [...pulled].sort((a, b) => {
+    const aFront = a.reason === 'front-door' ? 0 : 1;
+    const bFront = b.reason === 'front-door' ? 0 : 1;
+    return aFront - bFront || a.id.localeCompare(b.id);
+  });
   const blocks: string[] = [];
-  for (const node of slice.nodes) {
+  for (const node of ordered) {
     for (const match of node.body.matchAll(CSS_BLOCK_RE)) {
       const css = match[1]?.trim();
       if (css) blocks.push(css);
@@ -766,24 +851,24 @@ function extractSliceCss(slice: GraphSlice): string {
   return blocks.join('\n\n');
 }
 
-function resolveGraphTokenSource(css: string): GhostTokenSource {
+function resolveCorpusTokenSource(css: string): GhostTokenSource {
   return {
     kind: 'ghost-config',
-    source: 'fingerprint:core',
+    source: 'fingerprint:index',
     css,
     warnings: [],
   };
 }
 
-function normalizeGhostMemoryDir(raw: string): string {
+function normalizeGhostPackageDir(raw: string, label: 'ghost.packageDir' | 'ghost.memoryDir'): string {
   const normalized = raw.trim().replaceAll('\\', '/').replace(/\/+/g, '/').replace(/\/$/g, '');
   if (!normalized || normalized === '.') return '.ghost';
   if (normalized.startsWith('/') || isAbsolute(normalized) || /^[A-Za-z]:/.test(normalized)) {
-    throw new Error('ghost.memoryDir must be relative');
+    throw new Error(`${label} must be relative`);
   }
   const segments = normalized.split('/');
   if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-    throw new Error('ghost.memoryDir must not contain path traversal segments');
+    throw new Error(`${label} must not contain path traversal segments`);
   }
   return segments.join('/');
 }

@@ -274,13 +274,13 @@ and every hazard fill paired with its `-fg` text color — with mono metadata he
 at a 10–12px floor and focus made unmistakable by the mint ring on the dark field.
 
 The shared material every surface draws on lives in the root nodes that reach
-everywhere: the [dark canvas and hazard-accent system](canvas) that is the field
+everywhere: the [dark canvas and hazard-accent system](principle.canvas) that is the field
 and its saturated interruptions, the [display-shout and mono-metadata type
-system](type-system) that anchors and navigates the page, the [pill-corner stream
-tile system](tiles) that carries repeating units and saturated tiles, and the
-[segmented tabs and hazard-pill controls](controls) that switch modes and drive
-action, while the [transmission grammar](transmission-grammar) paces, annotates,
-and cross-references the stream and the [stream cadence](cadence) sets the meter
+system](pattern.type-system) that anchors and navigates the page, the [pill-corner stream
+tile system](pattern.tiles) that carries repeating units and saturated tiles, and the
+[segmented tabs and hazard-pill controls](pattern.controls) that switch modes and drive
+action, while the [transmission grammar](pattern.transmission-grammar) paces, annotates,
+and cross-references the stream and the [stream cadence](pattern.cadence) sets the meter
 — dense runs, full-width interruptions, chapter breaks, the loop splice, and the
 skim-versus-dwell registers. Every surface tunes these same building blocks to
 its own job.
@@ -317,12 +317,12 @@ Five principles carry the language and are true on every surface:
 **Tuning a surface from the signal.** Signal Stream has no fixed page types —
 every surface is tuned for its task from the same kit of parts, laid down on the
 field in the same order. Lay everything on the [dark canvas and hazard-accent
-field](canvas) so bright fills stay interruptions, not the default; anchor the
-first read with the [display shout and mono metadata](type-system) so the loudest
+field](principle.canvas) so bright fills stay interruptions, not the default; anchor the
+first read with the [display shout and mono metadata](pattern.type-system) so the loudest
 signal states itself before any prose and the whisper kicker orients it; carry the
-content on the [stream tiles and the signal rail](tiles) so order, recency, and
+content on the [stream tiles and the signal rail](pattern.tiles) so order, recency, and
 sequence read as a physical column before a word is read; switch modes and drive
-the one next action with the [segmented tabs and hazard-pill controls](controls).
+the one next action with the [segmented tabs and hazard-pill controls](pattern.controls).
 Let the task set the shape of the signal, not a template: when it reports a state
 or verdict, state the claim first in the shout, prove it with compact hairline rows
 on `--signal-tile-fill-flat`, and land on a single mint `--signal-pill-*` action,

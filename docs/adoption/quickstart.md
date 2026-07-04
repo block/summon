@@ -62,23 +62,26 @@ Add one or more trusted Ghost roots to `apps/server/.env`:
 SUMMON_GHOST_ROOTS=checkout=/absolute/path/to/checkout
 ```
 
-Canonical Ghost packages use this layout:
+Canonical Ghost packages use the flat corpus layout:
 
 ```txt
 /absolute/path/to/checkout
 └── .ghost
-    ├── config.yml
-    └── fingerprint
-        ├── manifest.yml
-        ├── prose.yml
-        ├── inventory.yml
-        └── composition.yml
+    ├── manifest.yml
+    ├── glossary.md
+    ├── index.md
+    ├── principle.composition.md
+    ├── pattern.*.md
+    └── haunts
+        └── checks
+            ├── haunt.yml
+            └── *.md
 ```
 
-Only canonical split fingerprint packages are supported. Roots must
-include `.ghost/fingerprint/manifest.yml`; host wrappers can set
-`GHOST_MEMORY_DIR` when the package directory lives somewhere else, and an
-explicit `ghost.memoryDir` request value overrides that process default.
+Roots default to a `.ghost/manifest.yml` package. If a host stores the package
+elsewhere under the configured root, pass an explicit relative `ghost.packageDir` request value
+(`ghost.memoryDir` remains accepted as a backward-compatible alias). Keep the package directory inside the trusted root; path traversal
+and absolute package paths are rejected.
 
 Then start the gallery or the workbench:
 
@@ -97,20 +100,20 @@ package or catalog bundle, and does not require contract-complete Summon token
 names.
 
 When the run starts, the Stream drawer should show `/ghost-context`,
-`/ghost-token-source`, `/ghost-ingestion-contract`, and `/ghost-review-packet`
-metadata. Those lines confirm Ghost relay resolved the fingerprint stack and
-Task Contract, Summon compiled the selected fingerprint material for prompting,
-selected token/style CSS, generated a governed surface, and emitted the review
-packet for inspection. Runtime generation also streams conformance diagnostics
-when available; use Ghost package validation, conformance verdicts, and review
-packets to inspect drift.
+`/ghost-token-source`, `/ghost-conformance`, and `/ghost-receipt` metadata.
+Those lines confirm Summon loaded the fingerprint corpus, selected token/style
+CSS, generated a governed surface, evaluated fingerprint conformance when checks
+are available, and emitted an accounting receipt. Use Ghost package validation,
+conformance verdicts, and receipts to inspect drift.
 
 Useful checks for a configured root:
 
 ```sh
-ghost lint
-ghost verify . --root .
-ghost relay gather .
+ghost validate
+ghost gather "host resource search surface"
+ghost pull index
+ghost haunt list
+ghost review --base main
 ```
 
 ## Golden Scenario

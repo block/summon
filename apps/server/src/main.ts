@@ -433,7 +433,7 @@ app.post('/api/generate', async (req, res) => {
     const ghostSurfaceSelectEnabled =
       !!ghostContext && process.env.SUMMON_GHOST_SURFACE_SELECT !== '0';
     const ghostSurfacePromise: Promise<string | null> = ghostSurfaceSelectEnabled
-      ? selectGhostSurface(ghostContext!.graph, prompt, {
+      ? selectGhostSurface(ghostContext!.catalog, prompt, {
           completeText: (request) => utilityModelProvider.completeText(request, utilityModelSelection),
         })
       : Promise.resolve(null);
@@ -619,8 +619,8 @@ app.post('/api/generate', async (req, res) => {
     const fidelityReviewer = fidelityBudget > 0 && ghostContext
       ? async (source: Record<string, string>): Promise<ContractIssue[]> => {
           const verdict = await evaluateConformance({
-            packageDir: ghostContext!.packageDir,
-            graph: ghostContext!.graph,
+            checks: ghostContext!.checks,
+            catalog: ghostContext!.catalog,
             surface: ghostContext!.surface,
             artifactSource: source,
             completeText: (request) =>
@@ -689,8 +689,8 @@ app.post('/api/generate', async (req, res) => {
           try {
             const artifactSource = extractArtifactSource(summary.emittedLines);
             verdict = await evaluateConformance({
-              packageDir: ghostContext.packageDir,
-              graph: ghostContext.graph,
+              checks: ghostContext.checks,
+              catalog: ghostContext.catalog,
               surface: ghostContext.surface,
               artifactSource,
               completeText: (request) =>

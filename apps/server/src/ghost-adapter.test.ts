@@ -12,7 +12,7 @@ import {
   resolveGhostContext,
   selectGhostSurface,
 } from './ghost-adapter.js';
-import { assembleGraph } from '@anarchitecture/ghost/core';
+import { assembleCatalog } from '@anarchitecture/ghost-fingerprint/core';
 
 const fixtureRoots: string[] = [];
 
@@ -55,24 +55,26 @@ describe('Ghost adapter', () => {
       source: 'root',
       rootId: 'checkout',
       targetPath: '.',
+      packageDir: null,
       memoryDir: null,
     });
 
     const withTarget = parseGhostRequest({
       rootId: 'checkout',
       targetPath: 'app',
-      memoryDir: '.ghost',
+      packageDir: '.ghost',
     }, roots);
     assert.equal(withTarget.ok, true);
     assert.deepEqual(withTarget.ok ? withTarget.request : null, {
       source: 'root',
       rootId: 'checkout',
       targetPath: 'app',
+      packageDir: '.ghost',
       memoryDir: '.ghost',
     });
   });
 
-  it('loads the fingerprint graph and resolves the core slice into prompt context and token CSS', async () => {
+  it('loads the fingerprint catalog and pulls the corpus into prompt context and token CSS', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -82,22 +84,23 @@ describe('Ghost adapter', () => {
     const ctx = await resolveGhostContext(parsed.request, roots);
 
     assert.equal(ctx.source, 'root');
-    assert.equal(ctx.surface, 'core');
+    assert.equal(ctx.surface, 'index');
     assert.equal(ctx.root, resolve(root));
-    // graph loaded
-    assert.ok(ctx.graph.nodes.size >= 1);
-    // slice resolves the core node
-    assert.equal(ctx.slice.surface, 'core');
-    assert.ok(ctx.slice.nodes.some((node) => node.id === 'core'));
+    // catalog loaded
+    assert.ok(ctx.catalog.nodes.size >= 1);
+    // the front door is pulled first
+    assert.ok(ctx.pulled.some((node) => node.id === 'index'));
+    assert.equal(ctx.pulled[0]?.id, 'index');
+    assert.equal(ctx.pulled[0]?.reason, 'front-door');
     assert.equal(ctx.product, 'checkout');
     assert.match(ctx.prompt, /# Ghost Fingerprint/);
-    // cascade line + provenance-labeled core node
-    assert.match(ctx.prompt, /Cascade: core/);
-    assert.match(ctx.prompt, /## core — own/);
+    // anchor line + front-door-labeled index node
+    assert.match(ctx.prompt, /Anchor: index/);
+    assert.match(ctx.prompt, /## index — front door/);
     assert.match(ctx.prompt, /Preserve quiet density/);
-    // token CSS comes from the fenced css block in the core node body
+    // token CSS comes from the fenced css block in the index node body
     assert.equal(ctx.tokenSource.kind, 'ghost-config');
-    assert.equal(ctx.tokenSource.source, 'fingerprint:core');
+    assert.equal(ctx.tokenSource.source, 'fingerprint:index');
     assert.match(ctx.tokenSource.css, /--color-bg/);
     // The fingerprint prose is the ONLY place the model sees the token CSS:
     // activeTokensCss is consumed for validation + sandbox injection, never
@@ -107,7 +110,7 @@ describe('Ghost adapter', () => {
     assert.match(ctx.prompt, /--color-bg/);
   });
 
-  it('injects signature moves and the fingerprint\'s own composition grammar at the core anchor', async () => {
+  it('injects signature moves and the fingerprint\'s own composition grammar at the index anchor', async () => {
     const root = await makeRichGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -115,9 +118,9 @@ describe('Ghost adapter', () => {
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
     const ctx = await resolveGhostContext(parsed.request, roots);
-    // The common path: anchor stays at `core`. Composition authority lives in
-    // the fingerprint's own `core` prose + building-block nodes, so a `core`
-    // anchor is fully composed — not a generic base.
+    // The common path: anchor stays at `index`. Composition authority lives in
+    // the fingerprint's own front-door prose + building-block nodes, so an
+    // `index` anchor is fully composed — not a generic base.
     const prepared = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'make me something',
       mode: 'static',
@@ -128,15 +131,16 @@ describe('Ghost adapter', () => {
         authority: 'none',
         persistence: 'ephemeral',
       },
-      preselectedSurface: 'core',
+      preselectedSurface: 'index',
     });
 
-    assert.equal(prepared.surface, 'core');
+    assert.equal(prepared.surface, 'index');
     // Signature moves are surfaced verbatim as mandatory requirements.
     assert.match(prepared.prompt, /Signature moves — non-negotiable for this fingerprint/);
     assert.match(prepared.prompt, /the ticked rail runs down the left edge/i);
-    // The fingerprint's own composition grammar (from `core`) carries the
-    // surface — its building-block node body is rendered verbatim in the slice.
+    // The fingerprint's own composition grammar (from the front door) carries
+    // the surface — its building-block node body is rendered verbatim in the
+    // pulled corpus.
     assert.match(prepared.prompt, /Compose every surface from the same parts/);
     assert.match(prepared.prompt, /Stack ordered updates on the visible rail/);
     // Summon injects NO composition voice of its own: no repertoire, no
@@ -146,7 +150,7 @@ describe('Ghost adapter', () => {
     assert.doesNotMatch(prepared.prompt, /Fingerprint composition rules/);
   });
 
-  it('appends a Summon surface brief to the slice prompt', async () => {
+  it('appends a Summon surface brief to the corpus prompt', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -176,17 +180,17 @@ describe('Ghost adapter', () => {
     assert.match(prepared.prompt, /The agent ward controls host authority and tools/);
     assert.match(prepared.prompt, /The user request is the semantic and task authority/);
     assert.match(prepared.prompt, /The Ghost fingerprint is the sole composition authority/);
-    assert.match(prepared.prompt, /Fingerprint surface: core \(cascade: core\)/);
-    assert.match(prepared.prompt, /Gathered nodes: core \(own\)/);
+    assert.match(prepared.prompt, /Fingerprint anchor: index \(front door\)/);
+    assert.match(prepared.prompt, /Gathered nodes: index \(front-door\)/);
   });
 
-  it('selects a surface semantically via the model, falling back to core safely', async () => {
-    const single = assembleGraph({
+  it('selects an anchor semantically via the model, falling back to index safely', async () => {
+    const single = assembleCatalog({
       placedNodes: [
-        { id: 'core', folder: '', doc: { frontmatter: {}, body: 'root prose' } },
+        { id: 'index', doc: { frontmatter: {}, body: 'front-door prose' } },
       ],
     });
-    // Single-surface graph: no candidates, no model call, always core.
+    // Single-node corpus: no candidates, no model call, always index.
     let calls = 0;
     const neverCalled = async () => {
       calls += 1;
@@ -194,17 +198,15 @@ describe('Ghost adapter', () => {
     };
     assert.equal(
       await selectGhostSurface(single, 'anything goes here', { completeText: neverCalled }),
-      'core',
+      'index',
     );
-    assert.equal(calls, 0, 'single-surface graphs must not call the model');
+    assert.equal(calls, 0, 'single-node corpora must not call the model');
 
-    const multi = assembleGraph({
+    const multi = assembleCatalog({
       placedNodes: [
-        { id: 'core', folder: '', doc: { frontmatter: {}, body: 'root prose' } },
+        { id: 'index', doc: { frontmatter: {}, body: 'front-door prose' } },
         {
           id: 'dashboard',
-          parent: 'core',
-          folder: 'dashboard',
           doc: {
             frontmatter: { description: 'Operational dashboard for queue metrics' },
             body: 'dashboard prose',
@@ -212,8 +214,6 @@ describe('Ghost adapter', () => {
         },
         {
           id: 'editor',
-          parent: 'core',
-          folder: 'editor',
           doc: {
             frontmatter: { description: 'Document editor with rich text composition' },
             body: 'editor prose',
@@ -222,8 +222,8 @@ describe('Ghost adapter', () => {
       ],
     });
 
-    // No completeText → selection is skipped entirely, anchor stays at core.
-    assert.equal(await selectGhostSurface(multi, 'build a queue dashboard'), 'core');
+    // No completeText → selection is skipped entirely, anchor stays at index.
+    assert.equal(await selectGhostSurface(multi, 'build a queue dashboard'), 'index');
 
     // The model's chosen id (when it is a real candidate) is honored verbatim.
     assert.equal(
@@ -239,30 +239,30 @@ describe('Ghost adapter', () => {
       }),
       'editor',
     );
-    // Model explicitly declines → core.
+    // Model explicitly declines → index.
     assert.equal(
       await selectGhostSurface(multi, 'something ambiguous', {
-        completeText: async () => 'core',
+        completeText: async () => 'index',
       }),
-      'core',
+      'index',
     );
-    // Out-of-menu hallucination → core (never trust an id not on the menu).
+    // Out-of-menu hallucination → index (never trust an id not on the menu).
     assert.equal(
       await selectGhostSurface(multi, 'x', {
         completeText: async () => 'nonexistent',
       }),
-      'core',
+      'index',
     );
-    // Model throws → core (selection never gates generation).
+    // Model throws → index (selection never gates generation).
     assert.equal(
       await selectGhostSurface(multi, 'x', {
         completeText: async () => {
           throw new Error('model down');
         },
       }),
-      'core',
+      'index',
     );
-    // Timeout → core.
+    // Timeout → index.
     assert.equal(
       await selectGhostSurface(multi, 'x', {
         timeoutMs: 5,
@@ -271,8 +271,43 @@ describe('Ghost adapter', () => {
             req.signal?.addEventListener('abort', () => reject(new Error('aborted')));
           }),
       }),
-      'core',
+      'index',
     );
+  });
+
+  it('hoists a selected anchor as the lead composition while still pulling the whole corpus', async () => {
+    const root = await makeRichGhostFixture();
+    const roots = parseGhostRoots(`checkout=${root}`);
+    const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
+    assert.equal(parsed.ok, true);
+    if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
+
+    const ctx = await resolveGhostContext(parsed.request, roots);
+    const prepared = await prepareGhostSurfacePrompt(ctx, {
+      userPrompt: 'show the update rail',
+      mode: 'static',
+      surfacePlan: {
+        purpose: 'inform',
+        runtime: 'surface-document',
+        data: 'embedded',
+        authority: 'none',
+        persistence: 'ephemeral',
+      },
+      preselectedSurface: 'rail',
+    });
+
+    assert.equal(prepared.surface, 'rail');
+    // Pull order: front door first, anchor hoisted second.
+    assert.equal(prepared.pulled[0]?.id, 'index');
+    assert.equal(prepared.pulled[1]?.id, 'rail');
+    assert.equal(prepared.pulled[1]?.reason, 'anchor');
+    assert.match(prepared.prompt, /Anchor: rail/);
+    assert.match(prepared.prompt, /## rail — lead composition/);
+    assert.match(prepared.prompt, /Fingerprint anchor: rail \(lead composition\)/);
+    // The whole corpus is still pulled — the front door body is present.
+    assert.match(prepared.prompt, /Compose every surface from the same parts/);
+    // Token CSS is anchor-independent (front door → id order, never hoisted).
+    assert.equal(prepared.tokenSource.css, ctx.tokenSource.css);
   });
 
   it('honors a preselected anchor and makes no selection model call', async () => {
@@ -289,7 +324,7 @@ describe('Ghost adapter', () => {
       throw new Error('selection model must not be called when preselected');
     };
 
-    // `core` is always a valid anchor; preselected → no model call.
+    // `index` is always a valid anchor; preselected → no model call.
     const prepared = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
@@ -300,14 +335,14 @@ describe('Ghost adapter', () => {
         authority: 'none',
         persistence: 'replayable',
       },
-      preselectedSurface: 'core',
+      preselectedSurface: 'index',
       completeText: throwIfCalled,
     });
-    assert.equal(prepared.surface, 'core');
+    assert.equal(prepared.surface, 'index');
     assert.equal(calls, 0, 'preselected anchor must skip the selection model call');
 
-    // An unknown preselected id falls back to core (never trust an off-menu id),
-    // still without a model call.
+    // An unknown preselected id falls back to index (never trust an off-menu
+    // id), still without a model call.
     const fallback = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
@@ -321,7 +356,7 @@ describe('Ghost adapter', () => {
       preselectedSurface: 'nonexistent-surface',
       completeText: throwIfCalled,
     });
-    assert.equal(fallback.surface, 'core');
+    assert.equal(fallback.surface, 'index');
     assert.equal(calls, 0, 'unknown preselected id must not trigger a model call');
   });
 
@@ -353,7 +388,7 @@ describe('Ghost adapter', () => {
     assert.doesNotMatch(prepared.prompt, /create_summon_old_surface/);
   });
 
-  it('extracts arbitrary fingerprint token CSS from the core node body', async () => {
+  it('extracts arbitrary fingerprint token CSS from the index node body', async () => {
     const tokenCss = ':root { --paper: #faf7ed; --ink: #16130f; --moss: #718c5a; --breathing-room: 28px; --soft-corner: 18px; }';
     const root = await makeGhostFixture({ tokenCss });
     const roots = parseGhostRoots(`checkout=${root}`);
@@ -369,7 +404,7 @@ describe('Ghost adapter', () => {
     assert.match(ctx.tokenSource.css, /--moss: #718c5a/);
   });
 
-  it('builds the receipt from the slice, accepted Surface Document artifacts, and the conformance verdict', async () => {
+  it('builds the receipt from the pulled corpus, accepted Surface Document artifacts, and the conformance verdict', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -388,14 +423,14 @@ describe('Ghost adapter', () => {
       blocked: false,
       safetyViolations: [],
       conformance: {
-        schema: 'summon.ghost-conformance/v1',
-        surface: 'core',
+        schema: 'summon.ghost-conformance/v2',
+        surface: 'index',
         evaluated: true,
         checks: [
           {
             name: 'density',
             severity: 'high',
-            relevance: 'own',
+            offered: 'always',
             verdict: 'pass',
             reason: 'compact rhythm preserved',
             evidence: 'gap: var(--space-2)',
@@ -403,7 +438,7 @@ describe('Ghost adapter', () => {
           {
             name: 'hierarchy',
             severity: 'medium',
-            relevance: 'ancestor',
+            offered: 'always',
             verdict: 'fail',
             reason: 'heading lost emphasis',
             evidence: 'h1 { font-weight: 400 }',
@@ -426,26 +461,24 @@ describe('Ghost adapter', () => {
       ],
     });
 
-    assert.equal(receipt.schema, 'summon.ghost-receipt/v1');
+    assert.equal(receipt.schema, 'summon.ghost-receipt/v2');
 
     // --- fingerprint (spec-in) ---
     assert.equal(receipt.fingerprint.source, 'root');
     assert.equal(receipt.fingerprint.id, 'checkout');
     assert.equal(receipt.fingerprint.product, 'checkout');
-    assert.equal(receipt.fingerprint.surface, 'core');
-    assert.ok(Array.isArray(receipt.fingerprint.cascade));
-    assert.ok(receipt.fingerprint.cascade.includes('core'));
-    // gatheredNodes carry provenance (own/ancestor/edge)
-    assert.ok(receipt.fingerprint.gatheredNodes.some((node) => node.id === 'core'));
+    assert.equal(receipt.fingerprint.surface, 'index');
+    // gatheredNodes carry the pull reason (front-door/anchor/corpus)
+    assert.ok(receipt.fingerprint.gatheredNodes.some((node) => node.id === 'index'));
     for (const node of receipt.fingerprint.gatheredNodes) {
-      assert.ok(['own', 'ancestor', 'edge'].includes(node.provenance));
+      assert.ok(['front-door', 'anchor', 'corpus'].includes(node.reason));
     }
     assert.equal(receipt.fingerprint.tokenSource.kind, 'ghost-config');
-    assert.equal(receipt.fingerprint.tokenSource.source, 'fingerprint:core');
+    assert.equal(receipt.fingerprint.tokenSource.source, 'fingerprint:index');
     assert.equal(typeof receipt.fingerprint.tokenSource.definedTokenCount, 'number');
     assert.ok(receipt.fingerprint.tokenSource.definedTokenCount >= 0);
-    // routedChecks == the evaluated check set
-    assert.deepEqual(receipt.fingerprint.routedChecks, [
+    // offeredChecks == the evaluated check set
+    assert.deepEqual(receipt.fingerprint.offeredChecks, [
       { name: 'density', severity: 'high' },
       { name: 'hierarchy', severity: 'medium' },
     ]);
@@ -487,10 +520,10 @@ describe('Ghost adapter', () => {
     });
     // evidence is dropped from the receipt (decision 4)
     assert.equal('evidence' in receipt.conformance.checks[0]!, false);
-    assert.equal('relevance' in receipt.conformance.checks[0]!, false);
+    assert.equal('offered' in receipt.conformance.checks[0]!, false);
   });
 
-  it('builds a receipt with an unevaluated conformance verdict (empty routedChecks)', async () => {
+  it('builds a receipt with an unevaluated conformance verdict (empty offeredChecks)', async () => {
     const root = await makeGhostFixture();
     const roots = parseGhostRoots(`checkout=${root}`);
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
@@ -506,11 +539,11 @@ describe('Ghost adapter', () => {
       validation: { blocked: 0, warnings: 0, codes: {} },
       runtime: 'surface-document',
       repairs: 0,
-      blocked: false,
+      blocked: true,
       safetyViolations: [],
       conformance: {
-        schema: 'summon.ghost-conformance/v1',
-        surface: 'core',
+        schema: 'summon.ghost-conformance/v2',
+        surface: 'index',
         evaluated: false,
         checks: [],
         summary: { pass: 0, fail: 0, inconclusive: 0, failedHigh: 0, failedMedium: 0, failedLow: 0 },
@@ -520,7 +553,7 @@ describe('Ghost adapter', () => {
 
     assert.equal(receipt.conformance.evaluated, false);
     assert.deepEqual(receipt.conformance.checks, []);
-    assert.deepEqual(receipt.fingerprint.routedChecks, []);
+    assert.deepEqual(receipt.fingerprint.offeredChecks, []);
     assert.equal(receipt.generation.artifactRuntime, null);
     assert.deepEqual(receipt.generation.artifactFiles, []);
   });
@@ -543,10 +576,10 @@ id: test-product
 }
 
 /** A fixture with a `## Signature look & feel` section and a `## Composition`
- * grammar on the root, plus a building-block node (`rail`), so the
+ * grammar on the front door, plus a building-block node (`rail`), so the
  * signature-moves block and the fingerprint's own composition voice have real
- * content to surface. Composition is authored as grammar-in-core + composable
- * parts — there are no archetype folders (dissolve model). */
+ * content to surface. Composition is authored as grammar-in-index + composable
+ * parts — a flat corpus with no folders. */
 async function makeRichGhostFixture(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'summon-ghost-adapter-rich-'));
   fixtureRoots.push(root);

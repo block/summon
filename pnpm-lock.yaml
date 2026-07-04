@@ -81,9 +81,9 @@ importers:
 
   apps/server:
     dependencies:
-      '@anarchitecture/ghost':
-        specifier: 0.0.0-next-20260629174624
-        version: 0.0.0-next-20260629174624
+      '@anarchitecture/ghost-fingerprint':
+        specifier: file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
+        version: file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
       '@anarchitecture/summon':
         specifier: workspace:*
         version: link:../../packages/summon
@@ -317,8 +317,9 @@ importers:
 
 packages:
 
-  '@anarchitecture/ghost@0.0.0-next-20260629174624':
-    resolution: {integrity: sha512-M8FvPgYUNCwmTfaWoDpE1uZIc+B72jjJcMMmcWC4aAecykrnOgMSq6eRiTVr+O51xXtfV7gDBl9026RNHSuuzQ==}
+  '@anarchitecture/ghost-fingerprint@file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz':
+    resolution: {integrity: sha512-KWDnaQ9FlhS4Hdhv54EZWA5O4UX334BK2f6Wygi9Bd8BS/SaPJm4YK+fbqZBNZxpcVN9nUyxikh5oZlGpHewEg==, tarball: file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz}
+    version: 0.19.0
     hasBin: true
 
   '@anthropic-ai/sdk@0.88.0':
@@ -2157,7 +2158,7 @@ packages:
 
 snapshots:
 
-  '@anarchitecture/ghost@0.0.0-next-20260629174624':
+  '@anarchitecture/ghost-fingerprint@file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz':
     dependencies:
       cac: 6.7.14
       yaml: 2.8.3

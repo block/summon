@@ -27,18 +27,20 @@ const defaultTokens = readFileSync(
 
 test('surface-document prompt describes intentional bundle output', () => {
   assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /Surface Document bundles/);
-  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /emit_surface_document/);
-  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /summon\.surface-document-bundle\/v1/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /=== SUMMON-BUNDLE v1 ===/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /=== FILE: main\.html ===/);
+  assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /=== END SUMMON-BUNDLE ===/);
   assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /main\.html is inert structure/);
   assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /main\.css is fingerprint styling/);
   assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /state\(initial\)/);
   assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /region\(\(\) =>/);
   assert.match(SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS, /callTool\(toolName, args\)/);
 
-  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /schema: "summon\.surface-document-bundle\/v1"/);
-  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /source\["main\.html"\]/);
-  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /source\["main\.css"\]/);
-  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /optional `source\["main\.js"\]`/);
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /=== SUMMON-BUNDLE v1 ===/);
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /`main\.html` fence \(required\)/);
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /`main\.css` fence \(required\)/);
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /optional `main\.js` fence/);
+  assert.match(SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS, /=== END SUMMON-BUNDLE ===/);
 });
 
 test('token compiler is agnostic to design-source token names', () => {
@@ -149,8 +151,8 @@ test('system compiler uses surface-document prompt blocks intentionally', () => 
     ['fixed', 'layout:surface-slots', 'tools', 'output-contract'],
   );
   const systemText = compiled.promptBlocks.map((block) => block.text).join('\n');
-  assert.match(systemText, /emit_surface_document/);
-  assert.match(systemText, /summon\.surface-document-bundle\/v1/);
+  assert.match(systemText, /=== SUMMON-BUNDLE v1 ===/);
+  assert.match(systemText, /=== END SUMMON-BUNDLE ===/);
   assert.match(systemText, /Build your Surface Document bundle/);
   assert.match(systemText, /main\.html is inert structure/);
   assert.match(systemText, /main\.css is fingerprint styling/);

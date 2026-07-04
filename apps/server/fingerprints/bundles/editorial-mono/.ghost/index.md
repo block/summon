@@ -289,13 +289,13 @@ metadata holds at `--text-xs` only for labels while reading copy stays at
 read editorial even when it uses generic element names.
 
 The shared material every surface draws on lives in the root nodes that reach
-everywhere through the spine: the [masthead / deck / folio shell](masthead) that
-frames a composed page, the [mono metadata system](metadata) of folios, labels,
-ranks, and timestamps, the [ruled evidence bands](evidence) that justify the
-claim, the [single inverse-ink panel](inverse-panel) reserved for the verdict,
-the [editorial close](close) that lands the decision, the
-[dossier structure](dossier-structure) that orders a long document's movements
-and frames its one verdict, and the [catalog index grammar](catalog-index) that
+everywhere through the spine: the [masthead / deck / folio shell](pattern.masthead) that
+frames a composed page, the [mono metadata system](pattern.metadata) of folios, labels,
+ranks, and timestamps, the [ruled evidence bands](pattern.evidence) that justify the
+claim, the [single inverse-ink panel](pattern.inverse-panel) reserved for the verdict,
+the [editorial close](pattern.close) that lands the decision, the
+[dossier structure](pattern.dossier-structure) that orders a long document's movements
+and frames its one verdict, and the [catalog index grammar](pattern.catalog-index) that
 sets many parallel entries as numbered specimen rows on a shared measure. Each surface composes
 these same building blocks for its own job — a brief, a comparison, or a report —
 under one reading order rather than from fixed page templates.
@@ -327,12 +327,12 @@ Four principles carry the language and are true on every surface:
 
 **Composing a surface from the parts.** Editorial Mono has no fixed page types —
 every surface is composed for its task from the same small kit of parts, in the
-same reading order. Open with the [masthead / deck / folio shell](masthead) so the
-verdict is the first visual event; justify it with [ruled evidence bands](evidence)
+same reading order. Open with the [masthead / deck / folio shell](pattern.masthead) so the
+verdict is the first visual event; justify it with [ruled evidence bands](pattern.evidence)
 that pair each fact with its so-what; label and register the page with the
-[mono metadata system](metadata); spend the [single inverse-ink panel](inverse-panel)
+[mono metadata system](pattern.metadata); spend the [single inverse-ink panel](pattern.inverse-panel)
 on the one most decisive moment and nowhere else; land the page on the
-[editorial close](close). Let the task set the shape of the verdict, not a template:
+[editorial close](pattern.close). Let the task set the shape of the verdict, not a template:
 when the task is a recommendation, the verdict reads first as a claim in serif
 display; when it resolves a field of metrics, the verdict is one governing number,
 rank, or delta in the inverse slab, never four equal KPI cards; when it weighs

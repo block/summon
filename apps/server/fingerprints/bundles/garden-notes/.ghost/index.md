@@ -266,13 +266,13 @@ emphasis stays reserved for the one chosen step so it never dilutes into
 decoration.
 
 The shared building blocks every surface draws on live in the root nodes that
-reach everywhere: the [note-panel and soft-shell system](note-panels) that shapes
-every plan, the [gentle depth rules](gentle-depth) that keep layering from
-becoming a card pile, the [badge and state system](badges) that carries planning
-state, the [good-enough choice and can-wait notes](good-enough) that lower
-pressure, the [humane orientation rules](humane-orientation) that keep every
+reach everywhere: the [note-panel and soft-shell system](pattern.note-panels) that shapes
+every plan, the [gentle depth rules](principle.gentle-depth) that keep layering from
+becoming a card pile, the [badge and state system](pattern.badges) that carries planning
+state, the [good-enough choice and can-wait notes](pattern.good-enough) that lower
+pressure, the [humane orientation rules](principle.humane-orientation) that keep every
 plan facing the person, one decision at a time, with the future left visibly
-open, and the [kept notes and pick-up moves](kept-notes) that let done work
+open, and the [kept notes and pick-up moves](pattern.kept-notes) that let done work
 settle into small keepsakes and let one note be held closer while the rest of
 the page recedes. There are no fixed page types — planners, staged plans, comparisons, and
 routines are all composed on demand from these same four building blocks under the
@@ -308,12 +308,12 @@ Four principles carry the language and are true on every surface:
 **Laying out a plan from the notes.** Garden Notes has no fixed page types — every
 surface is composed for its task from the same small kit of parts, in the same
 unhurried reading order. Bound the plan inside the [note-panel and soft-shell
-system](note-panels), opening with a context line that reflects the real task, not
-advice; keep the layering quiet with the [gentle depth rules](gentle-depth) so a
+system](pattern.note-panels), opening with a context line that reflects the real task, not
+advice; keep the layering quiet with the [gentle depth rules](principle.gentle-depth) so a
 few notes lift and the rest stay flat on the paper; let the [badge and state
-system](badges) carry time, effort, readiness, season, and energy so a row of chips
+system](pattern.badges) carry time, effort, readiness, season, and energy so a row of chips
 reads like a status sentence; and point the whole thing at one move with the
-[good-enough choice and can-wait notes](good-enough). Let the task set the shape,
+[good-enough choice and can-wait notes](pattern.good-enough). Let the task set the shape,
 not a template: when one clear move is all it needs, one note carrying the single
 `--garden-chosen-dot` is the whole plan; when the task has real sequence, pace it
 through soft panels and gather what it needs into a prep basket before a short

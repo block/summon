@@ -1,6 +1,7 @@
 import type { ContractIssue } from './contracts.js';
 import { contractIssue } from './contracts.js';
 import type { SurfaceDocumentArtifact } from './surface-document-artifact.js';
+import { parseSurfaceDocumentText } from './surface-document-text.js';
 
 export interface SummonSurfaceDocumentBundle {
   schema: 'summon.surface-document-bundle/v1';
@@ -24,6 +25,20 @@ const JS_ALIASES = ['main.js', 'js', 'javascript', 'behavior', 'code'];
 
 export function normalizeSurfaceDocumentBundle(value: unknown): NormalizeSurfaceDocumentBundleResult {
   const issues: ContractIssue[] = [];
+  if (typeof value === 'string') {
+    // Tagged-text wire format: parse the fences, then feed the resulting
+    // source map through the same alias/coercion logic as object input.
+    const parsed = parseSurfaceDocumentText(value);
+    if (!parsed.source) return { bundle: null, issues: parsed.issues };
+    const objectResult = normalizeSurfaceDocumentBundle({
+      schema: SUMMON_SURFACE_DOCUMENT_BUNDLE_SCHEMA,
+      source: parsed.source,
+    });
+    return {
+      bundle: objectResult.bundle,
+      issues: [...parsed.issues, ...objectResult.issues],
+    };
+  }
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {
       bundle: null,

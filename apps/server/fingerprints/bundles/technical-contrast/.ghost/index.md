@@ -327,13 +327,13 @@ the signal trio or fill polarity alone to convey the chosen option — pair it w
 `--contrast-edge-strong` weight or a label.
 
 The shared material every surface draws on lives in the root nodes that reach
-everywhere: the [contrast-plane system](contrast-planes) that bands the page, the
-[mono eyebrow and label system](mono-labels), the
-[rectangular CTA system](cta-system), the
-[pricing-table and data-sheet system](data-sheets), the
-[proof-card system](proof-cards), the [instrumentation system](instrumentation)
+everywhere: the [contrast-plane system](principle.contrast-planes) that bands the page, the
+[mono eyebrow and label system](pattern.mono-labels), the
+[rectangular CTA system](pattern.cta-system), the
+[pricing-table and data-sheet system](pattern.data-sheets), the
+[proof-card system](pattern.proof-cards), the [instrumentation system](pattern.instrumentation)
 that makes the sheet read as a genuinely engineered document, and the
-[drafting-mark system](drafting-marks) that supplies its sparse
+[drafting-mark system](pattern.drafting-marks) that supplies its sparse
 technical-drawing micro-detail. Every surface is composed from these same
 building blocks for its own job — a pricing sheet, a proof band, a workflow
 configuration, or a technical landing — under the one contrast-plane register,
@@ -380,14 +380,14 @@ Five principles carry the language and are true on every surface:
 **Composing a surface from the planes.** Technical Contrast has no fixed page
 types — every surface is composed for its task from the same small kit of parts,
 in the same reading register. Set the macro rhythm with the
-[contrast-plane system](contrast-planes): band the page full-bleed and let each
+[contrast-plane system](principle.contrast-planes): band the page full-bleed and let each
 plane declare a job — pale or white for product detail, pricing, forms, and
 tables; near-black midnight, flipped via `--contrast-plane-invert`, for proof and
-high-gravity claims. Orient every band with [uppercase mono labels](mono-labels)
+high-gravity claims. Orient every band with [uppercase mono labels](pattern.mono-labels)
 over sentence-case geometric sans, then structure quantitative comparison with the
-[white data sheets](data-sheets), carry credibility with the
-[proof-card system](proof-cards), and drive action with the
-[rectangular CTA system](cta-system). Let the task set the shape, not a template:
+[white data sheets](pattern.data-sheets), carry credibility with the
+[proof-card system](pattern.proof-cards), and drive action with the
+[rectangular CTA system](pattern.cta-system). Let the task set the shape, not a template:
 lead every band with the claim before any grid, table, or artwork; when the task
 resolves a field of numbers, align shared criteria down mono-headed
 `--contrast-num-align` columns so comparison reads down a column — never scattered

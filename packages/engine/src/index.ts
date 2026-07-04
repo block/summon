@@ -40,6 +40,13 @@ export type {
   SummonSurfaceDocumentBundle,
 } from './surface-document-bundle.js';
 export {
+  SURFACE_DOCUMENT_TEXT_END,
+  SURFACE_DOCUMENT_TEXT_HEADER,
+  parseSurfaceDocumentText,
+  serializeSurfaceDocumentText,
+} from './surface-document-text.js';
+export type { ParseSurfaceDocumentTextResult } from './surface-document-text.js';
+export {
   DEFAULT_VALIDATION_LIMITS,
   normalizeValidationLimits,
 } from './validation-limits.js';

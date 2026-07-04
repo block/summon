@@ -300,14 +300,14 @@ legible contrast; and touch surfaces get enlarged invisible padding around the
 compact chrome so the dense faceplate stays operable.
 
 The shared material every surface draws on lives in the root nodes that reach
-everywhere: the [command and navigation system](command-nav) that frames the
-top of every faceplate, the [beveled plate and chrome system](plates) that gives
-the chassis its molded depth and texture, the [control system](controls) for
+everywhere: the [command and navigation system](pattern.command-nav) that frames the
+top of every faceplate, the [beveled plate and chrome system](pattern.plates) that gives
+the chassis its molded depth and texture, the [control system](pattern.controls) for
 amber and orange buttons and inset inputs, and the
-[badge and section-label system](badges) that labels every dense module, with
-the [hardware dressing system](hardware-dressing) supplying bezel framing,
+[badge and section-label system](pattern.badges) that labels every dense module, with
+the [hardware dressing system](pattern.hardware-dressing) supplying bezel framing,
 lo-fi image artifacts, the single page-level texture pass, and numbered
-scene sequencing, and the [screen logic system](screen-logic) governing how the
+scene sequencing, and the [screen logic system](pattern.screen-logic) governing how the
 machine acknowledges input, swaps between screens, and reports its own state.
 Surfaces — launch pages, dashboards, directories, and playful utility screens —
 compose these building blocks for their own job.
@@ -363,14 +363,14 @@ Six principles carry the language and are true on every surface:
 **Bolting a faceplate from the parts.** Console Chrome 2001 has no fixed page
 types — every surface is a faceplate assembled for its task from the same small
 kit, bolted together in the same order. Frame the top of the chassis with the
-[command and navigation system](command-nav) — a carbon dual-command bar over a
+[command and navigation system](pattern.command-nav) — a carbon dual-command bar over a
 pale secondary tool strip parted by `--chrome-divider-dotted`; mold the body and
-its box-art hero from the [beveled plate and chrome system](plates) so the first
+its box-art hero from the [beveled plate and chrome system](pattern.plates) so the first
 impression is a composed faceplate riding a hard `--chrome-bevel-hard` seam,
 never a floating card; wire every interactive move through the
-[control system](controls) with signal-orange forward LEDs and amber utility
+[control system](pattern.controls) with signal-orange forward LEDs and amber utility
 chips; and cap each dense module with the [badge and section-label
-system](badges) so no plate reads as an unlabeled island. Let the task set the
+system](pattern.badges) so no plate reads as an unlabeled island. Let the task set the
 shape, not a template: when it announces one thing, spend the box-art hero plate
 and a single signal-orange forward disc lit by `--chrome-led-glow`, then tighten
 into supporting modules so the page never reads as empty marketing air; when it

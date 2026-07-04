@@ -58,16 +58,16 @@ The public package boundary is:
 
 The default governed path starts from a Ghost fingerprint. When editing
 `apps/server/.env` in the quickstart, set `SUMMON_GHOST_ROOTS` before starting
-the demos. Each configured root should use the canonical
-`.ghost/fingerprint/manifest.yml` package layout. The Surface Gallery adds a
-Ghost fingerprint preset for each root, and the Generate workbench adds a
+the demos. Each configured root should use the canonical flat Ghost package
+layout rooted at `.ghost/manifest.yml`. The Surface Gallery adds a Ghost
+fingerprint preset for each root, and the Generate workbench adds a
 `Fingerprint · <id>` option. A fingerprint run is not a bundled visual
-direction: Summon consumes the Ghost relay brief plus the fingerprint's prose,
-inventory, composition, checks, and token/style CSS as product design context.
-Summon then applies host-owned policy, tools, Surface Document validation,
-runtime isolation, conformance checks, and receipt generation. Summon does not
-require Summon-named design tokens or classify the request into generic response
-shapes.
+direction: Summon loads the Ghost flat corpus, prepares a fingerprint surface
+brief from its prose nodes, injects token/style CSS, evaluates conformance
+checks, and emits a receipt. Summon then applies host-owned policy, tools,
+Surface Document validation, runtime isolation, conformance checks, and receipt
+generation. Summon does not require Summon-named design tokens or classify the
+request into generic response shapes.
 
 The Surface Document contract is documented in
 [`docs/spec/surface-document.md`](./docs/spec/surface-document.md).

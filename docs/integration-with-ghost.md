@@ -1,174 +1,193 @@
-# Integrating Summon with Ghost (node-graph model)
+# Integrating Summon with Ghost (flat-corpus model)
 
-> **Status: implemented.** This began as a head-start plan; all seven migration
-> steps have landed (see the sequencing section below). It now serves as the
-> record of how Summon consumes Ghost and why. The live code is
-> `apps/server/src/ghost-adapter.ts`, `apps/server/src/fingerprint-catalog.ts`,
+> **Status: implemented.** This is the record of how Summon consumes Ghost and
+> why. The live code is `apps/server/src/ghost-adapter.ts`,
+> `apps/server/src/fingerprint-catalog.ts`,
 > `apps/server/src/ghost-conformance.ts`, and the receipt in
-> `buildGhostReceipt`.
+> `buildGhostReceipt`. Pinned upstream: `@anarchitecture/ghost-fingerprint`
+> 0.19.x (the flat-corpus + haunts model).
 
 ## What changed in Ghost
 
-Ghost moved from **structured YAML files** to a **graph of markdown prose nodes**
-where the directory tree *is* the graph.
+Ghost collapsed its **node graph** (corridors, ancestors, `relates` edges,
+provenance-labeled slices) into a **flat corpus**: a `.ghost/` directory of
+markdown prose nodes with no edges, no cascade, no traversal. Retrieval is a
+two-step agent contract — `gather` emits a menu (id + kind + description),
+the *agent* selects, `pull` returns the chosen bodies. Ghost does no NLP and
+no selection.
 
-| Concern | Old Ghost (what Summon reads today) | New Ghost |
+| Concern | Graph-era Ghost (what Summon consumed before) | Flat-corpus Ghost (now) |
 | --- | --- | --- |
-| Design prose | `prose.yml`, `composition.yml`, `inventory.yml` | prose nodes (`<surface>/index.md`, `<node>.md`); intent/inventory/composition are authoring *lenses*, not files |
-| Identity / containment | fields / bundle metadata | the file path is the id; the directory is the parent |
-| Checks | `enforcement/checks.yml` (regex) | `ghost.check/v1` markdown, **agent-evaluated**, surface-routed |
-| Token CSS | a `tokens` CSS file referenced by `bundle.json` | **assumption:** a markdown node detailing visual specs/tokens, optionally carrying a fenced ```css block |
-| Retrieval | read all files, hand-assemble a brief | name a surface → `resolveGraphSlice` returns a composed context slice |
+| Structure | directory tree *is* the graph; corridors + `relates` edges | flat set of nodes; folders are browsing convenience only; `relates` is a **rejected** key |
+| Retrieval | name a surface → `resolveGraphSlice` composes own/ancestor/edge nodes | `buildCatalogMenu` → agent selects → read bodies; no slice, no provenance |
+| Front door | `core` root node (`GHOST_GRAPH_ROOT_ID`) | `index` node — a curated-entrypoint *convention*, not a graph position |
+| Checks | `.ghost/checks/*.md`, `surface:`-routed via `selectChecksForSurfaces` | `.ghost/haunts/checks/*.md` under a `haunt.yml` anchor; routed by diff-material matching in `ghost review`; `surface:` is gone; ≥1 `references` entry required |
+| Haunts | — | opt-in capabilities under `.ghost/haunts/`; **never emitted by gather/pull**, so they cannot leak into generation context |
+| Incarnation / `--as` | essence vs medium-tagged nodes | removed |
+| Materials | — | `materials:` frontmatter — locators (repo globs / https URLs) for the concrete assets a truth is about |
 
-There is **no** structured design-token schema anymore (no palette/oklch/spacing
-schema — that was the deleted fossil). The fingerprint is pure prose plus
-markdown checks.
+The fingerprint is still pure prose plus markdown checks. There is still no
+structured design-token schema; the fenced ```css convention (below) is how an
+author opts into pixel determinism.
 
 ## The live contracts (verified against the Ghost source)
 
-- **Library:** `@anarchitecture/ghost/fingerprint` →
-  `resolveFingerprintPackage`, `loadFingerprintPackage` (→ `{ graph }`).
-  `@anarchitecture/ghost/core` → `resolveGraphSlice`, `buildGraphMenu`,
-  `selectChecksForSurfaces`, `loadGhostCheck`, node/graph/check types.
-- **CLI:** `ghost gather <surface> --format json` emits a `GraphSlice`;
-  `ghost checks --surface <ids>` routes checks.
-- **`GraphSlice`** = `{ surface, ancestors, incarnation?, nodes[], spokes[] }`.
-  `nodes[]` are full-body prose with `provenance` (`own` / `ancestor` / `edge`);
-  `spokes[]` are id+description pointers (descendants + edge hubs).
-- **`GhostGraphNode`** = `{ id, description?, parent?, folder, relates[],
-  incarnation?, body, origin }`. Pure prose body — no structured fields.
-- **`ghost.check/v1`** frontmatter = `{ name, description, severity:
-  high|medium|low, tools?, turn_limit?, surface? }` + a prose instruction body.
-  Ghost **selects and emits; it never runs the check** — the host agent
-  evaluates. Routing: a check governs its `surface` and every touched surface
-  that cascades into it (own/ancestor); unplaced ⇒ `core` (applies everywhere).
+- **Library:** `@anarchitecture/ghost-fingerprint/fingerprint` →
+  `resolveFingerprintPackage`, `loadFingerprintPackage` → `{ manifest,
+  catalog, haunts, checks, invalid, invalidHaunts }`.
+  `@anarchitecture/ghost-fingerprint/core` → `buildCatalogMenu`,
+  `assembleCatalog`, catalog/check types.
+- **`GhostCatalog`** = `{ nodes: Map<id, GhostCatalogNode> }` — a flat map.
+  **`GhostCatalogNode`** = `{ id, kind?, slug, description?, materials?,
+  body }`. Pure prose body; identity is filesystem-derived (path minus `.md`,
+  kind from the filename's first dotted segment).
+- **Checks** (`ghost.check/v1`): frontmatter `{ name, description, severity:
+  high|medium|low, references: string[] }` + a prose instruction body. The
+  loader **requires at least one `references` entry** (stricter than the
+  single-file lint). Ghost selects and emits; it never runs the check — the
+  host agent evaluates.
+- **`LoadedCheck`** (the map value on the loaded package) = `{ id, doc:
+  GhostCheckDocument, references }`. Ghost does not export this type from a
+  public subpath; Summon derives it from `LoadedFingerprintPackage['checks']`
+  (`GhostLoadedCheck` in `ghost-adapter.ts`).
+- **CLI reference behavior:** `ghost gather --format json` emits the menu;
+  `ghost pull <ids> --format json` emits bodies; `ghost review` assembles the
+  diff-routed advisory packet. Summon mirrors gather/pull via the library and
+  does **not** use `ghost review` (see conformance below).
 
 ## Consumption decision: library, not CLI
 
-Summon's server consumes Ghost as a **library** (`@anarchitecture/ghost`), not by
-shelling out to the CLI:
-- Typed `GraphSlice` / `GhostGraphNode` / check types — no JSON re-parsing.
-- No subprocess per generation (latency, error-surface).
-- Pin the Ghost version; treat slice/check types as the integration contract.
+Unchanged from the graph era, and now cheaper: Summon consumes Ghost as a
+library — typed catalog/check values, no subprocess per generation, version
+pinned via a packed tarball (`vendor/anarchitecture-ghost-fingerprint-*.tgz`).
+The CLI's `gather`/`pull` are the reference behavior the adapter mirrors.
 
-The CLI's `gather`/`checks` are the *reference behavior* we mirror via the
-library calls (`loadFingerprintPackage` → `resolveGraphSlice` /
-`selectChecksForSurfaces`).
+One BYOA note: `gather`/`pull` through the CLI append to the fingerprint's
+local `.ghost/.events` observability tape. The library path does not, which is
+correct for Summon — vendored bundles are content fixtures and must stay
+read-only at serve time.
 
 ## The three integration seams
 
-### 1. Discovery + load (replaces the YAML file reads)
-
-`ghost-adapter.ts` stops doing `readYamlIfPresent('prose.yml' | 'composition.yml'
-| 'inventory.yml')` and `enforcement/checks.yml`. Instead:
+### 1. Discovery + load
 
 ```
-resolveFingerprintPackage(dir) → loadFingerprintPackage(paths) → { graph }
+resolveFingerprintPackage(dir) → loadFingerprintPackage(paths) → { catalog, checks }
 ```
 
-`fingerprint-catalog.ts` (bundles) and `SUMMON_GHOST_ROOTS` both resolve to a
-loaded graph. The catalog's per-bundle `bundle.json` may survive as Summon-side
-metadata (id, display), but the *design content* comes from the graph.
+Both entry points resolve the same way: `SUMMON_GHOST_ROOTS` (root mode) and
+`fingerprint-catalog.ts` (vendored bundles at
+`apps/server/fingerprints/bundles/<id>/.ghost`). The per-bundle `bundle.json`
+survives as Summon-side metadata (id, display, preview); all design content
+comes from the loaded catalog. `pnpm ghost:validate:fingerprints` runs
+`ghost validate <path> --format json` over every vendored package and is the
+authoring gate for bundle content.
 
-### 2. Surface brief (replaces the hand-built brief)
+### 2. Surface brief — pull-everything, anchor as emphasis
 
-Summon already knows the surface and the prompt. The flow becomes:
-- **Name the surface** — Summon picks the node id (BYOA principle: *the agent
-  names the node; Ghost does not infer it from paths*). For Summon this is the
-  generation target; fall back to `core` / the menu when unknown.
-- **Gather the slice** — `resolveGraphSlice(graph, surface, { incarnation? })`.
-- **Render the slice into the `ghost` prompt block** — corridor spine
-  (own → ancestor) then one-hop `relates` edges, provenance-labeled; spokes
-  become an optional "available to pull" list (Summon likely *won't* expand
-  spokes mid-generation in v1 — they're navigability, not authority).
+The graph slice is gone, so "what does the generator see" needed a new answer.
+Summon's answer (`pullCorpus` in `ghost-adapter.ts`): **pull the whole flat
+corpus**, ordered front door → anchor → rest-by-id.
 
-This subsumes the parked "de-overlap brief vs contract" work: there is no
-`composition.yml` to overlap with anymore. The brief is "frame the task + name
-the surface"; the contract *is* the gather slice.
+- **Why pull everything:** Ghost's contract is agent-side selection over the
+  menu, but Summon's generator is single-shot — it cannot call back mid-run to
+  pull a node it turned out to need. Vendored corpora are small (7–10 nodes),
+  so full pull is the fidelity-preserving choice and matches what the old core
+  slice effectively carried.
+- **The anchor is emphasis, never inclusion.** `selectGhostSurface` runs the
+  same optional semantic model call as before, now over `buildCatalogMenu`:
+  the chosen node is *hoisted* to second position and labeled "lead
+  composition" in the prompt. Fallback anchor is `index` (the front door
+  convention replacing `core`). All the old safety properties hold: no model →
+  `index`; timeout/error/off-menu answer → `index`; single-node corpus → no
+  model call at all.
+- **Prompt rendering** (`renderCorpusPrompt`): `# Ghost Fingerprint`, the
+  anchor line, then each node body verbatim under `## <id> — <label>`
+  (front door / lead composition / kind). Node bodies keep their fenced
+  ```css blocks — the prose is the only place the model sees token *names*.
+- The Summon surface brief (task frame, surface plan, signature-moves block
+  extracted from the front door's `## Signature look & feel` section, output
+  rules) is appended after the corpus, exactly as before.
 
-### 3. Token / visual vocabulary (the one real open question)
+### 3. Token / visual vocabulary
 
-**Assumption (confirmed with owner):** the visual spec + tokens are authored as a
-markdown node. Strategy:
+The fenced-```css convention survives verbatim: a node body may carry a
+```css block with literal token values, and Summon extracts these for
+deterministic injection (`activeTokensCss`). What changed is merge order —
+there is no corridor to mirror anymore:
 
-- A visual/token node's body may carry a fenced ```css block with literal token
-  values. Summon **extracts the CSS block(s) from the gathered slice** for
-  deterministic injection (preserving today's `activeTokensCss` / `var()`
-  fidelity), and keeps the surrounding prose as deploy guidance in the brief.
-- **Merge across the corridor in provenance order** (ancestors → own), mirroring
-  the CSS cascade: a surface node may override a base token. This matches
-  Ghost's corridor model exactly and needs no new schema.
-- `GhostTokenSource` mostly survives; `css` now comes from prose extraction
-  instead of a file read. Everything downstream (sandbox injection) is unchanged.
+- **Extraction order is front door → id order, never anchor-hoisted**
+  (`extractSliceCss` → `extractCorpusCss`). This makes the merged CSS — and
+  therefore last-write-wins token resolution — **stable regardless of which
+  anchor was selected** for a run. Anchor choice can change emphasis, never
+  pixels.
+- `GhostTokenSource` is unchanged downstream (validation, sandbox injection);
+  `source` is now `fingerprint:index`.
+- Fidelity note (unchanged): a fingerprint with prose-only visual guidance
+  loses pixel determinism by design; the fenced-CSS convention is the opt-in.
 
-**Fidelity note:** if a node carries *only* prose (no CSS fence), tokens become
-interpretive — the model authors values from description. That is philosophically
-correct for Ghost (prose authority) but loses pixel determinism; the fenced-CSS
-convention is how an author opts back into determinism where it matters.
+## Govern + Account (the moat tiers)
 
-## Connecting to the moat (Tier 1)
+- **Govern (conformance verdict):** Ghost's own review routing is
+  diff-material matching — a check is offered when a repo diff touches a
+  referenced node's `materials`. Summon evaluates **generated artifacts**, not
+  repo diffs, so no material locator can ever match. Per Ghost's docs, checks
+  bound to no touched material are **"always offered"** — the sanctioned shape
+  for cross-cutting assertions. So Summon's conformance
+  (`evaluateConformance`) offers *every* check on the loaded package and has
+  no routing logic at all: `checks` map in → utility-model evaluation against
+  the artifact → `summon.ghost-conformance/v2` verdict
+  (`offered: 'always'` replaced the graph-era `relevance: own|ancestor`).
+  Severity is advisory in Ghost's semantics; Summon's fidelity-repair gate
+  (failed HIGH check → bounded repair pass, `SUMMON_GHOST_FIDELITY_REPAIR`)
+  is a **Summon policy layered on top**, not a Ghost rule.
+- **Account (receipt):** `summon.ghost-receipt/v2`. The graph-era `cascade`
+  and per-node `provenance` are gone; the receipt now records the pull:
+  `gatheredNodes: [{ id, reason: front-door|anchor|corpus }]` and
+  `offeredChecks` (was `routedChecks`). This mirrors Ghost's own `.events`
+  tape vocabulary (gather menu + pulled ids) more closely than the slice ever
+  did.
 
-The Ghost rearchitecture is also the unlock for the parked Tier 1 moat work:
+## Migration record (graph → flat corpus)
 
-- **Govern (Tier 1A — conformance verdict):** `ghost.check/v1` checks are
-  **agent-evaluated prose**, surface-routed via `selectChecksForSurfaces`. This
-  is *not* a deterministic regex runner — the verdict is an agent evaluating the
-  check body against the generated artifact. Summon's conformance pass:
-  route checks for the surface → for each, have a utility model evaluate the
-  generated bundle against the check prose → emit a verdict (pass/`severity`
-  fail) into the run metrics + trace. This is a different (and richer) design
-  than the old regex `checks.yml`.
-- **Account (Tier 1B — trace/receipt):** the receipt records spec-in (fingerprint
-  id, gathered node ids + provenance, incarnation, routed check ids) and
-  what-happened (which checks passed/failed, repairs, blocks). The graph slice's
-  `provenance` and the checks' `relevance` give a precise, inspectable lineage.
+Ordered, each independently verifiable:
 
-## Migration / sequencing (all done)
+1. ✅ **Bundle content migration** — `scripts/migrate-ghost-bundles.mjs`:
+   strips `relates:` (rejected key) into a trailing `Related: …` prose line,
+   moves `.ghost/checks/` → `.ghost/haunts/checks/` + `haunt.yml`, rewrites
+   `surface: core` → `references: [index]` (the loader requires ≥1 reference;
+   `index` is the faithful home for a fingerprint-wide check). Gated on
+   `ghost validate` — all 8 bundles pass with 0 errors. Also surfaced one
+   latent YAML bug (unquoted `description` with a nested-mapping colon in
+   `technical-contrast/drafting-marks.md`).
+2. ✅ **Dependency repointed** — `@anarchitecture/ghost` (graph-era `next`
+   snapshot) → `@anarchitecture/ghost-fingerprint` 0.19.0 packed tarball.
+3. ✅ **Adapter rewritten** — `pullCorpus`/`renderCorpusPrompt` replace
+   `resolveGraphSlice`/`renderSlicePrompt`; anchor selection over
+   `buildCatalogMenu`; `GHOST_FRONT_DOOR_ID = 'index'` replaces
+   `GHOST_GRAPH_ROOT_ID = 'core'`.
+4. ✅ **Conformance rewritten** — routing deleted (`loadChecksDir` /
+   `selectChecksForSurfaces` imports removed); all-checks offering;
+   verdict schema v2.
+5. ✅ **Receipts + consumers** — receipt schema v2; demo stream log and
+   surface-gallery host messages updated (`cascade` → `anchor`,
+   `provenance` → `reason`, `routed` → `offered`).
 
-Ordered, each independently shipped:
+### Known upstream issues (reported)
 
-1. ✅ **`@anarchitecture/ghost` pinned dependency** (`apps/server/package.json`).
-2. ✅ **Discovery/load rewritten** onto the graph (`loadFingerprintPackage` /
-   `resolveGraphSlice` in `ghost-adapter.ts`; `.ghost/manifest.yml` detection in
-   `fingerprint-catalog.ts`). Landed `5b5970e`.
-3. ✅ **Surface brief renders a `GraphSlice`** (`renderSlicePrompt`). Landed `9bc06a0`.
-4. ✅ **Token-CSS extraction** from fenced ```css blocks, corridor-merged.
-5. ✅ **Govern:** `selectChecksForSurfaces` → agent-evaluated conformance verdict
-   (`ghost-conformance.ts`, `/ghost-conformance`). Landed `fe22955`.
-6. ✅ **Account:** receipt with gathered-node + routed-check lineage
-   (`buildGhostReceipt`, `/ghost-receipt`). Landed `07f38a4`.
-7. ✅ **Legacy YAML path deleted**; bundles re-authored as node-graph fixtures.
-   Landed `bc0a9f5`.
+- The published `imports["#ghost-core"].types` condition points at
+  `./src/...`, which the tarball does not ship — and via a worktree link it
+  leaks Ghost's source into the consumer's `tsc` under the consumer's stricter
+  flags. Fix: point the types condition at `./dist/.../index.d.ts`.
+- The checks loader requires ≥1 `references` entry per check; the docs and
+  single-file lint imply references are optional. Either is fine — the
+  migration writes `references: [index]` — but the contract should be stated.
 
-One deviation from the plan: surface naming shipped as a dedicated semantic
-model call (`selectGhostSurface` in `ghost-adapter.ts`), not as an extension of
-the agent ward's classifier described under "Resolved decisions" below.
+### Fingerprint hygiene pass
 
-## Resolved decisions
-
-- **Token node convention → CSS on any corridor node.** Summon extracts fenced
-  ```css blocks from *every* node in the gathered slice and merges them in
-  corridor/provenance order (ancestors → own → edge). A surface node can thus
-  override a base token; no single "canonical" visual node is required.
-- **Surface naming → extend the agent ward.** Summon names the node (Ghost
-  does not infer it). Feed `buildGraphMenu(graph)` (each node's `id` +
-  `description`) to the existing ward, which already classifies prompt intent;
-  it selects the best-matching node id exactly as it selects a tool from a tool
-  list. Fall back to `core` (true everywhere) when no node matches confidently.
-- **Sample bundles → author fresh node-model fixtures.** Re-author the existing
-  bundles' design intent as new node-graph fixtures rather than running
-  `ghost migrate` on the old YAML. Cleaner fixtures, no migration cruft, and
-  it doubles as a dogfood of authoring against the new model.
-- **Incarnation → essence for v1.** Summon does not pass `--as`. It gathers
-  essence (untagged) nodes plus any `any`-tagged nodes — the medium-agnostic
-  intent. Medium-bound incarnations (email/voice/billboard) are out of scope for
-  v1; revisit if Summon ever targets non-web surfaces.
-
-### Background: essence vs incarnation
-
-A node's `incarnation` frontmatter marks medium-bound prose. **Essence** =
-untagged (or `any`): intent that holds in any medium. A tagged node
-(`incarnation: email`) only applies to that form. At gather, `--as <x>` passes
-essence always + tagged nodes matching `x`. Summon stays essence-only in v1, so
-every gathered tagged node would be filtered — fixtures should author intent as
-essence, not medium-bound.
+Vendored bundles now carry `glossary.md`, `.ghost/.gitignore`, and checks under
+`haunts/checks/`. Existing checks were retargeted toward specific node ids where
+obvious, and previously unchecked bundles have high-signal conformance checks.
+The next content-quality pass is the larger typed-node migration
+(`principle.*`, `pattern.*`, `asset.*`, `anti-goal.*`) so descriptions, glossary
+semantics, checks, and receipts all use stronger Ghost retrieval handles.

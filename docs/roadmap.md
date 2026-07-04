@@ -49,8 +49,8 @@ Remaining:
 ### B. Account — trace/receipt as a first-class artifact
 
 `buildGhostReceipt` (`apps/server/src/ghost-adapter.ts`) emits
-`/ghost-receipt` (`summon.ghost-receipt/v1`) with fingerprint id, gathered
-nodes, validation, and conformance verdict.
+`/ghost-receipt` (`summon.ghost-receipt/v2`) with fingerprint id, gathered
+nodes (pull reasons), validation, and conformance verdict.
 
 Remaining:
 

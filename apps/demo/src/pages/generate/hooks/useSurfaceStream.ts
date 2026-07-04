@@ -216,9 +216,9 @@ export function useSurfaceStream({
       const value = line.value as {
         fingerprint?: {
           tokenSource?: { kind?: unknown };
-          cascade?: unknown;
+          surface?: unknown;
           gatheredNodes?: unknown;
-          routedChecks?: unknown;
+          offeredChecks?: unknown;
         };
         generation?: { artifactFiles?: unknown; validation?: { blocked?: unknown; warnings?: unknown } };
         conformance?: { evaluated?: unknown; summary?: { pass?: unknown; fail?: unknown; inconclusive?: unknown }; checks?: unknown };
@@ -235,23 +235,21 @@ export function useSurfaceStream({
       const inconclusive = typeof conf?.inconclusive === 'number' ? conf.inconclusive : 0;
       logLine('op-meta', `fingerprint receipt -> style=${style}; artifact=${artifactFiles.join(', ') || 'none'}; validation=${blocked}/${warnings}; conformance=${pass}p/${fail}f/${inconclusive}i`);
 
-      const cascade = Array.isArray(value?.fingerprint?.cascade)
-        ? value.fingerprint.cascade.filter((layer): layer is string => typeof layer === 'string')
-        : [];
-      if (cascade.length) logLine('op-meta', `  cascade -> ${cascade.join(' > ')}`);
+      const anchor = typeof value?.fingerprint?.surface === 'string' ? value.fingerprint.surface : '';
+      if (anchor) logLine('op-meta', `  anchor -> ${anchor}`);
 
       const gatheredNodes = parseGatheredNodes(value?.fingerprint?.gatheredNodes);
       if (gatheredNodes.length) {
         const rendered = gatheredNodes
-          .map((node) => `${node.id}${node.provenance ? `(${node.provenance})` : ''}`)
+          .map((node) => `${node.id}${node.reason ? `(${node.reason})` : ''}`)
           .join(', ');
         logLine('op-meta', `  gathered nodes -> ${rendered}`);
       }
 
-      const routedChecks = parseRoutedChecks(value?.fingerprint?.routedChecks);
-      if (routedChecks.length) {
-        const rendered = routedChecks.map((check) => `${check.name}[${check.severity}]`).join(', ');
-        logLine('op-meta', `  routed checks -> ${rendered}`);
+      const offeredChecks = parseOfferedChecks(value?.fingerprint?.offeredChecks);
+      if (offeredChecks.length) {
+        const rendered = offeredChecks.map((check) => `${check.name}[${check.severity}]`).join(', ');
+        logLine('op-meta', `  offered checks -> ${rendered}`);
       }
 
       const checks = parseConformanceChecks(value?.conformance?.checks);
@@ -566,22 +564,22 @@ function parseConformanceChecks(value: unknown): ConformanceCheckSummary[] {
   return checks;
 }
 
-function parseGatheredNodes(value: unknown): Array<{ id: string; provenance?: string }> {
+function parseGatheredNodes(value: unknown): Array<{ id: string; reason?: string }> {
   if (!Array.isArray(value)) return [];
-  const nodes: Array<{ id: string; provenance?: string }> = [];
+  const nodes: Array<{ id: string; reason?: string }> = [];
   for (const entry of value) {
     if (!entry || typeof entry !== 'object') continue;
     const item = entry as Record<string, unknown>;
     if (typeof item.id !== 'string') continue;
     nodes.push({
       id: item.id,
-      ...(typeof item.provenance === 'string' ? { provenance: item.provenance } : {}),
+      ...(typeof item.reason === 'string' ? { reason: item.reason } : {}),
     });
   }
   return nodes;
 }
 
-function parseRoutedChecks(value: unknown): Array<{ name: string; severity: string }> {
+function parseOfferedChecks(value: unknown): Array<{ name: string; severity: string }> {
   if (!Array.isArray(value)) return [];
   const checks: Array<{ name: string; severity: string }> = [];
   for (const entry of value) {

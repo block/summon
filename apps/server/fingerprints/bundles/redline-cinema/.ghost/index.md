@@ -277,14 +277,14 @@ copy holds `--text-md` and up. Motion is optional and honors reduced-motion
 preferences — the cinematic reveal is decoration, never a gate on content.
 
 The shared material every surface draws on lives in the root nodes that reach
-everywhere: the [cinematic image system](cinematic-image) that carries the drama
-and disciplines placeholders, the [scarce-red CTA and control system](controls)
+everywhere: the [cinematic image system](pattern.cinematic-image) that carries the drama
+and disciplines placeholders, the [scarce-red CTA and control system](pattern.controls)
 that supplies voltage and machined inputs, the [large-number spec
-system](spec-system) that reads data as specification, the [dark elevated plate
-and hairline depth system](depth) that builds presence without shadow, the
-[single red livery band](livery-band) reserved for one dramatic interruption, the
-[editorial cadence](editorial-cadence) that paces every surface as numbered
-chapters on one four-column backbone, and the [player chrome](player-chrome) that
+system](pattern.spec-system) that reads data as specification, the [dark elevated plate
+and hairline depth system](principle.depth) that builds presence without shadow, the
+[single red livery band](pattern.livery-band) reserved for one dramatic interruption, the
+[editorial cadence](pattern.editorial-cadence) that paces every surface as numbered
+chapters on one four-column backbone, and the [player chrome](pattern.player-chrome) that
 dresses motion footage in the same machined hairline-and-mono vocabulary with
 zero third-party player branding. Every
 generated surface — a launch, a spec story, a catalog, a directory, or a lineup —
@@ -330,13 +330,13 @@ Seven principles carry the language and are true on every surface:
 **Cutting a surface from the same parts.** Redline Cinema has no fixed page
 types — every surface is edited for its task from the same machined kit of parts,
 in the same cinematic reading order. Open on the [cinematic image
-system](cinematic-image) so one full-bleed frame carries the emotion before any
-copy; spend the [scarce-red CTA and control system](controls) on the single
+system](pattern.cinematic-image) so one full-bleed frame carries the emotion before any
+copy; spend the [scarce-red CTA and control system](pattern.controls) on the single
 decisive action per region and hold everything else near-black, white, and grey;
-let raw figures become proof through the [large-number spec system](spec-system);
+let raw figures become proof through the [large-number spec system](pattern.spec-system);
 build presence from the [dark elevated plate and hairline depth
-system](depth) rather than shadow; and reserve the [single red livery
-band](livery-band) for the one moment that must seize the full width. Let the task
+system](principle.depth) rather than shadow; and reserve the [single red livery
+band](pattern.livery-band) for the one moment that must seize the full width. Let the task
 set the shape, not a template: when a surface reveals one thing, cinema leads and
 the page tightens after the hero into editorial body with large brightness-paced
 breaks; when it proves capability, numbers are the subject and comparisons keep

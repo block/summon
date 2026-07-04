@@ -652,8 +652,8 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
             source: 'root',
             rootId: 'checkout',
             product: 'checkout',
-            surface: 'core',
-            gatheredNodes: ['core'],
+            surface: 'index',
+            gatheredNodes: ['index'],
             styleSource: 'ghost-config',
           },
         },
@@ -662,7 +662,7 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
           path: '/ghost-token-source',
           value: {
             kind: 'ghost-config',
-            source: 'fingerprint:core',
+            source: 'fingerprint:index',
             css: ':root { --color-bg: #ffffff; --color-text: #111111; }',
             warnings: [],
           },
@@ -684,16 +684,15 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
           op: 'meta',
           path: '/ghost-receipt',
           value: {
-            schema: 'summon.ghost-receipt/v1',
+            schema: 'summon.ghost-receipt/v2',
             fingerprint: {
               source: 'root',
               id: 'checkout',
               product: 'checkout',
-              surface: 'core',
-              cascade: ['core'],
-              gatheredNodes: [{ id: 'core', provenance: 'own' }],
-              tokenSource: { kind: 'ghost-config', source: 'fingerprint:core', definedTokenCount: 0, warnings: [] },
-              routedChecks: [{ name: 'token-contrast', severity: 'medium' }],
+              surface: 'index',
+              gatheredNodes: [{ id: 'index', reason: 'front-door' }],
+              tokenSource: { kind: 'ghost-config', source: 'fingerprint:index', definedTokenCount: 0, warnings: [] },
+              offeredChecks: [{ name: 'token-contrast', severity: 'medium' }],
             },
             capability: { mode: 'static', grantedTools: [], layoutId: null },
             generation: {
@@ -744,11 +743,11 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
     grants: ['choose'],
   });
 
-  // Node-graph provenance + conformance readout from /ghost-receipt.
+  // Flat-corpus pull + conformance readout from /ghost-receipt.
   const eventLog = page.locator('#event-log');
-  await expect(eventLog).toContainText('ghost cascade core');
-  await expect(eventLog).toContainText('ghost nodes core(own)');
-  await expect(eventLog).toContainText('ghost tokens ghost-config · fingerprint:core');
+  await expect(eventLog).toContainText('ghost anchor index');
+  await expect(eventLog).toContainText('ghost nodes index(front-door)');
+  await expect(eventLog).toContainText('ghost tokens ghost-config · fingerprint:index');
   await expect(eventLog).toContainText('ghost conformance pass=1 fail=0 inconclusive=0');
   await expect(eventLog).toContainText('conformance token-contrast [medium] pass');
 });

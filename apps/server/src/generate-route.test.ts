@@ -309,7 +309,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.match(systemText, /Surface Document may use host tools/);
   assert.match(systemText, /host-bridge:summon/);
   assert.match(systemText, /onState/);
-  assert.match(systemText, /Structured Surface Document bundle/);
+  assert.match(systemText, /Surface Document bundle/);
   assert.match(systemText, /emit_surface_document/);
   assert.doesNotMatch(systemText, /Rules for scripts/);
   assert.doesNotMatch(systemText, /\bchoose\b/);
@@ -759,9 +759,9 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   };
   assert.equal(contextMeta.source, 'root');
   assert.equal(contextMeta.product, 'checkout');
-  assert.equal(contextMeta.surface, 'core');
+  assert.equal(contextMeta.surface, 'index');
   assert.ok(Array.isArray(contextMeta.gatheredNodes));
-  assert.ok((contextMeta.gatheredNodes as unknown[]).includes('core'));
+  assert.ok((contextMeta.gatheredNodes as unknown[]).includes('index'));
   assert.equal(contextMeta.styleSource, 'ghost-config');
 
   const ghostReceiptLine = lines.find((line) => line.path === '/ghost-receipt') as Extract<ProtocolLine, { op: 'meta' }>;
@@ -770,23 +770,23 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     fingerprint?: {
       source?: unknown;
       surface?: unknown;
-      gatheredNodes?: Array<{ id?: unknown; provenance?: unknown }>;
+      gatheredNodes?: Array<{ id?: unknown; reason?: unknown }>;
       tokenSource?: { kind?: unknown };
-      routedChecks?: unknown;
+      offeredChecks?: unknown;
     };
     generation?: { artifactRuntime?: unknown; artifactFiles?: unknown };
     conformance?: { evaluated?: unknown };
   };
-  assert.equal(receipt.schema, 'summon.ghost-receipt/v1');
+  assert.equal(receipt.schema, 'summon.ghost-receipt/v2');
   assert.equal(receipt.fingerprint?.source, 'root');
-  assert.equal(receipt.fingerprint?.surface, 'core');
+  assert.equal(receipt.fingerprint?.surface, 'index');
   assert.ok(Array.isArray(receipt.fingerprint?.gatheredNodes));
-  assert.ok(receipt.fingerprint?.gatheredNodes?.some((node) => node.id === 'core'));
+  assert.ok(receipt.fingerprint?.gatheredNodes?.some((node) => node.id === 'index'));
   for (const node of receipt.fingerprint?.gatheredNodes ?? []) {
-    assert.ok(['own', 'ancestor', 'edge'].includes(node.provenance as string));
+    assert.ok(['front-door', 'anchor', 'corpus'].includes(node.reason as string));
   }
   assert.equal(receipt.fingerprint?.tokenSource?.kind, 'ghost-config');
-  assert.ok(Array.isArray(receipt.fingerprint?.routedChecks));
+  assert.ok(Array.isArray(receipt.fingerprint?.offeredChecks));
   assert.equal(receipt.generation?.artifactRuntime, 'surface-document');
   assert.deepEqual(receipt.generation?.artifactFiles, ['main.css', 'main.html']);
 
@@ -1296,6 +1296,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
       GEMINI_API_KEY: '',
       GOOGLE_API_KEY: '',
       SUMMON_GHOST_SURFACE_SELECT: '0',
+      SUMMON_AGENT_GOAL_SELECT: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

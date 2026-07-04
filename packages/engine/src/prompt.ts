@@ -112,16 +112,30 @@ export const SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS = `You generate self-con
 
 You receive a user request and a Ghost design fingerprint. Render one native Surface Document that satisfies the request. The Ghost fingerprint is the sole authority for composition, hierarchy, density, tone, structure, and all visual design — follow it. Summon governs only the runtime, safety, and output format described below; it has no opinion about how the surface should look.
 
-## Structured Surface Document bundle
+## Surface Document bundle output format
 
-You return a structured object through the provided emit_surface_document tool/schema. Do not write Markdown, code fences, transport records, stream lines, objects with op/path fields, or host-owned meta paths.
+You return one tagged-text Surface Document bundle, and nothing else. Do not write JSON, Markdown, code fences (\`\`\`), commentary, transport records, stream lines, objects with op/path fields, or host-owned meta paths.
 
-The returned object must include:
+The exact wire format (each \`===\` fence on its own line, matched exactly):
 
-- schema: "summon.surface-document-bundle/v1"
-- source["main.html"] with inert semantic structure
-- source["main.css"] with all Ghost fingerprint styling
-- optional source["main.js"] for governed behavior only when behavior is needed
+=== SUMMON-BUNDLE v1 ===
+files: main.html, main.css, main.js
+=== FILE: main.html ===
+...raw main.html content, unescaped...
+=== FILE: main.css ===
+...raw main.css content, unescaped...
+=== FILE: main.js ===
+...raw main.js content, unescaped...
+=== END SUMMON-BUNDLE ===
+
+Format rules:
+
+- Start your reply with the \`=== SUMMON-BUNDLE v1 ===\` line — no text before it.
+- The \`files:\` line lists the files you include, comma-separated.
+- Each \`=== FILE: name ===\` fence starts that file; everything until the next fence is its raw content. Do not escape, indent, or wrap file content — write it exactly as the file should read.
+- main.html and main.css are required. main.js is optional — include its fence only when behavior is needed.
+- Use each file name exactly once.
+- End with the \`=== END SUMMON-BUNDLE ===\` line — no text after it. The bundle is invalid without it.
 
 Surface Document file roles:
 
@@ -138,20 +152,19 @@ ${formatTokenContract()}
 
 The Ghost fingerprint specifies which tokens carry particular meaning and how to deploy them.
 
-Begin. Return one complete structured Surface Document bundle through the provided tool/schema.`;
+Begin. Return one complete tagged-text Surface Document bundle in the exact wire format above.`;
 
 export const SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS = `## Output contract — final reminder
 
-Return one structured object through the \`emit_surface_document\` tool/schema. Not Markdown, code fences, transport records, stream lines, \`op\`/\`path\` objects, or host-owned meta paths.
+Return one tagged-text Surface Document bundle and nothing else. Not JSON, Markdown, code fences, transport records, stream lines, \`op\`/\`path\` objects, or host-owned meta paths. Start with \`=== SUMMON-BUNDLE v1 ===\`, then the \`files:\` line, then one \`=== FILE: name ===\` fence per file with raw unescaped content, and end with \`=== END SUMMON-BUNDLE ===\`.
 
-- \`schema: "summon.surface-document-bundle/v1"\`
-- \`source["main.html"]\` with inert semantic structure
-- \`source["main.css"]\` with fingerprint styling
-- optional \`source["main.js"]\` for governed behavior using scoped DOM APIs, \`state()\`, \`region()\`, and \`callTool()\`
+- \`main.html\` fence (required) with inert semantic structure
+- \`main.css\` fence (required) with fingerprint styling
+- optional \`main.js\` fence for governed behavior using scoped DOM APIs, \`state()\`, \`region()\`, and \`callTool()\`
 
 Highest-value reminders (full rules above): keep HTML inert; put styling in \`main.css\`; put behavior only in optional \`main.js\`; no inline handlers, forbidden tags, javascript: URLs, \`@import\`, external/data/javascript CSS URLs, network APIs, \`window\`, \`document.body\`, storage, \`eval\`, \`innerHTML\`, or \`outerHTML\`.
 
-The run is incomplete until the bundle contains valid \`main.html\` and \`main.css\`.`;
+The run is incomplete until the bundle contains \`main.html\` and \`main.css\` fences and the closing \`=== END SUMMON-BUNDLE ===\` line.`;
 
 export function buildLayoutBlock(layout: SummonLayout): string {
   const slotLines = layout.slots
@@ -350,7 +363,7 @@ function buildSurfaceDocumentToolsBlock({
 }): string {
   return `## Tools — this Surface Document may use host tools
 
-This run returns a structured Surface Document bundle. Keep structure in \`main.html\`, styling in \`main.css\`, and any live behavior in optional \`main.js\`. Host calls are allowed only through granted tools.
+This run returns a tagged-text Surface Document bundle. Keep structure in \`main.html\`, styling in \`main.css\`, and any live behavior in optional \`main.js\`. Host calls are allowed only through granted tools.
 
 ### Host bridge in main.js
 

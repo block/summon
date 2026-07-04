@@ -30,7 +30,8 @@
     "typecheck": "pnpm -r typecheck",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm check:release && changeset publish"
+    "release": "pnpm check:release && changeset publish",
+    "ghost:validate:fingerprints": "node scripts/validate-ghost-fingerprints.mjs"
   },
   "packageManager": "pnpm@10.33.0",
   "engines": {

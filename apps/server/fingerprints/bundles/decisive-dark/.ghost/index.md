@@ -303,13 +303,13 @@ than perform, resolving within `--dd-confirm-duration` or instantly — the surf
 arrives settled and stays settled.
 
 The shared material every surface draws on lives in the root nodes that reach
-everywhere through the spine: the [streamed answer block](answer) that claims the
-screen, the [bold evidence](evidence) that shows the data, the [one-sentence
-meaning](meaning) that says the so-what, the [pill action stack](action) that
-guides the next move, the [accent moment](accent-moment) that spends the accent
-exactly once, the [deletion discipline](deletion-discipline) that runs the
+everywhere through the spine: the [streamed answer block](pattern.answer) that claims the
+screen, the [bold evidence](pattern.evidence) that shows the data, the [one-sentence
+meaning](pattern.meaning) that says the so-what, the [pill action stack](pattern.action) that
+guides the next move, the [accent moment](pattern.accent-moment) that spends the accent
+exactly once, the [deletion discipline](principle.deletion-discipline) that runs the
 what-can-we-delete filter over the whole composition, and the [negative-space
-frame](negative-space) that places the emptiness first so the answer stands
+frame](pattern.negative-space) that places the emptiness first so the answer stands
 alone in it. Every surface is streamed together for its own job from these same
 building blocks — there are no fixed page types to link to, only the shared kit.
 
@@ -339,11 +339,11 @@ Four principles carry the language and are true on every surface:
 
 **Composing an answer from the parts.** Decisive Dark has no fixed page types —
 every surface is streamed together for its task from the same four-block kit, in
-the same order. Lead with the [streamed answer block](answer) so the takeaway is
+the same order. Lead with the [streamed answer block](pattern.answer) so the takeaway is
 the first and loudest visual event; justify it with at most one region of
-[bold evidence](evidence); land the [one-sentence meaning](meaning) that names the
-so-what; close on the [pill action stack](action) that hands back the next move;
-and spend the [accent moment](accent-moment) once or not at all across the whole
+[bold evidence](pattern.evidence); land the [one-sentence meaning](pattern.meaning) that names the
+so-what; close on the [pill action stack](pattern.action) that hands back the next move;
+and spend the [accent moment](pattern.accent-moment) once or not at all across the whole
 composition. Let the task set the shape of the answer, not a template: when the
 task is a single lookup or a yes/no, the answer reads first as a `--dd-numeral`
 metric or a decisive prefix on its own line; when it resolves a field of metrics,

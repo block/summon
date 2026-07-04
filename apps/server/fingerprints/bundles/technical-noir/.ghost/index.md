@@ -270,11 +270,11 @@ commands, logs, code, paths, model names, statuses, and short technical chips;
 the serif italic is a rare editorial emphasis, never the core UI voice.
 
 The shared material every surface draws on lives in the root nodes that reach
-everywhere: the [control and metadata system](controls), the
-[terminal evidence panels](terminal-evidence) that prove technical claims, the
-[tile and row system](tiles) that carries repeating units, the
-[one-instrument discipline](one-instrument) that holds every surface to a single
-treatment under explicit budgets, and the [density field](density-field) that
+everywhere: the [control and metadata system](pattern.controls), the
+[terminal evidence panels](pattern.terminal-evidence) that prove technical claims, the
+[tile and row system](pattern.tiles) that carries repeating units, the
+[one-instrument discipline](principle.one-instrument) that holds every surface to a single
+treatment under explicit budgets, and the [density field](pattern.density-field) that
 turns live quantities into mono glyph texture on the transcript grid. Every surface —
 landing, workspace, comparison, brief, or one the task invents — is composed from
 these same building blocks under the same rules, never from a fixed template.
@@ -322,12 +322,12 @@ every surface is composed for its task from the same small kit of parts, on one
 continuous warm near-charcoal canvas. State the claim first in quiet light-weight
 sans — current state, a product value, a recommendation, the live edge of work —
 never a marketing posture; prove it immediately with
-[terminal evidence panels](terminal-evidence) whose mono `--noir-gutter` lines,
+[terminal evidence panels](pattern.terminal-evidence) whose mono `--noir-gutter` lines,
 felt `--noir-grid`, and single blinking `--noir-cursor` carry plausible,
 task-tied material, never decorative filler; rack any repeating units — tasks,
-options, criteria, steps, releases — as [the tile and row system](tiles) divided
+options, criteria, steps, releases — as [the tile and row system](pattern.tiles) divided
 by the `--noir-hairline`, never a grid of equal cards; label, select, and route
-with [the control and metadata system](controls), spending one off-white primary
+with [the control and metadata system](pattern.controls), spending one off-white primary
 action per region. Let the task set the shape, not a template: when it reports
 current state, lead with the finding and keep severity muted on 6px
 `--noir-dot-*` dots rather than filled banner alarms; when it weighs options, hold

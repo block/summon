@@ -988,23 +988,22 @@ function surfaceGhostReceipt(value: unknown): void {
   if (!value || typeof value !== 'object') return;
   const receipt = value as { fingerprint?: unknown; conformance?: unknown };
   const fingerprint = (receipt.fingerprint ?? {}) as {
-    cascade?: unknown;
+    surface?: unknown;
     gatheredNodes?: unknown;
     tokenSource?: unknown;
   };
-  const cascade = Array.isArray(fingerprint.cascade)
-    ? fingerprint.cascade.filter((node): node is string => typeof node === 'string')
-    : [];
-  if (cascade.length) pushHostMessage(`ghost cascade ${cascade.join(' → ')}`);
+  if (typeof fingerprint.surface === 'string' && fingerprint.surface) {
+    pushHostMessage(`ghost anchor ${fingerprint.surface}`);
+  }
   const gatheredNodes = Array.isArray(fingerprint.gatheredNodes) ? fingerprint.gatheredNodes : [];
   const nodeText = gatheredNodes
     .map((node) => {
       if (!node || typeof node !== 'object') return null;
-      const n = node as { id?: unknown; provenance?: unknown };
+      const n = node as { id?: unknown; reason?: unknown };
       const id = typeof n.id === 'string' ? n.id : null;
       if (!id) return null;
-      const provenance = typeof n.provenance === 'string' ? n.provenance : 'unknown';
-      return `${id}(${provenance})`;
+      const reason = typeof n.reason === 'string' ? n.reason : 'unknown';
+      return `${id}(${reason})`;
     })
     .filter((entry): entry is string => Boolean(entry));
   if (nodeText.length) pushHostMessage(`ghost nodes ${nodeText.join(', ')}`);

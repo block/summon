@@ -1,17 +1,22 @@
-import { loadChecksDir } from '@anarchitecture/ghost/scan';
-import {
-  selectChecksForSurfaces,
-  type GhostGraph,
-  type RoutedCheck,
-} from '@anarchitecture/ghost/core';
+import type { GhostCatalog } from '@anarchitecture/ghost-fingerprint/core';
+import type { GhostLoadedCheck } from './ghost-adapter.js';
 import type { TextCompletionRequest } from './model-providers.js';
 
 export type ConformanceVerdictValue = 'pass' | 'fail' | 'inconclusive';
 
+/**
+ * How a check was offered for this run. Ghost's flat-corpus model routes
+ * checks by diff-material matching in `ghost review`; Summon evaluates
+ * generated artifacts (not repo diffs), so no material locator can match and
+ * every fingerprint check is offered — the sanctioned "always" shape for
+ * assertions not bound to repo files.
+ */
+export type ConformanceOffered = 'always';
+
 export interface CheckVerdict {
   name: string;
   severity: 'high' | 'medium' | 'low';
-  relevance: 'own' | 'ancestor';
+  offered: ConformanceOffered;
   verdict: ConformanceVerdictValue;
   reason: string;
   evidence?: string;
@@ -27,7 +32,8 @@ export interface ConformanceSummary {
 }
 
 export interface ConformanceVerdict {
-  schema: 'summon.ghost-conformance/v1';
+  schema: 'summon.ghost-conformance/v2';
+  /** The anchor node id the generation was briefed against (diagnostic only). */
   surface: string;
   evaluated: boolean;
   checks: CheckVerdict[];
@@ -35,8 +41,13 @@ export interface ConformanceVerdict {
 }
 
 export interface EvaluateConformanceInput {
-  packageDir: string;
-  graph: GhostGraph;
+  /**
+   * Checks from the loaded fingerprint package's `checks` haunt
+   * (`LoadedFingerprintPackage.checks`). Ghost selects and emits; it never
+   * runs a check — Summon's utility model is the evaluating agent here.
+   */
+  checks: Map<string, GhostLoadedCheck>;
+  catalog?: GhostCatalog;
   surface: string;
   artifactSource: Record<string, string> | null;
   completeText: (request: TextCompletionRequest) => Promise<string>;
@@ -44,8 +55,12 @@ export interface EvaluateConformanceInput {
   signal?: AbortSignal;
 }
 
-const SCHEMA = 'summon.ghost-conformance/v1' as const;
-const DEFAULT_TIMEOUT_MS = 8000;
+const SCHEMA = 'summon.ghost-conformance/v2' as const;
+// Real artifacts (~20K chars of html+css) take a utility model ~10s to grade;
+// the previous 8s deadline fired on essentially every non-trivial surface and
+// returned blanket inconclusives. Conformance is a post-pass advisory line, so
+// the cost of the longer deadline is receipt latency, not user-visible stalls.
+const DEFAULT_TIMEOUT_MS = 25_000;
 // Conformance judges design fidelity, so the prompt must preserve design-bearing
 // files. Blindly truncating the concatenated artifact at 12K hid main.css behind
 // large imperative main.js files, creating false design failures for domjs.
@@ -119,12 +134,36 @@ function sourcePriority(file: string): number {
   return 4;
 }
 
-function buildEvalPrompt(artifactSource: Record<string, string>, routed: RoutedCheck[]): string {
-  const checksBlock = routed
+/** Stable evaluation order: by check id. */
+function orderedChecks(checks: Map<string, GhostLoadedCheck>): GhostLoadedCheck[] {
+  return [...checks.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, check]) => check);
+}
+
+function buildEvalPrompt(
+  artifactSource: Record<string, string>,
+  offered: GhostLoadedCheck[],
+  catalog?: GhostCatalog,
+): string {
+  const checksBlock = offered
     .map((entry, index) => {
-      const name = entry.check.frontmatter.name;
-      const body = entry.check.body.trim();
-      return `${index + 1}. ${name}\n${body}`;
+      const name = entry.doc.frontmatter.name;
+      const description = entry.doc.frontmatter.description;
+      const refs = entry.references;
+      const baseline = catalog ? baselineForReferences(refs, catalog) : [];
+      const lines = [`${index + 1}. ${name}`];
+      if (description) lines.push(`Description: ${description}`);
+      if (refs.length > 0) lines.push(`References: ${refs.map((ref) => `\`${ref}\``).join(', ')}`);
+      if (baseline.length > 0) {
+        lines.push('Baseline prose:');
+        for (const item of baseline) {
+          lines.push(`- ${item.ref}`);
+          lines.push(indentBlock(item.prose, '  '));
+        }
+      }
+      lines.push('Check instruction:', entry.doc.body.trim());
+      return lines.join('\n');
     })
     .join('\n\n');
   return [
@@ -138,6 +177,27 @@ function buildEvalPrompt(artifactSource: Record<string, string>, routed: RoutedC
     '',
     'Return a JSON array with one object per check above, keyed by the check name.',
   ].join('\n');
+}
+
+function baselineForReferences(refs: string[], catalog: GhostCatalog): Array<{ ref: string; prose: string }> {
+  return refs.flatMap((ref) => {
+    const nodeId = ref.split('>')[0]?.trim() ?? ref.trim();
+    const node = catalog.nodes.get(nodeId);
+    if (!node?.body.trim()) return [];
+    return [{ ref, prose: truncateBaseline(node.body.trim()) }];
+  });
+}
+
+function truncateBaseline(value: string): string {
+  const max = 2400;
+  return value.length <= max ? value : `${value.slice(0, max)}\n... [baseline truncated]`;
+}
+
+function indentBlock(value: string, indent: string): string {
+  return value
+    .split(/\r?\n/)
+    .map((line) => `${indent}${line}`)
+    .join('\n');
 }
 
 function buildSummary(checks: CheckVerdict[]): ConformanceSummary {
@@ -154,11 +214,11 @@ function buildSummary(checks: CheckVerdict[]): ConformanceSummary {
   return summary;
 }
 
-function inconclusiveVerdicts(routed: RoutedCheck[], reason: string): CheckVerdict[] {
-  return routed.map((entry) => ({
-    name: entry.check.frontmatter.name,
-    severity: entry.check.frontmatter.severity,
-    relevance: entry.relevance.kind,
+function inconclusiveVerdicts(offered: GhostLoadedCheck[], reason: string): CheckVerdict[] {
+  return offered.map((entry) => ({
+    name: entry.doc.frontmatter.name,
+    severity: entry.doc.frontmatter.severity,
+    offered: 'always' as const,
     verdict: 'inconclusive' as const,
     reason,
   }));
@@ -167,38 +227,43 @@ function inconclusiveVerdicts(routed: RoutedCheck[], reason: string): CheckVerdi
 export async function evaluateConformance(
   input: EvaluateConformanceInput,
 ): Promise<ConformanceVerdict> {
-  const { packageDir, graph, surface, artifactSource } = input;
+  const { checks, surface, artifactSource } = input;
 
-  const { checks } = await loadChecksDir(packageDir);
-  const routed = selectChecksForSurfaces(checks, graph, [surface]);
+  // Every fingerprint check is offered: Summon judges a generated artifact,
+  // not a repo diff, so Ghost's material-based routing cannot apply and the
+  // "always offered" shape is the correct one (see ConformanceOffered).
+  const offered = orderedChecks(checks);
 
-  // No-op fast path: no routed checks or no artifact → no model call.
-  if (routed.length === 0 || !artifactSource) {
+  // No-op fast path: no checks or no artifact → no model call.
+  if (offered.length === 0 || !artifactSource) {
     return emptyVerdict(surface);
   }
 
-  const prompt = buildEvalPrompt(artifactSource, routed);
+  const prompt = buildEvalPrompt(artifactSource, offered, input.catalog);
   const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
   let raw: string | null = null;
+  let failure = 'Evaluator returned no parseable verdict.';
   try {
     raw = await Promise.race<string | null>([
       input.completeText({
         system: EVAL_SYSTEM_PROMPT,
         prompt,
-        maxTokens: 1024,
+        maxTokens: 2048,
         temperature: 0,
         signal: input.signal,
       }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
     ]);
-  } catch {
+    if (raw === null) failure = `Evaluator timed out after ${timeoutMs}ms.`;
+  } catch (err) {
     raw = null;
+    failure = `Evaluator call failed: ${err instanceof Error ? err.message : String(err)}`;
   }
 
   const parsed = raw ? extractJsonArray(raw) : null;
   if (!parsed) {
-    const verdicts = inconclusiveVerdicts(routed, 'Evaluator returned no parseable verdict.');
+    const verdicts = inconclusiveVerdicts(offered, failure);
     return { schema: SCHEMA, surface, evaluated: true, checks: verdicts, summary: buildSummary(verdicts) };
   }
 
@@ -211,16 +276,15 @@ export async function evaluateConformance(
     }
   }
 
-  const verdicts: CheckVerdict[] = routed.map((entry) => {
-    const name = entry.check.frontmatter.name;
-    const severity = entry.check.frontmatter.severity;
-    const relevance = entry.relevance.kind;
+  const verdicts: CheckVerdict[] = offered.map((entry) => {
+    const name = entry.doc.frontmatter.name;
+    const severity = entry.doc.frontmatter.severity;
     const found = byName.get(name);
     if (!found || typeof found.pass !== 'boolean') {
       return {
         name,
         severity,
-        relevance,
+        offered: 'always' as const,
         verdict: 'inconclusive' as const,
         reason: found && typeof found.reason === 'string'
           ? found.reason
@@ -230,7 +294,7 @@ export async function evaluateConformance(
     const verdict: CheckVerdict = {
       name,
       severity,
-      relevance,
+      offered: 'always',
       verdict: found.pass ? 'pass' : 'fail',
       reason: typeof found.reason === 'string' ? found.reason : '',
     };
