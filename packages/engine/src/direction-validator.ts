@@ -16,8 +16,6 @@ export interface DirectionOpts {
 export interface ValidationResult {
   /** Token names (without `--`) actually defined in tokens.css. */
   defined: Set<string>;
-  /** Legacy compatibility field. No Summon-owned opportunistic slots exist. */
-  liveOpportunistic: string[];
   /** Summon no longer emits fatal token-vocabulary errors. */
   errors: string[];
   /** Non-fatal token vocabulary warnings. */
@@ -64,5 +62,5 @@ export function validateDirection(
   } else if (defined.size === 0) {
     warnings.push('active token stylesheet defines no CSS custom properties');
   }
-  return { defined, liveOpportunistic: [], errors: [], warnings };
+  return { defined, errors: [], warnings };
 }

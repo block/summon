@@ -75,7 +75,6 @@ export interface GhostGenerationContext {
 export interface CompiledTokenContract {
   promptVocabulary: string;
   definedTokens: Set<string>;
-  liveOpportunistic: string[];
   issues: ContractIssue[];
 }
 
@@ -172,7 +171,7 @@ export function compileTokenContract(input: TokenContractInput = {}): CompiledTo
   const definedTokens = input.css ? parseDefinedTokens(input.css) : new Set<string>();
   const validation = input.css
     ? validateDirection(input.css, input.opts)
-    : { liveOpportunistic: [], errors: [], warnings: [] };
+    : { errors: [], warnings: [] };
   const issues: ContractIssue[] = [
     ...validation.errors.map((message) => contractIssue({
       source: 'token',
@@ -191,7 +190,6 @@ export function compileTokenContract(input: TokenContractInput = {}): CompiledTo
   return {
     promptVocabulary: formatTokenContract(),
     definedTokens,
-    liveOpportunistic: validation.liveOpportunistic,
     issues,
   };
 }

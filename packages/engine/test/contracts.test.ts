@@ -47,7 +47,6 @@ test('token compiler is agnostic to design-source token names', () => {
   const ok = compileTokenContract({ css: defaultTokens });
   assert.equal(ok.issues.length, 0);
   assert.equal(ok.definedTokens.has('color-bg'), true);
-  assert.equal(ok.liveOpportunistic.length, 0);
   assert.match(ok.promptVocabulary, /do not assume Summon-specific token names/);
 
   const custom = compileTokenContract({ css: ':root { --paper: #faf7ed; --ink: #16130f; --breathing-room: 28px; }' });
