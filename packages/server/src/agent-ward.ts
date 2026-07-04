@@ -14,6 +14,8 @@ import { runSurfaceGeneration } from './runner.js';
 import type {
   SurfaceGenerationInput,
   SurfaceGenerationSummary,
+  TextCompletionClient,
+  TextCompletionRequest,
 } from './types.js';
 
 export type SurfaceGoalInteraction =
@@ -55,17 +57,8 @@ export type AgentGoalProvider = (
   request: AgentGoalRequest,
 ) => SurfaceGoal | null | Promise<SurfaceGoal | null>;
 
-export interface AgentGoalTextRequest {
-  system: string;
-  prompt: string;
-  maxTokens: number;
-  temperature?: number;
-  signal?: AbortSignal;
-}
-
-export interface AgentGoalTextClient {
-  completeText(request: AgentGoalTextRequest): string | Promise<string>;
-}
+export type AgentGoalTextRequest = TextCompletionRequest;
+export type AgentGoalTextClient = TextCompletionClient;
 
 export interface HostPolicyResolutionRequest {
   prompt: string;

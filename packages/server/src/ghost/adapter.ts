@@ -2,7 +2,7 @@ import {
   type ToolPack,
   type ProtocolLine,
   type SurfacePlan,
-} from '@anarchitecture/summon/engine';
+} from '@summon-internal/engine';
 import {
   loadFingerprintPackage,
   resolveFingerprintPackage,
@@ -15,8 +15,8 @@ import {
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
-  type ConjurorPacket,
-  type ConjurorStrategyOption,
+  type GhostGatherPacket,
+  type GhostGatherStrategyOption,
   compileConjurorContext,
   extractCorpusCss,
   GHOST_FRONT_DOOR_ID,
@@ -27,27 +27,12 @@ import {
   renderCorpusPrompt,
   selectGhostSurface,
 } from './conjuror.js';
-import {
-  type FingerprintCatalog,
-  type FingerprintCatalogEntry,
-  type FingerprintRequest,
-} from './fingerprint-catalog.js';
 import type {
   ConformanceSummary,
   ConformanceVerdict,
   ConformanceVerdictValue,
-} from './ghost-conformance.js';
-import type { TextCompletionRequest } from './model-providers.js';
-
-export {
-  GHOST_FRONT_DOOR_ID,
-  selectGhostSurface,
-  type ConjurorPacket,
-  type ConjurorStrategyOption,
-  type GhostGlossaryEntry,
-  type GhostPullReason,
-  type PulledGhostNode,
-} from './conjuror.js';
+} from './conformance.js';
+import type { TextCompletionRequest } from '../types.js';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
@@ -84,6 +69,13 @@ export interface GhostRoot {
 
 export type GhostRoots = Map<string, string>;
 
+export interface GhostFingerprintEntry {
+  id: string;
+  name: string;
+  root: string;
+  ghostDir: string;
+}
+
 export interface GhostTokenSource {
   kind: 'ghost-config' | 'fingerprint-catalog';
   source: string;
@@ -106,7 +98,7 @@ interface BaseGhostSteer {
   prompt: string;
   product: string;
   tokenSource: GhostTokenSource;
-  conjuror?: ConjurorPacket;
+  gather?: GhostGatherPacket;
 }
 
 export interface ResolvedRootGhostSteer extends BaseGhostSteer {
@@ -118,13 +110,11 @@ export interface ResolvedRootGhostSteer extends BaseGhostSteer {
 export interface ResolvedCatalogGhostSteer extends BaseGhostSteer {
   source: 'catalog';
   request: GhostCatalogRequest;
-  catalogEntry: FingerprintCatalogEntry;
+  catalogEntry: GhostFingerprintEntry;
   root: string;
 }
 
 export type ResolvedGhostSteer = ResolvedRootGhostSteer | ResolvedCatalogGhostSteer;
-
-export type ResolvedGhostContext = ResolvedGhostSteer;
 
 export interface GhostSurfacePromptOptions {
   userPrompt: string;
@@ -147,8 +137,8 @@ export interface GhostSurfacePromptOptions {
    * when omitted.
    */
   preselectedSurface?: string;
-  conjuror?: {
-    strategy?: ConjurorStrategyOption;
+  gather?: {
+    strategy?: GhostGatherStrategyOption;
     fullPullNodeLimit?: number;
     maxNodes?: number;
     maxSupportNodes?: number;
@@ -307,13 +297,6 @@ export function parseGhostRequest(
   };
 }
 
-export async function resolveGhostContext(
-  request: GhostRootRequest,
-  roots: GhostRoots,
-): Promise<ResolvedRootGhostSteer> {
-  return resolveGhostGenerationContext(request, roots);
-}
-
 export async function resolveGhostGenerationContext(
   request: GhostRootRequest,
   roots: GhostRoots,
@@ -352,30 +335,27 @@ export async function resolveGhostGenerationContext(
 }
 
 export async function resolveCatalogGhostGenerationContext(
-  request: FingerprintRequest,
-  catalog: FingerprintCatalog,
+  entry: GhostFingerprintEntry,
+  targetPath: string,
 ): Promise<ResolvedCatalogGhostSteer> {
-  const entry = catalog.byId.get(request.id);
-  if (!entry) throw new Error(`unknown fingerprint "${request.id}"`);
-
   const paths = resolveFingerprintPackage(entry.ghostDir, process.cwd());
   const { catalog: nodeCatalog, checks } = await loadFingerprintPackage(paths);
   const glossary = await loadGhostGlossary(paths.glossary);
   const pulled = pullCorpus(nodeCatalog, GHOST_FRONT_DOOR_ID);
 
-  const product = entry.name || request.id;
+  const product = entry.name || entry.id;
   const css = extractCorpusCss(pulled);
   const tokenSource = resolveCorpusTokenSource(css);
   if (!css.trim()) {
-    tokenSource.warnings.push(`Fingerprint "${request.id}" .ghost has no token css block`);
+    tokenSource.warnings.push(`Fingerprint "${entry.id}" .ghost has no token css block`);
   }
 
   return {
     source: 'catalog',
     request: {
       source: 'catalog',
-      fingerprintId: request.id,
-      targetPath: request.targetPath,
+      fingerprintId: entry.id,
+      targetPath,
     },
     catalogEntry: entry,
     root: entry.root,
@@ -404,18 +384,18 @@ export async function prepareGhostSurfacePrompt(
     surfaceSelectTimeoutMs: options.surfaceSelectTimeoutMs,
     signal: options.signal,
     preselectedSurface: options.preselectedSurface,
-    strategy: options.conjuror?.strategy,
-    fullPullNodeLimit: options.conjuror?.fullPullNodeLimit,
-    maxNodes: options.conjuror?.maxNodes,
-    maxSupportNodes: options.conjuror?.maxSupportNodes,
-    maxChars: options.conjuror?.maxChars,
+    strategy: options.gather?.strategy,
+    fullPullNodeLimit: options.gather?.fullPullNodeLimit,
+    maxNodes: options.gather?.maxNodes,
+    maxSupportNodes: options.gather?.maxSupportNodes,
+    maxChars: options.gather?.maxChars,
   });
   const resolved = {
     ...context,
     surface: compiled.surface,
     pulled: compiled.pulled,
     prompt: compiled.prompt,
-    conjuror: compiled.packet,
+    gather: compiled.packet,
   };
 
   const surfaceBrief = buildSummonFingerprintSurfaceBrief(resolved, options);
@@ -428,16 +408,18 @@ export async function prepareGhostSurfacePrompt(
   };
 }
 
-export function ghostContextMeta(ctx: ResolvedGhostContext) {
+export function ghostContextMeta(ctx: ResolvedGhostSteer) {
   return {
     source: ctx.source,
     rootId: ctx.source === 'root' ? ctx.request.rootId : ctx.request.fingerprintId,
     ...(ctx.source === 'catalog' ? {
       catalogId: ctx.request.fingerprintId,
       catalogName: ctx.catalogEntry.name,
-      catalogSummary: ctx.catalogEntry.summary,
-      catalogStatus: ctx.catalogEntry.status,
-      catalogTags: ctx.catalogEntry.tags,
+      ...(hasCatalogMeta(ctx.catalogEntry) ? {
+        catalogSummary: ctx.catalogEntry.summary,
+        catalogStatus: ctx.catalogEntry.status,
+        catalogTags: ctx.catalogEntry.tags,
+      } : {}),
     } : {}),
     product: ctx.product,
     surface: ctx.surface,
@@ -455,6 +437,11 @@ export function ghostTokenSourceMeta(tokenSource: GhostTokenSource) {
   };
 }
 
+function hasCatalogMeta(entry: GhostFingerprintEntry): entry is GhostFingerprintEntry & { summary: string; status: string; tags: string[] } {
+  const maybe = entry as Partial<{ summary: unknown; status: unknown; tags: unknown }>;
+  return typeof maybe.summary === 'string' && typeof maybe.status === 'string' && Array.isArray(maybe.tags);
+}
+
 const DEFINED_TOKEN_RE = /--[a-z0-9-]+\s*:/gi;
 
 function countDefinedTokens(css: string): number {
@@ -463,7 +450,7 @@ function countDefinedTokens(css: string): number {
 }
 
 export function buildGhostReceipt(input: {
-  context: ResolvedGhostContext;
+  context: ResolvedGhostSteer;
   mode: 'static' | 'interactive';
   layoutId: string | null;
   grantedTools: string[];

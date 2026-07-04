@@ -36,6 +36,8 @@ export type {
   SurfaceDocumentBundleRepairRequest,
   SurfaceModelProvider,
   SurfaceModelRequest,
+  TextCompletionClient,
+  TextCompletionRequest,
   SurfaceGenerationInput,
   SurfaceGenerationSummary,
 } from './types.js';

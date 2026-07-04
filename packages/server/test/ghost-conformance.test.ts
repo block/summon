@@ -6,14 +6,18 @@ import {
   loadFingerprintPackage,
   resolveFingerprintPackage,
 } from '@anarchitecture/ghost-fingerprint/fingerprint';
-import { evaluateConformance, formatArtifactSourceForConformance } from './ghost-conformance.js';
-import type { GhostLoadedCheck } from './ghost-adapter.js';
-import type { TextCompletionRequest } from './model-providers.js';
+import { evaluateConformance, formatArtifactSourceForConformance } from '../src/ghost/conformance.js';
+import type { GhostLoadedCheck } from '../src/ghost/adapter.js';
+import type { TextCompletionRequest } from '../src/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const signalStreamGhostDir = resolve(
   here,
   '..',
+  '..',
+  '..',
+  'apps',
+  'server',
   'fingerprints',
   'bundles',
   'signal-stream',
@@ -22,6 +26,10 @@ const signalStreamGhostDir = resolve(
 const consoleGhostDir = resolve(
   here,
   '..',
+  '..',
+  '..',
+  'apps',
+  'server',
   'fingerprints',
   'bundles',
   'console-chrome-2001',

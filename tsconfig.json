@@ -26,6 +26,7 @@
       "@summon-internal/sandbox-runtime/bootstrap.js?raw": ["packages/sandbox-runtime/src/bootstrap.js"],
       "@summon-internal/sandbox-runtime/tokens.css?raw": ["packages/sandbox-runtime/src/tokens.css"],
       "@summon-internal/server": ["packages/server/src/index.ts"],
+      "@summon-internal/server/ghost": ["packages/server/src/ghost/index.ts"],
       "@summon-internal/surface-vm": ["packages/surface-vm/src/index.ts"],
       "@summon-internal/surface-vm/*": ["packages/surface-vm/src/*"],
       "@anarchitecture/summon": ["packages/summon/src/index.ts"],
@@ -39,6 +40,7 @@
       "@anarchitecture/summon/bootstrap.js?raw": ["packages/sandbox-runtime/src/bootstrap.js"],
       "@anarchitecture/summon/tokens.css?raw": ["packages/sandbox-runtime/src/tokens.css"],
       "@anarchitecture/summon-server": ["packages/summon-server/src/index.ts"],
+      "@anarchitecture/summon-server/ghost": ["packages/summon-server/src/ghost.ts"],
       "@anarchitecture/summon-react": ["packages/summon-react/src/index.ts"]
     }
   }

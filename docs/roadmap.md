@@ -36,19 +36,19 @@ If not, it waits.
 
 ### A. Govern — fingerprint conformance verdict
 
-First cut lives in `apps/server/src/ghost-conformance.ts`: checks are routed with
+First cut lives in `packages/server/src/ghost/conformance.ts`: checks are routed with
 `selectChecksForSurfaces` and evaluated per-check, streamed as
 `/ghost-conformance` (`summon.ghost-conformance/v1`).
 
 Remaining:
 
 - split deterministic structural checks from advisory prose checks
-- move conformance into `@anarchitecture/summon-server`
+- [x] move conformance into `@anarchitecture/summon-server`
 - make failures cite Surface Document files and selectors where possible
 
 ### B. Account — trace/receipt as a first-class artifact
 
-`buildGhostReceipt` (`apps/server/src/ghost-adapter.ts`) emits
+`buildGhostReceipt` (`packages/server/src/ghost/adapter.ts`) emits
 `/ghost-receipt` (`summon.ghost-receipt/v2`) with fingerprint id, gathered
 nodes (pull reasons), validation, and conformance verdict.
 
@@ -57,7 +57,7 @@ Remaining:
 - canonical serialization and artifact hashing
 - published receipt schema and standalone verifier
 - tool-call events in the receipt
-- promotion into public packages
+- [x] promotion into public packages
 
 ### C. Repair-path table, made real
 

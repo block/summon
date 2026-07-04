@@ -235,6 +235,9 @@ importers:
 
   packages/server:
     dependencies:
+      '@anarchitecture/ghost-fingerprint':
+        specifier: file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
+        version: file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
       '@summon-internal/engine':
         specifier: workspace:*
         version: link:../engine
@@ -295,6 +298,10 @@ importers:
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
+    devDependencies:
+      '@anarchitecture/ghost-fingerprint':
+        specifier: file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
+        version: file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
 
   packages/surface-vm:
     dependencies:

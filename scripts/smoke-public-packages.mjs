@@ -25,6 +25,7 @@ const rootManifest = JSON.parse(await readFile(join(rootDir, 'package.json'), 'u
 const core = byName.get('@anarchitecture/summon');
 const serverPackage = byName.get('@anarchitecture/summon-server');
 const react = byName.get('@anarchitecture/summon-react');
+const ghostFingerprintTarball = join(rootDir, 'vendor', 'anarchitecture-ghost-fingerprint-0.19.0.tgz');
 if (!core?.tarballPath || !serverPackage?.tarballPath || !react?.tarballPath) {
   throw new Error('public package smoke could not find all packed tarballs');
 }
@@ -36,6 +37,7 @@ await writeFile(join(projectDir, 'package.json'), JSON.stringify({
   dependencies: {
     '@anarchitecture/summon': `file:${core.tarballPath}`,
     '@anarchitecture/summon-server': `file:${serverPackage.tarballPath}`,
+    '@anarchitecture/ghost-fingerprint': `file:${ghostFingerprintTarball}`,
     '@anarchitecture/summon-react': `file:${react.tarballPath}`,
     react: '19.2.5',
     'react-dom': '19.2.5',
@@ -69,6 +71,7 @@ await writeFile(join(projectDir, 'smoke.mjs'), [
   "import { tokensSource } from '@anarchitecture/summon/assets';",
   "import { createEventStore } from '@anarchitecture/summon/devtools';",
   "import { runSurfaceGeneration, policyFromGoal, summarizeContractIssues } from '@anarchitecture/summon-server';",
+  "import { buildGhostReceipt, evaluateConformance } from '@anarchitecture/summon-server/ghost';",
   "import { SummonSurface } from '@anarchitecture/summon-react';",
   "",
   "const root = await import('@anarchitecture/summon');",
@@ -84,6 +87,7 @@ await writeFile(join(projectDir, 'smoke.mjs'), [
   "if (typeof tokensSource !== 'string') throw new Error('assets import failed');",
   "if (typeof createEventStore !== 'function') throw new Error('devtools import failed');",
   "if (typeof runSurfaceGeneration !== 'function' || typeof policyFromGoal !== 'function' || typeof summarizeContractIssues !== 'function') throw new Error('server import failed');",
+  "if (typeof buildGhostReceipt !== 'function' || typeof evaluateConformance !== 'function') throw new Error('server ghost import failed');",
   "if (!SummonSurface) throw new Error('react import failed');",
   "for (const forbidden of ['spawnSandbox', 'compileSystemContracts', 'buildToolsBlock', 'parseProtocolLine', 'StreamGraph']) {",
   "  if (forbidden in root) throw new Error(`root leaked ${forbidden}`);",
@@ -104,6 +108,7 @@ await writeFile(join(projectDir, 'smoke.mjs'), [
   "await expectRejected('@anarchitecture/summon/server');",
   "await expectRejected('@anarchitecture/summon/_internal/engine/index.js');",
   "await expectRejected('@anarchitecture/summon-server/_internal/server/index.js');",
+  "await expectRejected('@anarchitecture/summon-server/_internal/server/ghost/index.js');",
   "await expectRejected('@anarchitecture/summon-react/_internal/react/index.js');",
   "console.log('public package smoke imports passed');",
   '',

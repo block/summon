@@ -1,3 +1,4 @@
+import type { GhostFingerprintEntry } from '@anarchitecture/summon-server/ghost';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,7 +8,7 @@ const CATALOG_SCHEMA = 'summon.fingerprint-catalog/v1';
 const BUNDLE_SCHEMA = 'summon.fingerprint-bundle/v1';
 const GHOST_MARKETPLACE_BUNDLE_SCHEMA = 'ghost.marketplace-bundle/v1';
 
-export interface FingerprintCatalogEntry {
+export interface FingerprintCatalogEntry extends GhostFingerprintEntry {
   id: string;
   name: string;
   summary: string;

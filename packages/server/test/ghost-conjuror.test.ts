@@ -3,8 +3,8 @@ import { describe, it } from 'node:test';
 import { assembleCatalog } from '@anarchitecture/ghost-fingerprint/core';
 import {
   compileConjurorContext,
-} from './conjuror.js';
-import type { TextCompletionRequest } from './model-providers.js';
+} from '../src/ghost/conjuror.js';
+import type { TextCompletionRequest } from '../src/types.js';
 
 const surfacePlan = {
   purpose: 'inform',

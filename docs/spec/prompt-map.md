@@ -26,7 +26,7 @@ Summon prompt assembly keeps three authorities separate:
 | Surface Document bundle schema | `packages/engine/src/surface-document-bundle.ts` |
 | Runtime provider methods | `packages/server/src/types.ts`, `apps/server/src/model-providers.ts` |
 | Runtime strategy | `packages/server/src/runtime/surface-document.ts` |
-| Ghost surface brief | `apps/server/src/ghost-adapter.ts` |
+| Ghost surface brief | `packages/server/src/ghost/adapter.ts` |
 
 ## Prompt blocks
 

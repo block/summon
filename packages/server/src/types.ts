@@ -14,6 +14,19 @@ import type {
 
 export type { GhostGenerationContext } from '@summon-internal/engine';
 
+
+export interface TextCompletionRequest {
+  system: string;
+  prompt: string;
+  maxTokens: number;
+  temperature?: number;
+  signal?: AbortSignal;
+}
+
+export interface TextCompletionClient {
+  completeText(request: TextCompletionRequest): string | Promise<string>;
+}
+
 export interface SurfaceModelRequest {
   prompt: string;
   promptBlocks: ContractPromptBlock[];

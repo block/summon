@@ -5,7 +5,11 @@ import type {
 import type {
   SurfaceDocumentBundleRepairRequest,
   SurfaceDocumentBundleRequest,
+  TextCompletionClient,
+  TextCompletionRequest,
 } from '@anarchitecture/summon-server';
+
+export type { TextCompletionClient, TextCompletionRequest } from '@anarchitecture/summon-server';
 
 export type ModelProviderId = 'anthropic' | 'openai' | 'gemini';
 
@@ -15,18 +19,6 @@ export interface ProviderUsageSnapshot {
   cache_read_input_tokens?: number | null;
   cache_creation_input_tokens?: number | null;
   total_tokens?: number | null;
-}
-
-export interface TextCompletionRequest {
-  system: string;
-  prompt: string;
-  maxTokens: number;
-  temperature?: number;
-  signal?: AbortSignal;
-}
-
-export interface TextCompletionClient {
-  completeText(request: TextCompletionRequest): Promise<string>;
 }
 
 export type ModelCatalogStatus = 'stable' | 'preview' | 'latest' | 'retired';

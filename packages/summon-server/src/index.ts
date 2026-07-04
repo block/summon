@@ -31,6 +31,8 @@ export type {
   SurfaceDocumentBundleRepairRequest,
   SurfaceModelProvider,
   SurfaceModelRequest,
+  TextCompletionClient,
+  TextCompletionRequest,
   SurfaceGoal,
   SurfaceGoalDataNeed,
   SurfaceGoalInteraction,

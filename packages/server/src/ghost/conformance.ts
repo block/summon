@@ -1,6 +1,6 @@
 import type { GhostCatalog } from '@anarchitecture/ghost-fingerprint/core';
-import type { GhostLoadedCheck } from './ghost-adapter.js';
-import type { TextCompletionRequest } from './model-providers.js';
+import type { GhostLoadedCheck } from './adapter.js';
+import type { TextCompletionRequest } from '../types.js';
 
 export type ConformanceVerdictValue = 'pass' | 'fail' | 'inconclusive';
 

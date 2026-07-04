@@ -9,9 +9,9 @@ import {
   parseGhostRequest,
   parseGhostRoots,
   prepareGhostSurfacePrompt,
-  resolveGhostContext,
-  selectGhostSurface,
-} from './ghost-adapter.js';
+  resolveGhostGenerationContext,
+} from '../src/ghost/adapter.js';
+import { selectGhostSurface } from '../src/ghost/conjuror.js';
 import { assembleCatalog } from '@anarchitecture/ghost-fingerprint/core';
 
 const fixtureRoots: string[] = [];
@@ -81,7 +81,7 @@ describe('Ghost adapter', () => {
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
 
     assert.equal(ctx.source, 'root');
     assert.equal(ctx.surface, 'index');
@@ -117,7 +117,7 @@ describe('Ghost adapter', () => {
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
     // The common path: anchor stays at `index`. Composition authority lives in
     // the fingerprint's own front-door prose + building-block nodes, so an
     // `index` anchor is fully composed — not a generic base.
@@ -157,7 +157,7 @@ describe('Ghost adapter', () => {
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
     const prepared = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
@@ -282,7 +282,7 @@ describe('Ghost adapter', () => {
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
     const prepared = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show the update rail',
       mode: 'static',
@@ -317,7 +317,7 @@ describe('Ghost adapter', () => {
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
     let calls = 0;
     const throwIfCalled = async () => {
       calls += 1;
@@ -367,7 +367,7 @@ describe('Ghost adapter', () => {
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
     const prepared = await prepareGhostSurfacePrompt(ctx, {
       userPrompt: 'show checkout queue status',
       mode: 'static',
@@ -396,7 +396,7 @@ describe('Ghost adapter', () => {
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
 
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
 
     assert.equal(ctx.tokenSource.kind, 'ghost-config');
     assert.match(ctx.tokenSource.css, /--paper: #faf7ed/);
@@ -410,7 +410,7 @@ describe('Ghost adapter', () => {
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
 
     const receipt = buildGhostReceipt({
       context: ctx,
@@ -529,7 +529,7 @@ describe('Ghost adapter', () => {
     const parsed = parseGhostRequest({ rootId: 'checkout' }, roots);
     assert.equal(parsed.ok, true);
     if (!parsed.ok || !parsed.request) assert.fail('expected valid Ghost request');
-    const ctx = await resolveGhostContext(parsed.request, roots);
+    const ctx = await resolveGhostGenerationContext(parsed.request, roots);
 
     const receipt = buildGhostReceipt({
       context: ctx,
@@ -659,7 +659,7 @@ ${css.trim()}
 async function readDefaultTokensCss(): Promise<string> {
   const here = dirname(fileURLToPath(import.meta.url));
   return readFile(
-    resolve(here, '..', '..', '..', 'packages', 'sandbox-runtime', 'src', 'tokens.css'),
+    resolve(here, '..', '..', 'sandbox-runtime', 'src', 'tokens.css'),
     'utf-8',
   );
 }

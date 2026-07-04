@@ -1,12 +1,12 @@
 import {
   type ToolPack,
   type SurfacePlan,
-} from '@anarchitecture/summon/engine';
+} from '@summon-internal/engine';
 import {
   buildCatalogMenu,
   type GhostCatalog,
 } from '@anarchitecture/ghost-fingerprint/core';
-import type { TextCompletionRequest } from './model-providers.js';
+import type { TextCompletionRequest } from '../types.js';
 
 /**
  * The fingerprint's front door: the `index` node is the curated entrypoint of
@@ -34,34 +34,43 @@ export interface GhostGlossaryEntry {
   purpose: string;
 }
 
-export type ConjurorStrategy = 'full-corpus' | 'compiled';
-export type ConjurorStrategyOption = 'auto' | ConjurorStrategy;
+export type GhostGatherStrategy = 'full-corpus' | 'compiled';
+export type ConjurorStrategy = GhostGatherStrategy;
+export type GhostGatherStrategyOption = 'auto' | GhostGatherStrategy;
+export type ConjurorStrategyOption = GhostGatherStrategyOption;
 
-export interface ConjurorSelectedNode {
+export interface GhostGatherSelectedNode {
   id: string;
   reason: string;
   pullReason: GhostPullReason;
   kind?: string;
 }
 
-export interface ConjurorExcludedNode {
+export type ConjurorSelectedNode = GhostGatherSelectedNode;
+
+export interface GhostGatherExcludedNode {
   id: string;
   reason: string;
 }
 
-export interface ConjurorAuthorityEntry {
+export type ConjurorExcludedNode = GhostGatherExcludedNode;
+
+export interface GhostGatherAuthorityEntry {
   id: string;
   reason: string;
 }
 
-export interface ConjurorPacket {
-  schema: 'summon.conjuror-packet/v1';
-  strategy: ConjurorStrategy;
-  selectedNodes: ConjurorSelectedNode[];
-  excludedNodes: ConjurorExcludedNode[];
-  authorityStack: ConjurorAuthorityEntry[];
+export type ConjurorAuthorityEntry = GhostGatherAuthorityEntry;
+
+export interface GhostGatherPacket {
+  schema: 'summon.ghost-gather/v1';
+  strategy: GhostGatherStrategy;
+  selectedNodes: GhostGatherSelectedNode[];
+  excludedNodes: GhostGatherExcludedNode[];
+  authorityStack: GhostGatherAuthorityEntry[];
   warnings: string[];
 }
+export type ConjurorPacket = GhostGatherPacket;
 
 export interface ConjurorCompileOptions {
   userPrompt: string;
@@ -558,7 +567,7 @@ function buildPacket(
     ...(node.kind !== undefined ? { kind: node.kind } : {}),
   }));
   return {
-    schema: 'summon.conjuror-packet/v1',
+    schema: 'summon.ghost-gather/v1',
     strategy,
     selectedNodes,
     excludedNodes: excludedNodes.filter((node) => !pulled.some((pulledNode) => pulledNode.id === node.id)),

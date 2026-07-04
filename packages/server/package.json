@@ -9,7 +9,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./ghost": {
+      "types": "./dist/ghost/index.d.ts",
+      "import": "./dist/ghost/index.js"
+    }
   },
   "files": [
     "dist"
@@ -20,6 +24,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anarchitecture/ghost-fingerprint": "file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz",
     "@summon-internal/engine": "workspace:*",
     "typescript": "^5.4.0"
   },
