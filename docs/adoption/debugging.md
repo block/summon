@@ -40,6 +40,7 @@ See [`../spec/surface-document.md`](../spec/surface-document.md) for the normati
 | `/validation-observed` | An issue observed in observe mode. |
 | `/surface-document-bundle-diagnostic` | Shape diagnostic for model Surface Document output. |
 | `/surface-document-blocked-source` | Rejected Surface Document source for inspection. |
+| `/conjuror` | Ghost context compilation packet: strategy, selected/excluded nodes, warnings. |
 | `/ghost-conformance` | Fingerprint conformance verdict. |
 | `/ghost-receipt` | Receipt/accounting artifact. |
 | `/run-metrics` | Summary counts for validation, repairs, safety violations, blocked state. |

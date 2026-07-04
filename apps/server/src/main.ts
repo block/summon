@@ -35,7 +35,7 @@ import {
   publicGhostRoots,
   resolveCatalogGhostGenerationContext,
   resolveGhostGenerationContext,
-  selectGhostSurface,
+  type ConjurorStrategyOption,
   type ResolvedGhostSteer,
 } from './ghost-adapter.js';
 import { evaluateConformance, emptyConformanceVerdict, type ConformanceVerdict } from './ghost-conformance.js';
@@ -194,6 +194,35 @@ function parseSurfaceScale(raw: unknown): { scale: SurfaceScale | null; error?: 
 function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function readEnvInt(name: string): number | undefined {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return undefined;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function readConjurorOptions(env: NodeJS.ProcessEnv): {
+  strategy?: ConjurorStrategyOption;
+  fullPullNodeLimit?: number;
+  maxNodes?: number;
+  maxChars?: number;
+} {
+  if (env.SUMMON_CONJUROR === '0') return { strategy: 'full-corpus' };
+  const rawStrategy = env.SUMMON_CONJUROR_STRATEGY;
+  const strategy = rawStrategy === 'auto' || rawStrategy === 'full-corpus' || rawStrategy === 'compiled'
+    ? rawStrategy
+    : undefined;
+  const fullPullNodeLimit = readEnvInt('SUMMON_CONJUROR_FULL_PULL_NODE_LIMIT');
+  const maxNodes = readEnvInt('SUMMON_CONJUROR_MAX_NODES');
+  const maxChars = readEnvInt('SUMMON_CONJUROR_MAX_CHARS');
+  return {
+    ...(strategy ? { strategy } : {}),
+    ...(fullPullNodeLimit !== undefined ? { fullPullNodeLimit } : {}),
+    ...(maxNodes !== undefined ? { maxNodes } : {}),
+    ...(maxChars !== undefined ? { maxChars } : {}),
+  };
 }
 
 // Simple concurrency cap for /api/generate — protects against a runaway batch
@@ -422,22 +451,6 @@ app.post('/api/generate', async (req, res) => {
     let agentPlan: AgentSurfacePlanResult | null = null;
     let generationSurfacePolicy: SurfacePolicy | null = null;
 
-    // Ghost surface selection and the agent ward both read the user prompt
-    // with the same utility model, but ask different questions (anchor node vs
-    // tools/purpose) and live in different layers (Ghost is app-side; the ward
-    // is the provider-neutral package). Rather than run them sequentially, kick
-    // off Ghost selection here so it runs concurrently with the policy branch's
-    // ward call; the ghost block below awaits the pre-resolved anchor. Skipped
-    // (left null → adapter anchors at `core`) when there is no Ghost context or
-    // surface selection is disabled — matching the prior gate exactly.
-    const ghostSurfaceSelectEnabled =
-      !!ghostContext && process.env.SUMMON_GHOST_SURFACE_SELECT !== '0';
-    const ghostSurfacePromise: Promise<string | null> = ghostSurfaceSelectEnabled
-      ? selectGhostSurface(ghostContext!.catalog, prompt, {
-          completeText: (request) => utilityModelProvider.completeText(request, utilityModelSelection),
-        })
-      : Promise.resolve(null);
-
     if (playgroundMode) {
       writeGeneratePhase(res, seedLines, 'contract', 'Preparing playground run');
       const startedAt = performance.now();
@@ -508,12 +521,6 @@ app.post('/api/generate', async (req, res) => {
     if (ghostContext) {
       writeGeneratePhase(res, seedLines, 'contract', 'Preparing Ghost surface brief');
       const startedAt = performance.now();
-      // Surface selection was kicked off before the policy branch so it ran
-      // concurrently with the ward's model call. Await the pre-resolved anchor
-      // and hand it in; prepareGhostSurfacePrompt skips its own selection call
-      // when `preselectedSurface` is set. When selection was disabled the
-      // promise resolves to null → adapter anchors at `core` (no model call).
-      const preselectedSurface = await ghostSurfacePromise;
       ghostContext = await prepareGhostSurfacePrompt(ghostContext, {
         userPrompt: prompt,
         mode,
@@ -523,9 +530,10 @@ app.post('/api/generate', async (req, res) => {
           : agentPlan
             ? agentPlan.compiledPolicy.tools
             : pack,
-        // Semantic surface selection already ran concurrently above; pass the
-        // resolved anchor so the adapter does not make a second model call.
-        ...(preselectedSurface !== null ? { preselectedSurface } : {}),
+        completeText: process.env.SUMMON_GHOST_SURFACE_SELECT === '0'
+          ? undefined
+          : (request) => utilityModelProvider.completeText(request, utilityModelSelection),
+        conjuror: readConjurorOptions(process.env),
       });
       writeGenerateTiming(
         res,
@@ -572,6 +580,13 @@ app.post('/api/generate', async (req, res) => {
     }
 
     if (ghostContext) {
+      if (ghostContext.conjuror) {
+        preludeLines.push({
+          op: 'meta',
+          path: '/conjuror',
+          value: ghostContext.conjuror,
+        });
+      }
       preludeLines.push({
         op: 'meta',
         path: '/ghost-context',

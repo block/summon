@@ -319,13 +319,14 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'meta /conjuror',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /surface-policy',
@@ -373,13 +374,14 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'meta /conjuror',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /surface-policy',
@@ -427,13 +429,14 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 14), [
+  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 15), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'meta /conjuror',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /agent-goal',
@@ -728,13 +731,14 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 15), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 16), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'meta /conjuror',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /agent-goal',
@@ -748,6 +752,11 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   assert.deepEqual(phaseStatuses(lines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   const ghostAgentResolution = firstMetaLine(lines, '/agent-policy-resolution');
   assert.equal((ghostAgentResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
+
+  const conjurorMeta = firstMetaLine(lines, '/conjuror').value as { schema?: unknown; strategy?: unknown; selectedNodes?: unknown };
+  assert.equal(conjurorMeta.schema, 'summon.conjuror-packet/v1');
+  assert.equal(conjurorMeta.strategy, 'full-corpus');
+  assert.ok(Array.isArray(conjurorMeta.selectedNodes));
 
   const ghostContext = lines.find((line) => line.path === '/ghost-context') as Extract<ProtocolLine, { op: 'meta' }>;
   const contextMeta = ghostContext.value as {
@@ -795,6 +804,126 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
   const receiptIndex = lines.findIndex((line) => line.path === '/ghost-receipt');
   assert.ok(artifactIndex >= 0);
   assert.ok(receiptIndex > artifactIndex);
+});
+
+test('api generate emits compiled Conjuror packet for root contexts', async (t) => {
+  const root = await makeCompiledRouteGhostFixture();
+  t.after(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  const anthropicRequests: unknown[] = [];
+  const anthropic = createServer(async (req, res) => {
+    if (req.method !== 'POST') {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    const request = JSON.parse(await readBody(req));
+    anthropicRequests.push(request);
+    if (Array.isArray(request.tools)) {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(anthropicBundleMessage('msg_compiled', '<section><h1>Compiled queue</h1></section>', request.model)));
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({
+      id: 'msg_utility',
+      type: 'message',
+      role: 'assistant',
+      model: request.model,
+      content: [{ type: 'text', text: 'index' }],
+      stop_reason: 'end_turn',
+      stop_sequence: null,
+      usage: { input_tokens: 3, output_tokens: 1 },
+    }));
+  });
+  await listen(anthropic);
+  t.after(async () => {
+    await closeServer(anthropic);
+  });
+
+  const anthropicPort = addressPort(anthropic);
+  const appPort = await reservePort();
+  const app = spawn(resolveTsxBin(), ['src/main.ts'], {
+    cwd: packageRoot,
+    env: {
+      ...process.env,
+      PORT: String(appPort),
+      SUMMON_MODEL_PROVIDER: 'anthropic',
+      ANTHROPIC_API_KEY: 'test-key',
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${anthropicPort}`,
+      OPENAI_API_KEY: '',
+      GEMINI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+      SUMMON_GHOST_ROOTS: `checkout=${root}`,
+      SUMMON_AGENT_GOAL_SELECT: '0',
+      SUMMON_INFER_SHAPE: '0',
+      SUMMON_GHOST_SURFACE_SELECT: '0',
+      SUMMON_GHOST_CONFORMANCE: '0',
+      SUMMON_CONJUROR_STRATEGY: 'compiled',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = captureOutput(app);
+  t.after(async () => {
+    await stopChild(app);
+  });
+  await waitForHealth(appPort, app, output);
+
+  const response = await fetch(`http://127.0.0.1:${appPort}/api/generate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      prompt: 'build checkout queue status with token-driven hierarchy',
+      ghost: {
+        rootId: 'checkout',
+        targetPath: '.',
+      },
+      surfacePolicy: {
+        tier: 'static',
+        purpose: 'inform',
+      },
+    }),
+  });
+  const body = await response.text();
+  assert.equal(response.status, 200, body);
+
+  assert.equal(anthropicRequests.length, 1);
+  assert.ok(Array.isArray((anthropicRequests[0] as { tools?: unknown }).tools));
+
+  const lines = body
+    .trim()
+    .split(/\n/)
+    .filter(Boolean)
+    .map((raw) => JSON.parse(raw) as ProtocolLine);
+
+  const conjurorMeta = firstMetaLine(lines, '/conjuror').value as {
+    schema?: unknown;
+    strategy?: unknown;
+    selectedNodes?: unknown;
+    excludedNodes?: unknown;
+    warnings?: unknown;
+  };
+  assert.equal(conjurorMeta.schema, 'summon.conjuror-packet/v1');
+  assert.equal(conjurorMeta.strategy, 'compiled');
+  assert.ok(Array.isArray(conjurorMeta.selectedNodes));
+  assert.ok(Array.isArray(conjurorMeta.excludedNodes));
+  assert.ok(Array.isArray(conjurorMeta.warnings));
+  const selectedIds = (conjurorMeta.selectedNodes as Array<{ id?: unknown }>).map((node) => node.id);
+  assert.ok(selectedIds.includes('index'));
+  assert.ok(selectedIds.includes('tokens'));
+
+  const ghostContext = firstMetaLine(lines, '/ghost-context').value as { gatheredNodes?: unknown };
+  assert.ok(Array.isArray(ghostContext.gatheredNodes));
+  assert.ok((ghostContext.gatheredNodes as unknown[]).includes('index'));
+  assert.ok((ghostContext.gatheredNodes as unknown[]).includes('tokens'));
+
+  const artifact = lines.find((line) => line.op === 'artifact' && line.path === '/artifact');
+  assert.ok(artifact, 'missing accepted artifact');
+  assert.equal((artifact.value as { runtime?: unknown } | undefined)?.runtime, 'surface-document');
+  assert.equal(lines.some((line) => line.path === '/validation-blocked'), false);
+  assert.equal(lines.some((line) => line.path === '/error'), false);
 });
 
 test('api generate forwards Anthropic model overrides and speed options', async (t) => {
@@ -1057,13 +1186,14 @@ test('api generate can stream with OpenAI provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'meta /conjuror',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /surface-policy',
@@ -1177,13 +1307,14 @@ test('api generate can stream with Gemini provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'meta /conjuror',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /surface-policy',
@@ -1346,13 +1477,14 @@ test('api generate streams planning preview before slow preflight finishes', asy
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 12), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
     'event /surface',
     'meta /status',
+    'meta /conjuror',
     'meta /ghost-context',
     'meta /ghost-token-source',
     'meta /agent-goal',
@@ -1378,16 +1510,69 @@ async function makeRouteGhostFixture(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'summon-ghost-route-'));
   const ghostDir = join(root, '.ghost');
   await mkdir(ghostDir, { recursive: true });
+  await writeRouteGhostManifest(ghostDir);
+  const css = await readDefaultTokensCss();
+  await writeFile(join(ghostDir, 'index.md'), routeGhostIndexMarkdown(css));
+  return root;
+}
+
+async function makeCompiledRouteGhostFixture(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'summon-ghost-route-compiled-'));
+  const ghostDir = join(root, '.ghost');
+  await mkdir(ghostDir, { recursive: true });
+  await writeRouteGhostManifest(ghostDir);
+  await writeFile(join(ghostDir, 'index.md'), routeGhostIndexMarkdown(':root { --checkout-density: compact; }'));
+  const css = await readDefaultTokensCss();
+  await writeFile(
+    join(ghostDir, 'tokens.md'),
+    `---
+description: Token CSS authority for checkout surface styling.
+---
+
+## Tokens
+
+Use these exact tokens when styling checkout surfaces.
+
+\`\`\`css
+${css.trim()}
+\`\`\`
+`,
+  );
+  for (let index = 1; index <= 13; index += 1) {
+    await writeFile(
+      join(ghostDir, `support-${String(index).padStart(2, '0')}.md`),
+      `---
+description: Checkout support pattern ${index} for dense operational surfaces.
+---
+
+## Pattern
+
+Support pattern ${index} keeps checkout work legible with compact rows, firm
+borders, and status-first hierarchy.
+`,
+    );
+  }
+  return root;
+}
+
+async function writeRouteGhostManifest(ghostDir: string): Promise<void> {
   await writeFile(
     join(ghostDir, 'manifest.yml'),
     `schema: ghost.fingerprint-package/v1
 id: checkout
 `,
   );
-  const css = await readDefaultTokensCss();
-  await writeFile(
-    join(ghostDir, 'index.md'),
-    `---
+}
+
+function routeGhostIndexMarkdown(css: string): string {
+  const cssBlock = css.trim()
+    ? `
+\`\`\`css
+${css.trim()}
+\`\`\`
+`
+    : '';
+  return `---
 description: Checkout — quiet operational density for queue surfaces.
 ---
 
@@ -1400,13 +1585,7 @@ Surfaces are compact, rectangular, and information-first, built for exacting wor
 ## Inventory
 
 The material is a calm token system for checkout queues.
-
-\`\`\`css
-${css.trim()}
-\`\`\`
-`,
-  );
-  return root;
+${cssBlock}`;
 }
 
 async function readDefaultTokensCss(): Promise<string> {

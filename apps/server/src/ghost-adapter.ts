@@ -9,12 +9,24 @@ import {
   type LoadedFingerprintPackage,
 } from '@anarchitecture/ghost-fingerprint/fingerprint';
 import {
-  buildCatalogMenu,
   parseGlossary,
   type GhostCatalog,
 } from '@anarchitecture/ghost-fingerprint/core';
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
+import {
+  type ConjurorPacket,
+  type ConjurorStrategyOption,
+  compileConjurorContext,
+  extractCorpusCss,
+  GHOST_FRONT_DOOR_ID,
+  type GhostGlossaryEntry,
+  type GhostPullReason,
+  type PulledGhostNode,
+  pullCorpus,
+  renderCorpusPrompt,
+  selectGhostSurface,
+} from './conjuror.js';
 import {
   type FingerprintCatalog,
   type FingerprintCatalogEntry,
@@ -27,15 +39,17 @@ import type {
 } from './ghost-conformance.js';
 import type { TextCompletionRequest } from './model-providers.js';
 
-const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
+export {
+  GHOST_FRONT_DOOR_ID,
+  selectGhostSurface,
+  type ConjurorPacket,
+  type ConjurorStrategyOption,
+  type GhostGlossaryEntry,
+  type GhostPullReason,
+  type PulledGhostNode,
+} from './conjuror.js';
 
-/**
- * The fingerprint's front door: the `index` node is the curated entrypoint of
- * a flat-corpus Ghost package (the flat model has no root/cascade — `index` is
- * a convention, not a graph position). It anchors the brief when no other
- * node is selected.
- */
-export const GHOST_FRONT_DOOR_ID = 'index';
+const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
 /**
  * One check loaded from the fingerprint's `checks` haunt. Ghost does not
@@ -44,22 +58,6 @@ export const GHOST_FRONT_DOOR_ID = 'index';
  */
 export type GhostLoadedCheck =
   LoadedFingerprintPackage['checks'] extends Map<string, infer C> ? C : never;
-
-/**
- * Why a pulled node is in the context: the curated front door (`index`), the
- * semantically selected anchor (lead composition), or the rest of the flat
- * corpus. Summon pulls the whole corpus — vendored fingerprints are small and
- * the generator cannot call back mid-run to expand a menu — so "reason" labels
- * emphasis, not inclusion.
- */
-export type GhostPullReason = 'front-door' | 'anchor' | 'corpus';
-
-export interface PulledGhostNode {
-  id: string;
-  kind?: string;
-  body: string;
-  reason: GhostPullReason;
-}
 
 export interface GhostRootRequest {
   source: 'root';
@@ -93,11 +91,6 @@ export interface GhostTokenSource {
   warnings: string[];
 }
 
-export interface GhostGlossaryEntry {
-  name: string;
-  purpose: string;
-}
-
 interface BaseGhostSteer {
   /** The anchor node id — `index` by default, refined by semantic selection. */
   surface: string;
@@ -113,6 +106,7 @@ interface BaseGhostSteer {
   prompt: string;
   product: string;
   tokenSource: GhostTokenSource;
+  conjuror?: ConjurorPacket;
 }
 
 export interface ResolvedRootGhostSteer extends BaseGhostSteer {
@@ -153,6 +147,13 @@ export interface GhostSurfacePromptOptions {
    * when omitted.
    */
   preselectedSurface?: string;
+  conjuror?: {
+    strategy?: ConjurorStrategyOption;
+    fullPullNodeLimit?: number;
+    maxNodes?: number;
+    maxSupportNodes?: number;
+    maxChars?: number;
+  };
 }
 
 export interface GhostReceiptValidation {
@@ -394,30 +395,28 @@ export async function prepareGhostSurfacePrompt(
   context: ResolvedGhostSteer,
   options: GhostSurfacePromptOptions,
 ): Promise<ResolvedGhostSteer> {
-  // Anchor selection happens at prepare-time (prompt + catalog are both
-  // available here). The resolve fns default to `index`; this refines the
-  // choice once the user prompt is known. Selection is semantic (model-driven
-  // over the gather menu) and optional — without a `completeText` it stays at
-  // `index`. Summon pulls the WHOLE corpus either way: the anchor only hoists
-  // the lead composition node, it never changes what the generator sees, so
-  // the token CSS is anchor-independent by construction.
-  let resolved = context;
-  const chosen = options.preselectedSurface !== undefined
-    ? validatePreselectedSurface(context.catalog, options.preselectedSurface)
-    : await selectGhostSurface(context.catalog, options.userPrompt, {
-        completeText: options.completeText,
-        timeoutMs: options.surfaceSelectTimeoutMs,
-        signal: options.signal,
-      });
-  if (chosen !== context.surface) {
-    const pulled = pullCorpus(context.catalog, chosen);
-    resolved = {
-      ...context,
-      surface: chosen,
-      pulled,
-      prompt: renderCorpusPrompt(pulled, chosen, context.glossary),
-    };
-  }
+  const compiled = await compileConjurorContext(context.catalog, context.glossary, {
+    userPrompt: options.userPrompt,
+    mode: options.mode,
+    surfacePlan: options.surfacePlan,
+    tools: options.tools,
+    completeText: options.completeText,
+    surfaceSelectTimeoutMs: options.surfaceSelectTimeoutMs,
+    signal: options.signal,
+    preselectedSurface: options.preselectedSurface,
+    strategy: options.conjuror?.strategy,
+    fullPullNodeLimit: options.conjuror?.fullPullNodeLimit,
+    maxNodes: options.conjuror?.maxNodes,
+    maxSupportNodes: options.conjuror?.maxSupportNodes,
+    maxChars: options.conjuror?.maxChars,
+  });
+  const resolved = {
+    ...context,
+    surface: compiled.surface,
+    pulled: compiled.pulled,
+    prompt: compiled.prompt,
+    conjuror: compiled.packet,
+  };
 
   const surfaceBrief = buildSummonFingerprintSurfaceBrief(resolved, options);
   return {
@@ -427,104 +426,6 @@ export async function prepareGhostSurfacePrompt(
       surfaceBrief,
     ].filter(Boolean).join('\n\n'),
   };
-}
-
-export interface SelectGhostSurfaceOptions {
-  /**
-   * Utility-model text completion (same path conformance uses). When absent,
-   * selection is skipped entirely and the brief stays anchored at `index` —
-   * anchor choice is an optional refinement, never a required gate.
-   */
-  completeText?: (request: TextCompletionRequest) => Promise<string>;
-  timeoutMs?: number;
-  signal?: AbortSignal;
-}
-
-const SURFACE_SELECT_TIMEOUT_MS = 8000;
-
-const SURFACE_SELECT_SYSTEM_PROMPT = [
-  'You pick the single best-fitting composition node for a UI generation',
-  'request against a design fingerprint. You are given the user request and a',
-  'menu of candidate nodes (id + a one-line "reach when" description). Pick',
-  'the one id whose description best matches what the user is asking to build.',
-  'Prefer a concrete node whenever one plausibly fits — it only focuses the',
-  'lead composition; the generator still sees the full fingerprint corpus, so',
-  'a confident-but-imperfect pick is better than defaulting to the front door.',
-  'Answer "index" only when the request is genuinely generic or truly matches',
-  'no node. Answer with ONLY the chosen id, nothing else.',
-].join(' ');
-
-/**
- * Semantic anchor selection — the host hands Ghost's gather menu to the model
- * and lets it pick the anchoring node, exactly as Ghost intends ("the agent
- * matches a natural-language ask against descriptions and picks; Ghost does no
- * NLP and no selection"). Summon does not re-implement that matching in code.
- *
- * Selection is an *optional refinement*, never a gate:
- * - single-node (only `index`) corpora always return `index` with no model call;
- * - no `completeText` provided → no model call, returns `index`;
- * - any timeout, error, empty, or out-of-menu answer → falls back to `index`.
- *
- * Falling back to `index` is safe by construction: Summon pulls the whole flat
- * corpus regardless of anchor — the model still sees everything, just without
- * a hoisted lead composition. The anchor labels emphasis, nothing else.
- */
-export async function selectGhostSurface(
-  catalog: GhostCatalog,
-  prompt: string,
-  options: SelectGhostSurfaceOptions = {},
-): Promise<string> {
-  const menu = buildCatalogMenu(catalog);
-  const candidates = menu.filter((entry) => entry.id !== GHOST_FRONT_DOOR_ID);
-  if (candidates.length === 0) return GHOST_FRONT_DOOR_ID;
-
-  const { completeText } = options;
-  if (!completeText) return GHOST_FRONT_DOOR_ID;
-
-  const menuText = candidates
-    .map((entry) => `- ${entry.id}: ${entry.description ?? '(no description)'}`)
-    .join('\n');
-  const userPrompt = [
-    `User request:\n${prompt.trim()}`,
-    '',
-    `Candidate nodes:\n${menuText}\n- index: the curated front door; pick this when no node clearly fits.`,
-    '',
-    'Chosen id:',
-  ].join('\n');
-
-  const timeoutMs = options.timeoutMs ?? SURFACE_SELECT_TIMEOUT_MS;
-  const controller = new AbortController();
-  const onAbort = () => controller.abort();
-  options.signal?.addEventListener('abort', onAbort, { once: true });
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const raw = await completeText({
-      system: SURFACE_SELECT_SYSTEM_PROMPT,
-      prompt: userPrompt,
-      maxTokens: 32,
-      temperature: 0,
-      signal: controller.signal,
-    });
-    const chosen = raw.trim().toLowerCase().split(/[^a-z0-9._/-]+/)[0] ?? '';
-    if (chosen === GHOST_FRONT_DOOR_ID || chosen === '') return GHOST_FRONT_DOOR_ID;
-    return candidates.some((entry) => entry.id === chosen) ? chosen : GHOST_FRONT_DOOR_ID;
-  } catch {
-    return GHOST_FRONT_DOOR_ID;
-  } finally {
-    clearTimeout(timer);
-    options.signal?.removeEventListener('abort', onAbort);
-  }
-}
-
-/**
- * Validate a caller-supplied anchor id against the catalog menu. Accepts
- * `index` and any catalog node; an unknown id falls back to `index`. Mirrors
- * the out-of-menu guard in `selectGhostSurface` so a pre-resolved anchor is
- * held to the same contract as a freshly selected one.
- */
-function validatePreselectedSurface(catalog: GhostCatalog, surfaceId: string): string {
-  if (surfaceId === GHOST_FRONT_DOOR_ID) return GHOST_FRONT_DOOR_ID;
-  return catalog.nodes.has(surfaceId) ? surfaceId : GHOST_FRONT_DOOR_ID;
 }
 
 export function ghostContextMeta(ctx: ResolvedGhostContext) {
@@ -692,6 +593,12 @@ function buildSummonFingerprintSurfaceBrief(
  * own unmistakable moves as must-haves does. Returns '' when the fingerprint
  * has no signature section (older packages) so the brief degrades gracefully.
  */
+function pulledNodeList(pulled: PulledGhostNode[]): string {
+  return pulled
+    .map((node) => `${node.id} (${node.reason})`)
+    .join(', ');
+}
+
 function buildSignatureMovesBlock(catalog: GhostCatalog): string {
   const frontDoor = catalog.nodes.get(GHOST_FRONT_DOOR_ID);
   if (!frontDoor?.body) return '';
@@ -728,90 +635,6 @@ function extractMarkdownSection(markdown: string, title: string): string | null 
   return body || null;
 }
 
-/**
- * Pull the whole flat corpus in prompt order: front door first, the anchor
- * hoisted second (when it is a distinct node), then the rest sorted by id.
- * Ghost's contract is agent-side selection over the gather menu; for Summon's
- * vendored fingerprints (small, curated corpora feeding a single-shot
- * generation that cannot call back to pull more) selecting EVERYTHING is the
- * fidelity-preserving choice — it matches what the old core slice carried.
- */
-function pullCorpus(catalog: GhostCatalog, anchor: string): PulledGhostNode[] {
-  const pulled: PulledGhostNode[] = [];
-  const push = (id: string, reason: GhostPullReason) => {
-    const node = catalog.nodes.get(id);
-    if (!node || !node.body.trim()) return;
-    pulled.push({
-      id: node.id,
-      ...(node.kind !== undefined ? { kind: node.kind } : {}),
-      body: node.body,
-      reason,
-    });
-  };
-
-  push(GHOST_FRONT_DOOR_ID, 'front-door');
-  if (anchor !== GHOST_FRONT_DOOR_ID) push(anchor, 'anchor');
-  const rest = [...catalog.nodes.keys()]
-    .filter((id) => id !== GHOST_FRONT_DOOR_ID && id !== anchor)
-    .sort((a, b) => a.localeCompare(b));
-  for (const id of rest) push(id, 'corpus');
-  return pulled;
-}
-
-function reasonLabel(node: PulledGhostNode): string {
-  switch (node.reason) {
-    case 'front-door':
-      return 'front door';
-    case 'anchor':
-      return 'lead composition';
-    case 'corpus':
-      return node.kind ? `(${node.kind})` : '';
-  }
-}
-
-function renderCorpusPrompt(
-  pulled: PulledGhostNode[],
-  anchor: string,
-  glossary: GhostGlossaryEntry[] = [],
-): string {
-  const blocks: string[] = [
-    '# Ghost Fingerprint',
-    `Anchor: ${anchor}`,
-  ];
-  const glossaryBlock = renderGlossaryPrompt(glossary);
-  if (glossaryBlock) blocks.push(glossaryBlock);
-  for (const node of pulled) {
-    // Keep the node body verbatim — including any fenced ```css token block.
-    // The fingerprint prose is the ONLY place the model sees the token CSS:
-    // activeTokensCss is consumed solely for validation (parseDefinedTokens) and
-    // sandbox injection at render time, never rendered into the system prompt.
-    // Stripping it here blinds the model to the token *names* and it invents its
-    // own (e.g. --canvas instead of --color-bg). So the prose carries the values.
-    const body = node.body.trim();
-    if (!body) continue;
-    const label = reasonLabel(node);
-    blocks.push(label ? `## ${node.id} — ${label}` : `## ${node.id}`, body);
-  }
-  return blocks.join('\n\n');
-}
-
-function pulledNodeList(pulled: PulledGhostNode[]): string {
-  return pulled
-    .map((node) => `${node.id} (${node.reason})`)
-    .join(', ');
-}
-
-function renderGlossaryPrompt(glossary: GhostGlossaryEntry[]): string {
-  const entries = glossary
-    .filter((entry) => entry.name.trim().length > 0)
-    .map((entry) => {
-      const purpose = entry.purpose.replace(/\s+/g, ' ').trim();
-      return `- **${entry.name}**${purpose ? ` — ${purpose}` : ''}`;
-    });
-  if (entries.length === 0) return '';
-  return ['## Fingerprint glossary', '', ...entries].join('\n');
-}
-
 async function loadGhostGlossary(path: string): Promise<GhostGlossaryEntry[]> {
   try {
     const raw = await readFile(path, 'utf-8');
@@ -824,31 +647,6 @@ async function loadGhostGlossary(path: string): Promise<GhostGlossaryEntry[]> {
   } catch {
     return [];
   }
-}
-
-const CSS_BLOCK_RE = /```css\n([\s\S]*?)```/g;
-
-/**
- * Extract fenced ```css blocks across the pulled corpus for deterministic
- * token injection. Extraction order follows pull order but is normalized to
- * front door → id order (never anchor-hoisted), so the resulting CSS — and
- * therefore last-write-wins token resolution — is stable regardless of which
- * anchor was selected for the run.
- */
-function extractCorpusCss(pulled: PulledGhostNode[]): string {
-  const ordered = [...pulled].sort((a, b) => {
-    const aFront = a.reason === 'front-door' ? 0 : 1;
-    const bFront = b.reason === 'front-door' ? 0 : 1;
-    return aFront - bFront || a.id.localeCompare(b.id);
-  });
-  const blocks: string[] = [];
-  for (const node of ordered) {
-    for (const match of node.body.matchAll(CSS_BLOCK_RE)) {
-      const css = match[1]?.trim();
-      if (css) blocks.push(css);
-    }
-  }
-  return blocks.join('\n\n');
 }
 
 function resolveCorpusTokenSource(css: string): GhostTokenSource {

@@ -109,6 +109,29 @@ corpus**, ordered front door → anchor → rest-by-id.
   extracted from the front door's `## Signature look & feel` section, output
   rules) is appended after the corpus, exactly as before.
 
+## Conjuror — context compilation
+
+Summon still consumes Ghost through the library APIs, never by shelling out to
+`ghost gather` or `ghost pull`; the CLI path appends to `.ghost/.events`, which
+would make served fingerprints mutable. For small corpora Summon keeps the
+historical full-corpus pull. Above `SUMMON_CONJUROR_FULL_PULL_NODE_LIMIT`
+(default `12`), Conjuror compiles a selected packet instead: `index` and every
+fenced-CSS token node are mandatory, selector-chosen lead/support nodes fill the
+remaining budget, all ids are host-validated, and missing/model-invalid choices
+fall back safely. Checks and haunts are loaded for governance only and never
+enter generation context.
+
+The stream emits `/conjuror` with schema `summon.conjuror-packet/v1` so hosts can
+inspect the strategy, selected/excluded nodes, authority stack, and warnings.
+
+| Env flag | Effect |
+| --- | --- |
+| `SUMMON_CONJUROR=0` | Disable compilation and force full-corpus behavior. |
+| `SUMMON_CONJUROR_STRATEGY` | `auto` (default), `full-corpus`, or `compiled`. |
+| `SUMMON_CONJUROR_FULL_PULL_NODE_LIMIT` | Node-count threshold for `auto` full-corpus mode; default `12`. |
+| `SUMMON_CONJUROR_MAX_NODES` | Maximum selected nodes in a compiled packet, after mandatory inclusions. |
+| `SUMMON_CONJUROR_MAX_CHARS` | Character budget for the rendered compiled Ghost prompt. |
+
 ### 3. Token / visual vocabulary
 
 The fenced-```css convention survives verbatim: a node body may carry a
