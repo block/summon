@@ -3,10 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import {
-  compileSurfacePolicy,
-  normalizeSurfacePolicy,
-} from '@anarchitecture/summon';
+import { compileSurfacePolicy } from '@anarchitecture/summon';
+import { normalizeSurfacePolicy } from '@anarchitecture/summon/engine';
 import { allGalleryToolNames, createGalleryToolRegistry } from './tools.js';
 import { GALLERY_PRESETS } from './presets.js';
 

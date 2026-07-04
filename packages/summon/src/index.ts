@@ -14,7 +14,6 @@ export {
 export {
   compileSurfaceContractView,
   compileSurfacePolicy,
-  normalizeSurfacePolicy,
   surfaceContractViewFromCompiledPolicy,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
@@ -52,7 +51,6 @@ export type {
   CompiledSurfacePolicy,
   CompileSurfacePolicyOptions,
   ToolSpec,
-  NormalizedSurfacePolicy,
   SurfaceContractLayout,
   SurfaceContractTool,
   SurfaceContractView,
