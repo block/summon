@@ -5,25 +5,21 @@
 > them, inside a sandbox where every action is observable, under a contract
 > that yields a verdict.
 
-Summon exists to close the gap between generated UI and designed UI. A Ghost
-fingerprint is the design authority, so generated output answers to the brand
-instead of the model's taste. Generated code runs in a capability-isolated
-sandbox where every action is a typed, observable tool call, making Summon a
-methodical drop-in home for model-generated code. Generation is a contract:
-output is verified against the fingerprint that requested it, with a verdict
+Summon closes the gap between generated UI and designed UI. A Ghost fingerprint
+is the design authority, so output answers to the brand instead of the model's
+taste. Generated code runs in a capability-isolated sandbox where every action
+is a typed, observable tool call. And generation is a contract: output is
+verified against the fingerprint that requested it, and returned with a verdict
 and receipt.
 
-Summon is **governable generative UI**: generated interfaces composed from a
-design authority, constrained by explicit capabilities, and returned with a
-conformance verdict and receipt. See
-[`docs/positioning.md`](./docs/positioning.md) for the thesis and
+See [`docs/positioning.md`](./docs/positioning.md) for the thesis and
 [`docs/roadmap.md`](./docs/roadmap.md) for the build order.
 
 ## See it
 
-The Surface Gallery is the identity demo: it is where fingerprint-driven
-surfaces render when Ghost roots are configured. Run `pnpm dev:gallery` and
-open `http://localhost:5174`.
+The Surface Gallery is where fingerprint-driven surfaces render when Ghost
+roots are configured. Run `pnpm dev:gallery` and open
+`http://localhost:5174`.
 
 The adopter mental model is intentionally small:
 
@@ -36,9 +32,11 @@ The adopter mental model is intentionally small:
 | Surface config | The host's choice of what the surface is allowed to do. |
 | Diagnostics | Stream and Devtools information used when something breaks. |
 
-In the TypeScript API, a surface config is `SurfacePolicy`. Summon compiles it
-into a stricter `SurfacePlan` plus a read-only `SurfaceContractView` before any
-model-authored output is accepted.
+Two nouns carry the whole model: the **surface config** you write, and the
+**surface contract** the surface actually runs under. Summon compiles the
+config into the contract — stricter and read-only — before any model-authored
+output is accepted. In the TypeScript API the config is `SurfacePolicy`; the
+compiled stages are internal detail you rarely name.
 
 ## Project Status: Beta
 
@@ -60,7 +58,7 @@ The default governed path starts from a Ghost fingerprint. When editing
 `apps/server/.env` in the quickstart, set `SUMMON_GHOST_ROOTS` before starting
 the demos. Each configured root should use the canonical flat Ghost package
 layout rooted at `.ghost/manifest.yml`. The Surface Gallery adds a Ghost
-fingerprint preset for each root, and the Generate workbench adds a
+fingerprint preset for each root, and the workbench adds a
 `Fingerprint · <id>` option. A fingerprint run is not a bundled visual
 direction: Summon loads the Ghost flat corpus, prepares a fingerprint surface
 brief from its prose nodes, injects token/style CSS, evaluates conformance
@@ -88,11 +86,11 @@ pnpm dev:gallery
 
 Open `http://localhost:5174`.
 
-The Surface Gallery is the first OSS demo. It shows static surfaces, host-backed
-search, host-owned actions, approval flows, Surface Document rendering, and
-background host work without exposing the maintainer workbench.
+The Surface Gallery shows static surfaces, host-backed search, host-owned
+actions, approval flows, Surface Document rendering, and background host work
+without exposing the workbench.
 
-For the maintainer workbench:
+For the workbench:
 
 ```sh
 pnpm dev:workbench
@@ -101,7 +99,7 @@ pnpm dev:workbench
 Open `http://localhost:5173/generate`.
 
 1. Choose the **Host resource search** showcase scenario.
-2. Confirm the agent ward selects an interactive run with only the `search`
+2. Confirm agent planning selects an interactive run with only the `search`
    host tool allowed.
 3. Run it, then submit a generated search such as `chicken pasta`.
 4. Open `http://localhost:5173/adversarial` and confirm the sandbox
@@ -133,16 +131,17 @@ pnpm dev:demos
 
 ## Demo Map
 
-- `apps/surface-gallery` - primary adopter gallery with curated live
+- **Surface Gallery** (`apps/surface-gallery`) - the adopter app: curated live
   presets, compact host tools, Ghost-root presets when configured, a generated
   surface, and a small event strip.
-- `/generate` - diagnostic maintainer workbench for ward-selected
-  surface configs, allowed host tools, token overrides, validation summaries,
-  replay, Ghost steering, Devtools, and stream diagnostics.
-- `/batch` - parallel ward harness for prompt coverage, host tool
-  wiring, Ghost fingerprint token coverage, throughput, and consistency checks.
-- `/adversarial` - sandbox boundary checks for network, storage, parent
-  access, and unallowed host tool requests.
+- **Workbench** (`apps/demo`) - the maintainer app, with three routes:
+  - `/generate` - agent-planned surface configs, allowed host tools, token
+    overrides, validation summaries, replay, Ghost steering, Devtools, and
+    stream diagnostics.
+  - `/batch` - prompt coverage, host tool wiring, Ghost fingerprint token
+    coverage, throughput, and consistency checks.
+  - `/adversarial` - sandbox boundary checks for network, storage, parent
+    access, and unallowed host tool requests.
 
 ## Public Packages
 
@@ -150,7 +149,9 @@ pnpm dev:demos
   helpers, and explicit subpaths for advanced browser, engine, host, policy,
   envelope, assets, Devtools, and token CSS APIs.
 - `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
-  runtime validation, conformance diagnostics, and model-provider interfaces.
+  runtime validation, and model-provider interfaces. The Ghost
+  verdict/receipt/conformance pipeline ships from the `/ghost` subpath and
+  needs `@anarchitecture/ghost-fingerprint` as a peer dependency.
 - `@anarchitecture/summon-react` - `SummonSurface` React adapter for inline
   Summon surfaces and replay envelopes. `react` and `react-dom` are peer dependencies.
 
@@ -162,8 +163,8 @@ pnpm dev:demos
   implementation workspaces published only through the public facades.
 - `apps/server` - multi-provider demo server for Anthropic, OpenAI, and Gemini,
   Ghost fingerprint loading, runtime diagnostics, and demo backing routes.
-- `apps/surface-gallery` - first-run live example app for OSS adopters.
-- `apps/demo` - Vite maintainer workbench for generation, batch runs,
+- `apps/surface-gallery` - the Surface Gallery: adopter app.
+- `apps/demo` - the workbench: maintainer app for generation, batch runs,
   adversarial checks, Ghost steering, and diagnostics.
 
 ## Adoption Docs
@@ -214,5 +215,5 @@ pnpm dev:demos
 ```
 
 `pnpm test:safety` runs the Playwright Chromium and WebKit smoke suite for
-sandbox containment and generate-page boot. It starts only the Vite demo app and
+sandbox containment and generate-page boot. It starts only the workbench and
 does not require a model-provider API key.

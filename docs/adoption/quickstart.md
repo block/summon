@@ -30,7 +30,7 @@ rendering, and background host work.
 
 Each preset chooses a surface config and a short list of allowed host tools.
 In API terms, that config is a `SurfacePolicy`. The server compiles it into the
-stricter `SurfacePlan` and `SurfaceContractView` Summon uses during generation,
+stricter, read-only surface contract Summon enforces during generation,
 validation, diagnostics, and replay.
 
 ## Run The Workbench
@@ -41,9 +41,9 @@ pnpm dev:workbench
 
 Open `http://localhost:5173/generate`.
 
-The Generate workbench runs showcase prompts through the agent ward by
+The Generate workbench runs showcase prompts through agent planning by
 default, then keeps maintainer controls visible: stream diagnostics, Devtools,
-validation summaries, replay, custom SurfacePlan overrides, directions, and
+validation summaries, replay, custom surface config overrides, directions, and
 Ghost fingerprint steering internals. The custom Surface Config panel is the
 explicit manual override path.
 
@@ -149,7 +149,7 @@ The Stream and Devtools drawers are for understanding a run after you have
 rendered and interacted with a surface:
 
 - Open the **Stream** drawer to inspect server stream lines, the selected
-  ward goal, selected surface config, validation summaries, model-output mode,
+  agent goal, selected surface config, validation summaries, model-output mode,
   conformance verdicts, and accepted artifact revisions.
 - Open the **Devtools** drawer to inspect sandbox startup, render events, host
   tool requests, host dispatch, pushed state, runtime errors, and stream
@@ -160,8 +160,8 @@ rendered and interacted with a surface:
 
 ## Optional Checks
 
-Open `http://localhost:5173/batch` to run several prompts through the
-agent ward against the same host tool ceiling. Use it when changing prompt
+Open `http://localhost:5173/batch` to run several prompts through
+agent planning against the same host tool ceiling. Use it when changing prompt
 contracts, directions, host tool wiring, visual direction coverage, or
 throughput behavior.
 
