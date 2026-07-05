@@ -1,5 +1,5 @@
 ---
-description: The badge and state system — friendly `--garden-chip-radius` pill state-chips (faced with `--garden-chip-face`, inked, edged, padded) that carry planning state — time, effort, readiness, season, confidence, energy, waiting — to reduce reading, never to decorate. Reach for how a row of chips reads like a status sentence at a glance.
+description: The state language — quiet `--garden-chip-face` pills that name real planning state in words (Ready, Needs one thing, Can wait, Kept) so a row reads like a status sentence; pull when a surface carries time, effort, readiness, or waiting, and hold the line that a note without meaningful state gets no chip.
 ---
 
 ## Composition

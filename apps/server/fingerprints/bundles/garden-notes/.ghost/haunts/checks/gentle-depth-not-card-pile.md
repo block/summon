@@ -7,6 +7,7 @@ references:
   - principle.gentle-depth
   - pattern.note-panels
   - pattern.kept-notes
+  - anti-goal.card-pile
 ---
 
 Garden Notes should feel like paper on paper, not a pile of app cards. Reject the

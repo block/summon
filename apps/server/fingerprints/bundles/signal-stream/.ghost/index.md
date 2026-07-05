@@ -30,6 +30,26 @@ color-as-emphasis over shadow-as-elevation; compact metadata and rail structure
 over verbose labels when time, status, sequence, or category matters. Keep
 saturated fills sparing and small text on stable contrast pairs.
 
+## Read order
+
+For a typical surface, pull in this order: the [dark canvas and hazard-accent
+field](principle.canvas) first — the field and the two voltages govern everything
+else; then the [display shout and mono metadata](pattern.type-system) for the
+first read; then the [stream tiles and signal rail](pattern.tiles) plus the
+[stream cadence](pattern.cadence) to pace the content; the [segmented tabs and
+hazard-pill controls](pattern.controls) when modes or actions exist; the
+[transmission grammar](pattern.transmission-grammar) when the surface files,
+splices, or cites itself. Before composing any feed, check the
+[annotated stream fragment](exemplar.stream-fragment) as the quality bar, and
+hold the two guards — [no soft-glow depth](anti-goal.soft-glow-depth) and
+[no source-brand costume](anti-goal.source-brand-costume) — as hard lines.
+
+**Silence posture.** This fingerprint is deliberately silent on data
+visualization idioms, form-heavy flows, iconography sets, and print/export
+styling. Where it is silent, compose provisionally from the same tokens and the
+flat-depth rule, label the choice as provisional, and never import outside
+conventions (no shadows, no light shells, no third accent) to fill the gap.
+
 ## Signature look & feel
 
 If you stripped every label off a Signal Stream surface and left only the shapes,

@@ -6,6 +6,7 @@ references:
   - index
   - pattern.cinematic-image
   - pattern.player-chrome
+  - pattern.editorial-cadence > Composition
 ---
 
 Redline Cinema is informed by public luxury-performance editorial research but must

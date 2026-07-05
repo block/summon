@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   loadFingerprintPackage,
   resolveFingerprintPackage,
-} from '@anarchitecture/ghost-fingerprint/fingerprint';
+} from '@decentralized-design/ghost/fingerprint';
 import { evaluateConformance, formatArtifactSourceForConformance } from '../src/ghost/conformance.js';
 import type { GhostLoadedCheck } from '../src/ghost/adapter.js';
 import type { TextCompletionRequest } from '../src/types.js';
@@ -103,15 +103,19 @@ describe('evaluateConformance', () => {
       assert.match(request.system, /design-conformance evaluator/i);
       assert.match(request.prompt, /main\.ts/);
       // One pass, one fail — keyed by the real check names.
-      return JSON.stringify([
-        { name: 'flat-depth-no-shadow-elevation', pass: true, reason: 'Flat, no shadows.' },
-        {
-          name: 'no-source-brand-leakage',
-          pass: false,
-          reason: 'Uses a real publisher logo.',
-          evidence: '<img src="nyt-logo">',
-        },
-      ]);
+      // One fail, the rest pass — keyed by the real check names.
+      return JSON.stringify(
+        [...checks.values()].map((entry) => entry.doc.frontmatter.name).map((name) =>
+          name === 'no-source-brand-leakage'
+            ? {
+                name,
+                pass: false,
+                reason: 'Uses a real publisher logo.',
+                evidence: '<img src="nyt-logo">',
+              }
+            : { name, pass: true, reason: 'Conforms.' },
+        ),
+      );
     };
     const verdict = await evaluateConformance({
       checks,
@@ -121,7 +125,7 @@ describe('evaluateConformance', () => {
     });
     assert.equal(called, 1);
     assert.equal(verdict.evaluated, true);
-    assert.equal(verdict.checks.length, 2);
+    assert.equal(verdict.checks.length, checks.size);
 
     const flat = verdict.checks.find((c) => c.name === 'flat-depth-no-shadow-elevation');
     const brand = verdict.checks.find((c) => c.name === 'no-source-brand-leakage');
@@ -134,7 +138,7 @@ describe('evaluateConformance', () => {
     assert.equal(brand!.evidence, '<img src="nyt-logo">');
 
     assert.deepEqual(verdict.summary, {
-      pass: 1,
+      pass: checks.size - 1,
       fail: 1,
       inconclusive: 0,
       failedHigh: 1,
@@ -157,7 +161,7 @@ describe('evaluateConformance', () => {
     });
     const brand = verdict.checks.find((c) => c.name === 'no-source-brand-leakage');
     assert.equal(brand!.verdict, 'inconclusive');
-    assert.equal(verdict.summary.inconclusive, 1);
+    assert.equal(verdict.summary.inconclusive, checks.size - 1);
     assert.equal(verdict.summary.pass, 1);
   });
 
@@ -171,9 +175,9 @@ describe('evaluateConformance', () => {
       completeText,
     });
     assert.equal(verdict.evaluated, true);
-    assert.equal(verdict.checks.length, 2);
+    assert.equal(verdict.checks.length, checks.size);
     assert.ok(verdict.checks.every((c) => c.verdict === 'inconclusive'));
-    assert.equal(verdict.summary.inconclusive, 2);
+    assert.equal(verdict.summary.inconclusive, checks.size);
   });
 
   it('timeout → all checks inconclusive, no throw', async () => {
@@ -189,7 +193,7 @@ describe('evaluateConformance', () => {
     });
     assert.equal(verdict.evaluated, true);
     assert.ok(verdict.checks.every((c) => c.verdict === 'inconclusive'));
-    assert.equal(verdict.summary.inconclusive, 2);
+    assert.equal(verdict.summary.inconclusive, checks.size);
   });
 
   it('completeText throwing → inconclusive, no crash', async () => {

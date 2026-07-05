@@ -42,4 +42,33 @@ Evidence justifies the [answer](pattern.answer) rather than postponing it, sits 
 hero on near-black tiers, and hands off to the [one-sentence meaning](pattern.meaning) that
 names the so-what before the [action stack](pattern.action) guides the next move.
 
+## Skeleton
+
+```html
+<section class="dd-evidence" aria-label="{what the chart shows}"
+         style="margin-bottom: var(--dd-block-gap);">
+  <!-- frameless bars on the open canvas: no panel fill, no gridlines -->
+  <div style="display: flex; align-items: flex-end; gap: var(--dd-bar-gap);
+              height: {chart height};">
+    <div style="flex: 1; height: {n}%; background: var(--dd-bar-neutral);"></div>
+    <div style="flex: 1; height: {n}%; background: var(--dd-bar-neutral);"></div>
+    <!-- at most one bar in var(--dd-bar) accent, and only if this is the
+         surface's single accent moment -->
+  </div>
+  <div style="display: flex; gap: var(--dd-bar-gap); margin-top: var(--space-2);
+              font-size: var(--text-xs); color: var(--dd-axis);
+              font-feature-settings: var(--dd-tnum);">
+    <span style="flex: 1;">{axis label}</span>
+  </div>
+</section>
+```
+
+**Bound vs open.** Bound: at most one evidence region, sitting directly under
+the hero; discrete bars/candles at `--dd-bar-gap`, series in
+`--dd-bar-neutral`, axis labels in `--dd-axis` with tabular figures; no frame,
+no plot-area fill, no smoothing, no construction animation. Open: bars vs
+candlesticks vs uniform rows (rows swap the flex chart for tiered
+`--color-surface` rows inset by `--dd-content-inset`), chart height, how many
+labels the eye actually needs, and whether the accent lands here or elsewhere.
+
 Related: reinforces `pattern.answer`; contrasts with `pattern.meaning`.

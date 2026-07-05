@@ -36,7 +36,10 @@ Tiles and rows are the repeating unit of content, paired with the
 [control and metadata system](pattern.controls) for their labels and actions. A surface
 keeps a page of them reading as one workspace through a single continuous canvas
 and spacing-led zones rather than a grid of equal boxes. When tiles carry shared
-*criteria* and a verdict rather than parallel *options*, that is the
-[comparison](comparison) surface's job, not a plain tile grid.
+*criteria* and a verdict rather than parallel *options*, compose a comparison
+surface — same operational criteria held parallel across every path, pass/fail
+on a dot, the chosen path marked by the `--noir-spine` — not a plain tile grid.
+The moment a rack of tiles drifts toward equal rounded cards with colored
+charts, the [dashboard-slop guard](anti-goal.dashboard-slop) applies.
 
 Related: reinforces `pattern.controls`, `pattern.density-field`.

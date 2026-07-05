@@ -4,6 +4,7 @@ description: Console Chrome may be playful and game-like, but it must not reprod
 severity: high
 references:
   - index
+  - anti-goal.borrowed-ip
   - pattern.hardware-dressing
   - pattern.badges
 ---

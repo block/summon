@@ -3,7 +3,7 @@ name: flat-depth-no-shadow-elevation
 description: Primary hierarchy must stay flat and graphic — borders, rules, saturation, and contrast, never drop-shadow elevation.
 severity: medium
 references:
-  - index
+  - anti-goal.soft-glow-depth
   - principle.canvas
   - pattern.tiles
   - pattern.controls

@@ -1,5 +1,5 @@
 ---
-description: The dark canvas and hazard-accent system — the warm near-black field, white/muted-gray text and hairline borders, and the saturated hazard tiles that interrupt the rhythm. Reach for how the field behaves and where color earns attention.
+description: The field contract — warm near-black #131313 is the material, mint and violet are rationed hazard voltages with legible jobs, and depth stays flat; pull this first on every surface, because bright fills are interruptions, never the default.
 ---
 
 ## Composition
@@ -38,8 +38,8 @@ lift on primary editorial surfaces; a separation ring, if needed, is a 1px
 This field is the stage for every other system: the [tiles](pattern.tiles) and saturated
 blocks sit on it, the [display shout and mono metadata](pattern.type-system) read against
 it, and the [hazard-pill controls](pattern.controls) borrow the same mint/violet accents.
-The saturated interruption belongs most to the [stream](stream) and
-[digest](digest) leads; the [briefing](briefing) keeps saturation muted unless
+The saturated interruption belongs most to live-stream and digest leads; a
+briefing keeps saturation muted unless
 severity truly demands it.
 
 Related: reinforces `pattern.tiles`, `pattern.type-system`.

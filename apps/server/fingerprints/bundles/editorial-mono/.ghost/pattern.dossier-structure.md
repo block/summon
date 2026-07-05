@@ -98,6 +98,48 @@ New tokens in the editorial namespace (extending the core vocabulary):
 }
 ```
 
+## Skeleton
+
+```html
+<article class="dossier" style="font-family: var(--font-serif); color: var(--color-text); background: var(--editorial-paper-page);">
+
+  <nav class="contents" style="font-family: var(--editorial-folio-font); font-size: var(--editorial-folio-size); letter-spacing: var(--editorial-folio-tracking); text-transform: uppercase;">
+    <!-- plain mono contents index: entry · leader space · folio — printed matter, not a control panel -->
+  </nav>
+
+  <section class="movement">
+    <h2 style="font-size: var(--text-xl); letter-spacing: var(--tracking-tight);">
+      <span class="index-char" style="font-family: var(--editorial-index-char-font); font-size: var(--editorial-index-char-size); letter-spacing: var(--editorial-index-char-tracking); margin-right: var(--editorial-index-char-gap);">A.</span>
+      <!-- serif movement heading --></h2>
+    <div class="block block--prose"><!-- prose argument in the article voice --></div>
+  </section>
+
+  <section class="movement movement--verdict" style="border-top: var(--editorial-verdict-frame-rule); border-bottom: var(--editorial-verdict-frame-rule); padding: var(--editorial-verdict-frame-gap) 0;">
+    <!-- the ONE framed verdict block — inverse slab or paper, framed exactly once per document -->
+    <div class="block block--verdict" style="background: var(--editorial-verdict-bg); color: var(--editorial-verdict-fg); padding: var(--editorial-verdict-pad); border-radius: var(--editorial-verdict-radius);"></div>
+  </section>
+
+  <section class="movement">
+    <h2><span class="index-char">B.</span><!-- heading --></h2>
+    <div class="block block--evidence"><!-- ruled evidence bands or justified columns --></div>
+    <div class="block block--sources"><!-- source list: mono, ruled, cited --></div>
+  </section>
+
+  <footer class="colophon" style="font-family: var(--font-mono); font-size: var(--editorial-colophon-size); line-height: var(--editorial-colophon-leading); color: var(--color-text-muted); border-top: var(--editorial-hairline);">
+    <!-- who set the page, when, from what sources — smaller mono, same black ink -->
+  </footer>
+</article>
+```
+
+**Bound:** the lettered ladder on 3+ movements (mono index characters, never
+display type), exactly one verdict frame per document, every region drawn from
+the five named blocks (verdict, evidence table, aligned comparison, prose
+argument, source list), the mono contents index instead of navigation chrome,
+and the colophon's typographic-only register shift. **Open:** the number and
+order of movements, whether the verdict rides the inverse slab or stays on
+paper, whether the contents index appears at all on short documents, and the
+corner-tick decoration on the frame.
+
 The ladder orders the movements the [masthead](pattern.masthead) opens; the frame spends
 the same emphasis budget as the [inverse-ink panel](pattern.inverse-panel); the contents
 index, index characters, and colophon all speak in the [mono metadata](pattern.metadata)

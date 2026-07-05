@@ -47,4 +47,52 @@ data sheet. These sheets are the spine of the [pricing](pricing) surface and
 support comparison anywhere on the [landing](landing) or [workflow](workflow)
 surfaces.
 
+## Skeleton
+
+Begin every comparison sheet from this structure — claim above the table, mono
+headers on the muted rail, tabular numerics down the columns, chosen option
+marked by edge weight:
+
+```html
+<section class="plane plane--sheet" style="background: var(--contrast-plane-sheet-bg); color: var(--contrast-plane-sheet-fg); padding: var(--contrast-band-pad-y) var(--contrast-band-pad-x);">
+  <div style="max-width: var(--contrast-band-max); margin: 0 auto;">
+    <p class="eyebrow" style="font-family: var(--contrast-eyebrow-font); text-transform: uppercase; font-size: var(--contrast-eyebrow-size); letter-spacing: var(--contrast-eyebrow-tracking);">COMPARISON</p>
+    <h2 style="font-family: var(--font-sans); letter-spacing: var(--tracking-tight);"><!-- sentence-case claim: what the deciding row is --></h2>
+
+    <table style="border-collapse: collapse; border: var(--contrast-edge-hairline); width: 100%;">
+      <thead>
+        <tr style="background: var(--color-surface-muted);">
+          <th class="mono-header" style="font-family: var(--contrast-eyebrow-font); text-transform: uppercase; font-size: var(--text-xs); letter-spacing: var(--tracking-label); text-align: left;">CRITERION</th>
+          <th class="mono-header">OPTION-A</th>
+          <th class="mono-header mono-header--chosen" style="border: var(--contrast-edge-strong);">OPTION-B · RECOMMENDED</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: var(--contrast-row-divider);">
+          <td><!-- short parallel row label, sans --></td>
+          <td class="num" style="font-family: var(--contrast-num-font); text-align: var(--contrast-num-align); font-variant-numeric: var(--contrast-num-variant);"><!-- figure --></td>
+          <td class="num" style="border-left: var(--contrast-edge-strong); border-right: var(--contrast-edge-strong);"><!-- figure --></td>
+        </tr>
+        <!-- staged density: collapsed groups named with mono labels + row counts -->
+        <tr class="group-toggle"><td colspan="3"><button class="mono-label">LIMITS · 12 ROWS +</button></td></tr>
+      </tbody>
+    </table>
+
+    <!-- optional: one or two tinted stat tiles, never a rainbow grid -->
+    <aside class="stat-tile" style="background: var(--color-tint-mint); border-radius: var(--radius-md);">
+      <span class="stat-number" style="font-size: var(--text-2xl);"></span>
+      <span class="mono-label"></span>
+    </aside>
+  </div>
+</section>
+```
+
+**Bound:** claim before table; mono uppercase headers on `--color-surface-muted`;
+`--contrast-num-align` right-aligned `tabular-nums` columns; hairline row
+dividers; chosen column framed by `--contrast-edge-strong` (never a badge or
+shadow); collapsed groups named with row counts; identical anatomy at every
+disclosure depth. **Open:** row/column count, accordion vs full-spec tier vs
+footnote for staged depth, whether tinted tiles appear at all, scroll vs stack
+on mobile (row labels always preserved).
+
 Related: reinforces `pattern.mono-labels`; contrasts with `pattern.proof-cards`.

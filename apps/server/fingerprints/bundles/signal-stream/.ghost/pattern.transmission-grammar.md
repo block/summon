@@ -109,6 +109,44 @@ consistent with the rail's ordering.
 }
 ```
 
+## Skeleton
+
+```html
+<article class="transmission" style="background: var(--color-bg); color: var(--color-text);">
+  <!-- Atmosphere-first opening: solid plate, never a scrim; shout lands in first viewport -->
+  <header class="opening" style="min-height: var(--signal-opening-min-height); background: var(--signal-opening-plate); border: var(--signal-opening-plate-border);">
+    <p class="callsign" style="font-family: var(--font-mono); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: var(--tracking-label);">SIG-01 · 13:07 UTC · INTERCEPT</p>
+    <h1 class="shout" style="font-family: var(--signal-shout-font); font-size: var(--signal-shout-size); line-height: var(--signal-shout-leading); text-transform: var(--signal-shout-transform); text-shadow: var(--signal-rgb-split);">
+      <!-- ONE shout per surface; RGB-split optional and at most once -->
+    </h1>
+  </header>
+
+  <!-- Stream item with filing card + margin voice -->
+  <section class="item" id="sig-02">
+    <dl class="catalog-card" style="border: var(--signal-card-border); background: var(--signal-card-fill); font-family: var(--signal-card-font); font-size: var(--signal-card-size); display: grid; grid-template-columns: var(--signal-card-key-width) 1fr; row-gap: var(--signal-card-row-gap);">
+      <dt style="color: var(--signal-card-key-color);">REF</dt><dd>SIG-02</dd>
+      <dt style="color: var(--signal-card-key-color);">TIME</dt><dd><!-- real value or omit the row --></dd>
+    </dl>
+    <h2><!-- item headline, sans or condensed, below shout scale --></h2>
+    <p class="margin-voice" style="font-family: var(--signal-margin-font); font-size: var(--signal-margin-size); color: var(--signal-margin-color); letter-spacing: var(--signal-margin-tracking);">→ REF: SIG-04 <!-- must resolve to a real anchor --></p>
+  </section>
+
+  <!-- Torn-edge splice at a real register shift; routine gaps stay hairline -->
+  <div class="tear" role="separator" style="height: var(--signal-tear-band-height); background: var(--signal-tear-hazard);"></div>
+  <h2 class="chapter" id="sig-03" style="font-family: var(--signal-chapter-font); font-size: var(--signal-chapter-size); border-bottom: var(--signal-chapter-rule); text-transform: uppercase;">
+    <!-- chapter statement + its own ref code -->
+  </h2>
+</article>
+```
+
+**Bound:** the solid opaque opening plate under any text-over-image; one shout,
+optionally RGB-split, in the first viewport; the fixed-key-column filing card
+with real-or-omitted values; one margin voice per item; tears only at true
+register shifts, always hard-matte; every `→ REF:` citation resolving to a real
+`id` anchor; the flat sequential codebook. **Open:** whether an opening is
+atmosphere or shout-first, which items carry cards, tear form (stepped rule,
+double line, or hazard band), the codebook naming scheme, and all content.
+
 The filing cards and margin voice extend the [display-shout and mono-metadata
 type system](pattern.type-system) — same whisper register, more structure; catalog cards
 and opening plates sit flat on the [tile system](pattern.tiles) rails under the same

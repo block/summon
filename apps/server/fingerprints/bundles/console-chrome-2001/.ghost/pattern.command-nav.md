@@ -48,4 +48,48 @@ the [beveled plate and chrome system](pattern.plates); the nav words, tool chips
 rail buttons follow the [control system](pattern.controls) for their amber/orange/carbon
 semantics.
 
+## Skeleton
+
+```html
+<header class="chrome-command-layer">
+  <!-- Primary carbon command bar: halftone grain, bolted onto the chassis seam -->
+  <nav class="chrome-command-bar"
+       style="background:var(--chrome-halftone-carbon); box-shadow:var(--chrome-bevel-hard);">
+    <span class="chrome-wordmark"><!-- outlined box-art site name --></span>
+    <a class="chrome-command-word" style="color:var(--color-accent-nav);"><!-- PRIMARY --></a>
+    <a class="chrome-command-word" style="color:var(--color-accent-nav);"><!-- COMMAND --></a>
+    <a class="chrome-command-word chrome-command-word--quiet"><!-- SECONDARY --></a>
+  </nav>
+
+  <!-- Dotted silkscreen seam parting the two bars -->
+  <div class="chrome-seam" style="background:var(--chrome-divider-dotted); height:3px;"></div>
+
+  <!-- Pale secondary tool strip: amber utility chips with molded pips -->
+  <nav class="chrome-tool-strip"
+       style="background:var(--color-surface-soft); box-shadow:var(--chrome-bevel-hard);">
+    <button class="chrome-tool-chip"
+            style="background:var(--color-accent-utility); box-shadow:var(--chrome-led-amber);">
+      <i class="chrome-pip" style="background:var(--chrome-led-pip);"></i><!-- TOOL -->
+    </button>
+    <!-- search / finder / filter / go chips repeat here -->
+  </nav>
+</header>
+
+<!-- ... faceplate body ... -->
+
+<footer class="chrome-footer-slab"
+        style="background:var(--chrome-halftone-carbon); box-shadow:var(--chrome-bevel-hard);">
+  <!-- micro practical copy + status marks, rows parted by var(--chrome-divider-dotted) -->
+</footer>
+```
+
+**Bound:** the two-layer order (carbon primary over pale secondary), the
+halftone carbon fill, the `--chrome-bevel-hard` seam where bars clip into the
+chassis, nav-gold command words on carbon, amber pip-beaded tool chips, the
+dotted seam between bars, and the carbon footer slab close. **Open:** the
+number of command words and tool chips, the presence of a right action rail or
+side-mounted vertical tabs, whether the wordmark sits in the bar or a masthead
+above, and how the two bars compress on narrow screens (carbon header + pale
+row, warm cues kept visible).
+
 Related: reinforces `pattern.plates`, `pattern.controls`.

@@ -4,9 +4,11 @@ description: Every Console Chrome surface must read as one assembled console fac
 severity: high
 references:
   - index
+  - anti-goal.flat-card-web
   - pattern.plates
   - pattern.command-nav
   - pattern.hardware-dressing
+  - exemplar.finder-faceplate
 ---
 
 Console Chrome 2001 depends on a molded chassis: periwinkle/pale-sky/platinum plates,

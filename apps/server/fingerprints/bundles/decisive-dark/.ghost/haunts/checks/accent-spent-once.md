@@ -3,7 +3,7 @@ name: accent-spent-zero-or-once
 description: The Decisive Dark accent is spent at most once per surface and only on an earned action, gain, or positive trend.
 severity: high
 references:
-  - index
+  - anti-goal.competing-heroes
   - pattern.accent-moment
   - pattern.action
   - pattern.evidence

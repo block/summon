@@ -100,6 +100,47 @@ index.
 }
 ```
 
+## Skeleton
+
+```html
+<!-- One page-level texture pass fixed over the whole chassis — never per-card -->
+<div class="chrome-texture-pass"
+     style="position:fixed; inset:0; pointer-events:none; background:var(--chrome-texture-pass);"></div>
+
+<!-- Screen-in-bezel: rationed to the one or two modules that ARE the display -->
+<figure class="chrome-bezel"
+        style="background:var(--chrome-bezel-frame); box-shadow:var(--chrome-bezel-lip); padding:14px;">
+  <div class="chrome-bezel-screen"
+       style="background:var(--chrome-bezel-screen); box-shadow:var(--chrome-inset-input);">
+    <img style="image-rendering:var(--chrome-artifact-render);"><!-- ONE artifact grammar per surface -->
+  </div>
+  <figcaption class="chrome-etch"
+              style="font-family:var(--chrome-etch-label-font); font-size:var(--chrome-etch-label-size);
+                     color:var(--chrome-etch-label-color); letter-spacing:var(--chrome-etch-label-tracking);">
+    <!-- CC-2001A · AV OUT · EXT.2 — deadpan silkscreen, chrome zones only -->
+  </figcaption>
+</figure>
+
+<!-- Section-as-scene: numbered fixed-height screens parted by carbon scene bars -->
+<div class="chrome-scene-bar"
+     style="background:var(--chrome-halftone-carbon); height:var(--chrome-scene-bar-height);">
+  <span class="chrome-scene-number"
+        style="font-family:var(--chrome-scene-number-font); font-size:var(--chrome-scene-number-size);
+               color:var(--chrome-scene-number-color);"><!-- 01 --></span>
+</div>
+<section class="chrome-scene"><!-- fixed-height typed module --></section>
+```
+
+**Bound:** one global texture pass at page level; the flat two-tone bezel
+(molded surround, recessed dark screen well, no gloss); one artifact grammar
+held across every image on the surface; etch labels in cool silkscreen on
+chrome zones only; carbon scene bars with cool scene numbers between
+fixed-height screens. **Open:** which one or two modules earn the bezel,
+pixelated versus dithered as the surface's artifact grammar, the wording of
+etch legends, whether early-web furniture (guestbook, hit counter, ticker —
+at most one, re-skinned in chrome) appears at all, and how many scenes a
+surface sequences.
+
 The bezel frames sit on the molded depth of the [beveled plate and chrome
 system](pattern.plates); etch labels, region badges, and scene numbers are silkscreen
 kin of the [badge and section-label system](pattern.badges) but mark the casing, not

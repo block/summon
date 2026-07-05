@@ -47,6 +47,46 @@ luxury whitespace doing the dividing. These silkscreen perforations provide Y2K
 chrome detail between compact modules as machine texture, not page-wide wallpaper
 — kept readable, never CRT-scanline overload.
 
+## Skeleton
+
+```html
+<body style="background:var(--color-bg);"><!-- grey browser field outside the machine -->
+  <!-- The chassis: one bounded molded body, ~780–900px, never the raw viewport -->
+  <main class="chrome-chassis"
+        style="background:var(--chrome-faceplate); box-shadow:var(--chrome-faceplate-rim);">
+
+    <!-- Box-art hero plate: deep bevel, outlined wordmark, one orange forward cue -->
+    <section class="chrome-plate chrome-plate--hero"
+             style="background:var(--color-canvas-raised); box-shadow:var(--chrome-bevel-deep);">
+      <h1 class="chrome-boxart"><!-- white fill, dark stroke, hard offset shadow --></h1>
+    </section>
+
+    <!-- Raised periwinkle/pale-sky plate with inset platinum content -->
+    <section class="chrome-plate"
+             style="background:var(--color-canvas-ice); box-shadow:var(--chrome-bevel-hard);">
+      <div class="chrome-inset"
+           style="background:var(--color-surface-muted); box-shadow:var(--chrome-inset-input);">
+        <!-- rows parted by var(--chrome-divider-dotted), never plain hairlines -->
+      </div>
+    </section>
+
+    <!-- Slot well: only for genuinely persistent state (saved, drafts, sessions) -->
+    <div class="chrome-slot" style="box-shadow:var(--chrome-slot-well);">
+      <article class="chrome-tile" style="box-shadow:var(--chrome-bevel-hard);"><!-- held item --></article>
+    </div>
+  </main>
+</body>
+```
+
+**Bound:** the grey field / molded chassis nesting, the `--chrome-faceplate` +
+`--chrome-faceplate-rim` pair on the outer body, the zero-blur two-tone
+`--chrome-bevel-hard` seam on every plate (deep on the one hero), raised
+periwinkle/pale-sky carrying inset platinum/white content, dotted dividers
+between rows, and slot wells rationed to persistent state. **Open:** plate
+count and arrangement, hero imagery, sharp versus chamfered outer corners
+(2–6px radius only on small inset panels), and how plates stack inside the one
+frame on narrow screens.
+
 The carbon slabs framed here are reused by the [command and navigation
 system](pattern.command-nav); the inset fields host [control system](pattern.controls) inputs;
 and every plate earns a [section-label or badge](pattern.badges) so it never reads as an

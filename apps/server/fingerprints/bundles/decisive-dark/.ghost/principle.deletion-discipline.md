@@ -1,5 +1,5 @@
 ---
-description: Deletion discipline — the dependency test where every label, divider, icon, and caption must state a reason it earns its place (default is deletion, convention is not a reason), trust built through hierarchy never genre costume, each tier answering one question at a glance, the next action surfaced exactly once where the decision completes, and stability as part of confidence — complete on arrival within a `--dd-settle-budget` of one. Reach for what to cut and how the surface stays trustworthy without decoration.
+description: The what-can-we-delete pass run over every finished composition — each label, divider, icon, and caption must name what breaks if it goes (default verdict is deletion, convention is not a reason), credibility comes from precision and a `--dd-source-note` rather than dashboard costume, the action appears exactly once where the decision completes, and the surface arrives settled within a `--dd-settle-budget` of one. Pull it whenever a surface feels crowded, hedging, or dressed up to look analytical.
 ---
 
 ## Composition

@@ -300,9 +300,35 @@ sets many parallel entries as numbered specimen rows on a shared measure. Each s
 these same building blocks for its own job — a brief, a comparison, or a report —
 under one reading order rather than from fixed page templates.
 
+## Read order
+
+For a typical composed surface, pull in this order: start with
+[principle.verdict-first](principle.verdict-first) to decide what the page
+commits to; then the [masthead / deck / folio shell](pattern.masthead) to frame
+that verdict as the first visual event; then the
+[ruled evidence bands](pattern.evidence) and [mono metadata system](pattern.metadata)
+to justify and label it; spend the [single inverse-ink panel](pattern.inverse-panel)
+if one moment must invert; land on the [editorial close](pattern.close). Long
+documents add the [dossier structure](pattern.dossier-structure); collection
+surfaces add the [catalog index grammar](pattern.catalog-index). Before
+shipping, check the guards — [anti-goal.soft-card-slop](anti-goal.soft-card-slop)
+and [anti-goal.buried-verdict](anti-goal.buried-verdict) — and calibrate
+against the [annotated dossier fragment](exemplar.dossier-fragment).
+
+**Silence posture.** This fingerprint is deliberately silent on iconography,
+illustration, data-visualization styling, dark mode, and motion beyond the
+single `--editorial-duration` beat. Where it is silent, extend the material
+provisionally and label the extension: derive from the existing ink, paper,
+mono, and hairline vocabulary (a chart is ruled bands; an icon is a mono glyph
+or the registration tick), never introduce chroma, gradients, shadows, or
+rounded containers to fill a gap, and treat any such extension as provisional
+until this index names it.
+
 ## Composition
 
-Four principles carry the language and are true on every surface:
+One principle governs everything — [the verdict earns the
+page](principle.verdict-first) — and four composition rules carry the language
+on every surface:
 
 1. **Editorial hierarchy leads.** Open with a strong typographic claim, then
    support it with measured evidence, compact labels, and visible editorial

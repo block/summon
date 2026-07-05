@@ -3,7 +3,7 @@ name: one-element-owns-the-screen
 description: Decisive Dark must open with one dominant answer, not a balanced dashboard or competing KPI grid.
 severity: high
 references:
-  - index
+  - anti-goal.competing-heroes
   - pattern.answer
   - pattern.negative-space
   - principle.deletion-discipline

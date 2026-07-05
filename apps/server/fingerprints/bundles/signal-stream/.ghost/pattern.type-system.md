@@ -1,5 +1,5 @@
 ---
-description: The display-shout and mono-metadata type system — one oversized condensed headline as a shout, a sans workhorse for body, and mono uppercase metadata that does the navigating. Reach for how type anchors and orients the page.
+description: The shout-versus-whisper type contract — one condensed uppercase display line per surface at 0.86 leading, sans body split into skim and dwell velocities, and tracked mono metadata doing the navigating; pull it whenever type must anchor or orient, and refuse a calm headline in its place.
 ---
 
 ## Composition
@@ -51,7 +51,7 @@ never copied letterforms or real publisher marks.
 The display shout and mono metadata read against the [dark canvas](principle.canvas); the
 metadata labels ride the rails and tiles of the [tile system](pattern.tiles) and the
 mode pills of the [controls](pattern.controls). The shout is loudest as the lead on the
-[stream](stream) and [digest](digest); on the [briefing](briefing) it states the
+stream and digest; on a briefing it states the
 recommendation before any prose.
 
 Related: reinforces `principle.canvas`, `pattern.tiles`.

@@ -20,6 +20,32 @@ competing region; if two moments compete for it, the verdict wins and the other
 demotes to a [ruled evidence band](pattern.evidence). Emphasis is made from this inverse
 ink, rules, type, spacing, and alignment before any color.
 
+**Exact values.** The slab is `--editorial-verdict-bg` `#11100e` carrying
+`--editorial-verdict-fg` `#fffdf6` — the same two inks as the page, swapped.
+Padding is `--editorial-verdict-pad` (`--space-7` `--space-6`, i.e. 44px 34px);
+corners are `--editorial-verdict-radius` (0px — never rounded); shadow is none,
+always. Its label, if any, is tracked mono in `--editorial-folio-font`; its
+claim sits at `--text-lg` (22px) or larger with `--leading-section`. Inside a
+dossier the slab may be framed once by `--editorial-verdict-frame-rule`
+hairline pairs; the frame and the inversion together are still the one
+emphasis, never repeated elsewhere.
+
+## Skeleton
+
+```html
+<section class="verdict-slab" style="background: var(--editorial-verdict-bg); color: var(--editorial-verdict-fg); padding: var(--editorial-verdict-pad); border-radius: var(--editorial-verdict-radius);">
+  <p class="verdict-label" style="font-family: var(--editorial-folio-font); font-size: var(--editorial-folio-size); letter-spacing: var(--editorial-folio-tracking); text-transform: uppercase;">
+    Verdict <!-- or: Recommendation / Rank --></p>
+  <p class="verdict-claim" style="font-size: var(--text-lg); line-height: var(--leading-section);">
+    <!-- the one decisive claim, number, rank, or delta --></p>
+</section>
+```
+
+**Bound:** black-on-cream inversion, square corners, no shadow, at most one per
+surface, mono copy-atom label. **Open:** where on the page it lands (masthead
+moment, promoted evidence, or the close), whether it carries a claim or a
+governing number, and whether the dossier frame surrounds it.
+
 The inverse panel is the loudest the surface gets; it pairs with the
 [editorial close](pattern.close) when the close itself carries the recommendation, and it
 contrasts with the paper-neutral [evidence bands](pattern.evidence) that justify it.

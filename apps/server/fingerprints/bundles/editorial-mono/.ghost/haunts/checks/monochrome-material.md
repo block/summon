@@ -4,6 +4,7 @@ description: Editorial Mono's material is ink, paper, rules, spacing, and type; 
 severity: medium
 references:
   - index
+  - anti-goal.soft-card-slop
   - pattern.metadata
   - pattern.inverse-panel
 ---

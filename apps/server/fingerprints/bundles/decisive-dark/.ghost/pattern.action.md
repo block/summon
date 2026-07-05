@@ -36,6 +36,33 @@ updates, the row appears — not a celebratory animation standing in for the
 result. Restraint here is what makes the one settle-in on the [answer](pattern.answer)
 read as meaningful rather than as one effect among many.
 
+## Skeleton
+
+```html
+<section class="dd-actions"
+         style="display: flex; flex-direction: column; align-items: flex-start;
+                gap: var(--dd-stack-gap);">
+  <!-- optional prompt label — delete for a tighter composition -->
+  <p style="font-size: var(--text-sm); color: var(--color-text-subtle);
+            margin: 0;">{What's your next move?}</p>
+  <button style="height: var(--dd-pill-height); padding: var(--dd-pill-pad);
+                 border-radius: var(--radius-pill); border: none;
+                 background: var(--dd-pill); color: var(--dd-pill-text);
+                 font-family: var(--font-sans); font-size: var(--text-sm);
+                 cursor: pointer;">{Verb-first action}</button>
+  <!-- 1–3 pills total; primary swaps background to var(--dd-pill-primary)
+       ONLY if this is the surface's single accent moment -->
+</section>
+```
+
+**Bound vs open.** Bound: one action stack in one place, after the meaning;
+1–3 pills, vertical, left-aligned at content width, `--dd-stack-gap` apart;
+verb-first labels with no terminating period; neutral `--dd-pill` by default;
+hover lifts to `--dd-pill-hover`, press sinks to `--dd-pill-active`, all within
+`--dd-confirm-duration`. Open: how many pills (one may run full-width), whether
+the prompt label appears, and whether one pill is primary — which costs the
+surface's entire `--dd-accent-budget`.
+
 The action stack follows the [one-sentence meaning](pattern.meaning) and resolves the
 [answer](pattern.answer) into a move the reader can make — it is where the surface's momentum
 lands, and where the single [accent moment](pattern.accent-moment) may be spent if the action

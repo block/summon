@@ -18,6 +18,25 @@ transactional detail; and agents composing polished generated surfaces from
 luxury-performance briefs. Photography carries the emotion; tables, spec rows, and
 large numerals carry the proof.
 
+**Read order.** For a typical surface, pull in this order: the
+[editorial cadence](pattern.editorial-cadence) first (it sets the grid, chapter
+pacing, and reveal recipe every act obeys), then the
+[cinematic image system](pattern.cinematic-image) for the opening frame, the
+[scarce-red controls](pattern.controls) for the one voltage spend, the
+[spec system](pattern.spec-system) wherever numbers prove capability, and
+[depth](principle.depth) for plate/hairline separation. Before writing markup,
+study the [spec-chapter exemplar](exemplar.spec-chapter); before shipping, sweep
+against the two guards — [red spent everywhere](anti-goal.red-spent-everywhere)
+and [rounded soft luxury](anti-goal.rounded-soft-luxury). Pull the
+[player chrome](pattern.player-chrome) and [livery band](pattern.livery-band)
+only when footage or a full-width statement is actually in play.
+
+**Silence posture.** This fingerprint is deliberately silent on iconography sets,
+data-visualization styling beyond spec grids, illustration, multi-brand theming,
+and print. In those gaps, compose provisionally from the same tokens and label
+the choice as provisional — hairlines, white ink, square geometry, no new colors —
+rather than importing another language's defaults.
+
 **Stance — what this is not:** this language is **source-informed, never
 source-branded.** Never reintroduce a real automotive identity — no actual brand
 names, logos, animal marks, shield shapes, model names, slogans, licensed fonts,

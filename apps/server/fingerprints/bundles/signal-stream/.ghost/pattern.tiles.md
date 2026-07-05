@@ -1,5 +1,5 @@
 ---
-description: The pill-corner stream tile and rail system — rounded dark or saturated tiles on a 1px rail, lead-image headline slabs, compact supporting grids, and static hairline image frames. Reach for the repeating units that carry a stream of content.
+description: "The repeating unit of the feed — flat pill-corner tiles (shadow: none is a rule) paced as runs and interruptions on the ticked signal rail; pull this for anything that stacks content, and refuse the equal-weight card grid it replaces."
 ---
 
 ## Composition
@@ -52,8 +52,7 @@ The [stream cadence](pattern.cadence) governs this pacing.
 The tiles sit on the [dark canvas](principle.canvas) and borrow its saturated hazard fills
 for leads; their labels and timestamps are the [mono metadata](pattern.type-system) and
 their actions are the [hazard-pill controls](pattern.controls). The rail feed is the
-spine of the [stream](stream); the lead slab and supporting grid drive the
-[digest](digest); the [briefing](briefing) reuses hairline rows for its evidence
-and timeline.
+spine of a live stream; the lead slab and supporting grid drive a digest; a
+briefing reuses hairline rows for its evidence and timeline.
 
 Related: reinforces `principle.canvas`, `pattern.type-system`, `pattern.controls`.

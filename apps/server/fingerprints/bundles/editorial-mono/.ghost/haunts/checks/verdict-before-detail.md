@@ -4,6 +4,8 @@ description: Editorial Mono must state the verdict, recommendation, risk, or out
 severity: high
 references:
   - index
+  - principle.verdict-first
+  - anti-goal.buried-verdict
   - pattern.masthead
   - pattern.inverse-panel
   - pattern.close

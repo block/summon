@@ -1,5 +1,5 @@
 ---
-description: Gentle depth rules — depth from one bounded outer rounded shell and a single gentle outer lift, layering only the few notes that need separating, never cards inside cards or a pile of equal rounded boxes. Reach for how much elevation a plan may carry and where the one soft shadow belongs.
+description: The elevation floor — one bounded shell, one shared `--garden-note-lift` on only the notes that need separating, space over shadow everywhere else, with the picked-up note as the single sanctioned exception; pull before adding any shadow or layer, and refuse the pile of equal cards.
 ---
 
 ## Composition

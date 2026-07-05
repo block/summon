@@ -6,6 +6,8 @@ references:
   - index
   - pattern.note-panels
   - principle.humane-orientation
+  - anti-goal.productivity-dashboard
+  - exemplar.weekend-plan
 ---
 
 Specific context is what makes Garden Notes calming rather than generic. Reject the

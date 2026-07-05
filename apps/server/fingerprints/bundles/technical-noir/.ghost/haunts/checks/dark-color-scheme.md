@@ -3,9 +3,9 @@ name: warm-dark-color-scheme
 description: The generated surface must render in the warm-dark color scheme — off-white material on a brown-warmed dark canvas, never a light-mode skin.
 severity: high
 references:
+  - anti-goal.terminal-cosplay
   - index
   - pattern.controls
-  - principle.one-instrument
 ---
 
 Technical Noir is a warm-dark material system: a brown-warmed near-charcoal

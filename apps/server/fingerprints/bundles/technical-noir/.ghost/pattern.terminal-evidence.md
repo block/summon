@@ -40,6 +40,31 @@ compact muted selector rail with one high-contrast active option — carried by 
 `--noir-spine` rather than a colored tab — and give most space to a materially
 larger active evidence frame, used for comparing modes, not simple one-path tasks.
 
+## Skeleton
+
+```html
+<section class="evidence-panel" style="background:var(--color-surface); border:var(--noir-hairline); border-radius:var(--radius-lg);">
+  <header style="display:flex; align-items:center; gap:var(--space-3); padding:var(--space-4) var(--space-5); border-bottom:var(--noir-hairline);">
+    <span class="dot" style="width:6px; height:6px; border-radius:var(--radius-pill); background:var(--noir-dot-run);"></span>
+    <span style="font:400 var(--text-xs)/1 var(--font-mono); color:var(--color-text-muted);"><!-- what this evidence represents --></span>
+  </header>
+  <div role="log" style="padding:var(--space-5); background-image:var(--noir-grid); font:400 var(--text-sm)/24px var(--font-mono); color:var(--color-text-alt);">
+    <div><span class="gutter" style="display:inline-block; width:var(--noir-gutter); color:var(--color-text-muted);">$</span><!-- command --></div>
+    <div><span class="gutter" style="display:inline-block; width:var(--noir-gutter); color:var(--color-text-muted);">›</span><!-- output / agent step --></div>
+    <div><span class="gutter" style="display:inline-block; width:var(--noir-gutter); color:var(--color-text-muted);">›</span><!-- readout row: mono label + density strip + exact value --></div>
+    <div><span class="gutter" style="display:inline-block; width:var(--noir-gutter); color:var(--color-text-muted);">$</span><span class="cursor" style="display:inline-block; width:1ch; height:1em; background:var(--noir-cursor); animation:blink var(--noir-cursor-blink);"></span></div>
+  </div>
+</section>
+```
+
+**Bound:** the `--color-surface` lift bounded by `--noir-hairline` at 3–6px
+radius; the `--noir-gutter` mono column on every line; the 24px line rhythm
+sharing the `--noir-grid` lattice; exactly one `--noir-cursor` per panel; state
+on a 6px `--noir-dot-*` plus a mono metadata label. **Open:** header/footer
+layout, line count, whether a footer carries a command-action pair, readout
+rows present or absent, the actual command and log content — which must always
+be plausible and task-tied.
+
 The text inside these panels must be plausible and tied to the user request: no
 lorem-ipsum code, abstract decorative blocks, or colorful syntax confetti. The
 [control system](pattern.controls) governs the buttons and mono labels these panels

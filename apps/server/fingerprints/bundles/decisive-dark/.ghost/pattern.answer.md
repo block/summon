@@ -47,4 +47,33 @@ meaning](pattern.meaning) that interprets it, is justified by the [bold evidence
 beneath it, and may carry the surface's single [accent moment](pattern.accent-moment) when the
 trend is positive or the action is primary.
 
+## Skeleton
+
+```html
+<section class="dd-answer"
+         style="margin-top: var(--dd-top-safe); margin-bottom: var(--dd-answer-clear);
+                text-align: left;">
+  <!-- optional eyebrow: only if the unit/context is not already in the figure -->
+  <p style="font-size: var(--text-sm); color: var(--color-text-subtle);
+            margin: 0 0 var(--space-2);">{context label}</p>
+  <!-- metric form -->
+  <h1 style="font-size: var(--dd-numeral); font-weight: var(--dd-numeral-weight);
+             font-feature-settings: var(--dd-tnum);
+             letter-spacing: var(--dd-tracking-numeral);
+             line-height: var(--dd-hero-leading); margin: 0;">{$figure}</h1>
+  <!-- OR verdict form (never both):
+  <h1 style="font-size: var(--dd-hero-size); letter-spacing: var(--dd-hero-tracking);
+             line-height: var(--dd-hero-leading); margin: 0;">{Yes — verdict line}</h1>
+  -->
+</section>
+```
+
+**Bound vs open.** Bound: exactly one answer block, first major region,
+left-aligned with a ragged edge, `--dd-top-safe` above and `--dd-answer-clear`
+below, nothing sharing its band, tabular figures with the unit tight to the
+number, no preamble line. Open: metric vs verdict form, whether the eyebrow
+appears, whether a decisive prefix takes its own line, whether a chart is
+embedded (per [evidence](pattern.evidence)), and whether the surface's one
+settle-in is spent here.
+
 Related: reinforces `pattern.evidence`, `pattern.meaning`.

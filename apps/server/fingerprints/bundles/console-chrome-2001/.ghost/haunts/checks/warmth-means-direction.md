@@ -4,6 +4,7 @@ description: Signal orange and amber are functional wayfinding colors, never pas
 severity: high
 references:
   - index
+  - principle.warmth-means-direction
   - pattern.controls
   - pattern.command-nav
   - pattern.badges

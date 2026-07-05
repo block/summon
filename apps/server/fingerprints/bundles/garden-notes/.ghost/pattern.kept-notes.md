@@ -1,5 +1,5 @@
 ---
-description: Kept notes and picking one up — completed or saved steps settle into small kept notes (quiet keepsakes on `--garden-kept-paper`, never struck-through rows), and any single note can be picked up for a closer look while the rest of the plan recedes behind `--garden-recede-veil`. Reach for how done work is kept rather than crossed off, and how one note is inspected without leaving the page.
+description: Completion and close inspection — done work settles onto `--garden-kept-paper` as a quiet keepsake (never struck through, greyed out, or counted), and exactly one note may be picked up on `--garden-pickup-lift` while the plan recedes; pull whenever a surface shows finished steps or needs detail-on-demand without navigation.
 ---
 
 ## Composition
@@ -43,6 +43,31 @@ step wears the green dot — holding two pages at once is how a desk becomes
 clutter. While a note is held, the surface goes quieter, not busier: no
 toolbars appear, no related-actions menu slides in. The veil, the lift, and the
 unhurried ease are the whole event.
+
+## Skeleton
+
+A kept note and a picked-up note begin from this structure:
+
+```html
+<!-- Kept note: settled onto the paper's own base, named in words, never struck -->
+<div class="kept-note" style="background: var(--garden-kept-paper); color: var(--garden-kept-ink); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); font-size: var(--text-sm);">
+  <!-- the finished step's text, tradeoff sentence intact — no strikethrough, no praise copy -->
+  <span class="chip" style="border-radius: var(--garden-chip-radius); background: var(--garden-chip-face); color: var(--garden-chip-ink); border: var(--garden-chip-edge); padding: var(--garden-chip-pad);">Kept</span>
+</div>
+
+<!-- Picked-up note: the one sanctioned deeper lift, everything else receding -->
+<div class="pickup-veil" style="position: fixed; inset: 0; background: var(--garden-recede-veil);"></div>
+<div class="picked-up" style="transform: scale(var(--garden-pickup-scale)); box-shadow: var(--garden-pickup-lift); transition: transform 0.2s var(--garden-ease-soft), box-shadow 0.2s var(--garden-ease-soft);">
+  <!-- the note's fuller self: whole context line, every chip, the can-wait reasoning -->
+</div>
+```
+
+**Bound:** `--garden-kept-paper` + `--garden-kept-ink` for done work with the
+plain quiet "Kept" chip; at most one picked-up note at `--garden-pickup-scale`
+on `--garden-pickup-lift` with the veil behind it; `--garden-ease-soft` for the
+lift and the set-down, focus held and returned. **Open:** whether kept notes sit
+at a panel edge or gather in a row, whether they shrink a type step, and what
+detail the picked-up view reveals.
 
 These moves live inside the [note panels](pattern.note-panels), obey the [gentle depth
 rules](principle.gentle-depth) — the pickup lift is depth with a reason, not a card

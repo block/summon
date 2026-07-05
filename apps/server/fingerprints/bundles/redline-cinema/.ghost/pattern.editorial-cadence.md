@@ -93,6 +93,42 @@ cadence system enforces the scarcity that the [controls](pattern.controls) and
 }
 ```
 
+## Skeleton
+
+Begin every long editorial surface from this act structure — one backbone, one
+reveal recipe, chapters in sequence:
+
+```html
+<main style="background: var(--redline-canvas-warm);">
+  <!-- Act 0: opening titles — full-bleed hero settles first, then eyebrow/headline/deck emerge once -->
+  <section class="act act--hero" style="position: relative;">
+    <figure class="frame frame--bleed"><!-- edge-to-edge image under var(--redline-frame-overlay) --></figure>
+    <header class="hero-copy reveal"><!-- eyebrow · display headline · one deck · ≤2 actions --></header>
+  </section>
+
+  <!-- Act N: every chapter commits to the same 4-column backbone -->
+  <section class="act" style="padding: var(--space-8) 0;">
+    <div class="backbone" style="display: grid; grid-template-columns: repeat(var(--redline-grid-columns), 1fr); gap: var(--redline-grid-gutter);">
+      <span class="chapter-chip" style="border: var(--redline-chapter-chip-border); border-radius: var(--redline-machined-radius); font-family: var(--font-mono); font-size: var(--redline-mono-label); letter-spacing: var(--redline-mono-tracking); text-transform: uppercase;">01 — Chassis</span>
+      <h2 class="act-title reveal"><!-- restrained sans display --></h2>
+      <div class="act-body reveal"><!-- copy/spec/cards snap onto the columns --></div>
+      <figure class="frame frame--bleed" style="grid-column: 1 / -1;"><!-- breakout: image alone leaves the grid --></figure>
+    </div>
+  </section>
+
+  <!-- Bridge: next-chapter strip borrows the following story's hero image -->
+  <aside class="act-bridge" style="border-top: var(--redline-hairline);"><!-- vertical hand-off, no crossfade-to-white --></aside>
+</main>
+```
+
+**Bound:** one grid for the whole page; the chapter chip's mono/hairline/square
+form; full-bleed reserved for imagery only; the reveal recipe (`opacity 0→1` +
+`--redline-reveal-rise` on `--redline-ease-cinematic`) applied via a single
+`.reveal` class with a composed no-JS resting state; 96–128px (`--space-8`/`--space-9`)
+breaks between acts. **Open:** chapter count and order, which act carries the spec
+grid vs. rows vs. cards, where the one voltage spend lands, and whether a bridge
+strip closes the page or a dark footer does.
+
 This cadence paces the [cinematic image](pattern.cinematic-image) breakouts and the
 [hairline and brightness depth](principle.depth) rhythm into numbered acts, gives the
 [large-number spec system](pattern.spec-system) its mono data voice, and holds the

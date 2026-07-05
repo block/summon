@@ -276,7 +276,39 @@ open, and the [kept notes and pick-up moves](pattern.kept-notes) that let done w
 settle into small keepsakes and let one note be held closer while the rest of
 the page recedes. There are no fixed page types — planners, staged plans, comparisons, and
 routines are all composed on demand from these same four building blocks under the
-same unhurried rules.
+same unhurried rules. The [annotated weekend plan](exemplar.weekend-plan) shows
+the whole voice on one surface, and two guards name what this language refuses:
+[no productivity dashboards](anti-goal.productivity-dashboard) and [no card
+piles](anti-goal.card-pile).
+
+## Read order
+
+For a typical planning surface, pull in this order:
+
+1. [The weekend-plan exemplar](exemplar.weekend-plan) — see the whole voice at
+   once before composing anything.
+2. [The note-panel system](pattern.note-panels) — bound the surface: one shell,
+   context header, one primary step; begin from its Skeleton.
+3. [The good-enough choice and can-wait notes](pattern.good-enough) — place the
+   one green-dot recommendation and name what can wait.
+4. [The badge and state system](pattern.badges) — add chips only where state
+   helps.
+5. [The humane orientation rules](principle.humane-orientation) — write the
+   copy: person's concern first, forward phrasing, open later-edge.
+6. [The gentle depth rules](principle.gentle-depth) — audit elevation before
+   finishing; if done work or close inspection appears, pull
+   [kept notes and pick-up moves](pattern.kept-notes) too.
+7. Check the result against the guards:
+   [no productivity dashboards](anti-goal.productivity-dashboard) and
+   [no card piles](anti-goal.card-pile).
+
+**Silence posture.** This fingerprint is deliberately silent on dark mode (the
+language is light-only, `color-scheme: light`), data visualization, dense
+tables, multi-user or collaborative surfaces, and navigation chrome beyond a
+single page. Where it is silent, compose provisionally in the same voice — warm
+cream, one lift, quiet chips, no urgency — and label the choice as provisional
+rather than inventing new tokens or borrowing dashboard conventions to fill the
+gap.
 
 ## Composition
 

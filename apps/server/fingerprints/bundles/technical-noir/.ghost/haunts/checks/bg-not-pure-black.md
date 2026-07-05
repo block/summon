@@ -3,8 +3,8 @@ name: background-not-pure-black
 description: The generated surface's canvas must be a warm near-black charcoal, never pure black — warmth carries the material, not neon-on-black nostalgia.
 severity: high
 references:
+  - anti-goal.terminal-cosplay
   - index
-  - principle.one-instrument
   - pattern.tiles
 ---
 

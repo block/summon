@@ -312,6 +312,34 @@ what-can-we-delete filter over the whole composition, and the [negative-space
 frame](pattern.negative-space) that places the emptiness first so the answer stands
 alone in it. Every surface is streamed together for its own job from these same
 building blocks — there are no fixed page types to link to, only the shared kit.
+The [reference answer surface](exemplar.spending-answer) shows the whole kit
+assembled with its load-bearing moves annotated, and two guards hold the negative
+space: [competing heroes](anti-goal.competing-heroes) — the tie, the KPI grid, the
+second accent — and [soft smeared evidence](anti-goal.soft-smeared-evidence) — the
+smoothed curve and the orphaned stat.
+
+## Read order
+
+For a typical surface, pull in this order: [pattern.answer](pattern.answer) first
+(the hero decides everything downstream), then [pattern.evidence](pattern.evidence)
+and [pattern.accent-moment](pattern.accent-moment) together (where the one accent
+lands is decided across both), then [pattern.meaning](pattern.meaning) and
+[pattern.action](pattern.action) to close the four blocks, then
+[pattern.negative-space](pattern.negative-space) and
+[principle.deletion-discipline](principle.deletion-discipline) as the final pass
+over the whole composition. Consult [exemplar.spending-answer](exemplar.spending-answer)
+whenever the assembled shape is in doubt, and re-read the guards
+([anti-goal.competing-heroes](anti-goal.competing-heroes),
+[anti-goal.soft-smeared-evidence](anti-goal.soft-smeared-evidence)) before calling
+the work finished.
+
+**Silence posture.** This fingerprint is deliberately silent on light mode (there
+is none — the surface is dark by design, full stop), on multi-page navigation
+chrome, iconography sets, form-heavy input surfaces, and marketing/landing
+compositions. Where the fingerprint is silent, act provisionally and label the
+choice as provisional — but carry the DNA into the gap: near-black tiers, one
+loudest element, tabular numerals, at most one accent, and the deletion pass
+still apply to anything you invent.
 
 ## Composition
 

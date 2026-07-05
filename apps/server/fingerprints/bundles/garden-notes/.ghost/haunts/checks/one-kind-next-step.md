@@ -7,6 +7,8 @@ references:
   - pattern.note-panels
   - pattern.good-enough
   - principle.humane-orientation
+  - anti-goal.productivity-dashboard
+  - exemplar.weekend-plan
 ---
 
 Garden Notes lowers pressure by choosing the next small move. Reject the generated

@@ -323,7 +323,8 @@ Six principles carry the language and are true on every surface:
    reserve true roundness for controls and brand-neutral pills. Panel headers,
    rails, and seams make content feel bolted into the chassis — never floating
    white cards on a flat gradient.
-2. **Warmth means direction.** Warm color is rationed wayfinding. Use signal
+2. **Warmth means direction** (the ration is specified exactly in
+   [warmth means direction](principle.warmth-means-direction)). Warm color is rationed wayfinding. Use signal
    orange for forward arrows, submit buttons, advance chips, and commit actions;
    amber for tools, badges, tabs, search Go buttons, and small utility
    affordances. Keep steady-state surfaces in cool periwinkle, pale sky, platinum,
@@ -413,3 +414,29 @@ invisible padding when touch use is likely. Generated surfaces must stay
 source-agnostic — generic product naming from the user's prompt, original or
 abstract mascot and hardware motifs, and new layouts generated from the patterns
 rather than traced from older screenshots.
+
+## Read order
+
+For a typical surface, pull in this order: first the
+[warmth means direction](principle.warmth-means-direction) ration and the two
+guards — [no generic flat-card web](anti-goal.flat-card-web) and
+[no borrowed console/game IP](anti-goal.borrowed-ip) — so the enemy is named
+before composing; then the [beveled plate and chrome system](pattern.plates) to
+mold the chassis and the [command and navigation system](pattern.command-nav)
+to frame it; then the [control system](pattern.controls) and
+[badge and section-label system](pattern.badges) for everything interactive and
+labeled; then the [screen logic system](pattern.screen-logic) once the surface
+has views to swap and state to report, and the
+[hardware dressing system](pattern.hardware-dressing) last for bezels, texture,
+and scene sequencing. Check the result against the
+[annotated finder faceplate](exemplar.finder-faceplate) — it is the quality bar
+for what "assembled console faceplate" means in real markup.
+
+**Silence posture.** This fingerprint is deliberately silent on dark mode,
+print styles, data-visualization/charting grammar, long-form article
+typography, and rich animation beyond the stepped mechanical states named here.
+Where it is silent, extend provisionally and label the extension: derive from
+the existing chassis palette, bevel grammar, and warm-means-direction ration,
+keep the addition cool and machined, and never let a silent area become an
+excuse to import modern SaaS vocabulary (soft shadows, eased motion, airy
+columns) into the machine.

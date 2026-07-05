@@ -4,6 +4,7 @@ description: Evidence and comparisons must use aligned ruled bands, rows, column
 severity: high
 references:
   - index
+  - anti-goal.soft-card-slop
   - pattern.evidence
   - pattern.catalog-index
   - pattern.dossier-structure

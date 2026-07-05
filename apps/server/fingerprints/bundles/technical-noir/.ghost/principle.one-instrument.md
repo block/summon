@@ -1,5 +1,5 @@
 ---
-description: The one-instrument discipline — a single surface treatment everywhere (depth from hairlines and nothing else), explicit spending budgets (`--noir-size-budget`, `--noir-mono-weight`, zero accents unless a state demands one), coarse plain-mono rendering for secondary evidence, exactly one quiet warmth cue, and repeatable patterns designed for the hundredth screen. Reach for what the system may spend on a view and where refinement is allowed to go.
+description: 'The spending discipline that makes the hundredth screen match the first — every view pays against explicit budgets (`--noir-size-budget: 2` extra type sizes, one `--noir-mono-weight`, `--noir-accent-budget: 0` chromatic accents, four ink levels, one border vocabulary), refinement goes only to the primary reading path, and there is no "just this once". Pull FIRST when deciding what a view may spend, where polish is allowed, or whether the system needs a new component (it almost never does).'
 ---
 
 ## Composition

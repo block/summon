@@ -1,5 +1,5 @@
 ---
-description: The segmented stream tabs and hazard-pill CTA system — uppercase mono mode pills in a muted segmented rail, one mint-filled primary pill per region, dark inputs, and contrast-safe focus rings. Reach for how the surface switches modes and drives action.
+description: The hardware-selector control kit — zero-gap segmented mono tabs with a 2px mint active underline, exactly one mint-filled hazard-pill CTA per region, and mint focus rings instead of glow; pull it when a surface switches modes or drives action, never defaulting to soft buttons.
 ---
 
 ## Composition
@@ -27,8 +27,7 @@ active rail before adding more color.
 These controls borrow the mint and violet hazard accents of the [dark
 canvas](principle.canvas), use the [mono uppercase metadata](pattern.type-system) for their labels,
 and pair with the [tiles](pattern.tiles) they sit beside. The segmented tabs are most at
-home switching modes on the [stream](stream) and selecting sections on the
-[digest](digest); the single hazard-pill CTA closes the [briefing](briefing) with
-one clear next action.
+home switching modes on a live stream and selecting sections on a digest; the
+single hazard-pill CTA closes a briefing with one clear next action.
 
 Related: reinforces `pattern.tiles`, `pattern.type-system`.

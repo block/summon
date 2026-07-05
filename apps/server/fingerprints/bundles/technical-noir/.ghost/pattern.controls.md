@@ -36,8 +36,11 @@ easing on chrome implies a theatricality this language refuses. The one blinking
 cursor already spends the entire motion budget.
 
 These controls and labels are shared material that appears on every surface —
-the [terminal evidence](pattern.terminal-evidence) command strips and the [tile](pattern.tiles)
-actions across the [landing](landing), [workspace](workspace),
-[comparison](comparison), and [brief](brief) surfaces.
+the [terminal evidence](pattern.terminal-evidence) command strips and the
+[tile](pattern.tiles) actions alike, whether the surface is a landing page, a
+workspace, a comparison, or a brief. Their color spending is governed by the
+[one-instrument budgets](principle.one-instrument): one off-white primary per
+region, `--noir-accent-budget: 0` chromatic accents unless a real state demands
+a dot.
 
 Related: reinforces `pattern.tiles`.

@@ -1,5 +1,5 @@
 ---
-description: The note-panel and soft-shell system — large `--garden-panel-radius` cream note-paper panels (`--garden-note-paper` dusted with paper texture), garden-bed groupings, and tactile layered note-cards that shape every plan. Reach for how a surface is bounded into warm cream panels and where the plan lives on the page.
+description: The shaping container of every plan — one bounded `--garden-panel-radius` cream shell on `--garden-note-paper` (never flat white), opened by a real-context header, holding one visibly primary step; pull first when bounding any surface, and hold the stance that a plan is a notebook page, not a grid of equal cards.
 ---
 
 ## Composition
@@ -43,6 +43,40 @@ stacking. A note that needs closer reading is picked up under the [kept notes
 and pick-up moves](pattern.kept-notes) — held gently above the plan while the rest of
 the page recedes — so a panel never has to cram every detail into its resting
 view.
+
+## Skeleton
+
+Every plan begins from this bound structure — one shell, one context header, one
+chosen step, supporting notes flat around it:
+
+```html
+<main style="background: var(--color-bg); font-family: var(--font-sans); color: var(--color-text); padding: var(--space-8) var(--space-5) 0;">
+  <section style="background: var(--garden-note-paper), var(--garden-paper-texture); background-size: auto, var(--garden-paper-texture-size); border: 1px solid var(--color-border); border-radius: var(--garden-panel-radius-lg); box-shadow: var(--garden-note-lift); padding: var(--space-6);">
+    <header>
+      <h1><!-- context line: the real people/places/materials/dates from the prompt --></h1>
+      <p style="color: var(--color-text-muted);"><!-- one line of grounding context, never advice --></p>
+    </header>
+    <div class="chosen-step" style="border-radius: var(--garden-panel-radius); box-shadow: var(--garden-note-lift);">
+      <span class="dot" style="width: var(--garden-chosen-marker); height: var(--garden-chosen-marker); background: var(--garden-chosen-dot); box-shadow: var(--garden-chosen-ring);"></span>
+      <!-- the one next small step + the tradeoff it accepts + quiet chips -->
+    </div>
+    <div class="supporting-note" style="border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+      <!-- prep / can-wait / reminder notes: flat on the panel, no lift, no dot -->
+    </div>
+    <div class="later-edge" style="color: var(--garden-quiet-note);">
+      <!-- unclosed later… region fading via --garden-later-fade; no border, no prompt -->
+    </div>
+  </section>
+</main>
+```
+
+**Bound:** the single outer shell with `--garden-panel-radius-lg` and
+`--garden-note-lift`; the context header opening the page; exactly one
+chosen-step note carrying the dot and sharing the same lift; supporting notes
+flat with border-only separation; the unclosed later-edge closing nothing.
+**Open:** how many supporting notes, garden-bed groupings within the panel,
+whether kept notes gather at an edge or in a row, chip selection, and the
+measure — let the task set the shape.
 
 These panels pair with the [badge and state system](pattern.badges) for readiness, time,
 and effort, lean on the [gentle depth rules](principle.gentle-depth) so layering never

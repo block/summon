@@ -48,6 +48,31 @@ ruled-band rhythm. Keep severity exact and austere without becoming hostile — 
 for ink, border weight, and an uppercase Risk or Caveat label before semantic color,
 and reserve true danger, success, info, and warning tokens for real state.
 
+## Skeleton
+
+```html
+<section class="evidence" style="background-image: var(--editorial-ruled-paper);">
+  <div class="band" style="display: grid; grid-template-columns: 12ch 1fr 1.4fr; column-gap: var(--editorial-column-gap); border-top: var(--editorial-hairline); padding: var(--space-4) 0;">
+    <p class="band-label" style="font-family: var(--editorial-folio-font); font-size: var(--editorial-folio-size); letter-spacing: var(--editorial-folio-tracking); text-transform: uppercase; color: var(--color-text-muted);">
+      <!-- Evidence / Risk / Caveat / Criteria --></p>
+    <p class="band-fact"><!-- the fact, exact --></p>
+    <p class="band-sowhat" style="color: var(--color-text-alt);"><!-- interpretation and implication — the so-what --></p>
+  </div>
+  <div class="band" style="display: grid; grid-template-columns: 12ch 1fr 1.4fr; column-gap: var(--editorial-column-gap); border-top: var(--editorial-hairline); border-bottom: var(--editorial-hairline); padding: var(--space-4) 0;">
+    <p class="band-label">RISK</p>
+    <p class="band-fact"><!-- weak or empty cells stay visible --></p>
+    <p class="band-sowhat"><!-- gaps are part of the evidence --></p>
+  </div>
+</section>
+```
+
+**Bound:** hairline rules between bands (never boxes or fills), the identical
+column measure repeated on every band, a tracked mono uppercase label opening
+each row, and a so-what beside every fact. **Open:** the column ratio and
+count, whether parallel options split with `--editorial-column-rule` borders,
+whether one figure takes the specimen treatment, and whether the region reveals
+its measure with guide rules.
+
 Evidence justifies the claim rather than postponing it. Where evidence carries the
 strongest contrast moment or the recommendation itself, it is promoted into the
 [single inverse-ink panel](pattern.inverse-panel); the bands otherwise stay on paper

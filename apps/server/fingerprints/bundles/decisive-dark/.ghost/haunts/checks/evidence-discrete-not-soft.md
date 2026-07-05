@@ -3,7 +3,7 @@ name: evidence-discrete-not-soft
 description: Evidence must read as bold discrete bars, candlesticks, or uniform rows — never soft smoothed curves or ornamental charts.
 severity: medium
 references:
-  - index
+  - anti-goal.soft-smeared-evidence
   - pattern.evidence
   - pattern.meaning
 ---

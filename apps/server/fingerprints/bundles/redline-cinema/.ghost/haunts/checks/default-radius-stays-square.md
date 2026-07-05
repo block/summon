@@ -3,6 +3,7 @@ name: default-furniture-stays-square
 description: Default furniture stays square and sharp-cornered — rounded CTAs, cards, and image plates break Redline Cinema's machined-precision luxury read.
 severity: high
 references:
+  - anti-goal.rounded-soft-luxury
   - index
   - pattern.controls
   - principle.depth

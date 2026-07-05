@@ -104,4 +104,51 @@ and the narrative-beat rule governs when the [contrast planes](principle.contras
 are allowed to flip. All identity content in the strip and anchor stays
 source-agnostic, named from the prompt.
 
+## Skeleton
+
+Begin an instrumented surface from this structure — anchor constant across
+planes, metadata strip at the sheet edge, one grid exposure behind the primary
+table, and dual index/overview projections of the same items:
+
+```html
+<body>
+  <!-- Constant anchor: same position on every plane, ink adapts per plane -->
+  <header class="anchor" style="font-family: var(--contrast-anchor-font); font-size: var(--contrast-anchor-size); letter-spacing: var(--contrast-anchor-tracking); text-transform: var(--contrast-anchor-transform);">
+    PRODUCT-NAME-FROM-PROMPT
+  </header>
+
+  <section class="plane plane--pale" style="background: var(--contrast-plane-pale-bg); color: var(--contrast-plane-pale-fg);">
+    <!-- claim band: eyebrow + sentence-case headline + lead, before any grid -->
+  </section>
+
+  <section class="plane plane--sheet" style="background: var(--contrast-plane-sheet-bg); color: var(--contrast-plane-sheet-fg);">
+    <!-- ONE grid exposure: guide lines behind the primary data sheet only -->
+    <div class="grid-exposure" style="background-image: repeating-linear-gradient(to right, transparent, transparent calc(100%/12 - 1px), rgba(0,0,0,0.05) calc(100%/12 - 1px), rgba(0,0,0,0.05) calc(100%/12));">
+      <table class="data-sheet"><!-- pattern.data-sheets anatomy --></table>
+    </div>
+    <!-- Second projection of the SAME entities, same order -->
+    <ul class="index-list" style="row-gap: var(--contrast-index-row-gap);">
+      <li style="border-bottom: var(--contrast-index-divider);"><span class="mono-label">ITEM-01</span> <span class="key-figure">…</span></li>
+    </ul>
+  </section>
+
+  <section class="plane plane--midnight" style="background: var(--contrast-plane-midnight-bg); color: var(--contrast-plane-midnight-fg);">
+    <!-- proof: the plane flip lands where the argument pivots to evidence -->
+  </section>
+
+  <!-- Metadata strip: genuine values, tabular figures, SHEET locator -->
+  <footer class="meta-strip" style="font-family: var(--contrast-meta-strip-font); font-size: var(--contrast-meta-strip-size); text-transform: var(--contrast-meta-strip-transform); letter-spacing: var(--contrast-meta-strip-tracking); display: flex; gap: var(--contrast-meta-strip-gap); padding-block: var(--contrast-meta-strip-pad-y); border-top: var(--contrast-edge-hairline); font-variant-numeric: var(--contrast-num-variant);">
+    <span>V0.4.2</span><span>BUILT 2026-07-05</span><span>STATUS: CURRENT</span>
+    <span style="margin-left: auto;">SHEET 03 / 07</span>
+  </footer>
+</body>
+```
+
+**Bound:** the anchor's constancy across planes; one grid exposure per surface;
+the strip's mono-uppercase voice, tabular figures, and hairline separation;
+identical row anatomy across both projections; all identity values
+prompt-derived. **Open:** strip at top vs bottom, which plane hosts the
+exposure, how many planes the argument needs, whether the index list precedes
+or follows the overview table.
+
 Related: reinforces `principle.contrast-planes`, `pattern.mono-labels`, `pattern.data-sheets`.

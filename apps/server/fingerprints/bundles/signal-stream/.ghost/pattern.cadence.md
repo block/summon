@@ -58,6 +58,49 @@ narrows. The reader should always be able to answer *where am I in the stream*
 from the rail alone, without reading a word. If a layout collapse would sever
 the rail mid-stream, collapse the columns instead — the spine survives.
 
+## Skeleton
+
+```html
+<main class="stream" style="background: var(--color-bg); border-left: var(--signal-rail-width) solid var(--signal-rail-color);">
+  <!-- RUN: compact rows read as one burst; ~--signal-cadence-run-length rows, then break -->
+  <ol class="run" style="display: flex; flex-direction: column; gap: var(--signal-cadence-run-gap); list-style: none;">
+    <li class="row"><!-- tick on the rail + mono pill + headline (skim register) --></li>
+    <li class="row"><!-- ... --></li>
+    <li class="row"><!-- ... --></li>
+    <li class="row"><!-- ... --></li>
+  </ol>
+
+  <!-- INTERRUPTION: full-width, held dark field on both sides -->
+  <article class="interruption" style="margin: var(--signal-cadence-break-gap) 0; background: var(--signal-tile-fill-mint); color: var(--signal-hazard-mint-fg); border: var(--signal-tile-border); border-radius: var(--signal-tile-radius); box-shadow: var(--signal-tile-shadow);">
+    <!-- saturated lead, image slab, or transmission card -->
+  </article>
+
+  <!-- CHAPTER: register shift, section scale (never the shout), own ref code -->
+  <h2 class="chapter" id="sig-02" style="font-family: var(--signal-chapter-font); font-size: var(--signal-chapter-size); border-bottom: var(--signal-chapter-rule);">
+    <!-- chapter statement -->
+  </h2>
+
+  <!-- DWELL: narrow, quiet, unsaturated; the rail stays in the margin -->
+  <section class="dwell" style="max-width: var(--signal-dwell-measure); line-height: var(--signal-dwell-leading);">
+    <p><!-- stopped-reading prose; no saturated fills in here --></p>
+  </section>
+
+  <!-- LOOP SPLICE: the tail resolves to the head across held field -->
+  <footer class="loop" style="margin-top: var(--signal-loop-gap); font-family: var(--font-mono); color: var(--color-text-muted);">
+    → REF: SIG-01 — transmission continues from the top
+  </footer>
+</main>
+```
+
+**Bound:** the run/interruption alternation (a break roughly every
+`--signal-cadence-run-length` rows), the held `--signal-cadence-break-gap`
+around interruptions, chapter statements at `--signal-chapter-size` seated on
+their rule, dwell passages at `--signal-dwell-measure` / `--signal-dwell-leading`
+with saturation stripped, the loop splice across `--signal-loop-gap`, and the
+rail running unbroken end to end. **Open:** run lengths per section, what form
+each interruption takes, how many chapters a feed earns, and whether the loop
+splice is a repeated lead card, a citation, or a chapter index.
+
 The cadence paces the [tiles and rail](pattern.tiles) that carry the content, gives the
 [torn-edge transitions and ref codebook](pattern.transmission-grammar) their editorial
 timing, splits the [type system](pattern.type-system) into its skim and dwell voices,

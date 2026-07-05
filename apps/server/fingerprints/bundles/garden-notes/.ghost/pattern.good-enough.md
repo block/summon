@@ -1,5 +1,5 @@
 ---
-description: The good-enough choice and can-wait notes — soft `--garden-panel-radius` callouts where exactly one kind recommendation wears the chlorophyll-green `--garden-chosen-dot` and names the tradeoff it accepts, while a paired note lowers pressure by naming what can wait. Reach for how a plan points to one easy move and quiets the rest.
+description: The pressure-release pair — exactly one kind recommendation wears the `--garden-chosen-dot` and names the tradeoff it accepts, while a can-wait note names what doesn't need doing now; pull whenever a plan recommends or defers, and refuse verdicts, scores, and hidden work.
 ---
 
 ## Composition

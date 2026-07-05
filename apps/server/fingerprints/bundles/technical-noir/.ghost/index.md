@@ -277,7 +277,30 @@ everywhere: the [control and metadata system](pattern.controls), the
 treatment under explicit budgets, and the [density field](pattern.density-field) that
 turns live quantities into mono glyph texture on the transcript grid. Every surface —
 landing, workspace, comparison, brief, or one the task invents — is composed from
-these same building blocks under the same rules, never from a fixed template.
+these same building blocks under the same rules, never from a fixed template. The
+[migration-panel exemplar](exemplar.migration-panel) shows the panel + readout
+composition assembled in canon form; two guards hold the negative space — the
+[costume guard](anti-goal.terminal-cosplay) against pure-black neon nostalgia,
+cinematic noir mood, and light-mode skins, and the
+[slop guard](anti-goal.dashboard-slop) against equal-card dashboards, colored
+charts, and badge systems.
+
+**Read order.** For a typical surface, pull in this order:
+[principle.one-instrument](principle.one-instrument) first (what the view may
+spend), then [pattern.terminal-evidence](pattern.terminal-evidence) and
+[pattern.tiles](pattern.tiles) (the evidence and repeating-unit structure),
+then [pattern.controls](pattern.controls) and
+[pattern.density-field](pattern.density-field) (labels, actions, readouts),
+with [exemplar.migration-panel](exemplar.migration-panel) as the quality bar
+before writing markup and the two anti-goal guards reviewed last as the
+rejection filter.
+
+**Silence posture.** This fingerprint is deliberately silent on iconography
+style, illustration, data-table internals, marketing copy voice, and
+navigation chrome beyond the control system. Where it is silent, compose
+provisionally within the budgets — hairline depth, off-white ink, mono for
+technical content, zero new accents — and label the choice as provisional
+rather than inventing a new subsystem or importing another language's default.
 
 ## Composition
 

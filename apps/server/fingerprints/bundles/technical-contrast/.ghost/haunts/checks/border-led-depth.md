@@ -3,6 +3,7 @@ name: border-led-depth-no-card-shadows
 description: Card and section depth must stay border-led — hairlines, fills, surface polarity, and spacing, never floating card shadows.
 severity: medium
 references:
+  - anti-goal.shadow-soft-depth
   - index
   - principle.contrast-planes
   - pattern.data-sheets

@@ -3,6 +3,7 @@ name: no-source-brand-leakage
 description: Generated surfaces must not reuse any real technical-platform's brand identity — they are source-informed, never source-branded.
 severity: high
 references:
+  - anti-goal.source-brand-leakage
   - index
   - principle.contrast-planes
   - pattern.instrumentation

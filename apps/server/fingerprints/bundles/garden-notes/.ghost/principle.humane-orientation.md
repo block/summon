@@ -1,5 +1,5 @@
 ---
-description: Humane orientation rules — lead with the person's concern rather than task taxonomy, one decision per panel, forward-facing phrasing that orients toward where they're going (never red-alarm behind-ness), slight structural texture between "someday" and "this week" states, and a light unclosed `--garden-later-fade` region that leaves the future visibly open. Reach for how a plan faces the person and paces the days.
+description: How a plan faces the person — lead with their concern before any taxonomy, one decision per panel, forward phrasing with exact dates (never overdue alarms or guilt), someday-texture variation, and an unclosed `--garden-later-fade` ending; pull when writing plan copy, structuring decisions, or ending a page.
 ---
 
 ## Composition

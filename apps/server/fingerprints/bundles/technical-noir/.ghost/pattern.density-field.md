@@ -45,6 +45,33 @@ from one ink level to the next rather than cross-fading. Stepped rendering is
 the motion-restraint stance made visible — the surface changes the way a
 terminal repaints, in discrete honest increments, not the way an ad animates.
 
+## Skeleton
+
+```html
+<!-- One readout: label · glyph strip on the ch grid · exact value. The strip is text, set like text. -->
+<div class="readout" aria-label="Queue depth: 61 percent" style="font:400 var(--text-sm)/var(--noir-density-cell-h) var(--font-mono);">
+  <span style="color:var(--color-text-muted);">queue </span>
+  <span aria-hidden="true">
+    <span style="color:var(--noir-ink-4);">##</span><!-- filled cells: densest ramp glyphs, primary off-white -->
+    <span style="color:var(--noir-ink-2);">=+::</span><!-- mid cells: mid-ramp glyphs, muted ink -->
+    <span style="color:var(--noir-ink-1);">-.  </span><!-- trailing cells: sparse glyphs fading to space -->
+  </span>
+  <span style="color:var(--color-text-muted);"> 61%</span>
+</div>
+```
+
+**Bound:** glyphs drawn only from the ordered `--noir-density-ramp`
+(` .:-=+#`), mapped monotonically to one real live scalar; cells exactly
+`--noir-density-cell-w` × `--noir-density-cell-h` (1ch × 24px) so the strip
+aligns character-for-character with the transcript around it; ink quantized to
+the four `--noir-ink-1..4` levels with `--noir-ink-4` reserved for the filled
+portion of the one field on the primary reading path; the exact mono value
+always beside the texture; changes advance cell by cell in hard
+`--noir-step-levels` steps. **Open:** field width, orientation (inline strip,
+readout row, per-row column), which quantity it renders, label wording, and
+how many muted fields share a rack — but never a second typeface, a
+fractional-width bar, a rounded track, or a smooth ease.
+
 **Where the field appears.** Inside [terminal evidence panels](pattern.terminal-evidence)
 as a labeled readout row among the log lines; alongside a [tile or row](pattern.tiles)
 as a compact per-item activity strip; beside a mono chip in the

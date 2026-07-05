@@ -337,7 +337,39 @@ that makes the sheet read as a genuinely engineered document, and the
 technical-drawing micro-detail. Every surface is composed from these same
 building blocks for its own job — a pricing sheet, a proof band, a workflow
 configuration, or a technical landing — under the one contrast-plane register,
-never from a fixed page template.
+never from a fixed page template. The negative space is guarded by two hard
+refusals — [no shadow-soft depth](anti-goal.shadow-soft-depth) and
+[no source-brand leakage](anti-goal.source-brand-leakage) — and the whole
+grammar is assembled in one worked fragment, the
+[annotated capacity sheet](exemplar.capacity-sheet).
+
+## Read order
+
+For a typical surface, pull in this order:
+
+1. [principle.contrast-planes](principle.contrast-planes) — set the macro rhythm
+   and decide which planes the argument needs.
+2. [pattern.mono-labels](pattern.mono-labels) — establish the one all-caps label
+   voice before writing any header, eyebrow, or button.
+3. The task's spine: [pattern.data-sheets](pattern.data-sheets) for comparison,
+   [pattern.proof-cards](pattern.proof-cards) for evidence,
+   [pattern.cta-system](pattern.cta-system) for action.
+4. [pattern.instrumentation](pattern.instrumentation) and
+   [pattern.drafting-marks](pattern.drafting-marks) — the engineered-document
+   finish, applied last and sparsely.
+5. [exemplar.capacity-sheet](exemplar.capacity-sheet) — check the assembled
+   grammar against the worked fragment.
+6. The guards — [anti-goal.shadow-soft-depth](anti-goal.shadow-soft-depth) and
+   [anti-goal.source-brand-leakage](anti-goal.source-brand-leakage) — before
+   calling the surface done.
+
+**Silence posture.** This fingerprint is deliberately silent on iconography
+sets, illustration style beyond the single signal object, chart/graph anatomy,
+long-form documentation typography, and toast/notification chrome. Where it is
+silent, compose provisionally in the same register — hairline-led, mono-labeled,
+plane-aware — and label the choice as provisional rather than inventing a new
+subsystem; never import a foreign idiom (soft shadows, pills, rainbow accents)
+to fill the gap.
 
 ## Composition
 
