@@ -15,8 +15,8 @@ import {
   type ApprovalRequest,
   type ToolDefinition,
   type ToolRegistry,
-} from '@anarchitecture/summon';
-import type { ToolHandler } from '@anarchitecture/summon/policy';
+} from '@decentralized-design/summon';
+import type { ToolHandler } from '@decentralized-design/summon/policy';
 import { z } from 'zod';
 
 const logArgsSchema = z.object({ payload: z.any().optional() }).passthrough();

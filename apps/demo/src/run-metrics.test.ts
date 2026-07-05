@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRunMetricsAccumulator } from './pages/generate/runMetrics.js';
-import type { ProtocolLine, SurfaceEvent } from '@anarchitecture/summon/engine';
+import type { ProtocolLine, SurfaceEvent } from '@decentralized-design/summon/engine';
 
 test('run metrics maps first byte to ttfb', () => {
   const metrics = createRunMetricsAccumulator();

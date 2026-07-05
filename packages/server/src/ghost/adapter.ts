@@ -7,11 +7,11 @@ import {
   loadFingerprintPackage,
   resolveFingerprintPackage,
   type LoadedFingerprintPackage,
-} from '@anarchitecture/ghost-fingerprint/fingerprint';
+} from '@decentralized-design/ghost/fingerprint';
 import {
   parseGlossary,
   type GhostCatalog,
-} from '@anarchitecture/ghost-fingerprint/core';
+} from '@decentralized-design/ghost/core';
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
@@ -627,9 +627,9 @@ async function loadGhostGlossary(path: string): Promise<GhostGlossaryEntry[]> {
     const raw = await readFile(path, 'utf-8');
     const result = parseGlossary(raw);
     if (result.glossary === null) return [];
-    return result.glossary.categories.map((category) => ({
-      name: category.name,
-      purpose: category.purpose,
+    return result.glossary.kinds.map((kind) => ({
+      name: kind.name,
+      purpose: kind.purpose,
     }));
   } catch {
     return [];

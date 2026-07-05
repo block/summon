@@ -1,6 +1,8 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
   type RefObject,
@@ -9,11 +11,8 @@ import {
   SummonSurface,
   type SummonSurfaceHandle,
   type SummonSurfaceProps,
-} from "@anarchitecture/summon-react";
-import {
-  type SurfaceSize,
-  type SurfaceComplexity,
-} from "@anarchitecture/summon/engine";
+} from "@decentralized-design/summon-react";
+import { type SurfaceSize } from "@decentralized-design/summon/engine";
 import {
   Button,
   DropdownSelect,
@@ -21,17 +20,19 @@ import {
 } from "../../../components/ui.js";
 import { cn } from "../../../lib/cn.js";
 import { fingerprintOptionFor } from "../fingerprintDisplay.js";
-import type { GenerationPreviewModel } from "../generationPreview.js";
 import type { ChildSurfaceModel, GhostRootInfo } from "../types.js";
+import type { GenerationTrace } from "../generationTrace.js";
 import { ChildSurface } from "./ChildSurface.js";
-import { SurfaceLoadingOverlay } from "./SurfaceLoadingOverlay.js";
+import { ConformanceGlyphs } from "./ConformanceGlyphs.js";
+import { FrameSeam } from "./FrameSeam.js";
+import { ReceiptTab } from "./ReceiptTab.js";
+import { TraceChoreography } from "./TraceChoreography.js";
 
 const promptActionRadiusClass = "!rounded-[22px]";
 
-// The sandbox container mirrors the selected size budget: a `small` surface is
-// given a narrow, card-like frame, while `large` (and the auto/unset default)
-// gets the full stage width. Full literal class strings so Tailwind's JIT keeps
-// them.
+// The frame IS the medium: one selected value drives both this container width
+// and scale.size, so the prompt-derived size and visible room cannot drift.
+// Full literal class strings so Tailwind's JIT keeps them.
 const sandboxWidthClass: Record<SurfaceSize | "", string> = {
   "": "w-[min(1120px,calc(100%-24px))]",
   small: "w-[min(480px,calc(100%-24px))]",
@@ -39,64 +40,40 @@ const sandboxWidthClass: Record<SurfaceSize | "", string> = {
   large: "w-[min(1120px,calc(100%-24px))]",
 };
 
-// Scale collapses the two axes (size + complexity) into one control. Each
-// preset maps to a {size, complexity} pair; "" complexity derives from size.
-interface ScalePreset {
+interface MediumPreset {
   value: string;
   label: string;
   description: string;
   size: SurfaceSize | "";
-  complexity: SurfaceComplexity | "";
 }
 
-const scalePresets: ScalePreset[] = [
-  { value: "auto", label: "Auto", description: "Default medium budget", size: "", complexity: "" },
-  { value: "small", label: "Small", description: "Little room — a focused surface", size: "small", complexity: "" },
-  { value: "medium", label: "Medium", description: "Room for a full self-contained surface", size: "medium", complexity: "" },
-  { value: "large", label: "Large", description: "Generous room — a multi-region surface", size: "large", complexity: "" },
-  { value: "small-rich", label: "Small · dense", description: "Little room, packed with detail", size: "small", complexity: "rich" },
-  { value: "large-simple", label: "Large · spacious", description: "Generous room, one bold idea", size: "large", complexity: "simple" },
+const mediumPresets: MediumPreset[] = [
+  { value: "auto", label: "Auto", description: "No scale block; full stage width", size: "" },
+  { value: "small", label: "Card", description: "≈480px card-sized frame", size: "small" },
+  { value: "medium", label: "Panel", description: "≈760px panel-sized frame", size: "medium" },
+  { value: "large", label: "Page", description: "≈1120px page-sized frame", size: "large" },
 ];
 
-const scalePresetByValue = (value: string): ScalePreset =>
-  scalePresets.find((preset) => preset.value === value) ?? scalePresets[0]!;
+const mediumPresetByValue = (value: string): MediumPreset =>
+  mediumPresets.find((preset) => preset.value === value) ?? mediumPresets[0]!;
 
-const scaleGroups: DropdownSelectGroup[] = [
+const mediumGroups: DropdownSelectGroup[] = [
   {
-    options: ["auto"].map((value) => {
-      const { label, description } = scalePresetByValue(value);
-      return { value, label, description };
-    }),
-  },
-  {
-    label: "Size",
-    options: ["small", "medium", "large"].map((value) => {
-      const { label, description } = scalePresetByValue(value);
-      return { value, label, description };
-    }),
-  },
-  {
-    label: "Size + detail",
-    options: ["small-rich", "large-simple"].map((value) => {
-      const { label, description } = scalePresetByValue(value);
-      return { value, label, description };
-    }),
+    options: mediumPresets.map(({ value, label, description }) => ({
+      value,
+      label,
+      description,
+    })),
   },
 ];
 
-function scalePresetValue(
-  size: SurfaceSize | "",
-  complexity: SurfaceComplexity | "",
-): string {
-  return (
-    scalePresets.find(
-      (preset) => preset.size === size && preset.complexity === complexity,
-    )?.value ?? "auto"
-  );
+function mediumPresetValue(size: SurfaceSize | ""): string {
+  return mediumPresets.find((preset) => preset.size === size)?.value ?? "auto";
 }
 
 export function GenerationStage({
   prompt,
+  trace,
   scenarioPicker,
   setPrompt,
   selectedFingerprintId,
@@ -104,13 +81,10 @@ export function GenerationStage({
   onSelectFingerprint,
   scaleSize,
   onSelectScaleSize,
-  scaleComplexity,
-  onSelectScaleComplexity,
   running,
   onGenerate,
   statusText,
   generationDisabledReason,
-  generationPreview,
   stageNotice,
   onOpenDiagnostics,
   surfaceRef,
@@ -122,14 +96,13 @@ export function GenerationStage({
   onSurfaceHandlerError,
   onSurfaceRuntimeError,
   showWelcome,
-  hasRenderedArtifact,
-  surfaceReady,
   playgroundMode,
   surfaceInstanceKey,
   childSurfaces,
   onCloseChild,
 }: {
   prompt: string;
+  trace: GenerationTrace;
   scenarioPicker: ReactNode;
   setPrompt: (value: string) => void;
   selectedFingerprintId: string | null;
@@ -137,13 +110,10 @@ export function GenerationStage({
   onSelectFingerprint: (id: string | null) => void;
   scaleSize: SurfaceSize | "";
   onSelectScaleSize: (value: SurfaceSize | "") => void;
-  scaleComplexity: SurfaceComplexity | "";
-  onSelectScaleComplexity: (value: SurfaceComplexity | "") => void;
   running: boolean;
   onGenerate: (prompt: string) => void | Promise<void>;
   statusText: string;
   generationDisabledReason?: string | null;
-  generationPreview: GenerationPreviewModel;
   stageNotice: {
     tone: "pending" | "error";
     title: string;
@@ -159,20 +129,16 @@ export function GenerationStage({
   onSurfaceHandlerError: SummonSurfaceProps["onHandlerError"];
   onSurfaceRuntimeError: SummonSurfaceProps["onRuntimeError"];
   showWelcome: boolean;
-  hasRenderedArtifact: boolean;
-  surfaceReady: boolean;
   playgroundMode: boolean;
   surfaceInstanceKey: number;
   childSurfaces: ChildSurfaceModel[];
   onCloseChild: (id: number) => void;
 }) {
   const showSamplePills = showWelcome && !running;
-  const showHostLoader =
-    !showWelcome &&
-    !stageNotice &&
-    !surfaceReady &&
-    (running || hasRenderedArtifact);
-  const showSandboxFrame = !showWelcome && (surfaceReady || stageNotice !== null);
+  // The sandbox frame is visible for the whole generation lifecycle: the
+  // host-owned, fingerprint-derived drafting surface inside SummonSurface is
+  // the loading state. No app-level loading overlay competes with it.
+  const showSandboxFrame = !showWelcome;
   const selectedFingerprint =
     fingerprints.find(
       (fingerprint) => fingerprint.id === selectedFingerprintId,
@@ -205,6 +171,39 @@ export function GenerationStage({
   const generateDisabled = Boolean(
     running || !prompt.trim() || generationDisabledReason,
   );
+  const [surfaceOverflowing, setSurfaceOverflowing] = useState(false);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [framePulse, setFramePulse] = useState(false);
+  const pulseTimerRef = useRef<number | null>(null);
+  const handleGatherAbsorbed = useCallback(() => {
+    setFramePulse(true);
+    if (pulseTimerRef.current !== null) window.clearTimeout(pulseTimerRef.current);
+    pulseTimerRef.current = window.setTimeout(() => setFramePulse(false), 420);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (pulseTimerRef.current !== null) window.clearTimeout(pulseTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showSandboxFrame) {
+      setSurfaceOverflowing(false);
+      return;
+    }
+
+    const root = surfaceRef.current?.root;
+    if (!root) return;
+
+    const updateOverflow = () => {
+      setSurfaceOverflowing(root.scrollHeight > root.clientHeight + 1);
+    };
+    updateOverflow();
+    const resizeObserver = new ResizeObserver(updateOverflow);
+    resizeObserver.observe(root);
+    Array.from(root.children).forEach((child) => resizeObserver.observe(child));
+    return () => resizeObserver.disconnect();
+  }, [showSandboxFrame, surfaceInstanceKey, surfaceRef]);
 
   useEffect(() => {
     if (showWelcome) {
@@ -228,16 +227,9 @@ export function GenerationStage({
         className="absolute inset-0 overflow-hidden bg-surface px-4 pb-[184px] pt-[76px] max-[760px]:pb-[244px]"
         aria-label="Generated surface"
       >
-        {showHostLoader ? (
-          <SurfaceLoadingOverlay
-            statusText={statusText}
-            preview={generationPreview}
-            fullPage
-          />
-        ) : null}
         <div
           className={cn(
-            "relative z-[2] mx-auto h-[calc(100vh-260px)] min-h-0 transition-[opacity,filter,transform,width] duration-700 ease-out max-[760px]:h-[calc(100vh-320px)]",
+            "relative z-[2] mx-auto min-h-[280px] max-h-[calc(100vh-260px)] transition-[opacity,filter,transform,width] duration-700 ease-out max-[760px]:max-h-[calc(100vh-320px)]",
             sandboxWidthClass[scaleSize],
             showSandboxFrame
               ? "translate-y-0 scale-100 opacity-100 blur-0"
@@ -246,7 +238,11 @@ export function GenerationStage({
         >
           <div
             id="sandbox-frame"
-            className="relative z-0 h-full min-h-0 overflow-hidden rounded-[32px] border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-700 ease-out motion-safe:animate-[summon-sandbox-rise_960ms_cubic-bezier(0.16,1,0.3,1)_both]"
+            ref={frameRef}
+            className={cn(
+              "relative z-0 h-auto min-h-[280px] max-h-full overflow-hidden rounded-[32px] border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-700 ease-out motion-safe:animate-[summon-sandbox-rise_960ms_cubic-bezier(0.16,1,0.3,1)_both]",
+              framePulse && "ring-2 ring-accent/35",
+            )}
           >
             <span id="surface-status" className="sr-only">
               {statusText}
@@ -255,7 +251,7 @@ export function GenerationStage({
               key={surfaceInstanceKey}
               ref={surfaceRef}
               id="sandbox"
-              className="block h-full min-h-0 w-full overflow-auto border-0 bg-surface"
+              className="block max-h-full w-full overflow-auto border-0 bg-surface"
               title="Summon generate sandbox"
               tokensSource={surfaceTokensSource}
               toolRegistry={toolRegistry}
@@ -265,6 +261,15 @@ export function GenerationStage({
               onHandlerError={onSurfaceHandlerError}
               onRuntimeError={onSurfaceRuntimeError}
             />
+            <ConformanceGlyphs trace={trace} />
+            <ReceiptTab trace={trace} />
+            {surfaceOverflowing ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[4] flex justify-center rounded-b-[32px] bg-gradient-to-t from-surface-raised via-surface-raised/72 to-transparent pb-3 pt-10" aria-hidden="true">
+                <span className="rounded-full border border-line bg-surface-raised/95 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase text-ink-muted shadow-card">
+                  scrolls ↓
+                </span>
+              </div>
+            ) : null}
             {stageNotice ? (
               <div
                 className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
@@ -305,6 +310,12 @@ export function GenerationStage({
               </div>
             ) : null}
           </div>
+          <FrameSeam trace={trace} running={running} />
+          <TraceChoreography
+            trace={trace}
+            frameRef={frameRef}
+            onAbsorb={handleGatherAbsorbed}
+          />
         </div>
       </section>
 
@@ -401,12 +412,11 @@ export function GenerationStage({
                 />
                 <DropdownSelect
                   id="scale-picker"
-                  value={scalePresetValue(scaleSize, scaleComplexity)}
-                  groups={scaleGroups}
-                  showGroupLabels
-                  overline="Scale"
+                  value={mediumPresetValue(scaleSize)}
+                  groups={mediumGroups}
+                  overline="Medium"
                   placeholder="Auto"
-                  title="Size and complexity budget for the surface"
+                  title="Physical medium for the surface"
                   side="top"
                   align="end"
                   disabled={running}
@@ -417,9 +427,8 @@ export function GenerationStage({
                   )}
                   contentClassName="w-[min(300px,calc(100vw-32px))] !rounded-[32px] max-[760px]:left-auto max-[760px]:right-0"
                   onValueChange={(nextValue) => {
-                    const preset = scalePresetByValue(nextValue);
+                    const preset = mediumPresetByValue(nextValue);
                     onSelectScaleSize(preset.size);
-                    onSelectScaleComplexity(preset.complexity);
                   }}
                 />
                 <Button

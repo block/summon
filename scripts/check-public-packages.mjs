@@ -46,6 +46,8 @@ const packageBudgets = {
       'package.json',
       'dist/index.d.ts',
       'dist/index.js',
+      'dist/ghost.d.ts',
+      'dist/ghost.js',
       'dist/_internal/server/**',
     ],
   },
@@ -199,10 +201,10 @@ function assertPublicPackageVersions(publicPackageManifests, failures) {
   }
 
   const corePackage = publicPackageManifests.find(
-    ({ manifest }) => manifest.name === '@anarchitecture/summon',
+    ({ manifest }) => manifest.name === '@decentralized-design/summon',
   );
   if (!corePackage) {
-    failures.push('public package manifests must include @anarchitecture/summon');
+    failures.push('public package manifests must include @decentralized-design/summon');
     return;
   }
 

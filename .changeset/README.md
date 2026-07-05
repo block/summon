@@ -2,9 +2,9 @@
 
 This folder tracks public package versioning for:
 
-- `@anarchitecture/summon`
-- `@anarchitecture/summon-server`
-- `@anarchitecture/summon-react`
+- `@decentralized-design/summon`
+- `@decentralized-design/summon-server`
+- `@decentralized-design/summon-react`
 
 These packages are configured as a fixed Changesets group so releases stay on
 the same version.

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { SummonSurface } from '@anarchitecture/summon-react';
+import { SummonSurface } from '@decentralized-design/summon-react';
 import { AppNav, LogView, PageHeader, Pane } from '../components/chrome.js';
 import { cn } from '../lib/cn.js';
 import { logToneClass, pageWidthClass } from '../components/ui.js';

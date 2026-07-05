@@ -79,6 +79,7 @@
       "types": [
         "SummonSurfaceArtifact",
         "SummonSurfaceHandle",
+        "SummonSurfaceLifecycle",
         "SummonSurfaceOptions",
         "SurfacePreviewNode",
         "SurfacePreviewSnapshot",
@@ -294,6 +295,7 @@
         "DataResourceDefinition",
         "SummonSurfaceArtifact",
         "SummonSurfaceHandle",
+        "SummonSurfaceLifecycle",
         "SummonSurfaceOptions",
         "PolicyDispatchResult",
         "PolicyEngineOptions",

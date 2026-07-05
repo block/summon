@@ -41,14 +41,14 @@ startup checks, script policy, grants, or component overlay behavior.
 
 Applications should import public packages only:
 
-- `@anarchitecture/summon` for host-authoring helpers and surface-plan types.
-- `@anarchitecture/summon/browser` for iframe/runtime browser helpers.
-- `@anarchitecture/summon/engine` for protocol, validation, prompt contracts,
+- `@decentralized-design/summon` for host-authoring helpers and surface-plan types.
+- `@decentralized-design/summon/browser` for iframe/runtime browser helpers.
+- `@decentralized-design/summon/engine` for protocol, validation, prompt contracts,
   stream graph, and other advanced engine APIs.
-- `@anarchitecture/summon/host` for adapter authors needing the full host
+- `@decentralized-design/summon/host` for adapter authors needing the full host
   runtime surface.
-- `@anarchitecture/summon-server` for provider-neutral generation lifecycle.
-- `@anarchitecture/summon-react` for React rendering and component islands.
+- `@decentralized-design/summon-server` for provider-neutral generation lifecycle.
+- `@decentralized-design/summon-react` for React rendering and component islands.
 
 Do not import `src/*.ts` paths or `@summon-internal/*` packages from apps,
 examples, docs, or public package builds. If a public export changes, update
@@ -64,4 +64,4 @@ pnpm changeset
 ```
 
 Private `@summon-internal/*` implementation packages and demo apps are ignored
-by Changesets; describe public impact on `@anarchitecture/*` packages.
+by Changesets; describe public impact on `@decentralized-design/*` packages.

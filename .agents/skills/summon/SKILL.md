@@ -60,7 +60,7 @@ network, credentials, state, grants, and the selected `SurfacePolicy`.
 Generated artifacts must not emit or widen `/surface-policy` or `/surface-plan`.
 
 Generation servers should use `runSurfaceGeneration(input, emit)` from
-`@anarchitecture/summon-server`. Applications should consume built public
+`@decentralized-design/summon-server`. Applications should consume built public
 package exports, not `src/*.ts` paths or `@summon-internal/*` packages.
 
 Use `defineAction` and `defineDataResource` for common host-backed

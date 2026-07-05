@@ -5,7 +5,7 @@ import {
   type ToolSurface,
   type ToolTrigger,
   type ToolSpec,
-} from '@anarchitecture/summon';
+} from '@decentralized-design/summon';
 
 /**
  * Validate a tool pack sent by the client. The server is tool-agnostic

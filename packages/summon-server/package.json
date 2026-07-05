@@ -1,5 +1,5 @@
 {
-  "name": "@anarchitecture/summon-server",
+  "name": "@decentralized-design/summon-server",
   "version": "0.3.0",
   "description": "Provider-neutral server-side generation primitives for Summon surfaces",
   "license": "Apache-2.0",
@@ -46,17 +46,17 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@anarchitecture/summon": "^0.3.0",
+    "@decentralized-design/summon": "^0.3.0",
     "typescript": "^5.4.0"
   },
   "devDependencies": {
-    "@anarchitecture/ghost-fingerprint": "file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz"
+    "@decentralized-design/ghost": "file:../../vendor/decentralized-design-ghost-0.19.0.tgz"
   },
   "peerDependencies": {
-    "@anarchitecture/ghost-fingerprint": "^0.19.0"
+    "@decentralized-design/ghost": "^0.19.0"
   },
   "peerDependenciesMeta": {
-    "@anarchitecture/ghost-fingerprint": {
+    "@decentralized-design/ghost": {
       "optional": true
     }
   }

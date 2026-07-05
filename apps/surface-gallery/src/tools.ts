@@ -9,7 +9,7 @@ import {
   type ApprovalRequest,
   type ToolDefinition,
   type ToolRegistry,
-} from '@anarchitecture/summon';
+} from '@decentralized-design/summon';
 import { z } from 'zod';
 
 export interface GalleryToolOptions {

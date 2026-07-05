@@ -22,10 +22,10 @@ await mkdir(projectDir, { recursive: true });
 const packed = await packPublicPackages({ destinationDir: tarballDir });
 const byName = new Map(packed.map((entry) => [entry.name, entry]));
 const rootManifest = JSON.parse(await readFile(join(rootDir, 'package.json'), 'utf8'));
-const core = byName.get('@anarchitecture/summon');
-const serverPackage = byName.get('@anarchitecture/summon-server');
-const react = byName.get('@anarchitecture/summon-react');
-const ghostFingerprintTarball = join(rootDir, 'vendor', 'anarchitecture-ghost-fingerprint-0.19.0.tgz');
+const core = byName.get('@decentralized-design/summon');
+const serverPackage = byName.get('@decentralized-design/summon-server');
+const react = byName.get('@decentralized-design/summon-react');
+const ghostFingerprintTarball = join(rootDir, 'vendor', 'decentralized-design-ghost-0.19.0.tgz');
 if (!core?.tarballPath || !serverPackage?.tarballPath || !react?.tarballPath) {
   throw new Error('public package smoke could not find all packed tarballs');
 }
@@ -35,16 +35,16 @@ await writeFile(join(projectDir, 'package.json'), JSON.stringify({
   type: 'module',
   packageManager: rootManifest.packageManager,
   dependencies: {
-    '@anarchitecture/summon': `file:${core.tarballPath}`,
-    '@anarchitecture/summon-server': `file:${serverPackage.tarballPath}`,
-    '@anarchitecture/ghost-fingerprint': `file:${ghostFingerprintTarball}`,
-    '@anarchitecture/summon-react': `file:${react.tarballPath}`,
+    '@decentralized-design/summon': `file:${core.tarballPath}`,
+    '@decentralized-design/summon-server': `file:${serverPackage.tarballPath}`,
+    '@decentralized-design/ghost': `file:${ghostFingerprintTarball}`,
+    '@decentralized-design/summon-react': `file:${react.tarballPath}`,
     react: '19.2.5',
     'react-dom': '19.2.5',
   },
   pnpm: {
     overrides: {
-      '@anarchitecture/summon': `file:${core.tarballPath}`,
+      '@decentralized-design/summon': `file:${core.tarballPath}`,
     },
   },
 }, null, 2) + '\n');
@@ -62,20 +62,20 @@ await writeFile(join(projectDir, 'smoke.mjs'), [
   "  createToolRegistry,",
   "  defineToolHandler,",
   "  PolicyEngine,",
-  "} from '@anarchitecture/summon';",
-  "import { mountSummonSurface, consumeSurfaceStream } from '@anarchitecture/summon/browser';",
-  "import { compileSystemContracts, parseProtocolLine, StreamGraph } from '@anarchitecture/summon/engine';",
-  "import { mountSummonSurface as hostMountSummonSurface, PolicyEngine as HostPolicyEngine } from '@anarchitecture/summon/host';",
-  "import { PolicyEngine as PolicyEngineFromPolicy } from '@anarchitecture/summon/policy';",
-  "import { createSurfaceEnvelope, parseSurfaceEnvelope } from '@anarchitecture/summon/envelope';",
-  "import { tokensSource } from '@anarchitecture/summon/assets';",
-  "import { createEventStore } from '@anarchitecture/summon/devtools';",
-  "import { runSurfaceGeneration, policyFromGoal, summarizeContractIssues } from '@anarchitecture/summon-server';",
-  "import { buildGhostReceipt, evaluateConformance } from '@anarchitecture/summon-server/ghost';",
-  "import { SummonSurface } from '@anarchitecture/summon-react';",
+  "} from '@decentralized-design/summon';",
+  "import { mountSummonSurface, consumeSurfaceStream } from '@decentralized-design/summon/browser';",
+  "import { compileSystemContracts, parseProtocolLine, StreamGraph } from '@decentralized-design/summon/engine';",
+  "import { mountSummonSurface as hostMountSummonSurface, PolicyEngine as HostPolicyEngine } from '@decentralized-design/summon/host';",
+  "import { PolicyEngine as PolicyEngineFromPolicy } from '@decentralized-design/summon/policy';",
+  "import { createSurfaceEnvelope, parseSurfaceEnvelope } from '@decentralized-design/summon/envelope';",
+  "import { tokensSource } from '@decentralized-design/summon/assets';",
+  "import { createEventStore } from '@decentralized-design/summon/devtools';",
+  "import { runSurfaceGeneration, policyFromGoal, summarizeContractIssues } from '@decentralized-design/summon-server';",
+  "import { buildGhostReceipt, evaluateConformance } from '@decentralized-design/summon-server/ghost';",
+  "import { SummonSurface } from '@decentralized-design/summon-react';",
   "",
-  "const root = await import('@anarchitecture/summon');",
-  "const server = await import('@anarchitecture/summon-server');",
+  "const root = await import('@decentralized-design/summon');",
+  "const server = await import('@decentralized-design/summon-server');",
   "if (typeof createToolRegistry !== 'function') throw new Error('tool import failed');",
   "if (typeof defineToolHandler !== 'function' || typeof PolicyEngine !== 'function') throw new Error('policy helper import failed');",
   "if (typeof parseProtocolLine !== 'function' || typeof compileSystemContracts !== 'function') throw new Error('engine compiler import failed');",
@@ -105,11 +105,11 @@ await writeFile(join(projectDir, 'smoke.mjs'), [
   "  throw new Error(`${specifier} should not be importable`);",
   "}",
   "",
-  "await expectRejected('@anarchitecture/summon/server');",
-  "await expectRejected('@anarchitecture/summon/_internal/engine/index.js');",
-  "await expectRejected('@anarchitecture/summon-server/_internal/server/index.js');",
-  "await expectRejected('@anarchitecture/summon-server/_internal/server/ghost/index.js');",
-  "await expectRejected('@anarchitecture/summon-react/_internal/react/index.js');",
+  "await expectRejected('@decentralized-design/summon/server');",
+  "await expectRejected('@decentralized-design/summon/_internal/engine/index.js');",
+  "await expectRejected('@decentralized-design/summon-server/_internal/server/index.js');",
+  "await expectRejected('@decentralized-design/summon-server/_internal/server/ghost/index.js');",
+  "await expectRejected('@decentralized-design/summon-react/_internal/react/index.js');",
   "console.log('public package smoke imports passed');",
   '',
 ].join('\n'));

@@ -7,7 +7,7 @@ import {
   SURFACE_PURPOSE_VALUES,
   type SurfaceContractView,
   type SurfacePlan,
-} from '@anarchitecture/summon/engine';
+} from '@decentralized-design/summon/engine';
 import type { Mode, ShowcaseScenario } from '../../../showcase.js';
 import {
   numberOptions,

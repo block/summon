@@ -43,7 +43,7 @@ First cut lives in `packages/server/src/ghost/conformance.ts`: checks are routed
 Remaining:
 
 - split deterministic structural checks from advisory prose checks
-- [x] move conformance into `@anarchitecture/summon-server`
+- [x] move conformance into `@decentralized-design/summon-server`
 - make failures cite Surface Document files and selectors where possible
 
 ### B. Account — trace/receipt as a first-class artifact
@@ -64,6 +64,18 @@ Remaining:
 `wrong look → fingerprint`, `wrong behavior → tool contract`,
 `wrong what-happened → trace`. The UX should point at which part of the Surface
 Document contract failed.
+
+### D. Generation-time presentation — fingerprint-derived drafting surface
+
+The drafting window is currently a generic loader; the contract says it must
+be fingerprint-derived, host-owned, and re-enterable during repair
+(qualifies under tests 1 and 2). Plan:
+[`docs/spec/drafting-surface-plan.md`](./spec/drafting-surface-plan.md).
+
+- [x] Token-driven drafting renderer replacing the generic preview.
+- [x] Repair re-entry in the host render lifecycle.
+- [ ] Two-fingerprint visual proof in demo/gallery + Playwright coverage.
+- [ ] Layer-2 spike (progressive sanitized structure preview) — scoped, not committed.
 
 ## Tier 2 — Tool contract keystone
 

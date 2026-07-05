@@ -1,7 +1,7 @@
 import {
   type ProtocolLine,
   type SurfaceEvent,
-} from '@anarchitecture/summon/engine';
+} from '@decentralized-design/summon/engine';
 import type { RunMetrics } from './types.js';
 
 export const RUN_METRICS_META_PATH = '/run-metrics';

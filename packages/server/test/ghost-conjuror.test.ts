@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { assembleCatalog } from '@anarchitecture/ghost-fingerprint/core';
+import { assembleCatalog } from '@decentralized-design/ghost/core';
 import {
   compileConjurorContext,
 } from '../src/ghost/conjuror.js';

@@ -1,4 +1,4 @@
-import type { SurfacePolicy } from '@anarchitecture/summon';
+import type { SurfacePolicy } from '@decentralized-design/summon';
 
 export interface GalleryPresetNotes {
   setup: string;

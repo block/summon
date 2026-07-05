@@ -26,10 +26,10 @@ importers:
 
   apps/demo:
     dependencies:
-      '@anarchitecture/summon':
+      '@decentralized-design/summon':
         specifier: workspace:*
         version: link:../../packages/summon
-      '@anarchitecture/summon-react':
+      '@decentralized-design/summon-react':
         specifier: workspace:*
         version: link:../../packages/summon-react
       '@summon-internal/engine':
@@ -81,18 +81,18 @@ importers:
 
   apps/server:
     dependencies:
-      '@anarchitecture/ghost-fingerprint':
-        specifier: file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
-        version: file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
-      '@anarchitecture/summon':
-        specifier: workspace:*
-        version: link:../../packages/summon
-      '@anarchitecture/summon-server':
-        specifier: workspace:*
-        version: link:../../packages/summon-server
       '@anthropic-ai/sdk':
         specifier: ^0.88.0
         version: 0.88.0(zod@4.4.3)
+      '@decentralized-design/ghost':
+        specifier: file:../../vendor/decentralized-design-ghost-0.19.0.tgz
+        version: file:vendor/decentralized-design-ghost-0.19.0.tgz
+      '@decentralized-design/summon':
+        specifier: workspace:*
+        version: link:../../packages/summon
+      '@decentralized-design/summon-server':
+        specifier: workspace:*
+        version: link:../../packages/summon-server
       '@summon-internal/engine':
         specifier: workspace:*
         version: link:../../packages/engine
@@ -124,7 +124,7 @@ importers:
 
   apps/surface-gallery:
     dependencies:
-      '@anarchitecture/summon':
+      '@decentralized-design/summon':
         specifier: workspace:*
         version: link:../../packages/summon
       zod:
@@ -208,7 +208,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@anarchitecture/summon':
+      '@decentralized-design/summon':
         specifier: workspace:*
         version: link:../summon
     devDependencies:
@@ -235,9 +235,9 @@ importers:
 
   packages/server:
     dependencies:
-      '@anarchitecture/ghost-fingerprint':
-        specifier: file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
-        version: file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
+      '@decentralized-design/ghost':
+        specifier: file:../../vendor/decentralized-design-ghost-0.19.0.tgz
+        version: file:vendor/decentralized-design-ghost-0.19.0.tgz
       '@summon-internal/engine':
         specifier: workspace:*
         version: link:../engine
@@ -270,7 +270,7 @@ importers:
 
   packages/summon-react:
     dependencies:
-      '@anarchitecture/summon':
+      '@decentralized-design/summon':
         specifier: ^0.3.0
         version: link:../summon
     devDependencies:
@@ -292,16 +292,16 @@ importers:
 
   packages/summon-server:
     dependencies:
-      '@anarchitecture/summon':
+      '@decentralized-design/summon':
         specifier: ^0.3.0
         version: link:../summon
       typescript:
         specifier: ^5.4.0
         version: 5.9.3
     devDependencies:
-      '@anarchitecture/ghost-fingerprint':
-        specifier: file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
-        version: file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz
+      '@decentralized-design/ghost':
+        specifier: file:../../vendor/decentralized-design-ghost-0.19.0.tgz
+        version: file:vendor/decentralized-design-ghost-0.19.0.tgz
 
   packages/surface-vm:
     dependencies:
@@ -323,11 +323,6 @@ importers:
         version: 5.9.3
 
 packages:
-
-  '@anarchitecture/ghost-fingerprint@file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz':
-    resolution: {integrity: sha512-KWDnaQ9FlhS4Hdhv54EZWA5O4UX334BK2f6Wygi9Bd8BS/SaPJm4YK+fbqZBNZxpcVN9nUyxikh5oZlGpHewEg==, tarball: file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz}
-    version: 0.19.0
-    hasBin: true
 
   '@anthropic-ai/sdk@0.88.0':
     resolution: {integrity: sha512-QQOtB5U9ZBJQj6y1ICmDZl14LWa4JCiJRoihI+0yuZ4OjbONrakP0yLwPv4DJFb3VYCtQM31bTOpCBMs2zghPw==}
@@ -402,6 +397,11 @@ packages:
 
   '@changesets/write@0.4.0':
     resolution: {integrity: sha512-CdTLvIOPiCNuH71pyDu3rA+Q0n65cmAbXnwWH84rKGiFumFzkmHNT8KHTMEchcxN+Kl8I54xGUhJ7l3E7X396Q==}
+
+  '@decentralized-design/ghost@file:vendor/decentralized-design-ghost-0.19.0.tgz':
+    resolution: {integrity: sha512-a1lsTN2fso2dibOh/jlvsSkYx/pZXPbg3LE0pKDwSYQMaXvb+sGdmDI/jBjTlTnMT33aPqxsbFr/WpjqIrzdcg==, tarball: file:vendor/decentralized-design-ghost-0.19.0.tgz}
+    version: 0.19.0
+    hasBin: true
 
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
@@ -2165,12 +2165,6 @@ packages:
 
 snapshots:
 
-  '@anarchitecture/ghost-fingerprint@file:vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz':
-    dependencies:
-      cac: 6.7.14
-      yaml: 2.8.3
-      zod: 4.4.3
-
   '@anthropic-ai/sdk@0.88.0(zod@4.4.3)':
     dependencies:
       json-schema-to-ts: 3.1.1
@@ -2336,6 +2330,12 @@ snapshots:
       fs-extra: 7.0.1
       human-id: 4.2.0
       prettier: 2.8.8
+
+  '@decentralized-design/ghost@file:vendor/decentralized-design-ghost-0.19.0.tgz':
+    dependencies:
+      cac: 6.7.14
+      yaml: 2.8.3
+      zod: 4.4.3
 
   '@emnapi/core@1.10.0':
     dependencies:

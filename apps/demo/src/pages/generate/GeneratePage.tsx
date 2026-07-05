@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type SummonSurfaceHandle } from "@anarchitecture/summon-react";
-import type { SurfacePreviewSnapshot } from "@anarchitecture/summon/browser";
-import { createSurfaceEnvelope } from "@anarchitecture/summon/envelope";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { type SummonSurfaceHandle } from "@decentralized-design/summon-react";
+import { createSurfaceEnvelope } from "@decentralized-design/summon/envelope";
 import {
   isSurfaceDocumentArtifact,
   type ProtocolLine,
@@ -9,11 +8,10 @@ import {
   type SurfaceContractView,
   type SurfacePlan,
   type SurfaceSize,
-  type SurfaceComplexity,
-} from "@anarchitecture/summon/engine";
-import type { ApprovalDecision, ApprovalRequest } from "@anarchitecture/summon";
-import type { DevtoolsEvent } from "@anarchitecture/summon/devtools";
-import defaultTokensSource from "@anarchitecture/summon/tokens.css?raw";
+} from "@decentralized-design/summon/engine";
+import type { ApprovalDecision, ApprovalRequest } from "@decentralized-design/summon";
+import type { DevtoolsEvent } from "@decentralized-design/summon/devtools";
+import defaultTokensSource from "@decentralized-design/summon/tokens.css?raw";
 import { Button } from "../../components/ui.js";
 import { cn } from "../../lib/cn.js";
 import {
@@ -28,7 +26,6 @@ import { DiagnosticsDock } from "./components/DiagnosticsDock.js";
 import { GenerationStage } from "./components/GenerationStage.js";
 import { layoutPresets } from "./constants.js";
 import { displayEventKind, type ExtraDevtoolsEvent } from "./devtools.js";
-import { buildGenerationPreview } from "./generationPreview.js";
 import { useGenerationRuns } from "./hooks/useGenerationRuns.js";
 import { useSavedSurfaces } from "./hooks/useSavedSurfaces.js";
 import { useSurfaceStream } from "./hooks/useSurfaceStream.js";
@@ -42,6 +39,7 @@ import {
   modelProfilesForRunProfile,
 } from "./modelProviders.js";
 import { loadSavedSurfaces } from "./savedSurfaces.js";
+import { initialGenerationTrace, traceReducer } from "./generationTrace.js";
 import {
   buildContractRows,
   generationPhaseLabel,
@@ -100,6 +98,7 @@ function profileStateToPayload(
 
 export function GeneratePage() {
   const surfaceRef = useRef<SummonSurfaceHandle>(null);
+  const [trace, dispatchTrace] = useReducer(traceReducer, initialGenerationTrace);
   const abortRef = useRef<AbortController | null>(null);
   const modeRef = useRef<Mode>("interactive");
   const approvalResolvers = useRef(
@@ -121,15 +120,10 @@ export function GeneratePage() {
     SHOWCASE_SCENARIOS[0]!.surfacePlan,
   );
   const [layoutId, setLayoutId] = useState("");
-  // Default to an explicit scale so the scale block always ships. Left empty,
-  // the model builds at its untethered instinct, which converges on the same
-  // middleweight layout regardless of fingerprint — the "everything feels
-  // average size/complexity" failure mode. `medium` derives `moderate`
-  // complexity; both remain user-overridable (including back to "" = unset).
-  const [scaleSize, setScaleSize] = useState<SurfaceSize | "">("medium");
-  const [scaleComplexity, setScaleComplexity] = useState<SurfaceComplexity | "">(
-    "",
-  );
+  // Unset is the honest default: it shows the fingerprint's untethered output.
+  // If results feel samey at rest, fix the fingerprint prose in .ghost/ rather
+  // than compensating with a medium knob here.
+  const [scaleSize, setScaleSize] = useState<SurfaceSize | "">("");
   const [playgroundMode, setPlaygroundMode] = useState(false);
   const [agentWardEnabled, setAgentWardEnabled] = useState(true);
   const [customContractEnabled, setCustomContractEnabled] = useState(false);
@@ -168,8 +162,6 @@ export function GeneratePage() {
   );
   const [currentSurfaceContractView, setCurrentSurfaceContractView] =
     useState<SurfaceContractView | null>(null);
-  const [surfacePreviewSnapshot, setSurfacePreviewSnapshot] =
-    useState<SurfacePreviewSnapshot | null>(null);
   const [currentAgentGoalSummary, setCurrentAgentGoalSummary] = useState<
     string | null
   >(null);
@@ -178,7 +170,6 @@ export function GeneratePage() {
   >(null);
   const [artifactRevision, setArtifactRevision] = useState(0);
   const [surfaceInstanceKey, setSurfaceInstanceKey] = useState(0);
-  const [surfaceReady, setSurfaceReady] = useState(false);
   const artifactRevisionRef = useRef(0);
   const [diagnosticsTab, setDiagnosticsTab] =
     useState<DiagnosticsTab>("stream");
@@ -289,14 +280,6 @@ export function GeneratePage() {
 
   const appendDevEvent = useCallback(
     (event: DevtoolsEvent | ExtraDevtoolsEvent) => {
-      if (event.kind === "render" || event.kind === "surface-disposed") {
-        setSurfaceReady(false);
-      } else if (
-        event.kind === "rendered" ||
-        event.kind === "surface-runtime-error"
-      ) {
-        setSurfaceReady(true);
-      }
       setDevEvents((items) => [...items.slice(-799), event]);
     },
     [],
@@ -348,10 +331,8 @@ export function GeneratePage() {
     setCurrentValidationSummary(null);
     setCurrentStreamHealth(null);
     setCurrentSurfaceContractView(null);
-    setSurfacePreviewSnapshot(null);
     setCurrentAgentGoalSummary(null);
     setCurrentAgentPolicySummary(null);
-    setSurfaceReady(false);
   }, []);
 
   const handleRunProfileChange = useCallback(
@@ -520,14 +501,7 @@ export function GeneratePage() {
       ...(!playgroundMode && !agentWard ? { surfacePolicy } : {}),
       surfacePlan,
       ...(layoutId ? { layoutId } : {}),
-      ...(scaleSize || scaleComplexity
-        ? {
-            scale: {
-              ...(scaleSize ? { size: scaleSize } : {}),
-              ...(scaleComplexity ? { complexity: scaleComplexity } : {}),
-            },
-          }
-        : {}),
+      ...(scaleSize ? { scale: { size: scaleSize } } : {}),
       fingerprintId,
       modelProvider: modelSelection.modelProvider ?? null,
       ...(modelSelection.generationModel
@@ -551,7 +525,6 @@ export function GeneratePage() {
     fingerprintId,
     layoutId,
     scaleSize,
-    scaleComplexity,
     mode,
     prompt,
     readModelSelection,
@@ -639,6 +612,7 @@ export function GeneratePage() {
     setTimingEntries([]);
     summonedCountRef.current = 0;
     clearRuntimeState();
+    dispatchTrace({ type: "reset" });
   }
 
   function applyScenario(id: string) {
@@ -650,7 +624,6 @@ export function GeneratePage() {
     setSurfacePlan(scenario.surfacePlan);
     setLayoutId(scenario.layoutId ?? "");
     setScaleSize(scenario.scale?.size ?? "");
-    setScaleComplexity(scenario.scale?.complexity ?? "");
     resetForScenarioChange();
     logLine("op-meta", `scenario -> ${scenario.label}`);
   }
@@ -672,9 +645,9 @@ export function GeneratePage() {
     setCurrentValidationSummary,
     setCurrentStreamHealth,
     setStatus,
-    setPreviewSnapshot: setSurfacePreviewSnapshot,
     setArtifactRevision,
     appendTimingEntry,
+    dispatchTrace,
   });
 
   const saveSurfaceEnvelope = useCallback(
@@ -754,6 +727,7 @@ export function GeneratePage() {
     setSurfacePlan,
     setCurrentEffectiveSurfacePlan,
     setCurrentSurfaceContractView,
+    dispatchTrace,
   });
 
   const utilityProvider =
@@ -779,36 +753,6 @@ export function GeneratePage() {
     ? `${statusLabel} · ${bytes.toLocaleString()} B`
     : statusLabel;
   const runtimeLabel = "Surface Document";
-  const generationPreview = useMemo(
-    () =>
-      buildGenerationPreview({
-        prompt: activeContract.prompt,
-        status,
-        statusText,
-        bytes,
-        artifactRevision,
-        rendered: surfaceReady,
-        surfacePlan: currentEffectiveSurfacePlan ?? activeContract.surfacePlan,
-        contractView: currentSurfaceContractView,
-        layout: currentLayout,
-        previewSnapshot: surfacePreviewSnapshot,
-        toolNames: activeContract.toolNames,
-      }),
-    [
-      activeContract.prompt,
-      activeContract.surfacePlan,
-      activeContract.toolNames,
-      artifactRevision,
-      bytes,
-      currentEffectiveSurfacePlan,
-      currentLayout,
-      currentSurfaceContractView,
-      status,
-      statusText,
-      surfacePreviewSnapshot,
-      surfaceReady,
-    ],
-  );
   const latestStageError = useMemo(() => {
     for (let i = logs.length - 1; i >= 0; i -= 1) {
       const entry = logs[i];
@@ -906,6 +850,7 @@ export function GeneratePage() {
 
         <GenerationStage
           prompt={prompt}
+          trace={trace}
           scenarioPicker={
             <div
               className="flex flex-wrap items-center justify-start gap-1.5"
@@ -947,13 +892,10 @@ export function GeneratePage() {
           }}
           scaleSize={scaleSize}
           onSelectScaleSize={setScaleSize}
-          scaleComplexity={scaleComplexity}
-          onSelectScaleComplexity={setScaleComplexity}
           running={running}
           onGenerate={generate}
           statusText={statusText}
           generationDisabledReason={generationDisabledReason}
-          generationPreview={generationPreview}
           stageNotice={stageNotice}
           onOpenDiagnostics={() => setDiagnosticsOpen(true)}
           surfaceRef={surfaceRef}
@@ -965,8 +907,6 @@ export function GeneratePage() {
           onSurfaceHandlerError={handleSurfaceHandlerError}
           onSurfaceRuntimeError={handleSurfaceRuntimeError}
           showWelcome={showWelcome}
-          hasRenderedArtifact={artifactRevision > 0}
-          surfaceReady={surfaceReady}
           playgroundMode={playgroundMode}
           surfaceInstanceKey={surfaceInstanceKey}
           childSurfaces={children}

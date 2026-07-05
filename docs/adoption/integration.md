@@ -23,7 +23,7 @@ See [`../spec/surface-document.md`](../spec/surface-document.md).
 ## Server sketch
 
 ```ts
-import { runSurfaceGeneration } from '@anarchitecture/summon-server';
+import { runSurfaceGeneration } from '@decentralized-design/summon-server';
 
 await runSurfaceGeneration({
   prompt,
@@ -45,10 +45,10 @@ The server owns prompt blocks, schema, validation, repair, conformance, and acce
 
 ## Client sketch
 
-React hosts use `@anarchitecture/summon-react`:
+React hosts use `@decentralized-design/summon-react`:
 
 ```tsx
-import { SummonSurface } from '@anarchitecture/summon-react';
+import { SummonSurface } from '@decentralized-design/summon-react';
 
 <SummonSurface
   stream={stream}
@@ -59,7 +59,7 @@ import { SummonSurface } from '@anarchitecture/summon-react';
 />
 ```
 
-Frameworkless hosts can use browser/host APIs from `@anarchitecture/summon` subpaths and the stream consumer documented in [`package-consumption.md`](./package-consumption.md).
+Frameworkless hosts can use browser/host APIs from `@decentralized-design/summon` subpaths and the stream consumer documented in [`package-consumption.md`](./package-consumption.md).
 
 ## Authority rule
 

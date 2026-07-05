@@ -1,6 +1,6 @@
-import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import type { ProtocolLine, SurfaceContractView, SurfacePlan } from '@anarchitecture/summon/engine';
-import type { SurfaceStreamResult } from '@anarchitecture/summon/browser';
+import type { DevtoolsEvent } from '@decentralized-design/summon/devtools';
+import type { ProtocolLine, SurfaceContractView, SurfacePlan } from '@decentralized-design/summon/engine';
+import type { SurfaceStreamResult } from '@decentralized-design/summon/browser';
 import { planText } from './surfaceHelpers.js';
 
 export type ExtraDevtoolsEvent =

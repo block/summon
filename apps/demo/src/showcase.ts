@@ -3,8 +3,8 @@ import type {
   SurfacePlan,
   SurfacePlanMode,
   SurfaceScale,
-} from '@anarchitecture/summon/engine';
-import type { ToolRegistry, SurfacePolicy } from '@anarchitecture/summon';
+} from '@decentralized-design/summon/engine';
+import type { ToolRegistry, SurfacePolicy } from '@decentralized-design/summon';
 import { createDemoToolRegistry, type DemoHandlerOptions } from './tools.js';
 
 export type Mode = SurfacePlanMode;

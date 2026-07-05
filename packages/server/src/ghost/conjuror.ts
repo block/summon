@@ -5,7 +5,7 @@ import {
 import {
   buildCatalogMenu,
   type GhostCatalog,
-} from '@anarchitecture/ghost-fingerprint/core';
+} from '@decentralized-design/ghost/core';
 import type { TextCompletionRequest } from '../types.js';
 
 /**

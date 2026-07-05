@@ -1,6 +1,6 @@
-import type { ApprovalRequest, SurfacePolicy } from '@anarchitecture/summon';
-import type { SurfaceStreamResult } from '@anarchitecture/summon/browser';
-import type { SummonLayout, SurfacePlan } from '@anarchitecture/summon/engine';
+import type { ApprovalRequest, SurfacePolicy } from '@decentralized-design/summon';
+import type { SurfaceStreamResult } from '@decentralized-design/summon/browser';
+import type { SummonLayout, SurfacePlan } from '@decentralized-design/summon/engine';
 import type { ActiveContract } from '../../showcase.js';
 
 export interface GhostRootInfo {

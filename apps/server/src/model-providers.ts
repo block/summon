@@ -1,15 +1,15 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   ContractPromptBlock,
-} from '@anarchitecture/summon/engine';
+} from '@decentralized-design/summon/engine';
 import type {
   SurfaceDocumentBundleRepairRequest,
   SurfaceDocumentBundleRequest,
   TextCompletionClient,
   TextCompletionRequest,
-} from '@anarchitecture/summon-server';
+} from '@decentralized-design/summon-server';
 
-export type { TextCompletionClient, TextCompletionRequest } from '@anarchitecture/summon-server';
+export type { TextCompletionClient, TextCompletionRequest } from '@decentralized-design/summon-server';
 
 export type ModelProviderId = 'anthropic' | 'openai' | 'gemini';
 

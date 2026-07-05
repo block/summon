@@ -3,8 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { compileSurfacePolicy } from '@anarchitecture/summon';
-import { normalizeSurfacePolicy } from '@anarchitecture/summon/engine';
+import { compileSurfacePolicy } from '@decentralized-design/summon';
+import { normalizeSurfacePolicy } from '@decentralized-design/summon/engine';
 import { allGalleryToolNames, createGalleryToolRegistry } from './tools.js';
 import { GALLERY_PRESETS } from './presets.js';
 
@@ -67,6 +67,6 @@ test('surface gallery source imports public Summon packages only', () => {
     if (entry.endsWith('.test.ts')) continue;
     const text = readFileSync(join(sourceDir, entry), 'utf8');
     assert.equal(text.includes('@summon-internal/'), false, `${entry} imports an internal package`);
-    assert.equal(/from ['"]@anarchitecture\/summon\/(host|engine\/src|browser\/src)/.test(text), false);
+    assert.equal(/from ['"]@decentralized-design\/summon\/(host|engine\/src|browser\/src)/.test(text), false);
   }
 });

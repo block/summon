@@ -4,7 +4,7 @@
 > why. The live Ghost binding code is `packages/server/src/ghost/adapter.ts`,
 > `packages/server/src/ghost/conformance.ts`, and `packages/server/src/ghost/conjuror.ts`;
 > the demo catalog remains in `apps/server/src/fingerprint-catalog.ts`. The receipt lives in
-> `buildGhostReceipt`. Pinned upstream: `@anarchitecture/ghost-fingerprint`
+> `buildGhostReceipt`. Pinned upstream: `@decentralized-design/ghost`
 > 0.19.x (the flat-corpus + haunts model).
 
 ## What changed in Ghost
@@ -32,10 +32,10 @@ author opts into pixel determinism.
 
 ## The live contracts (verified against the Ghost source)
 
-- **Library:** `@anarchitecture/ghost-fingerprint/fingerprint` →
+- **Library:** `@decentralized-design/ghost/fingerprint` →
   `resolveFingerprintPackage`, `loadFingerprintPackage` → `{ manifest,
   catalog, haunts, checks, invalid, invalidHaunts }`.
-  `@anarchitecture/ghost-fingerprint/core` → `buildCatalogMenu`,
+  `@decentralized-design/ghost/core` → `buildCatalogMenu`,
   `assembleCatalog`, catalog/check types.
 - **`GhostCatalog`** = `{ nodes: Map<id, GhostCatalogNode> }` — a flat map.
   **`GhostCatalogNode`** = `{ id, kind?, slug, description?, materials?,
@@ -59,7 +59,7 @@ author opts into pixel determinism.
 
 Unchanged from the graph era, and now cheaper: Summon consumes Ghost as a
 library — typed catalog/check values, no subprocess per generation, version
-pinned via a packed tarball (`vendor/anarchitecture-ghost-fingerprint-*.tgz`).
+pinned via a packed tarball (`vendor/decentralized-design-ghost-*.tgz`).
 The CLI's `gather`/`pull` are the reference behavior the adapter mirrors.
 
 One BYOA note: `gather`/`pull` through the CLI append to the fingerprint's
@@ -183,8 +183,8 @@ Ordered, each independently verifiable:
    `ghost validate` — all 8 bundles passed with 0 errors. Also surfaced one
    latent YAML bug (unquoted `description` with a nested-mapping colon in
    `technical-contrast/drafting-marks.md`).
-2. ✅ **Dependency repointed** — `@anarchitecture/ghost` (graph-era `next`
-   snapshot) → `@anarchitecture/ghost-fingerprint` 0.19.0 packed tarball.
+2. ✅ **Dependency repointed** — `@decentralized-design/ghost` (graph-era `next`
+   snapshot) → `@decentralized-design/ghost` 0.19.0 packed tarball.
 3. ✅ **Adapter rewritten** — `pullCorpus`/`renderCorpusPrompt` replace
    `resolveGraphSlice`/`renderSlicePrompt`; anchor selection over
    `buildCatalogMenu`; `GHOST_FRONT_DOOR_ID = 'index'` replaces

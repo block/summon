@@ -24,7 +24,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anarchitecture/ghost-fingerprint": "file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz",
+    "@decentralized-design/ghost": "file:../../vendor/decentralized-design-ghost-0.19.0.tgz",
     "@summon-internal/engine": "workspace:*",
     "typescript": "^5.4.0"
   },

@@ -3,13 +3,11 @@ import {
   useRef,
   type Dispatch,
   type MutableRefObject,
-  type SetStateAction,
 } from 'react';
 import {
   consumeSurfaceStream,
-  type SurfacePreviewSnapshot,
   type SurfaceStreamContext,
-} from '@anarchitecture/summon/browser';
+} from '@decentralized-design/summon/browser';
 import {
   normalizeSurfacePlan,
   buildFingerprintSteeringPayload,
@@ -17,12 +15,12 @@ import {
   type SurfaceContractView,
   type SurfacePlan,
   type ValidationContext,
-} from '@anarchitecture/summon/engine';
-import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import type { SummonSurfaceHandle } from '@anarchitecture/summon-react';
+} from '@decentralized-design/summon/engine';
+import type { DevtoolsEvent } from '@decentralized-design/summon/devtools';
+import type { SummonSurfaceHandle } from '@decentralized-design/summon-react';
 import type { Mode } from '../../../showcase.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
-import { reduceSurfacePreviewSnapshot } from '../generationPreview.js';
+import { parseConformanceChecks, parseGatheredNodes, parseOfferedChecks, type TraceAction } from '../generationTrace.js';
 import {
   agentWardRequestFor,
   agentGoalText,
@@ -72,9 +70,9 @@ export function useSurfaceStream({
   setCurrentValidationSummary,
   setCurrentStreamHealth,
   setStatus,
-  setPreviewSnapshot,
   setArtifactRevision,
   appendTimingEntry,
+  dispatchTrace,
 }: {
   surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
   modeRef: MutableRefObject<Mode>;
@@ -92,9 +90,9 @@ export function useSurfaceStream({
   setCurrentValidationSummary: (value: string | null) => void;
   setCurrentStreamHealth: (value: string | null) => void;
   setStatus: (value: string) => void;
-  setPreviewSnapshot: Dispatch<SetStateAction<SurfacePreviewSnapshot | null>>;
   setArtifactRevision: (value: number) => void;
   appendTimingEntry: (entry: Omit<TimingEntry, 'id' | 'at'> & { at?: number }) => void;
+  dispatchTrace: Dispatch<TraceAction>;
 }) {
   const applyLineTo = useCallback((line: ProtocolLine, context: SurfaceStreamContext) => {
     if (line.op === 'meta' && line.path === '/error') {
@@ -433,11 +431,14 @@ export function useSurfaceStream({
       byteTotal += count;
       metrics.setBytes(byteTotal);
       setBytes(byteTotal);
+      dispatchTrace({ type: 'bytes', total: byteTotal });
     }), {
       mode: () => modeRef.current,
       shouldApplyLine: () => 'apply',
       onLine: (line, context) => {
-        appendDevEvent({ kind: 'server-line', at: Date.now(), line });
+        const at = Date.now();
+        appendDevEvent({ kind: 'server-line', at, line });
+        dispatchTrace({ type: 'line', line, at });
         metrics.observeProtocolLine(line, elapsedSinceStart());
         noteFirstPaintTiming();
         if (line.op !== 'meta') applyLineTo(line, context);
@@ -456,10 +457,8 @@ export function useSurfaceStream({
       onSurfaceEvent: (event) => {
         metrics.observeSurfaceEvent(event, elapsedSinceStart());
         noteFirstPaintTiming();
+        // Drive the host-owned drafting surface inside SummonSurface.
         const appliedSnapshot = surfaceRef.current?.applyPreviewEvent(event) ?? null;
-        setPreviewSnapshot((snapshot) =>
-          appliedSnapshot ?? reduceSurfacePreviewSnapshot(snapshot, event),
-        );
         if (!appliedSnapshot) {
           appendDevEvent({
             kind: 'surface-preview-event',
@@ -480,6 +479,7 @@ export function useSurfaceStream({
         logLine('raw', `. ${raw.slice(0, 120)}`);
       },
       onGraph: (snapshot) => {
+        dispatchTrace({ type: 'stream-graph', health: snapshot.health, artifacts: snapshot.artifacts });
         appendDevEvent({
           kind: 'stream-graph',
           at: Date.now(),
@@ -516,7 +516,7 @@ export function useSurfaceStream({
     logLine,
     modeRef,
     setBytes,
-    setPreviewSnapshot,
+    dispatchTrace,
     surfaceRef,
   ]);
 }
@@ -538,60 +538,6 @@ function parseTimingEntry(value: unknown): Omit<TimingEntry, 'id' | 'at'> | null
     ...(durationMs === undefined ? {} : { durationMs }),
     source,
   };
-}
-
-interface ConformanceCheckSummary {
-  name: string;
-  severity: string;
-  verdict: string;
-  reason?: string;
-}
-
-function parseConformanceChecks(value: unknown): ConformanceCheckSummary[] {
-  if (!Array.isArray(value)) return [];
-  const checks: ConformanceCheckSummary[] = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object') continue;
-    const item = entry as Record<string, unknown>;
-    if (typeof item.name !== 'string') continue;
-    checks.push({
-      name: item.name,
-      severity: typeof item.severity === 'string' ? item.severity : 'unknown',
-      verdict: typeof item.verdict === 'string' ? item.verdict : 'unknown',
-      ...(typeof item.reason === 'string' && item.reason ? { reason: item.reason } : {}),
-    });
-  }
-  return checks;
-}
-
-function parseGatheredNodes(value: unknown): Array<{ id: string; reason?: string }> {
-  if (!Array.isArray(value)) return [];
-  const nodes: Array<{ id: string; reason?: string }> = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object') continue;
-    const item = entry as Record<string, unknown>;
-    if (typeof item.id !== 'string') continue;
-    nodes.push({
-      id: item.id,
-      ...(typeof item.reason === 'string' ? { reason: item.reason } : {}),
-    });
-  }
-  return nodes;
-}
-
-function parseOfferedChecks(value: unknown): Array<{ name: string; severity: string }> {
-  if (!Array.isArray(value)) return [];
-  const checks: Array<{ name: string; severity: string }> = [];
-  for (const entry of value) {
-    if (!entry || typeof entry !== 'object') continue;
-    const item = entry as Record<string, unknown>;
-    if (typeof item.name !== 'string') continue;
-    checks.push({
-      name: item.name,
-      severity: typeof item.severity === 'string' ? item.severity : 'unknown',
-    });
-  }
-  return checks;
 }
 
 function roundMs(value: number): number {

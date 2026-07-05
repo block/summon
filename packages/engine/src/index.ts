@@ -76,7 +76,6 @@ export type {
   SummonLayoutSlot,
   SurfaceScale,
   SurfaceSize,
-  SurfaceComplexity,
   ToolSpec,
   DataResourceSpec,
   ToolPattern,

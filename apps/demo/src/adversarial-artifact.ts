@@ -1,4 +1,4 @@
-import type { SurfaceDocumentArtifact } from '@anarchitecture/summon/engine';
+import type { SurfaceDocumentArtifact } from '@decentralized-design/summon/engine';
 
 const adversarialMain = `
 async function report(test, status, detail = "") {

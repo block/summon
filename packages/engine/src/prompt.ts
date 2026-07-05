@@ -40,72 +40,42 @@ export interface SummonLayout {
 /** How much room the calling medium offers. Owned by the medium, not Ghost. */
 export type SurfaceSize = 'small' | 'medium' | 'large';
 
-/** How much functionality/detail to build inside that room. */
-export type SurfaceComplexity = 'simple' | 'moderate' | 'rich';
-
 /**
- * Surface scale — the spatial + functional budget the *calling medium* offers
- * (a card, a sidecar, a banner, an email). Advisory: it steers the model, it
- * does not change validation limits. Both fields optional; `complexity`
- * derives from `size` when omitted. A future SurfaceTemplate is the natural
- * owner of this field.
+ * Surface scale — the spatial extent the *calling medium* offers (a card,
+ * sidecar, banner, email, or page). Advisory: it steers the model by naming
+ * the available room; it does not change validation limits or dictate the
+ * surface's composition, density, structure, or amount of content.
  */
 export interface SurfaceScale {
   size?: SurfaceSize;
-  complexity?: SurfaceComplexity;
 }
 
 export const DEFAULT_SURFACE_SIZE: SurfaceSize = 'medium';
 
-const COMPLEXITY_FROM_SIZE: Record<SurfaceSize, SurfaceComplexity> = {
-  small: 'simple',
-  medium: 'moderate',
-  large: 'rich',
-};
-
-export function resolveSurfaceScale(
-  scale?: SurfaceScale | null,
-): { size: SurfaceSize; complexity: SurfaceComplexity } {
+export function resolveSurfaceScale(scale?: SurfaceScale | null): { size: SurfaceSize } {
   const size = scale?.size ?? DEFAULT_SURFACE_SIZE;
-  const complexity = scale?.complexity ?? COMPLEXITY_FROM_SIZE[size];
-  return { size, complexity };
+  return { size };
 }
 
 export function buildScaleBlock(scale?: SurfaceScale | null): string {
-  const { size, complexity } = resolveSurfaceScale(scale);
+  const { size } = resolveSurfaceScale(scale);
 
   const sizeLine: Record<SurfaceSize, string> = {
     small:
-      'The medium offers little room. Build ONE compact, contained surface — a single card-sized region. Do NOT add multi-column layouts, side panels, headers/footers, or full-page framing.',
+      'The medium offers a compact, card-sized region. Keep the spatial frame contained; do not add multi-column layouts, side panels, or full-page framing.',
     medium:
-      'The medium offers room for one complete, self-contained surface with a clear primary region and, at most, light supporting structure.',
+      'The medium offers a panel-sized region with room for one complete, self-contained surface.',
     large:
-      'The medium offers generous room. You MAY build a full, multi-region surface with several distinct sections.',
-  };
-  const complexityLine: Record<SurfaceComplexity, string> = {
-    simple:
-      'Build exactly ONE primary idea. OMIT secondary sections, optional controls, empty/loading states, and decorative embellishment. Prefer the fewest elements that fully express the primary idea. If in doubt, leave it out.',
-    moderate:
-      'Build the primary content plus a reasonable amount of supporting detail and the controls a user would actually need. Avoid speculative or rarely-used affordances.',
-    rich:
-      'Develop the content fully: supporting sections, detail, and the full set of controls that make the surface complete.',
+      'The medium offers a full-page region with room for multiple spatial regions if the fingerprint and request call for them.',
   };
 
-  const elementBudget: Record<SurfaceComplexity, string> = {
-    simple: 'Target roughly 3–7 primary elements total.',
-    moderate: 'Target roughly 8–15 primary elements total.',
-    rich: 'No element budget — build what the content genuinely requires.',
-  };
+  return `## Surface scale — available physical space
 
-  return `## Surface scale — hard constraint for this generation
-
-Treat this as a binding constraint on HOW MUCH surface to build, not a suggestion. It sets the amount and structure of content; the Ghost fingerprint still owns all visual language, density, and tone. When scale and your default instinct conflict, scale wins.
+This block describes the room offered by the calling medium. It is a factual spatial frame, not a content budget or design directive.
 
 - Size \`${size}\`: ${sizeLine[size]}
-- Complexity \`${complexity}\`: ${complexityLine[complexity]}
-- Budget: ${elementBudget[complexity]}
 
-Do not exceed this scale to "improve" the result. A smaller, sharper surface that respects the budget is the correct answer — adding extra sections, controls, or regions beyond the budget is a failure to follow instructions.`;
+Within this room, the Ghost fingerprint decides how much to build — its composition, density, and structure govern; this block only describes the physical space available.`;
 }
 
 export const SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS = `You generate self-contained Surface Document bundles for the Summon rendering engine.

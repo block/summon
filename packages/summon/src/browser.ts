@@ -5,6 +5,7 @@ export {
 export type {
   SummonSurfaceArtifact,
   SummonSurfaceHandle,
+  SummonSurfaceLifecycle,
   SummonSurfaceOptions,
   SurfacePreviewNode,
   SurfacePreviewSnapshot,

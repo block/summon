@@ -1,16 +1,17 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import type { SummonSurfaceHandle } from '@anarchitecture/summon-react';
-import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
+import type { SummonSurfaceHandle } from '@decentralized-design/summon-react';
+import type { SurfaceEnvelope } from '@decentralized-design/summon/envelope';
 import {
   isSurfaceDocumentArtifact,
   type SummonLayout,
   type SurfaceContractView,
   type SurfacePlan,
-} from '@anarchitecture/summon/engine';
-import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
+} from '@decentralized-design/summon/engine';
+import type { DevtoolsEvent } from '@decentralized-design/summon/devtools';
+import defaultTokensSource from '@decentralized-design/summon/tokens.css?raw';
 import type { ActiveContract, Mode } from '../../../showcase.js';
 import type { ExtraDevtoolsEvent } from '../devtools.js';
+import type { TraceAction } from '../generationTrace.js';
 import type { ChildSurfaceModel, LogEntry, StreamOptions, StreamResult, TimingEntry } from '../types.js';
 
 export function useGenerationRuns({
@@ -51,6 +52,7 @@ export function useGenerationRuns({
   setSurfacePlan,
   setCurrentEffectiveSurfacePlan,
   setCurrentSurfaceContractView,
+  dispatchTrace,
 }: {
   surfaceRef: MutableRefObject<SummonSurfaceHandle | null>;
   abortRef: MutableRefObject<AbortController | null>;
@@ -89,6 +91,7 @@ export function useGenerationRuns({
   setSurfacePlan: Dispatch<SetStateAction<SurfacePlan>>;
   setCurrentEffectiveSurfacePlan: Dispatch<SetStateAction<SurfacePlan | null>>;
   setCurrentSurfaceContractView: Dispatch<SetStateAction<SurfaceContractView | null>>;
+  dispatchTrace: Dispatch<TraceAction>;
 }) {
   const generate = useCallback(async (runPrompt: string) => {
     abortRef.current?.abort();
@@ -109,6 +112,7 @@ export function useGenerationRuns({
     setRunning(true);
     setStatus('streaming');
     setBytes(0);
+    dispatchTrace({ type: 'reset' });
     appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'start' });
 
     try {
@@ -126,15 +130,18 @@ export function useGenerationRuns({
       setStatus('done');
       saveSurfaceEnvelope(runPrompt, result);
       appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: true });
+      dispatchTrace({ type: 'end', ok: true });
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
         setStatus('aborted');
         appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: false });
+        dispatchTrace({ type: 'end', ok: false, error: 'Generation aborted' });
       } else {
         const message = err instanceof Error ? err.message : String(err);
         logLine('op-error', `stream error: ${message}`);
         setStatus('error');
         appendDevEvent({ kind: 'stream-lifecycle', at: Date.now(), phase: 'end', ok: false });
+        dispatchTrace({ type: 'end', ok: false, error: message });
       }
     } finally {
       setRunning(false);
@@ -154,6 +161,7 @@ export function useGenerationRuns({
     readLayout,
     saveSurfaceEnvelope,
     setBytes,
+    dispatchTrace,
     setChildren,
     setCurrentStreamHealth,
     setCurrentValidationSummary,
@@ -176,6 +184,7 @@ export function useGenerationRuns({
     setLogs([]);
     setDevEvents([]);
     setTimingEntries([]);
+    dispatchTrace({ type: 'reset' });
     const artifact = findRenderableArtifact(envelope.protocolLines);
     if (!artifact) {
       setStatus('replay error');
@@ -212,6 +221,7 @@ export function useGenerationRuns({
     appendDevEvent,
     artifactRevisionRef,
     clearApprovals,
+    dispatchTrace,
     logLine,
     modeRef,
     setActiveTokensSourceOverride,

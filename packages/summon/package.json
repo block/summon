@@ -1,7 +1,7 @@
 {
-  "name": "@anarchitecture/summon",
+  "name": "@decentralized-design/summon",
   "version": "0.3.0",
-  "description": "Sandboxed generative UI runtime, protocol, policy bridge, and browser host primitives",
+  "description": "Generative UI with a design authority: sandboxed runtime, protocol, policy bridge, and browser host primitives",
   "license": "Apache-2.0",
   "author": "Block, Inc.",
   "repository": {

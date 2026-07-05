@@ -210,6 +210,47 @@ The host owns credentials, side effects, state, and authorization. Tool calls ar
 }
 ```
 
+## Generation-time presentation
+
+A Surface Document is **inert until accepted**: no model-authored HTML, CSS, or
+JS is painted before the full bundle has passed validation. This is by design —
+partial artifacts have not crossed the trust boundary and must not reach the
+render path.
+
+What the user sees during generation is therefore a **host-owned drafting
+surface**. It is part of the contract, not decoration:
+
+1. **Fingerprint-derived.** The drafting surface is styled from the same Ghost
+   token source (`tokensSource`) as the final artifact — background, text
+   color, typography, spacing rhythm, and motion. A generic loading treatment
+   that ignores the fingerprint is a fidelity violation in the highest-salience
+   window of the surface's lifetime.
+2. **Host-owned.** The drafting surface is built entirely from host code and
+   validated stream metadata (`surface.status` events, `/surface-policy`,
+   `/agent-goal`). Generated output never contributes to it.
+3. **Re-enterable.** Generation is not linear. When a bundle is blocked and a
+   repair pass begins, the host returns to the drafting state rather than
+   freezing or showing raw failure. The drafting surface is the fallback for
+   every non-terminal failure of a later presentation layer.
+4. **Continuous container.** Drafting and final render occupy the same surface
+   container, with a host-owned transition between them. Later presentation
+   layers (e.g. progressive sanitized structure preview) slot in between
+   drafting and final render without changing this contract.
+
+The render lifecycle is:
+
+```txt
+drafting -> rendering -> rendered
+   ^            |
+   +--(blocked / repair)
+```
+
+Streaming of partial artifact content before acceptance is an open extension
+point. Any future streaming preview MUST route partial content through the
+same sanitizer pipeline as accepted artifacts and MUST be visually marked as
+provisional and retractable. Nothing in `v1` permits painting unvalidated
+model output.
+
 ## Implementation map
 
 | Contract area | Source |

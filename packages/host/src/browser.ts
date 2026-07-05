@@ -2,6 +2,7 @@ export { mountSummonSurface } from './summon-surface.js';
 export type {
   SummonSurfaceArtifact,
   SummonSurfaceHandle,
+  SummonSurfaceLifecycle,
   SummonSurfaceOptions,
   SurfacePreviewNode,
   SurfacePreviewSnapshot,

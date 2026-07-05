@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
+import type { DevtoolsEvent } from '@decentralized-design/summon/devtools';
+import type { SurfaceEnvelope } from '@decentralized-design/summon/envelope';
 import { LogView } from '../../../components/chrome.js';
 import { buttonClass, devtoolsEventKindClass, logToneClass, pageWidthClass, panelClass } from '../../../components/ui.js';
 import { cn } from '../../../lib/cn.js';

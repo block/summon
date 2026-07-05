@@ -318,6 +318,54 @@ test('generate page renders a mocked Surface Document artifact through the Summo
   expect(captured?.surfacePlan).toBeUndefined();
 });
 
+test('generation shows the fingerprint-derived drafting surface until the artifact renders', async ({ page }) => {
+  // Slow the stream so the drafting window is observable: status events flush
+  // immediately, the artifact arrives after a delay.
+  await page.route('**/api/generate', async (route) => {
+    const statusLines = jsonl([
+      { op: 'meta', path: '/ghost-token-source', value: { kind: 'css', source: 'test', css: ':root { --color-accent: #ff2244; --color-bg: #10131c; --color-text: #e8ecf4; }' } },
+      { op: 'meta', path: '/surface-plan', value: hostSearchPlan },
+      { op: 'event', path: '/surface', value: { type: 'surface.status', status: 'drafting', text: 'Composing Surface Document bundle' } },
+    ]);
+    const artifactLines = jsonl([
+      { op: 'event', path: '/surface', value: { type: 'surface.status', status: 'rendering', text: 'Rendering accepted Surface Document artifact' } },
+      surfaceDocumentArtifact({
+        html: '<main id="drafting-probe"><h1>Done</h1></main>',
+        css: '#drafting-probe { color: var(--color-text, #111); }',
+      }),
+      streamGraphSummary(),
+    ]);
+    // Playwright's route.fulfill cannot stream, so serve status lines and the
+    // artifact in one body but assert drafting via the pre-navigation state:
+    // the drafting surface must exist before #go is clicked (mount-time paint)
+    // and depart once the artifact renders.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    await route.fulfill({ status: 200, contentType: 'text/plain', body: statusLines + artifactLines });
+  });
+
+  await page.goto('/generate');
+
+  // Mount-time drafting surface, before any generation begins.
+  const drafting = page.locator('#sandbox [data-summon-preview-root]');
+  await expect(drafting).toBeAttached();
+  await expect(drafting).toHaveClass(/summon-drafting/);
+  await expect(drafting.locator('.summon-drafting__mark')).toBeAttached();
+
+  await page.locator('#go').click();
+
+  // The sandbox frame is visible during generation (no app-level overlay
+  // occludes it), and the drafting surface is still the live layer.
+  await expect(page.locator('#welcome')).toBeHidden();
+  await expect(page.locator('[data-summon-host-loader]')).toHaveCount(0);
+  await expect(drafting).toBeAttached();
+
+  // After the artifact renders, the drafting surface departs.
+  const mountedSurface = page.locator('#sandbox .summon-surface-document-host');
+  await expect(mountedSurface).toHaveCount(1, { timeout: 20_000 });
+  await expect.poll(async () => mountedSurface.evaluate((host) => host.shadowRoot?.querySelector('#drafting-probe')?.textContent ?? '')).toContain('Done');
+  await expect(drafting).toHaveCount(0);
+});
+
 test('generate page surfaces syntax validation blocks instead of mounting malformed source', async ({ page }) => {
   const malformedIssue = {
     source: 'protocol',

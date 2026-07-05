@@ -6,11 +6,11 @@ const rootDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url
 
 const packageAliases = {
   summon: 'summon',
-  '@anarchitecture/summon': 'summon',
+  '@decentralized-design/summon': 'summon',
   'summon-server': 'summon-server',
-  '@anarchitecture/summon-server': 'summon-server',
+  '@decentralized-design/summon-server': 'summon-server',
   'summon-react': 'summon-react',
-  '@anarchitecture/summon-react': 'summon-react',
+  '@decentralized-design/summon-react': 'summon-react',
 };
 
 const requested = process.argv.slice(2).map((name) => packageAliases[name] ?? name);
@@ -25,7 +25,6 @@ const coreExports = {
       './_internal/engine/index.js': [
           'compileSurfaceContractView',
           'compileSurfacePolicy',
-          'normalizeSurfacePolicy',
           'surfaceContractViewFromCompiledPolicy',
           'SURFACE_PERSISTENCE_VALUES',
           'SURFACE_PURPOSE_VALUES',
@@ -60,7 +59,6 @@ const coreExports = {
         'CompiledSurfacePolicy',
         'CompileSurfacePolicyOptions',
         'ToolSpec',
-        'NormalizedSurfacePolicy',
         'SurfaceContractLayout',
         'SurfaceContractTool',
         'SurfaceContractView',
@@ -259,6 +257,7 @@ const coreExports = {
         'CreateSurfaceEnvelopeInput',
         'DataResourceDefinition',
         'SummonSurfaceHandle',
+        'SummonSurfaceLifecycle',
         'SummonSurfaceOptions',
         'Schema',
         'SchemaParseFailure',
@@ -295,6 +294,7 @@ const coreExports = {
         './_internal/host/browser.js': [
           'SummonSurfaceArtifact',
         'SummonSurfaceHandle',
+        'SummonSurfaceLifecycle',
         'SummonSurfaceOptions',
         'SurfacePreviewNode',
         'SurfacePreviewSnapshot',
@@ -643,7 +643,7 @@ async function buildServer() {
   const distDir = resolveRoot('packages/summon-server/dist');
   await rm(distDir, { recursive: true, force: true });
   await copyDistTree(resolveRoot('packages/server/dist'), join(distDir, '_internal', 'server'), [
-    ['@summon-internal/engine', '@anarchitecture/summon/engine'],
+    ['@summon-internal/engine', '@decentralized-design/summon/engine'],
   ]);
   await writeWrappers(distDir, serverExports);
 }
@@ -653,11 +653,11 @@ async function buildReact() {
   const distDir = resolveRoot('packages/summon-react/dist');
   await rm(distDir, { recursive: true, force: true });
   await copyDistTree(resolveRoot('packages/react/dist'), join(distDir, '_internal', 'react'), [
-    ['@summon-internal/sandbox-runtime/assets', '@anarchitecture/summon/assets'],
-    ['@summon-internal/host/envelope', '@anarchitecture/summon/envelope'],
-    ['@summon-internal/devtools', '@anarchitecture/summon/devtools'],
-    ['@summon-internal/engine', '@anarchitecture/summon/engine'],
-    ['@summon-internal/host', '@anarchitecture/summon/host'],
+    ['@summon-internal/sandbox-runtime/assets', '@decentralized-design/summon/assets'],
+    ['@summon-internal/host/envelope', '@decentralized-design/summon/envelope'],
+    ['@summon-internal/devtools', '@decentralized-design/summon/devtools'],
+    ['@summon-internal/engine', '@decentralized-design/summon/engine'],
+    ['@summon-internal/host', '@decentralized-design/summon/host'],
   ]);
   await writeWrappers(distDir, reactExports);
 }

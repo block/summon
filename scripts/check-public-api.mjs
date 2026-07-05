@@ -20,7 +20,6 @@ const expectedRootExports = [
   'defineToolHandler',
   'defineWorkerAction',
   'defineWorkerResource',
-  'normalizeSurfacePolicy',
   'surfaceContractViewFromCompiledPolicy',
 ].sort();
 
@@ -77,18 +76,18 @@ function assertHas(name, mod, exports) {
 }
 
 const core = await importDist('summon');
-assertExactExports('@anarchitecture/summon', core, expectedRootExports);
+assertExactExports('@decentralized-design/summon', core, expectedRootExports);
 for (const forbidden of forbiddenRootExports) {
   if (forbidden in core) {
-    throw new Error(`@anarchitecture/summon root must not export ${forbidden}`);
+    throw new Error(`@decentralized-design/summon root must not export ${forbidden}`);
   }
 }
 
-assertHas('@anarchitecture/summon/browser', await importDist('summon', 'browser.js'), [
+assertHas('@decentralized-design/summon/browser', await importDist('summon', 'browser.js'), [
   'consumeSurfaceStream',
   'mountSummonSurface',
 ]);
-assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js'), [
+assertHas('@decentralized-design/summon/engine', await importDist('summon', 'engine.js'), [
   'buildToolsBlock',
   'buildSurfaceContractBlock',
   'compileSurfaceContractView',
@@ -97,32 +96,32 @@ assertHas('@anarchitecture/summon/engine', await importDist('summon', 'engine.js
   'surfaceContractViewFromCompiledPolicy',
   'StreamGraph',
 ]);
-assertHas('@anarchitecture/summon/host', await importDist('summon', 'host.js'), [
+assertHas('@decentralized-design/summon/host', await importDist('summon', 'host.js'), [
   'createToolRegistry',
   'PolicyEngine',
   'mountSummonSurface',
 ]);
-assertHas('@anarchitecture/summon/policy', await importDist('summon', 'policy.js'), [
+assertHas('@decentralized-design/summon/policy', await importDist('summon', 'policy.js'), [
   'PolicyEngine',
 ]);
-assertHas('@anarchitecture/summon/envelope', await importDist('summon', 'envelope.js'), [
+assertHas('@decentralized-design/summon/envelope', await importDist('summon', 'envelope.js'), [
   'createSurfaceEnvelope',
 ]);
 const assets = await importDist('summon', 'assets.js');
 if (typeof assets.tokensSource !== 'string') {
-  throw new Error('@anarchitecture/summon/assets must export tokensSource string');
+  throw new Error('@decentralized-design/summon/assets must export tokensSource string');
 }
-assertHas('@anarchitecture/summon/devtools', await importDist('summon', 'devtools.js'), [
+assertHas('@decentralized-design/summon/devtools', await importDist('summon', 'devtools.js'), [
   'createEventStore',
 ]);
 
 assertExactExports(
-  '@anarchitecture/summon-server',
+  '@decentralized-design/summon-server',
   await importDist('summon-server'),
   expectedServerExports,
 );
 assertExactExports(
-  '@anarchitecture/summon-react',
+  '@decentralized-design/summon-react',
   await importDist('summon-react'),
   expectedReactExports,
 );
@@ -130,7 +129,7 @@ assertExactExports(
 const manifest = JSON.parse(await readFile(join(rootDir, 'packages/summon/package.json'), 'utf8'));
 for (const subpath of ['./engine', './host']) {
   if (!manifest.exports?.[subpath]) {
-    throw new Error(`@anarchitecture/summon package.json must export ${subpath}`);
+    throw new Error(`@decentralized-design/summon package.json must export ${subpath}`);
   }
 }
 

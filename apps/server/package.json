@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter \"@summon-internal/server...\" build && pnpm --filter @anarchitecture/summon-server build && tsx watch src/main.ts",
+    "dev": "pnpm --filter \"@summon-internal/server...\" build && pnpm --filter @decentralized-design/summon-server build && tsx watch src/main.ts",
     "start": "tsx src/main.ts",
     "test": "tsx --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
@@ -13,11 +13,11 @@
     "@anthropic-ai/sdk": "^0.88.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "@anarchitecture/summon": "workspace:*",
-    "@anarchitecture/summon-server": "workspace:*",
+    "@decentralized-design/summon": "workspace:*",
+    "@decentralized-design/summon-server": "workspace:*",
     "@summon-internal/engine": "workspace:*",
     "yaml": "^2.8.3",
-    "@anarchitecture/ghost-fingerprint": "file:../../vendor/anarchitecture-ghost-fingerprint-0.19.0.tgz"
+    "@decentralized-design/ghost": "file:../../vendor/decentralized-design-ghost-0.19.0.tgz"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

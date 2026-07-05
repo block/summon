@@ -1,4 +1,4 @@
-import type { GhostFingerprintEntry } from '@anarchitecture/summon-server/ghost';
+import type { GhostFingerprintEntry } from '@decentralized-design/summon-server/ghost';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

@@ -1,22 +1,23 @@
-import type { ToolRegistry } from '@anarchitecture/summon';
+import type { ToolRegistry } from '@decentralized-design/summon';
 import {
   isSurfaceDocumentArtifact,
   type ArtifactLine,
   type SurfaceDocumentArtifact,
   type SurfaceEvent,
   type ValidationTool,
-} from '@anarchitecture/summon/engine';
+} from '@decentralized-design/summon/engine';
 import {
   mountSummonSurface,
   type SummonSurfaceHandle as MountedSummonSurfaceHandle,
+  type SummonSurfaceLifecycle,
   type SurfacePreviewSnapshot,
-} from '@anarchitecture/summon/browser';
-import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
-import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
-import { PolicyEngine } from '@anarchitecture/summon/policy';
+} from '@decentralized-design/summon/browser';
+import { createEventStore, type DevtoolsEvent } from '@decentralized-design/summon/devtools';
+import type { SurfaceEnvelope } from '@decentralized-design/summon/envelope';
+import { PolicyEngine } from '@decentralized-design/summon/policy';
 import {
   tokensSource as defaultTokensSource,
-} from '@anarchitecture/summon/assets';
+} from '@decentralized-design/summon/assets';
 import {
   createElement,
   forwardRef,
@@ -55,6 +56,8 @@ export interface SummonSurfaceHandle {
   renderArtifact(artifact: SummonRenderableArtifact): void;
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot | null;
+  /** Host-owned render lifecycle: 'preview' | 'rendering' | 'rendered' | 'failed'. */
+  lifecycle(): SummonSurfaceLifecycle | null;
 }
 
 export type SummonRenderableArtifact = SurfaceDocumentArtifact;
@@ -84,6 +87,9 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     },
     applyPreviewEvent(event: SurfaceEvent) {
       return handleRef.current?.applyPreviewEvent(event) ?? null;
+    },
+    lifecycle() {
+      return handleRef.current?.lifecycle() ?? null;
     },
   }), []);
 

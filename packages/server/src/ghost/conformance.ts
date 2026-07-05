@@ -1,4 +1,4 @@
-import type { GhostCatalog } from '@anarchitecture/ghost-fingerprint/core';
+import type { GhostCatalog } from '@decentralized-design/ghost/core';
 import type { GhostLoadedCheck } from './adapter.js';
 import type { TextCompletionRequest } from '../types.js';
 

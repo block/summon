@@ -1,4 +1,4 @@
-import type { ApprovalDecision } from '@anarchitecture/summon';
+import type { ApprovalDecision } from '@decentralized-design/summon';
 import { Button } from '../../../components/ui.js';
 import { formatApprovalDetails } from '../surfaceHelpers.js';
 import type { ApprovalCard } from '../types.js';

@@ -12,6 +12,12 @@ is a typed, observable tool call. And generation is a contract: output is
 verified against the fingerprint that requested it, and returned with a verdict
 and receipt.
 
+The scope is the thesis. Decentralized design moves the brand out of a few
+heads and a few tucked-away frames into a packet of authority that travels to
+wherever work ships. You author that authority in Ghost. Summon makes generated
+surfaces answer to it, at the rendering terminus where declared direction hits
+a screen and the loop closes.
+
 See [`docs/positioning.md`](./docs/positioning.md) for the thesis and
 [`docs/roadmap.md`](./docs/roadmap.md) for the build order.
 
@@ -47,9 +53,9 @@ stable release.
 The public package boundary is:
 
 ```txt
-@anarchitecture/summon
-@anarchitecture/summon-server
-@anarchitecture/summon-react
+@decentralized-design/summon
+@decentralized-design/summon-server
+@decentralized-design/summon-react
 ```
 
 ## Fingerprint-first path
@@ -145,14 +151,14 @@ pnpm dev:demos
 
 ## Public Packages
 
-- `@anarchitecture/summon` - curated host-authoring helpers, surface config
+- `@decentralized-design/summon` - curated host-authoring helpers, surface config
   helpers, and explicit subpaths for advanced browser, engine, host, policy,
   envelope, assets, Devtools, and token CSS APIs.
-- `@anarchitecture/summon-server` - provider-neutral generation lifecycle,
+- `@decentralized-design/summon-server` - provider-neutral generation lifecycle,
   runtime validation, and model-provider interfaces. The Ghost
   verdict/receipt/conformance pipeline ships from the `/ghost` subpath and
-  needs `@anarchitecture/ghost-fingerprint` as a peer dependency.
-- `@anarchitecture/summon-react` - `SummonSurface` React adapter for inline
+  needs `@decentralized-design/ghost` as a peer dependency.
+- `@decentralized-design/summon-react` - `SummonSurface` React adapter for inline
   Summon surfaces and replay envelopes. `react` and `react-dom` are peer dependencies.
 
 ## Workspace Map

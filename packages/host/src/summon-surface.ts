@@ -49,6 +49,8 @@ export interface SurfacePreviewSnapshot {
   finalized: boolean;
 }
 
+export type SummonSurfaceLifecycle = 'preview' | 'rendering' | 'rendered' | 'failed';
+
 export interface SummonSurfaceHandle {
   surfaceId: string;
   root: HTMLElement;
@@ -56,6 +58,8 @@ export interface SummonSurfaceHandle {
   pushState(state: Record<string, unknown>): void;
   applyPreviewEvent(event: SurfaceEvent): SurfacePreviewSnapshot;
   previewSnapshot(): SurfacePreviewSnapshot;
+  /** Host-owned render lifecycle: drafting preview, artifact mounting, rendered, or failed. */
+  lifecycle(): SummonSurfaceLifecycle;
   dispose(): void;
 }
 
@@ -218,10 +222,14 @@ export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurface
   const renderSurfaceDocumentArtifact = (artifact: SurfaceDocumentArtifact, revision: number) => {
     teardownVmRuntime();
     renderState = 'rendering';
-    clearRuntimeChildren(root);
+    // Keep the drafting surface in place during the async VM mount so the
+    // handoff is drafting -> rendered with no blank frame. Everything else
+    // from a previous render is torn down now.
+    clearRuntimeChildren(root, { keepPreview: true });
 
     const shadowHost = document.createElement('div');
     shadowHost.className = 'summon-surface-document-host';
+    shadowHost.dataset.summonEntering = 'true';
     shadowHost.setAttribute('part', 'surface-document-host');
     const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
 
@@ -270,6 +278,9 @@ export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurface
       },
     })
       .then((surface) => {
+        // A hydrate-time error may have already failed this revision via
+        // onError even though the mount promise resolved; keep the surface
+        // handle for teardown but do not overwrite the failed state.
         if (disposed || revision !== renderRevision) {
           try {
             surface.destroy();
@@ -278,11 +289,16 @@ export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurface
           }
           return;
         }
+        if (renderState === 'failed') {
+          vmSurface = surface;
+          return;
+        }
         vmSurface = surface;
         const listener = (state: Record<string, unknown>) => surface.pushState(state);
         subscribers.add(listener);
         vmStateListener = listener;
         renderState = 'rendered';
+        completeDraftingHandoff(root);
         options.events?.push({ kind: 'rendered', at: Date.now(), surfaceId, revision });
       })
       .catch((err: unknown) => {
@@ -317,14 +333,20 @@ export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurface
     },
     applyPreviewEvent(event) {
       const snapshot = preview.apply(event);
-      if (renderState === 'preview' || renderState === 'failed') {
-        renderPreview(root, snapshot);
+      // The drafting surface stays live through 'rendering' (it is kept in
+      // place until the VM mount lands) and re-enters after 'failed'. Only a
+      // rendered surface is immune to late status events.
+      if (renderState !== 'rendered') {
+        renderDraftingSurface(root, snapshot);
       }
       options.events?.push({ kind: 'surface-preview-event', at: Date.now(), surfaceId, event });
       return snapshot;
     },
     previewSnapshot() {
       return preview.snapshot();
+    },
+    lifecycle() {
+      return renderState;
     },
     dispose() {
       disposed = true;
@@ -347,7 +369,7 @@ export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurface
   if (options.artifact) {
     handle.renderArtifact(options.artifact);
   } else {
-    renderPreview(root, preview.snapshot());
+    renderDraftingSurface(root, preview.snapshot());
   }
   return handle;
 }
@@ -421,31 +443,116 @@ function createPreviewState() {
   };
 }
 
-function renderPreview(root: HTMLElement, _snapshot: SurfacePreviewSnapshot): void {
-  let previewRoot = root.querySelector<HTMLElement>(`[${PREVIEW_ROOT_ATTR}]`);
-  if (!previewRoot) {
-    previewRoot = document.createElement('section');
-    previewRoot.setAttribute(PREVIEW_ROOT_ATTR, 'true');
-    previewRoot.setAttribute('role', 'status');
-    previewRoot.setAttribute('aria-live', 'polite');
-    root.append(previewRoot);
+/** Host-owned copy for each drafting phase. Status text from the stream
+ * overrides the kicker detail; these are the fallbacks. */
+const DRAFTING_PHASE_LABELS: Record<SurfaceStatus, string> = {
+  planning: 'Reading the request',
+  contract: 'Binding the host contract',
+  drafting: 'Composing the surface',
+  validating: 'Checking against the contract',
+  rendering: 'Rendering',
+  finalizing: 'Finalizing',
+};
+
+/**
+ * Render the fingerprint-derived drafting surface. Everything here is
+ * host-owned: styled from the same token source as the final artifact and
+ * driven only by validated stream metadata. No model output is painted.
+ * See docs/spec/surface-document.md "Generation-time presentation".
+ */
+function renderDraftingSurface(root: HTMLElement, snapshot: SurfacePreviewSnapshot): void {
+  // Re-entering drafting supersedes a runtime-error card from a failed pass.
+  root.querySelector('.summon-runtime-error')?.remove();
+
+  let draftingRoot = root.querySelector<HTMLElement>(`[${PREVIEW_ROOT_ATTR}]`);
+  const firstPaint = !draftingRoot;
+  if (!draftingRoot) {
+    draftingRoot = document.createElement('section');
+    draftingRoot.setAttribute(PREVIEW_ROOT_ATTR, 'true');
+    draftingRoot.setAttribute('role', 'status');
+    draftingRoot.setAttribute('aria-live', 'polite');
+    draftingRoot.className = 'summon-drafting';
+
+    const material = document.createElement('div');
+    material.className = 'summon-drafting__material';
+    material.setAttribute('aria-hidden', 'true');
+
+    const mark = document.createElement('div');
+    mark.className = 'summon-drafting__mark';
+    mark.setAttribute('aria-hidden', 'true');
+
+    const kicker = document.createElement('span');
+    kicker.className = 'summon-drafting__kicker';
+
+    const detail = document.createElement('p');
+    detail.className = 'summon-drafting__detail';
+
+    draftingRoot.append(material, mark, kicker, detail);
+    root.append(draftingRoot);
   }
-  previewRoot.className = 'summon-preview';
-  previewRoot.replaceChildren();
 
-  const ambient = document.createElement('div');
-  ambient.className = 'summon-preview__ambient';
-  ambient.setAttribute('aria-hidden', 'true');
+  const status = snapshot.status?.status ?? 'planning';
+  // A phase that moves backwards (e.g. rendering -> validating) means the
+  // server blocked a bundle and re-entered a repair pass. Mark it so the
+  // drafting surface can present repair honestly instead of freezing.
+  const previous = draftingRoot.dataset.summonDraftingPhase as SurfaceStatus | undefined;
+  if (!firstPaint && previous && phaseRank(status) < phaseRank(previous)) {
+    draftingRoot.dataset.summonDraftingRepair = 'true';
+  }
+  draftingRoot.dataset.summonDraftingPhase = status;
 
-  const loader = document.createElement('div');
-  loader.className = 'summon-preview__loader';
-  loader.setAttribute('aria-hidden', 'true');
+  const kicker = draftingRoot.querySelector<HTMLElement>('.summon-drafting__kicker');
+  if (kicker) {
+    kicker.textContent = snapshot.surface?.title ?? DRAFTING_PHASE_LABELS[status] ?? 'Composing';
+  }
+  const detail = draftingRoot.querySelector<HTMLElement>('.summon-drafting__detail');
+  if (detail) {
+    detail.textContent = snapshot.status?.text ?? '';
+    detail.hidden = !snapshot.status?.text;
+  }
+}
 
-  const label = document.createElement('span');
-  label.className = 'summon-preview__loading-label';
-  label.textContent = 'Loading';
+const DRAFTING_PHASE_ORDER: readonly SurfaceStatus[] = [
+  'planning',
+  'contract',
+  'drafting',
+  'validating',
+  'rendering',
+  'finalizing',
+];
 
-  previewRoot.append(ambient, loader, label);
+function phaseRank(status: SurfaceStatus): number {
+  const rank = DRAFTING_PHASE_ORDER.indexOf(status);
+  return rank === -1 ? 0 : rank;
+}
+
+/**
+ * Finish the drafting -> rendered handoff: fade the drafting surface out and
+ * reveal the mounted artifact. Both transitions come from the drafting CSS and
+ * collapse to instant swaps under prefers-reduced-motion.
+ */
+function completeDraftingHandoff(root: HTMLElement): void {
+  const shadowHost = root.querySelector<HTMLElement>('.summon-surface-document-host');
+  if (shadowHost) delete shadowHost.dataset.summonEntering;
+
+  const draftingRoot = root.querySelector<HTMLElement>(`[${PREVIEW_ROOT_ATTR}]`);
+  if (!draftingRoot) return;
+  const reducedMotion = typeof globalThis.matchMedia === 'function'
+    && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reducedMotion) {
+    draftingRoot.remove();
+    return;
+  }
+  draftingRoot.dataset.summonDraftingLeaving = 'true';
+  let removed = false;
+  const remove = () => {
+    if (removed) return;
+    removed = true;
+    draftingRoot.remove();
+  };
+  draftingRoot.addEventListener('transitionend', remove, { once: true });
+  // Fallback in case transitions are unavailable (e.g. non-browser DOM).
+  setTimeout(remove, 400);
 }
 
 function installTokenStyle(root: HTMLElement, surfaceId: string, tokensSource?: string): void {
@@ -458,9 +565,10 @@ function installTokenStyle(root: HTMLElement, surfaceId: string, tokensSource?: 
   root.prepend(style);
 }
 
-function clearRuntimeChildren(root: HTMLElement): void {
+function clearRuntimeChildren(root: HTMLElement, opts?: { keepPreview?: boolean }): void {
   for (const child of Array.from(root.children)) {
     if (child instanceof HTMLStyleElement && child.dataset.summonSurfaceTokens) continue;
+    if (opts?.keepPreview && child instanceof HTMLElement && child.hasAttribute(PREVIEW_ROOT_ATTR)) continue;
     child.remove();
   }
 }
@@ -850,42 +958,89 @@ function defaultPreviewCss(surfaceId: string): string {
   color: var(--color-text, CanvasText);
   font-family: var(--font-sans, system-ui, sans-serif);
 }
-[data-summon-surface="${surfaceId}"] .summon-preview {
+
+/* Drafting surface: host-owned, styled entirely from fingerprint tokens.
+ * Two fingerprints must look visibly different here — the treatment leans on
+ * the tokens with the widest cross-fingerprint variance: accent, radius,
+ * shadow, display type, and tracking. */
+[data-summon-surface="${surfaceId}"] .summon-drafting {
   position: relative;
   isolation: isolate;
   display: grid;
   min-height: 100%;
-  place-items: center;
-  gap: 14px;
+  align-content: center;
+  justify-items: start;
+  gap: var(--space-3, 12px);
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-text, CanvasText) 7%, transparent), transparent 34%),
-    linear-gradient(180deg, var(--color-bg, Canvas), color-mix(in srgb, var(--color-surface, Canvas) 88%, var(--color-bg, Canvas)));
+  padding: var(--space-8, 40px) var(--space-7, 32px);
+  background: var(--color-bg, Canvas);
+  transition: opacity 320ms ease;
 }
-[data-summon-surface="${surfaceId}"] .summon-preview__ambient {
+[data-summon-surface="${surfaceId}"] .summon-drafting[data-summon-drafting-leaving] {
   position: absolute;
-  inset: 18%;
-  z-index: -1;
-  border-radius: 999px;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
   pointer-events: none;
-  background: color-mix(in srgb, var(--color-text, CanvasText) 10%, transparent);
-  filter: blur(42px);
-  opacity: 0.6;
-  animation: summon-preview-breathe 2.4s ease-in-out infinite;
 }
-[data-summon-surface="${surfaceId}"] .summon-preview__loader {
-  width: 30px;
-  height: 30px;
-  border: 2px solid color-mix(in srgb, var(--color-text, CanvasText) 16%, transparent);
-  border-top-color: var(--color-text, CanvasText);
-  border-radius: 999px;
-  animation: summon-preview-spin 820ms linear infinite;
+[data-summon-surface="${surfaceId}"] .summon-drafting__material {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--color-accent, CanvasText) 9%, transparent), transparent 52%),
+    linear-gradient(160deg, var(--color-bg, Canvas), color-mix(in srgb, var(--color-surface, Canvas) 72%, var(--color-bg, Canvas)));
+  animation: summon-drafting-breathe 3.2s ease-in-out infinite;
 }
-[data-summon-surface="${surfaceId}"] .summon-preview__loading-label {
+[data-summon-surface="${surfaceId}"] .summon-drafting__mark {
+  width: var(--space-9, 48px);
+  height: var(--space-2, 8px);
+  border-radius: var(--radius-sm, 2px);
+  background: var(--color-accent, CanvasText);
+  box-shadow: var(--shadow-mini, none);
+  transform-origin: left center;
+  animation: summon-drafting-draw 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+[data-summon-surface="${surfaceId}"] .summon-drafting__kicker {
+  color: var(--color-text, CanvasText);
+  font-family: var(--font-serif, var(--font-sans, system-ui, sans-serif));
+  font-size: var(--text-lg, 18px);
+  line-height: var(--leading-display, 1.15);
+  letter-spacing: var(--tracking-display, normal);
+}
+[data-summon-surface="${surfaceId}"] .summon-drafting__detail {
+  margin: 0;
+  max-width: 52ch;
   color: var(--color-text-muted, color-mix(in srgb, CanvasText 54%, transparent));
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--text-sm, 13px);
+  line-height: var(--leading-body, 1.5);
+  letter-spacing: var(--tracking-label, 0.02em);
+}
+[data-summon-surface="${surfaceId}"] .summon-drafting[data-summon-drafting-repair] .summon-drafting__mark {
+  background: var(--color-warning, var(--color-accent, CanvasText));
+}
+
+/* The mounted artifact fades in underneath the departing drafting surface. */
+[data-summon-surface="${surfaceId}"] .summon-surface-document-host {
+  transition: opacity 280ms ease;
+}
+[data-summon-surface="${surfaceId}"] .summon-surface-document-host[data-summon-entering] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-summon-surface="${surfaceId}"] .summon-drafting,
+  [data-summon-surface="${surfaceId}"] .summon-surface-document-host {
+    transition: none;
+  }
+  [data-summon-surface="${surfaceId}"] .summon-drafting__material,
+  [data-summon-surface="${surfaceId}"] .summon-drafting__mark {
+    animation: none;
+  }
 }
 [data-summon-surface="${surfaceId}"] .summon-runtime-error {
   display: grid;
@@ -910,12 +1065,14 @@ function defaultPreviewCss(surfaceId: string): string {
   font-size: clamp(15px, 2vw, 20px);
   line-height: 1.45;
 }
-@keyframes summon-preview-spin {
-  to { transform: rotate(360deg); }
+@keyframes summon-drafting-draw {
+  0% { transform: scaleX(0.18); opacity: 0.5; }
+  55% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(0.18); opacity: 0.5; }
 }
-@keyframes summon-preview-breathe {
-  0%, 100% { transform: scale(0.82); opacity: 0.42; }
-  50% { transform: scale(1); opacity: 0.68; }
+@keyframes summon-drafting-breathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
 }
 `;
 }

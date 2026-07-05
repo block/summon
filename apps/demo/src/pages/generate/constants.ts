@@ -1,4 +1,4 @@
-import type { SummonLayout } from '@anarchitecture/summon/engine';
+import type { SummonLayout } from '@decentralized-design/summon/engine';
 import { createScopedDemoRegistry } from '../../showcase.js';
 
 export const savedSurfacesKey = 'summon.savedSurfaces.v1';

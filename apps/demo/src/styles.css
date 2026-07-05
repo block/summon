@@ -185,23 +185,6 @@ pre {
   box-shadow: var(--shadow-elevated);
 }
 
-.summon-host-dot-field {
-  position: absolute;
-  inset: -20%;
-  opacity: 0.42;
-  background-image:
-    radial-gradient(
-      circle,
-      color-mix(in srgb, var(--color-ink) 22%, transparent) 0 1px,
-      transparent 1.25px
-    );
-  background-position: 50% 50%;
-  background-size: 18px 18px;
-  mask-image: radial-gradient(circle at 50% 50%, black 0 34%, transparent 72%);
-  transform: translate3d(0, 0, 0) scale(1);
-  animation: summon-dot-field-breathe 4.6s ease-in-out infinite;
-}
-
 /*
  * Resting page dot field. Shares the exact dot spec (18px pitch, ink 22%)
  * with the loader field so the idle background and the summon pulse read as
@@ -229,13 +212,6 @@ pre {
  * is energy: a slightly stronger breathe plus expanding rings (::before /
  * ::after) of the *same* dots brightening as the wave passes outward.
  */
-.summon-host-dot-field--page-pulse {
-  inset: 0;
-  opacity: 0.5;
-  background-size: 18px 18px;
-  mask-image: radial-gradient(circle at 50% 50%, black 0 58%, transparent 95%);
-  animation-duration: 3.4s;
-}
 
 /*
  * Water-ripple wave train. Several concentric ring layers ride outward from
@@ -243,99 +219,6 @@ pre {
  * Each is a layer of the *same* dots; the ring mask brightens dots as the
  * wave passes, and amplitude decays with travel (see keyframe).
  */
-.summon-host-ripple-waves {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.summon-host-ripple-wave {
-  position: absolute;
-  inset: 0;
-  --summon-dot-r: 1.2px;
-  /*
-   * Wavefront silhouette. JS sets --summon-shape to a stroked SVG outline
-   * (circle, squircle, star, heart, hexagon) and re-randomizes it on each
-   * animation iteration, so every ripple can be a different shape.
-   */
-  --summon-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='none' stroke='black' stroke-width='6'/%3E%3C/svg%3E");
-  --summon-wave-size: 0px;
-  background-image:
-    radial-gradient(
-      circle,
-      color-mix(in srgb, var(--color-ink) 55%, transparent) 0
-        var(--summon-dot-r),
-      transparent calc(var(--summon-dot-r) + 0.6px)
-    );
-  background-position: 50% 50%;
-  background-size: 20px 20px;
-  /*
-   * Square vmax sizing keeps shapes undistorted on any aspect ratio and lets
-   * the thin stroked band travel past the viewport corners (~150vmax). The
-   * SVG stroke stays thin, so the ring reads as a travelling ripple rather
-   * than a band that fattens in place.
-   */
-  mask-image: var(--summon-shape);
-  mask-repeat: no-repeat;
-  mask-position: 50% 50%;
-  mask-size: var(--summon-wave-size) var(--summon-wave-size);
-  -webkit-mask-image: var(--summon-shape);
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: 50% 50%;
-  -webkit-mask-size: var(--summon-wave-size) var(--summon-wave-size);
-  opacity: 0;
-  animation: summon-ripple-wave 5s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
-}
-
-.summon-host-ripple-wave:nth-child(2) {
-  animation-delay: 1.65s;
-}
-
-.summon-host-ripple-wave:nth-child(3) {
-  animation-delay: 3.3s;
-}
-
-.summon-host-preview-sketch {
-  opacity: 0.82;
-}
-
-.summon-host-preview-pin {
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-ink) 30%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-ink) 4%, transparent);
-}
-
-.summon-host-preview-pin--live {
-  background: color-mix(in srgb, var(--color-ink) 54%, transparent);
-  animation: summon-preview-pin 2.2s ease-in-out infinite;
-}
-
-.summon-host-preview-bar {
-  position: relative;
-  display: block;
-  width: var(--preview-bar-width, 72%);
-  max-width: 100%;
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-ink) 9%, transparent);
-}
-
-.summon-host-preview-bar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--color-ink) 13%, transparent),
-    transparent
-  );
-  transform: translate3d(-100%, 0, 0);
-  animation: summon-preview-sheen 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
 
 @keyframes summon-title-rise {
   from {
@@ -446,30 +329,6 @@ pre {
   }
 }
 
-@keyframes summon-preview-pin {
-  0%,
-  100% {
-    opacity: 0.52;
-    transform: scale(0.92);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1.18);
-  }
-}
-
-@keyframes summon-preview-sheen {
-  0% {
-    transform: translate3d(-100%, 0, 0);
-  }
-
-  72%,
-  100% {
-    transform: translate3d(100%, 0, 0);
-  }
-}
-
 @keyframes summon-sandbox-rise {
   0% {
     opacity: 0;
@@ -513,5 +372,54 @@ pre {
 @media (hover: hover) {
   .hover\:shadow-card:hover {
     box-shadow: var(--shadow-card);
+  }
+}
+
+@keyframes summon-frame-seam {
+  0% {
+    transform: translate3d(-120%, 0, 0);
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  82% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(240%, 0, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes summon-glyph-land {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.72);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes summon-glyph-pass {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  25% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
   }
 }

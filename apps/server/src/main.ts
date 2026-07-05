@@ -10,17 +10,16 @@ import {
   type SurfacePolicy,
   type SurfaceScale,
   type SurfaceSize,
-  type SurfaceComplexity,
   type ContractPromptBlock,
   type ContractIssue,
-} from '@anarchitecture/summon/engine';
+} from '@decentralized-design/summon/engine';
 import {
   planAgentSurface,
   runSurfaceGeneration,
   summarizeContractIssues,
   type AgentSurfacePlanResult,
   type SurfaceGenerationSummary,
-} from '@anarchitecture/summon-server';
+} from '@decentralized-design/summon-server';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,7 +39,7 @@ import {
   type ConformanceVerdict,
   type GhostGatherStrategyOption,
   type ResolvedGhostSteer,
-} from '@anarchitecture/summon-server/ghost';
+} from '@decentralized-design/summon-server/ghost';
 import {
   loadFingerprintCatalog,
   parseFingerprintRequest,
@@ -166,8 +165,6 @@ function parseSummonLayout(raw: unknown): { layout: SummonLayout | null; error?:
 }
 
 const SURFACE_SIZE_VALUES: readonly SurfaceSize[] = ['small', 'medium', 'large'];
-const SURFACE_COMPLEXITY_VALUES: readonly SurfaceComplexity[] = ['simple', 'moderate', 'rich'];
-
 function parseSurfaceScale(raw: unknown): { scale: SurfaceScale | null; error?: string } {
   if (raw === undefined || raw === null) return { scale: null };
   if (typeof raw !== 'object') {
@@ -181,13 +178,7 @@ function parseSurfaceScale(raw: unknown): { scale: SurfaceScale | null; error?: 
     }
     scale.size = obj.size as SurfaceSize;
   }
-  if (obj.complexity !== undefined) {
-    if (!SURFACE_COMPLEXITY_VALUES.includes(obj.complexity as SurfaceComplexity)) {
-      return { scale: null, error: 'scale.complexity must be simple, moderate, or rich' };
-    }
-    scale.complexity = obj.complexity as SurfaceComplexity;
-  }
-  if (scale.size === undefined && scale.complexity === undefined) {
+  if (scale.size === undefined) {
     return { scale: null };
   }
   return { scale };

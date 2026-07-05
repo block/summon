@@ -4,22 +4,22 @@ import {
   type ApprovalDecision,
   type ApprovalRequest,
   type CompiledSurfacePolicy,
-} from '@anarchitecture/summon';
+} from '@decentralized-design/summon';
 import {
   consumeSurfaceStream,
   mountSummonSurface,
   type SummonSurfaceHandle,
   type SurfaceStreamContext,
-} from '@anarchitecture/summon/browser';
-import { createEventStore, type DevtoolsEvent } from '@anarchitecture/summon/devtools';
+} from '@decentralized-design/summon/browser';
+import { createEventStore, type DevtoolsEvent } from '@decentralized-design/summon/devtools';
 import {
   buildFingerprintSteeringPayload,
   buildGhostSteeringPayload,
   type ProtocolLine,
   type SurfaceContractView,
   type ValidationContext,
-} from '@anarchitecture/summon/engine';
-import { tokensSource } from '@anarchitecture/summon/assets';
+} from '@decentralized-design/summon/engine';
+import { tokensSource } from '@decentralized-design/summon/assets';
 import { createGalleryToolRegistry } from './tools.js';
 import {
   GALLERY_PRESETS,

@@ -37,7 +37,7 @@ Summon prompt assembly keeps three authorities separate:
 | `fixed` | Summon | Runtime rules and safety boundary for Surface Document. |
 | `fingerprint` / Ghost brief | Ghost | Design authority, composition grammar, checks, and token/style material. |
 | `layout` | Host | Optional host-provided layout slots. |
-| `scale` | Host | Optional scale constraints. |
+| `scale` | Host | Optional size-only description of the calling medium's physical space; the Ghost fingerprint still owns composition, density, and structure. |
 | `surface-contract` | Host | Purpose, tools/resources, constraints, and compiled policy view. |
 | `tools` | Host/Summon | Granted host tools and how Surface Document behavior may call them. |
 | `output-contract` | Summon | Final structured output reminder and schema identity. |

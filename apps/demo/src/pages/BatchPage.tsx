@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import { SummonSurface, type SummonSurfaceHandle } from '@anarchitecture/summon-react';
-import { type ToolPack } from '@anarchitecture/summon';
-import { consumeSurfaceStream } from '@anarchitecture/summon/browser';
+import { SummonSurface, type SummonSurfaceHandle } from '@decentralized-design/summon-react';
+import { type ToolPack } from '@decentralized-design/summon';
+import { consumeSurfaceStream } from '@decentralized-design/summon/browser';
 import {
   buildFingerprintSteeringPayload,
   type ProtocolLine,
   type ValidationTool,
-} from '@anarchitecture/summon/engine';
-import defaultTokensSource from '@anarchitecture/summon/tokens.css?raw';
+} from '@decentralized-design/summon/engine';
+import defaultTokensSource from '@decentralized-design/summon/tokens.css?raw';
 import { AppNav, ModeGroup, PageHeader } from '../components/chrome.js';
 import { Button, compactInputClass, compactSelectClass, pageWidthClass, panelClass, statusToneClass, textareaClass } from '../components/ui.js';
 import { cn } from '../lib/cn.js';

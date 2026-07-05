@@ -4,9 +4,9 @@
   "commit": false,
   "fixed": [
     [
-      "@anarchitecture/summon",
-      "@anarchitecture/summon-server",
-      "@anarchitecture/summon-react"
+      "@decentralized-design/summon",
+      "@decentralized-design/summon-server",
+      "@decentralized-design/summon-react"
     ]
   ],
   "linked": [],

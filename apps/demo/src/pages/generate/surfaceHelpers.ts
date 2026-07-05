@@ -7,7 +7,7 @@ import {
   buildFingerprintSteeringPayload,
   fingerprintIdFromSelection,
   fingerprintSelectionValue as engineFingerprintSelectionValue,
-} from '@anarchitecture/summon/engine';
+} from '@decentralized-design/summon/engine';
 import {
   narrowToolPack,
   type ActiveContract,

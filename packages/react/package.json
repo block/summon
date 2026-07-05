@@ -20,7 +20,7 @@
     "test": "tsx --test test/*.test.tsx"
   },
   "dependencies": {
-    "@anarchitecture/summon": "workspace:*"
+    "@decentralized-design/summon": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18.3.0 || >=19.0.0",

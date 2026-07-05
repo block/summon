@@ -12,7 +12,7 @@ import type {
   ToolPack,
   ProtocolLine,
   SurfacePlan,
-} from '@anarchitecture/summon/engine';
+} from '@decentralized-design/summon/engine';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(here, '..');

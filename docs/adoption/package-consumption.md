@@ -3,20 +3,20 @@
 Summon's public API is exposed through three packages:
 
 ```txt
-@anarchitecture/summon
-@anarchitecture/summon-server
-@anarchitecture/summon-react
+@decentralized-design/summon
+@decentralized-design/summon-server
+@decentralized-design/summon-react
 ```
 
 Use public packages rather than importing private workspaces directly.
 
 ## Core package
 
-`@anarchitecture/summon` exposes host-side types and helpers through curated subpaths: engine contracts, host utilities, policy helpers, envelopes, Devtools, and assets.
+`@decentralized-design/summon` exposes host-side types and helpers through curated subpaths: engine contracts, host utilities, policy helpers, envelopes, Devtools, and assets.
 
 ## Server package
 
-`@anarchitecture/summon-server` owns the generation lifecycle:
+`@decentralized-design/summon-server` owns the generation lifecycle:
 
 - prompt/contract assembly
 - model-provider interface
@@ -34,7 +34,7 @@ repairSurfaceDocumentBundle(request)
 
 ## React package
 
-`@anarchitecture/summon-react` provides `SummonSurface`, the React adapter for rendering inline Summon surfaces and replay envelopes. It mounts accepted Surface Document output and forwards granted tool calls to the host.
+`@decentralized-design/summon-react` provides `SummonSurface`, the React adapter for rendering inline Summon surfaces and replay envelopes. It mounts accepted Surface Document output and forwards granted tool calls to the host.
 
 ## Artifact expectations
 

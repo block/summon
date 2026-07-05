@@ -1,4 +1,4 @@
-# @anarchitecture/summon
+# @decentralized-design/summon
 
 ## 0.3.0
 

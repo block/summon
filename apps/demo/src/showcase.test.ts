@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compileSurfacePolicy } from '@anarchitecture/summon';
-import { normalizeSurfacePolicy } from '@anarchitecture/summon/engine';
+import { compileSurfacePolicy } from '@decentralized-design/summon';
+import { normalizeSurfacePolicy } from '@decentralized-design/summon/engine';
 import { GALLERY_PRESETS } from '../../surface-gallery/src/presets.js';
 import {
   createScopedDemoRegistry,

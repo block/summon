@@ -6,9 +6,9 @@ Summon publishes a narrow public package surface and keeps implementation packag
 
 | Package | Purpose |
 | --- | --- |
-| `@anarchitecture/summon` | Core host/engine/policy/envelope/Devtools public API. |
-| `@anarchitecture/summon-server` | Provider-neutral generation lifecycle and model-provider contracts. |
-| `@anarchitecture/summon-react` | React rendering adapter for inline Summon surfaces and replay envelopes. |
+| `@decentralized-design/summon` | Core host/engine/policy/envelope/Devtools public API. |
+| `@decentralized-design/summon-server` | Provider-neutral generation lifecycle and model-provider contracts. |
+| `@decentralized-design/summon-react` | React rendering adapter for inline Summon surfaces and replay envelopes. |
 
 Private workspaces such as `packages/engine`, `packages/host`, `packages/server`, and `packages/surface-vm` are implementation details published through the public facades.
 

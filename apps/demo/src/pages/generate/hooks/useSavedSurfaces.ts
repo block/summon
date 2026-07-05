@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { SurfaceEnvelope } from '@anarchitecture/summon/envelope';
+import type { SurfaceEnvelope } from '@decentralized-design/summon/envelope';
 import { loadSavedSurfaces, writeSavedSurfaces } from '../savedSurfaces.js';
 
 export function useSavedSurfaces() {

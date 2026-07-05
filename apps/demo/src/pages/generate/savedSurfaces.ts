@@ -1,4 +1,4 @@
-import { parseSurfaceEnvelope, type SurfaceEnvelope } from '@anarchitecture/summon/envelope';
+import { parseSurfaceEnvelope, type SurfaceEnvelope } from '@decentralized-design/summon/envelope';
 import { maxSavedSurfaces, savedSurfacesKey } from './constants.js';
 
 export function loadSavedSurfaces(): SurfaceEnvelope[] {
