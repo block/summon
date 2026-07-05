@@ -1,9 +1,10 @@
 ---
-categories:
+kinds:
   - name: principle
   - name: pattern
   - name: asset
   - name: anti-goal
+    posture: guard
   - name: exemplar
   - name: decision
 ---
@@ -22,7 +23,7 @@ Concrete material vocabulary: tokens, type, motion, image treatment, components,
 
 # anti-goal
 
-Rejected defaults and generic generated outputs this fingerprint refuses.
+Rejected defaults and generic generated outputs this fingerprint refuses. Guard posture: review-critical negative space, surfaced at the tail of every pull.
 
 # exemplar
 
