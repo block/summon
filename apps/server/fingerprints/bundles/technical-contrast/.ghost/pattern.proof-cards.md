@@ -43,6 +43,6 @@ The midnight plane these cards sit on comes from the
 the [mono label system](pattern.mono-labels). Where parallel comparable cells belong in an
 aligned matrix instead of a proof-with-implication card, that is the
 [data-sheet system](pattern.data-sheets). Proof cards are the spine of the
-[proof](proof) surface and reinforce claims on the [landing](landing).
+proof surface and reinforce claims on the landing.
 
 Related: reinforces `principle.contrast-planes`; contrasts with `pattern.data-sheets`.

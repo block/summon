@@ -1,5 +1,5 @@
 ---
-description: The field contract — warm near-black #131313 is the material, mint and violet are rationed hazard voltages with legible jobs, and depth stays flat; pull this first on every surface, because bright fills are interruptions, never the default.
+description: 'The field contract — warm near-black #131313 is the material, mint and violet are rationed hazard voltages with legible jobs, and depth stays flat; pull this first on every surface, because bright fills are interruptions, never the default.'
 ---
 
 ## Composition

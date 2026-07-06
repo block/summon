@@ -71,7 +71,7 @@ be as deliberately designed as any interaction.
 These rules shape how the [note panels](pattern.note-panels) open and end, keep the
 [good-enough choice and can-wait notes](pattern.good-enough) pointed at one easy move,
 and let the [badges](pattern.badges) carry exact forward-facing state — "picks up
-Thursday" as a chip, never an overdue alarm — across the [planner](planner),
-[staged-plan](staged-plan), and [routine](routine) surfaces.
+Thursday" as a chip, never an overdue alarm — across the planner,
+staged-plan, and routine surfaces.
 
 Related: reinforces `pattern.note-panels`, `pattern.good-enough`.

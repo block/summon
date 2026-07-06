@@ -58,8 +58,8 @@ measure — let the task set the shape.
 These panels pair with the [badge and state system](pattern.badges) for readiness, time,
 and effort, lean on the [gentle depth rules](principle.gentle-depth) so layering never
 becomes a card pile, and hold the [good-enough choice and can-wait notes](pattern.good-enough)
-that lower pressure. Every surface — [planner](planner), [staged-plan](staged-plan),
-[comparison](comparison), and [routine](routine) — composes the plan from these
+that lower pressure. Every surface — planner, staged-plan,
+comparison, and routine — composes the plan from these
 panels.
 
 Related: reinforces `principle.gentle-depth`, `pattern.badges`.

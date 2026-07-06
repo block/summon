@@ -55,8 +55,8 @@ domain, or slogan; omit it on short or task-like surfaces.
 
 The plane changes set the stage that the [data sheets](pattern.data-sheets) and
 [proof cards](pattern.proof-cards) sit inside, that the [mono labels](pattern.mono-labels) orient,
-and that the [CTA system](pattern.cta-system) drives — across the [landing](landing),
-[pricing](pricing), [proof](proof), and [workflow](workflow) surfaces. Depth
+and that the [CTA system](pattern.cta-system) drives — across the landing,
+pricing, proof, and workflow surfaces. Depth
 stays hairline-led: keep card corners lightly rounded and flat and reserve subtle
 shadow only for truly floating host controls or transient overlays.
 

@@ -43,8 +43,8 @@ sparingly, never a rainbow metric grid.
 The sheet headers and cell labels follow the [mono label system](pattern.mono-labels);
 where a card pairs a proof point with an operational implication rather than
 parallel comparable cells, that is the [proof-card system](pattern.proof-cards) job, not a
-data sheet. These sheets are the spine of the [pricing](pricing) surface and
-support comparison anywhere on the [landing](landing) or [workflow](workflow)
+data sheet. These sheets are the spine of the pricing surface and
+support comparison anywhere on the landing or workflow
 surfaces.
 
 Begin every comparison sheet from this structure — claim above the table, mono

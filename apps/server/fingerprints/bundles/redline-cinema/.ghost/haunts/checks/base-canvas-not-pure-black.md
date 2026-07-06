@@ -1,6 +1,6 @@
 ---
 name: base-canvas-stays-warm-near-black
-description: The generated cinematic canvas must be a warm near-black, never pure #000 — pure black flattens the photographic depth.
+description: 'The generated cinematic canvas must be a warm near-black, never pure #000 — pure black flattens the photographic depth.'
 severity: high
 references:
   - anti-goal.rounded-soft-luxury

@@ -37,8 +37,8 @@ changes. No oversized full-pill tabs or per-category colors.
 
 These labels orient every other system: they head the [data sheet](pattern.data-sheets)
 columns, tag the [proof cards](pattern.proof-cards), and label the [CTA](pattern.cta-system)
-buttons across the [landing](landing), [pricing](pricing), [proof](proof), and
-[workflow](workflow) surfaces. Monospace is a label and technical-content system,
+buttons across the landing, pricing, proof, and
+workflow surfaces. Monospace is a label and technical-content system,
 not a paragraph voice.
 
 Related: reinforces `pattern.cta-system`, `pattern.data-sheets`.

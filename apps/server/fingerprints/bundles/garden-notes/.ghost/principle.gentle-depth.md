@@ -35,8 +35,8 @@ whitespace — the plan gets quieter around the held note rather than the note
 getting louder above the plan.
 
 These rules govern how the [note panels](pattern.note-panels) layer, and they keep the
-[planner](planner), [staged-plan](staged-plan), [comparison](comparison), and
-[routine](routine) surfaces from collapsing into a generic dashboard of equal
+planner, staged-plan, comparison, and
+routine surfaces from collapsing into a generic dashboard of equal
 cards.
 
 Related: reinforces `pattern.note-panels`.

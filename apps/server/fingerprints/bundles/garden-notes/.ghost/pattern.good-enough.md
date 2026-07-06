@@ -39,7 +39,7 @@ the reward is that the plan holds what happened.
 
 Both notes live inside the [note panels](pattern.note-panels), wear readiness and effort
 [badges](pattern.badges) when state helps, and anchor the recommendation logic of the
-[planner](planner), [staged-plan](staged-plan), [comparison](comparison), and
-[routine](routine) surfaces.
+planner, staged-plan, comparison, and
+routine surfaces.
 
 Related: reinforces `pattern.badges`, `pattern.note-panels`.

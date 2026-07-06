@@ -38,8 +38,8 @@ row of kept notes says it better than a number ever could.
 
 These chips ride on the [note panels](pattern.note-panels), mark readiness on the
 [good-enough choice and can-wait notes](pattern.good-enough), and appear across every
-surface — the readiness chips of the [planner](planner) and [routine](routine),
-the staged badges of the [staged-plan](staged-plan), and the friendly recommended
-badge of the [comparison](comparison) (never a severe winner label).
+surface — the readiness chips of the planner and routine,
+the staged badges of the staged-plan, and the friendly recommended
+badge of the comparison (never a severe winner label).
 
 Related: reinforces `pattern.note-panels`, `pattern.good-enough`.

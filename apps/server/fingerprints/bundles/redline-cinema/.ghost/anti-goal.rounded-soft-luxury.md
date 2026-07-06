@@ -1,5 +1,5 @@
 ---
-description: Guard against soft-luxury drift — not rounded CTAs, 16–24px commerce cards, pill buttons, shadow stacks, or a pure-#000 canvas; instead square machined geometry at 0px radius, hairline-and-brightness depth, and the warm #181818 stage; recognize the switch by any visible corner radius on default furniture.
+description: 'Guard against soft-luxury drift — not rounded CTAs, pill buttons, shadow stacks, or pure #000; instead 0px machined geometry, hairline-and-brightness depth, and the warm #181818 stage; recognize the switch by any visible corner radius on default furniture.'
 ---
 
 ## The refused default

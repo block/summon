@@ -31,8 +31,8 @@ CTAs with `--contrast-edge-hairline` on white sheets and `--contrast-edge-dark` 
 midnight panels, and reach for `--contrast-edge-strong` or fill polarity to mark
 the chosen option before color. The mono labels on these
 buttons follow the [mono label system](pattern.mono-labels); the buttons anchor the
-claim-first regions on the [landing](landing), the conversion rows on
-[pricing](pricing), the high-gravity actions on the midnight [proof](proof) plane,
-and the single primary submit on the [workflow](workflow) form sheet.
+claim-first regions on the landing, the conversion rows on
+pricing, the high-gravity actions on the midnight proof plane,
+and the single primary submit on the workflow form sheet.
 
 Related: reinforces `pattern.mono-labels`.
