@@ -44,23 +44,7 @@ clutter. While a note is held, the surface goes quieter, not busier: no
 toolbars appear, no related-actions menu slides in. The veil, the lift, and the
 unhurried ease are the whole event.
 
-## Skeleton
-
 A kept note and a picked-up note begin from this structure:
-
-```html
-<!-- Kept note: settled onto the paper's own base, named in words, never struck -->
-<div class="kept-note" style="background: var(--garden-kept-paper); color: var(--garden-kept-ink); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); font-size: var(--text-sm);">
-  <!-- the finished step's text, tradeoff sentence intact — no strikethrough, no praise copy -->
-  <span class="chip" style="border-radius: var(--garden-chip-radius); background: var(--garden-chip-face); color: var(--garden-chip-ink); border: var(--garden-chip-edge); padding: var(--garden-chip-pad);">Kept</span>
-</div>
-
-<!-- Picked-up note: the one sanctioned deeper lift, everything else receding -->
-<div class="pickup-veil" style="position: fixed; inset: 0; background: var(--garden-recede-veil);"></div>
-<div class="picked-up" style="transform: scale(var(--garden-pickup-scale)); box-shadow: var(--garden-pickup-lift); transition: transform 0.2s var(--garden-ease-soft), box-shadow 0.2s var(--garden-ease-soft);">
-  <!-- the note's fuller self: whole context line, every chip, the can-wait reasoning -->
-</div>
-```
 
 **Bound:** `--garden-kept-paper` + `--garden-kept-ink` for done work with the
 plain quiet "Kept" chip; at most one picked-up note at `--garden-pickup-scale`
@@ -76,3 +60,19 @@ finishing a good-enough step earns a kept note, quietly, and the plan moves its
 green dot to the next one.
 
 Related: reinforces `pattern.note-panels`, `principle.gentle-depth`, `pattern.good-enough`.
+
+## Skeleton
+
+```html
+<!-- Kept note: settled onto the paper's own base, named in words, never struck -->
+<div class="kept-note" style="background: var(--garden-kept-paper); color: var(--garden-kept-ink); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); font-size: var(--text-sm);">
+  <!-- the finished step's text, tradeoff sentence intact — no strikethrough, no praise copy -->
+  <span class="chip" style="border-radius: var(--garden-chip-radius); background: var(--garden-chip-face); color: var(--garden-chip-ink); border: var(--garden-chip-edge); padding: var(--garden-chip-pad);">Kept</span>
+</div>
+
+<!-- Picked-up note: the one sanctioned deeper lift, everything else receding -->
+<div class="pickup-veil" style="position: fixed; inset: 0; background: var(--garden-recede-veil);"></div>
+<div class="picked-up" style="transform: scale(var(--garden-pickup-scale)); box-shadow: var(--garden-pickup-lift); transition: transform 0.2s var(--garden-ease-soft), box-shadow 0.2s var(--garden-ease-soft);">
+  <!-- the note's fuller self: whole context line, every chip, the can-wait reasoning -->
+</div>
+```

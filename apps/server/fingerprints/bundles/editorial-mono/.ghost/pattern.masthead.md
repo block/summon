@@ -45,6 +45,20 @@ composed document, not scrolling a feed. The distinction between tiers is stock
 weight, read from the two paper values and a rule; never elevation, texture
 images, or skeuomorphic curl.
 
+**Bound:** the order (breath → masthead → heavy seam → body → close), the
+`--editorial-rule-heavy` seam under the masthead, the folio-only emptiness above
+it, the display-serif headline as the largest type, and the deck's interpreting
+role. **Open:** the measure and column count of the body grid, whether the deck
+takes the drop cap, whether the shell tier (`--editorial-paper-shell`) frames
+the sheet inside the page tier, and how the close is labeled.
+
+The headline and deck carry the verdict; the [mono metadata system](pattern.metadata) sets
+the folio, issue label, and timestamps that frame the masthead, and the
+[ruled evidence bands](pattern.evidence) fill the body grid beneath the strong rule. The
+shell ends in the [editorial close](pattern.close) rather than a passive recap.
+
+Related: reinforces `pattern.metadata`, `pattern.evidence`.
+
 ## Skeleton
 
 ```html
@@ -71,17 +85,3 @@ images, or skeuomorphic curl.
   </footer>
 </article>
 ```
-
-**Bound:** the order (breath → masthead → heavy seam → body → close), the
-`--editorial-rule-heavy` seam under the masthead, the folio-only emptiness above
-it, the display-serif headline as the largest type, and the deck's interpreting
-role. **Open:** the measure and column count of the body grid, whether the deck
-takes the drop cap, whether the shell tier (`--editorial-paper-shell`) frames
-the sheet inside the page tier, and how the close is labeled.
-
-The headline and deck carry the verdict; the [mono metadata system](pattern.metadata) sets
-the folio, issue label, and timestamps that frame the masthead, and the
-[ruled evidence bands](pattern.evidence) fill the body grid beneath the strong rule. The
-shell ends in the [editorial close](pattern.close) rather than a passive recap.
-
-Related: reinforces `pattern.metadata`, `pattern.evidence`.

@@ -98,6 +98,23 @@ New tokens in the editorial namespace (extending the core vocabulary):
 }
 ```
 
+**Bound:** the lettered ladder on 3+ movements (mono index characters, never
+display type), exactly one verdict frame per document, every region drawn from
+the five named blocks (verdict, evidence table, aligned comparison, prose
+argument, source list), the mono contents index instead of navigation chrome,
+and the colophon's typographic-only register shift. **Open:** the number and
+order of movements, whether the verdict rides the inverse slab or stays on
+paper, whether the contents index appears at all on short documents, and the
+corner-tick decoration on the frame.
+
+The ladder orders the movements the [masthead](pattern.masthead) opens; the frame spends
+the same emphasis budget as the [inverse-ink panel](pattern.inverse-panel); the contents
+index, index characters, and colophon all speak in the [mono metadata](pattern.metadata)
+voice; and the dossier still lands on the [editorial close](pattern.close) as its final
+committed line.
+
+Related: reinforces `pattern.masthead`, `pattern.inverse-panel`, `pattern.metadata`.
+
 ## Skeleton
 
 ```html
@@ -130,20 +147,3 @@ New tokens in the editorial namespace (extending the core vocabulary):
   </footer>
 </article>
 ```
-
-**Bound:** the lettered ladder on 3+ movements (mono index characters, never
-display type), exactly one verdict frame per document, every region drawn from
-the five named blocks (verdict, evidence table, aligned comparison, prose
-argument, source list), the mono contents index instead of navigation chrome,
-and the colophon's typographic-only register shift. **Open:** the number and
-order of movements, whether the verdict rides the inverse slab or stays on
-paper, whether the contents index appears at all on short documents, and the
-corner-tick decoration on the frame.
-
-The ladder orders the movements the [masthead](pattern.masthead) opens; the frame spends
-the same emphasis budget as the [inverse-ink panel](pattern.inverse-panel); the contents
-index, index characters, and colophon all speak in the [mono metadata](pattern.metadata)
-voice; and the dossier still lands on the [editorial close](pattern.close) as its final
-committed line.
-
-Related: reinforces `pattern.masthead`, `pattern.inverse-panel`, `pattern.metadata`.

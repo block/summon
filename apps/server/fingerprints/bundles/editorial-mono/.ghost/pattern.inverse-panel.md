@@ -30,17 +30,6 @@ dossier the slab may be framed once by `--editorial-verdict-frame-rule`
 hairline pairs; the frame and the inversion together are still the one
 emphasis, never repeated elsewhere.
 
-## Skeleton
-
-```html
-<section class="verdict-slab" style="background: var(--editorial-verdict-bg); color: var(--editorial-verdict-fg); padding: var(--editorial-verdict-pad); border-radius: var(--editorial-verdict-radius);">
-  <p class="verdict-label" style="font-family: var(--editorial-folio-font); font-size: var(--editorial-folio-size); letter-spacing: var(--editorial-folio-tracking); text-transform: uppercase;">
-    Verdict <!-- or: Recommendation / Rank --></p>
-  <p class="verdict-claim" style="font-size: var(--text-lg); line-height: var(--leading-section);">
-    <!-- the one decisive claim, number, rank, or delta --></p>
-</section>
-```
-
 **Bound:** black-on-cream inversion, square corners, no shadow, at most one per
 surface, mono copy-atom label. **Open:** where on the page it lands (masthead
 moment, promoted evidence, or the close), whether it carries a claim or a
@@ -51,3 +40,14 @@ The inverse panel is the loudest the surface gets; it pairs with the
 contrasts with the paper-neutral [evidence bands](pattern.evidence) that justify it.
 
 Related: contrasts with `pattern.evidence`; reinforces `pattern.close`.
+
+## Skeleton
+
+```html
+<section class="verdict-slab" style="background: var(--editorial-verdict-bg); color: var(--editorial-verdict-fg); padding: var(--editorial-verdict-pad); border-radius: var(--editorial-verdict-radius);">
+  <p class="verdict-label" style="font-family: var(--editorial-folio-font); font-size: var(--editorial-folio-size); letter-spacing: var(--editorial-folio-tracking); text-transform: uppercase;">
+    Verdict <!-- or: Recommendation / Rank --></p>
+  <p class="verdict-claim" style="font-size: var(--text-lg); line-height: var(--leading-section);">
+    <!-- the one decisive claim, number, rank, or delta --></p>
+</section>
+```

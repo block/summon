@@ -48,6 +48,17 @@ the [beveled plate and chrome system](pattern.plates); the nav words, tool chips
 rail buttons follow the [control system](pattern.controls) for their amber/orange/carbon
 semantics.
 
+**Bound:** the two-layer order (carbon primary over pale secondary), the
+halftone carbon fill, the `--chrome-bevel-hard` seam where bars clip into the
+chassis, nav-gold command words on carbon, amber pip-beaded tool chips, the
+dotted seam between bars, and the carbon footer slab close. **Open:** the
+number of command words and tool chips, the presence of a right action rail or
+side-mounted vertical tabs, whether the wordmark sits in the bar or a masthead
+above, and how the two bars compress on narrow screens (carbon header + pale
+row, warm cues kept visible).
+
+Related: reinforces `pattern.plates`, `pattern.controls`.
+
 ## Skeleton
 
 ```html
@@ -82,14 +93,3 @@ semantics.
   <!-- micro practical copy + status marks, rows parted by var(--chrome-divider-dotted) -->
 </footer>
 ```
-
-**Bound:** the two-layer order (carbon primary over pale secondary), the
-halftone carbon fill, the `--chrome-bevel-hard` seam where bars clip into the
-chassis, nav-gold command words on carbon, amber pip-beaded tool chips, the
-dotted seam between bars, and the carbon footer slab close. **Open:** the
-number of command words and tool chips, the presence of a right action rail or
-side-mounted vertical tabs, whether the wordmark sits in the bar or a masthead
-above, and how the two bars compress on narrow screens (carbon header + pale
-row, warm cues kept visible).
-
-Related: reinforces `pattern.plates`, `pattern.controls`.

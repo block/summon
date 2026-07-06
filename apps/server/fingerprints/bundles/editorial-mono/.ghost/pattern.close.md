@@ -31,6 +31,17 @@ max measure around 60ch. Spacing: `--space-7` above the seam, `--space-4`
 between the seam and the label. The registration tick is the literal
 `--editorial-registration-mark` glyph `✚` set beside the folio.
 
+**Bound:** the heavy 2px seam above, one mono copy-atom label, one committed
+line kept shorter than the evidence, and the registered folio foot. **Open:**
+which copy atom labels it, whether the line rides the inverse slab (only when
+the close itself carries the verdict), and whether a single quiet action link
+accompanies the line — never a CTA cluster.
+
+A ruled footer and editorial close land the page: the close echoes the
+[masthead](pattern.masthead) verdict it opened with, now resolved into an action.
+
+Related: reinforces `pattern.inverse-panel`, `pattern.metadata`.
+
 ## Skeleton
 
 ```html
@@ -43,14 +54,3 @@ between the seam and the label. The registration tick is the literal
     ✚ <!-- folio · set date --></p>
 </footer>
 ```
-
-**Bound:** the heavy 2px seam above, one mono copy-atom label, one committed
-line kept shorter than the evidence, and the registered folio foot. **Open:**
-which copy atom labels it, whether the line rides the inverse slab (only when
-the close itself carries the verdict), and whether a single quiet action link
-accompanies the line — never a CTA cluster.
-
-A ruled footer and editorial close land the page: the close echoes the
-[masthead](pattern.masthead) verdict it opened with, now resolved into an action.
-
-Related: reinforces `pattern.inverse-panel`, `pattern.metadata`.

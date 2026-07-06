@@ -93,10 +93,27 @@ cadence system enforces the scarcity that the [controls](pattern.controls) and
 }
 ```
 
-## Skeleton
-
 Begin every long editorial surface from this act structure — one backbone, one
 reveal recipe, chapters in sequence:
+
+**Bound:** one grid for the whole page; the chapter chip's mono/hairline/square
+form; full-bleed reserved for imagery only; the reveal recipe (`opacity 0→1` +
+`--redline-reveal-rise` on `--redline-ease-cinematic`) applied via a single
+`.reveal` class with a composed no-JS resting state; 96–128px (`--space-8`/`--space-9`)
+breaks between acts. **Open:** chapter count and order, which act carries the spec
+grid vs. rows vs. cards, where the one voltage spend lands, and whether a bridge
+strip closes the page or a dark footer does.
+
+This cadence paces the [cinematic image](pattern.cinematic-image) breakouts and the
+[hairline and brightness depth](principle.depth) rhythm into numbered acts, gives the
+[large-number spec system](pattern.spec-system) its mono data voice, and holds the
+[scarce-red controls](pattern.controls) to one voltage spend per viewport; the
+[single red livery band](pattern.livery-band) remains the lone moment allowed to break the
+vertical calm the cadence otherwise keeps.
+
+Related: reinforces `pattern.cinematic-image`, `principle.depth`, `pattern.spec-system`; contrasts with `pattern.livery-band`.
+
+## Skeleton
 
 ```html
 <main style="background: var(--redline-canvas-warm);">
@@ -120,20 +137,3 @@ reveal recipe, chapters in sequence:
   <aside class="act-bridge" style="border-top: var(--redline-hairline);"><!-- vertical hand-off, no crossfade-to-white --></aside>
 </main>
 ```
-
-**Bound:** one grid for the whole page; the chapter chip's mono/hairline/square
-form; full-bleed reserved for imagery only; the reveal recipe (`opacity 0→1` +
-`--redline-reveal-rise` on `--redline-ease-cinematic`) applied via a single
-`.reveal` class with a composed no-JS resting state; 96–128px (`--space-8`/`--space-9`)
-breaks between acts. **Open:** chapter count and order, which act carries the spec
-grid vs. rows vs. cards, where the one voltage spend lands, and whether a bridge
-strip closes the page or a dark footer does.
-
-This cadence paces the [cinematic image](pattern.cinematic-image) breakouts and the
-[hairline and brightness depth](principle.depth) rhythm into numbered acts, gives the
-[large-number spec system](pattern.spec-system) its mono data voice, and holds the
-[scarce-red controls](pattern.controls) to one voltage spend per viewport; the
-[single red livery band](pattern.livery-band) remains the lone moment allowed to break the
-vertical calm the cadence otherwise keeps.
-
-Related: reinforces `pattern.cinematic-image`, `principle.depth`, `pattern.spec-system`; contrasts with `pattern.livery-band`.

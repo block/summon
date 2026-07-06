@@ -399,7 +399,7 @@ packages:
     resolution: {integrity: sha512-CdTLvIOPiCNuH71pyDu3rA+Q0n65cmAbXnwWH84rKGiFumFzkmHNT8KHTMEchcxN+Kl8I54xGUhJ7l3E7X396Q==}
 
   '@decentralized-design/ghost@file:vendor/decentralized-design-ghost-0.19.0.tgz':
-    resolution: {integrity: sha512-a1lsTN2fso2dibOh/jlvsSkYx/pZXPbg3LE0pKDwSYQMaXvb+sGdmDI/jBjTlTnMT33aPqxsbFr/WpjqIrzdcg==, tarball: file:vendor/decentralized-design-ghost-0.19.0.tgz}
+    resolution: {integrity: sha512-/Y1XgBLUpoK0xLujnikcRQ/YT5j1nGgkDpAjmmEXqNsuXcUOgJN2Sstq6R9VBG5OWe2cWsLIAgpPr1Q+nKJt4w==, tarball: file:vendor/decentralized-design-ghost-0.19.0.tgz}
     version: 0.19.0
     hasBin: true
 

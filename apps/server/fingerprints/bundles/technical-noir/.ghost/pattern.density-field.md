@@ -45,21 +45,6 @@ from one ink level to the next rather than cross-fading. Stepped rendering is
 the motion-restraint stance made visible — the surface changes the way a
 terminal repaints, in discrete honest increments, not the way an ad animates.
 
-## Skeleton
-
-```html
-<!-- One readout: label · glyph strip on the ch grid · exact value. The strip is text, set like text. -->
-<div class="readout" aria-label="Queue depth: 61 percent" style="font:400 var(--text-sm)/var(--noir-density-cell-h) var(--font-mono);">
-  <span style="color:var(--color-text-muted);">queue </span>
-  <span aria-hidden="true">
-    <span style="color:var(--noir-ink-4);">##</span><!-- filled cells: densest ramp glyphs, primary off-white -->
-    <span style="color:var(--noir-ink-2);">=+::</span><!-- mid cells: mid-ramp glyphs, muted ink -->
-    <span style="color:var(--noir-ink-1);">-.  </span><!-- trailing cells: sparse glyphs fading to space -->
-  </span>
-  <span style="color:var(--color-text-muted);"> 61%</span>
-</div>
-```
-
 **Bound:** glyphs drawn only from the ordered `--noir-density-ramp`
 (` .:-=+#`), mapped monotonically to one real live scalar; cells exactly
 `--noir-density-cell-w` × `--noir-density-cell-h` (1ch × 24px) so the strip
@@ -83,3 +68,18 @@ density field costs nothing chromatic — it is the way this system visualizes
 load without spending an accent.
 
 Related: reinforces `pattern.terminal-evidence`, `principle.one-instrument`; contrasts with `pattern.tiles`.
+
+## Skeleton
+
+```html
+<!-- One readout: label · glyph strip on the ch grid · exact value. The strip is text, set like text. -->
+<div class="readout" aria-label="Queue depth: 61 percent" style="font:400 var(--text-sm)/var(--noir-density-cell-h) var(--font-mono);">
+  <span style="color:var(--color-text-muted);">queue </span>
+  <span aria-hidden="true">
+    <span style="color:var(--noir-ink-4);">##</span><!-- filled cells: densest ramp glyphs, primary off-white -->
+    <span style="color:var(--noir-ink-2);">=+::</span><!-- mid cells: mid-ramp glyphs, muted ink -->
+    <span style="color:var(--noir-ink-1);">-.  </span><!-- trailing cells: sparse glyphs fading to space -->
+  </span>
+  <span style="color:var(--color-text-muted);"> 61%</span>
+</div>
+```

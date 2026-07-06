@@ -47,11 +47,21 @@ data sheet. These sheets are the spine of the [pricing](pricing) surface and
 support comparison anywhere on the [landing](landing) or [workflow](workflow)
 surfaces.
 
-## Skeleton
-
 Begin every comparison sheet from this structure — claim above the table, mono
 headers on the muted rail, tabular numerics down the columns, chosen option
 marked by edge weight:
+
+**Bound:** claim before table; mono uppercase headers on `--color-surface-muted`;
+`--contrast-num-align` right-aligned `tabular-nums` columns; hairline row
+dividers; chosen column framed by `--contrast-edge-strong` (never a badge or
+shadow); collapsed groups named with row counts; identical anatomy at every
+disclosure depth. **Open:** row/column count, accordion vs full-spec tier vs
+footnote for staged depth, whether tinted tiles appear at all, scroll vs stack
+on mobile (row labels always preserved).
+
+Related: reinforces `pattern.mono-labels`; contrasts with `pattern.proof-cards`.
+
+## Skeleton
 
 ```html
 <section class="plane plane--sheet" style="background: var(--contrast-plane-sheet-bg); color: var(--contrast-plane-sheet-fg); padding: var(--contrast-band-pad-y) var(--contrast-band-pad-x);">
@@ -86,13 +96,3 @@ marked by edge weight:
   </div>
 </section>
 ```
-
-**Bound:** claim before table; mono uppercase headers on `--color-surface-muted`;
-`--contrast-num-align` right-aligned `tabular-nums` columns; hairline row
-dividers; chosen column framed by `--contrast-edge-strong` (never a badge or
-shadow); collapsed groups named with row counts; identical anatomy at every
-disclosure depth. **Open:** row/column count, accordion vs full-spec tier vs
-footnote for staged depth, whether tinted tiles appear at all, scroll vs stack
-on mobile (row labels always preserved).
-
-Related: reinforces `pattern.mono-labels`; contrasts with `pattern.proof-cards`.

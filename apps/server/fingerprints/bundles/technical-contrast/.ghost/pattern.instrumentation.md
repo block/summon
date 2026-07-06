@@ -104,11 +104,20 @@ and the narrative-beat rule governs when the [contrast planes](principle.contras
 are allowed to flip. All identity content in the strip and anchor stays
 source-agnostic, named from the prompt.
 
-## Skeleton
-
 Begin an instrumented surface from this structure — anchor constant across
 planes, metadata strip at the sheet edge, one grid exposure behind the primary
 table, and dual index/overview projections of the same items:
+
+**Bound:** the anchor's constancy across planes; one grid exposure per surface;
+the strip's mono-uppercase voice, tabular figures, and hairline separation;
+identical row anatomy across both projections; all identity values
+prompt-derived. **Open:** strip at top vs bottom, which plane hosts the
+exposure, how many planes the argument needs, whether the index list precedes
+or follows the overview table.
+
+Related: reinforces `principle.contrast-planes`, `pattern.mono-labels`, `pattern.data-sheets`.
+
+## Skeleton
 
 ```html
 <body>
@@ -143,12 +152,3 @@ table, and dual index/overview projections of the same items:
   </footer>
 </body>
 ```
-
-**Bound:** the anchor's constancy across planes; one grid exposure per surface;
-the strip's mono-uppercase voice, tabular figures, and hairline separation;
-identical row anatomy across both projections; all identity values
-prompt-derived. **Open:** strip at top vs bottom, which plane hosts the
-exposure, how many planes the argument needs, whether the index list precedes
-or follows the overview table.
-
-Related: reinforces `principle.contrast-planes`, `pattern.mono-labels`, `pattern.data-sheets`.

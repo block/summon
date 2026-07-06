@@ -48,6 +48,20 @@ ruled-band rhythm. Keep severity exact and austere without becoming hostile — 
 for ink, border weight, and an uppercase Risk or Caveat label before semantic color,
 and reserve true danger, success, info, and warning tokens for real state.
 
+**Bound:** hairline rules between bands (never boxes or fills), the identical
+column measure repeated on every band, a tracked mono uppercase label opening
+each row, and a so-what beside every fact. **Open:** the column ratio and
+count, whether parallel options split with `--editorial-column-rule` borders,
+whether one figure takes the specimen treatment, and whether the region reveals
+its measure with guide rules.
+
+Evidence justifies the claim rather than postponing it. Where evidence carries the
+strongest contrast moment or the recommendation itself, it is promoted into the
+[single inverse-ink panel](pattern.inverse-panel); the bands otherwise stay on paper
+neutrals beneath the [masthead](pattern.masthead) and ahead of the [editorial close](pattern.close).
+
+Related: reinforces `pattern.metadata`; contrasts with `pattern.inverse-panel`.
+
 ## Skeleton
 
 ```html
@@ -65,17 +79,3 @@ and reserve true danger, success, info, and warning tokens for real state.
   </div>
 </section>
 ```
-
-**Bound:** hairline rules between bands (never boxes or fills), the identical
-column measure repeated on every band, a tracked mono uppercase label opening
-each row, and a so-what beside every fact. **Open:** the column ratio and
-count, whether parallel options split with `--editorial-column-rule` borders,
-whether one figure takes the specimen treatment, and whether the region reveals
-its measure with guide rules.
-
-Evidence justifies the claim rather than postponing it. Where evidence carries the
-strongest contrast moment or the recommendation itself, it is promoted into the
-[single inverse-ink panel](pattern.inverse-panel); the bands otherwise stay on paper
-neutrals beneath the [masthead](pattern.masthead) and ahead of the [editorial close](pattern.close).
-
-Related: reinforces `pattern.metadata`; contrasts with `pattern.inverse-panel`.

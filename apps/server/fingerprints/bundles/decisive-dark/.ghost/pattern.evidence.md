@@ -42,6 +42,16 @@ Evidence justifies the [answer](pattern.answer) rather than postponing it, sits 
 hero on near-black tiers, and hands off to the [one-sentence meaning](pattern.meaning) that
 names the so-what before the [action stack](pattern.action) guides the next move.
 
+**Bound vs open.** Bound: at most one evidence region, sitting directly under
+the hero; discrete bars/candles at `--dd-bar-gap`, series in
+`--dd-bar-neutral`, axis labels in `--dd-axis` with tabular figures; no frame,
+no plot-area fill, no smoothing, no construction animation. Open: bars vs
+candlesticks vs uniform rows (rows swap the flex chart for tiered
+`--color-surface` rows inset by `--dd-content-inset`), chart height, how many
+labels the eye actually needs, and whether the accent lands here or elsewhere.
+
+Related: reinforces `pattern.answer`; contrasts with `pattern.meaning`.
+
 ## Skeleton
 
 ```html
@@ -62,13 +72,3 @@ names the so-what before the [action stack](pattern.action) guides the next move
   </div>
 </section>
 ```
-
-**Bound vs open.** Bound: at most one evidence region, sitting directly under
-the hero; discrete bars/candles at `--dd-bar-gap`, series in
-`--dd-bar-neutral`, axis labels in `--dd-axis` with tabular figures; no frame,
-no plot-area fill, no smoothing, no construction animation. Open: bars vs
-candlesticks vs uniform rows (rows swap the flex chart for tiered
-`--color-surface` rows inset by `--dd-content-inset`), chart height, how many
-labels the eye actually needs, and whether the accent lands here or elsewhere.
-
-Related: reinforces `pattern.answer`; contrasts with `pattern.meaning`.

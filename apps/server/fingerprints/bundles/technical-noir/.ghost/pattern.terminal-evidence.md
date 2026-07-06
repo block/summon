@@ -40,6 +40,22 @@ compact muted selector rail with one high-contrast active option — carried by 
 `--noir-spine` rather than a colored tab — and give most space to a materially
 larger active evidence frame, used for comparing modes, not simple one-path tasks.
 
+**Bound:** the `--color-surface` lift bounded by `--noir-hairline` at 3–6px
+radius; the `--noir-gutter` mono column on every line; the 24px line rhythm
+sharing the `--noir-grid` lattice; exactly one `--noir-cursor` per panel; state
+on a 6px `--noir-dot-*` plus a mono metadata label. **Open:** header/footer
+layout, line count, whether a footer carries a command-action pair, readout
+rows present or absent, the actual command and log content — which must always
+be plausible and task-tied.
+
+The text inside these panels must be plausible and tied to the user request: no
+lorem-ipsum code, abstract decorative blocks, or colorful syntax confetti. The
+[control system](pattern.controls) governs the buttons and mono labels these panels
+pair with; where terminal evidence proves a claim, a [tile](pattern.tiles) carries a
+repeating unit of content.
+
+Related: reinforces `pattern.controls`, `pattern.density-field`; contrasts with `pattern.tiles`.
+
 ## Skeleton
 
 ```html
@@ -56,19 +72,3 @@ larger active evidence frame, used for comparing modes, not simple one-path task
   </div>
 </section>
 ```
-
-**Bound:** the `--color-surface` lift bounded by `--noir-hairline` at 3–6px
-radius; the `--noir-gutter` mono column on every line; the 24px line rhythm
-sharing the `--noir-grid` lattice; exactly one `--noir-cursor` per panel; state
-on a 6px `--noir-dot-*` plus a mono metadata label. **Open:** header/footer
-layout, line count, whether a footer carries a command-action pair, readout
-rows present or absent, the actual command and log content — which must always
-be plausible and task-tied.
-
-The text inside these panels must be plausible and tied to the user request: no
-lorem-ipsum code, abstract decorative blocks, or colorful syntax confetti. The
-[control system](pattern.controls) governs the buttons and mono labels these panels
-pair with; where terminal evidence proves a claim, a [tile](pattern.tiles) carries a
-repeating unit of content.
-
-Related: reinforces `pattern.controls`, `pattern.density-field`; contrasts with `pattern.tiles`.

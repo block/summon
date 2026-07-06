@@ -47,6 +47,22 @@ luxury whitespace doing the dividing. These silkscreen perforations provide Y2K
 chrome detail between compact modules as machine texture, not page-wide wallpaper
 — kept readable, never CRT-scanline overload.
 
+**Bound:** the grey field / molded chassis nesting, the `--chrome-faceplate` +
+`--chrome-faceplate-rim` pair on the outer body, the zero-blur two-tone
+`--chrome-bevel-hard` seam on every plate (deep on the one hero), raised
+periwinkle/pale-sky carrying inset platinum/white content, dotted dividers
+between rows, and slot wells rationed to persistent state. **Open:** plate
+count and arrangement, hero imagery, sharp versus chamfered outer corners
+(2–6px radius only on small inset panels), and how plates stack inside the one
+frame on narrow screens.
+
+The carbon slabs framed here are reused by the [command and navigation
+system](pattern.command-nav); the inset fields host [control system](pattern.controls) inputs;
+and every plate earns a [section-label or badge](pattern.badges) so it never reads as an
+unlabeled content island.
+
+Related: reinforces `pattern.command-nav`, `pattern.badges`.
+
 ## Skeleton
 
 ```html
@@ -77,19 +93,3 @@ chrome detail between compact modules as machine texture, not page-wide wallpape
   </main>
 </body>
 ```
-
-**Bound:** the grey field / molded chassis nesting, the `--chrome-faceplate` +
-`--chrome-faceplate-rim` pair on the outer body, the zero-blur two-tone
-`--chrome-bevel-hard` seam on every plate (deep on the one hero), raised
-periwinkle/pale-sky carrying inset platinum/white content, dotted dividers
-between rows, and slot wells rationed to persistent state. **Open:** plate
-count and arrangement, hero imagery, sharp versus chamfered outer corners
-(2–6px radius only on small inset panels), and how plates stack inside the one
-frame on narrow screens.
-
-The carbon slabs framed here are reused by the [command and navigation
-system](pattern.command-nav); the inset fields host [control system](pattern.controls) inputs;
-and every plate earns a [section-label or badge](pattern.badges) so it never reads as an
-unlabeled content island.
-
-Related: reinforces `pattern.command-nav`, `pattern.badges`.

@@ -44,10 +44,27 @@ and pick-up moves](pattern.kept-notes) — held gently above the plan while the 
 the page recedes — so a panel never has to cram every detail into its resting
 view.
 
-## Skeleton
-
 Every plan begins from this bound structure — one shell, one context header, one
 chosen step, supporting notes flat around it:
+
+**Bound:** the single outer shell with `--garden-panel-radius-lg` and
+`--garden-note-lift`; the context header opening the page; exactly one
+chosen-step note carrying the dot and sharing the same lift; supporting notes
+flat with border-only separation; the unclosed later-edge closing nothing.
+**Open:** how many supporting notes, garden-bed groupings within the panel,
+whether kept notes gather at an edge or in a row, chip selection, and the
+measure — let the task set the shape.
+
+These panels pair with the [badge and state system](pattern.badges) for readiness, time,
+and effort, lean on the [gentle depth rules](principle.gentle-depth) so layering never
+becomes a card pile, and hold the [good-enough choice and can-wait notes](pattern.good-enough)
+that lower pressure. Every surface — [planner](planner), [staged-plan](staged-plan),
+[comparison](comparison), and [routine](routine) — composes the plan from these
+panels.
+
+Related: reinforces `principle.gentle-depth`, `pattern.badges`.
+
+## Skeleton
 
 ```html
 <main style="background: var(--color-bg); font-family: var(--font-sans); color: var(--color-text); padding: var(--space-8) var(--space-5) 0;">
@@ -69,20 +86,3 @@ chosen step, supporting notes flat around it:
   </section>
 </main>
 ```
-
-**Bound:** the single outer shell with `--garden-panel-radius-lg` and
-`--garden-note-lift`; the context header opening the page; exactly one
-chosen-step note carrying the dot and sharing the same lift; supporting notes
-flat with border-only separation; the unclosed later-edge closing nothing.
-**Open:** how many supporting notes, garden-bed groupings within the panel,
-whether kept notes gather at an edge or in a row, chip selection, and the
-measure — let the task set the shape.
-
-These panels pair with the [badge and state system](pattern.badges) for readiness, time,
-and effort, lean on the [gentle depth rules](principle.gentle-depth) so layering never
-becomes a card pile, and hold the [good-enough choice and can-wait notes](pattern.good-enough)
-that lower pressure. Every surface — [planner](planner), [staged-plan](staged-plan),
-[comparison](comparison), and [routine](routine) — composes the plan from these
-panels.
-
-Related: reinforces `principle.gentle-depth`, `pattern.badges`.

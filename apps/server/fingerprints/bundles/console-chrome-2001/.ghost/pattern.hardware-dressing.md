@@ -100,6 +100,25 @@ index.
 }
 ```
 
+**Bound:** one global texture pass at page level; the flat two-tone bezel
+(molded surround, recessed dark screen well, no gloss); one artifact grammar
+held across every image on the surface; etch labels in cool silkscreen on
+chrome zones only; carbon scene bars with cool scene numbers between
+fixed-height screens. **Open:** which one or two modules earn the bezel,
+pixelated versus dithered as the surface's artifact grammar, the wording of
+etch legends, whether early-web furniture (guestbook, hit counter, ticker —
+at most one, re-skinned in chrome) appears at all, and how many scenes a
+surface sequences.
+
+The bezel frames sit on the molded depth of the [beveled plate and chrome
+system](pattern.plates); etch labels, region badges, and scene numbers are silkscreen
+kin of the [badge and section-label system](pattern.badges) but mark the casing, not
+content status; and the carbon scene bars that separate numbered screens reuse
+the slab grammar of the [command and navigation system](pattern.command-nav) without
+carrying nav — they are punctuation, not controls.
+
+Related: reinforces `pattern.plates`, `pattern.badges`, `pattern.command-nav`.
+
 ## Skeleton
 
 ```html
@@ -130,22 +149,3 @@ index.
 </div>
 <section class="chrome-scene"><!-- fixed-height typed module --></section>
 ```
-
-**Bound:** one global texture pass at page level; the flat two-tone bezel
-(molded surround, recessed dark screen well, no gloss); one artifact grammar
-held across every image on the surface; etch labels in cool silkscreen on
-chrome zones only; carbon scene bars with cool scene numbers between
-fixed-height screens. **Open:** which one or two modules earn the bezel,
-pixelated versus dithered as the surface's artifact grammar, the wording of
-etch legends, whether early-web furniture (guestbook, hit counter, ticker —
-at most one, re-skinned in chrome) appears at all, and how many scenes a
-surface sequences.
-
-The bezel frames sit on the molded depth of the [beveled plate and chrome
-system](pattern.plates); etch labels, region badges, and scene numbers are silkscreen
-kin of the [badge and section-label system](pattern.badges) but mark the casing, not
-content status; and the carbon scene bars that separate numbered screens reuse
-the slab grammar of the [command and navigation system](pattern.command-nav) without
-carrying nav — they are punctuation, not controls.
-
-Related: reinforces `pattern.plates`, `pattern.badges`, `pattern.command-nav`.

@@ -109,6 +109,24 @@ consistent with the rail's ordering.
 }
 ```
 
+**Bound:** the solid opaque opening plate under any text-over-image; one shout,
+optionally RGB-split, in the first viewport; the fixed-key-column filing card
+with real-or-omitted values; one margin voice per item; tears only at true
+register shifts, always hard-matte; every `→ REF:` citation resolving to a real
+`id` anchor; the flat sequential codebook. **Open:** whether an opening is
+atmosphere or shout-first, which items carry cards, tear form (stepped rule,
+double line, or hazard band), the codebook naming scheme, and all content.
+
+The filing cards and margin voice extend the [display-shout and mono-metadata
+type system](pattern.type-system) — same whisper register, more structure; catalog cards
+and opening plates sit flat on the [tile system](pattern.tiles) rails under the same
+no-shadow rule, and tears splice between its tile groups; and every hazard key,
+tear stripe, and RGB offset draws only the voltages already rationed by the
+[dark canvas and hazard-accent system](principle.canvas) — the grammar adds filing and
+pacing, never a third accent.
+
+Related: reinforces `pattern.type-system`, `pattern.tiles`, `principle.canvas`.
+
 ## Skeleton
 
 ```html
@@ -138,21 +156,3 @@ consistent with the rail's ordering.
   </h2>
 </article>
 ```
-
-**Bound:** the solid opaque opening plate under any text-over-image; one shout,
-optionally RGB-split, in the first viewport; the fixed-key-column filing card
-with real-or-omitted values; one margin voice per item; tears only at true
-register shifts, always hard-matte; every `→ REF:` citation resolving to a real
-`id` anchor; the flat sequential codebook. **Open:** whether an opening is
-atmosphere or shout-first, which items carry cards, tear form (stepped rule,
-double line, or hazard band), the codebook naming scheme, and all content.
-
-The filing cards and margin voice extend the [display-shout and mono-metadata
-type system](pattern.type-system) — same whisper register, more structure; catalog cards
-and opening plates sit flat on the [tile system](pattern.tiles) rails under the same
-no-shadow rule, and tears splice between its tile groups; and every hazard key,
-tear stripe, and RGB offset draws only the voltages already rationed by the
-[dark canvas and hazard-accent system](principle.canvas) — the grammar adds filing and
-pacing, never a third accent.
-
-Related: reinforces `pattern.type-system`, `pattern.tiles`, `principle.canvas`.

@@ -47,6 +47,16 @@ meaning](pattern.meaning) that interprets it, is justified by the [bold evidence
 beneath it, and may carry the surface's single [accent moment](pattern.accent-moment) when the
 trend is positive or the action is primary.
 
+**Bound vs open.** Bound: exactly one answer block, first major region,
+left-aligned with a ragged edge, `--dd-top-safe` above and `--dd-answer-clear`
+below, nothing sharing its band, tabular figures with the unit tight to the
+number, no preamble line. Open: metric vs verdict form, whether the eyebrow
+appears, whether a decisive prefix takes its own line, whether a chart is
+embedded (per [evidence](pattern.evidence)), and whether the surface's one
+settle-in is spent here.
+
+Related: reinforces `pattern.evidence`, `pattern.meaning`.
+
 ## Skeleton
 
 ```html
@@ -67,13 +77,3 @@ trend is positive or the action is primary.
   -->
 </section>
 ```
-
-**Bound vs open.** Bound: exactly one answer block, first major region,
-left-aligned with a ragged edge, `--dd-top-safe` above and `--dd-answer-clear`
-below, nothing sharing its band, tabular figures with the unit tight to the
-number, no preamble line. Open: metric vs verdict form, whether the eyebrow
-appears, whether a decisive prefix takes its own line, whether a chart is
-embedded (per [evidence](pattern.evidence)), and whether the surface's one
-settle-in is spent here.
-
-Related: reinforces `pattern.evidence`, `pattern.meaning`.

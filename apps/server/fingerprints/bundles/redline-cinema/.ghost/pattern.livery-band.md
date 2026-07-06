@@ -29,6 +29,18 @@ truly full-width, ignoring the four-column backbone the way a full-bleed image
 does. The thin alternative, `--redline-voltage-stripe`, is `3px` and follows the
 identical once-per-page budget.
 
+**Bound:** the red sweep, full width, white-only content, square corners, and the
+once-per-page budget shared with `--redline-voltage-stripe`. **Open:** cut vs.
+statement variant, where in the act sequence it lands, and whether a single white
+outline action accompanies the statement.
+
+This band contrasts deliberately with the scarce red of the [control
+system](pattern.controls) — where controls use red as a single high-voltage CTA fill, the
+livery band uses red as the surface itself — and it is the one intentional break
+in the [hairline and brightness depth](principle.depth) calm. Use it once or not at all.
+
+Related: contrasts with `pattern.controls`, `principle.depth`.
+
 ## Skeleton
 
 ```html
@@ -42,15 +54,3 @@ identical once-per-page budget.
   <h2 class="livery-statement" style="font-size: var(--text-2xl); font-weight: 600;"><!-- one editorial statement, white only --></h2>
 </section>
 ```
-
-**Bound:** the red sweep, full width, white-only content, square corners, and the
-once-per-page budget shared with `--redline-voltage-stripe`. **Open:** cut vs.
-statement variant, where in the act sequence it lands, and whether a single white
-outline action accompanies the statement.
-
-This band contrasts deliberately with the scarce red of the [control
-system](pattern.controls) — where controls use red as a single high-voltage CTA fill, the
-livery band uses red as the surface itself — and it is the one intentional break
-in the [hairline and brightness depth](principle.depth) calm. Use it once or not at all.
-
-Related: contrasts with `pattern.controls`, `principle.depth`.

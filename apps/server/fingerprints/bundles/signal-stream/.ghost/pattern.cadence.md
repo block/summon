@@ -58,6 +58,23 @@ narrows. The reader should always be able to answer *where am I in the stream*
 from the rail alone, without reading a word. If a layout collapse would sever
 the rail mid-stream, collapse the columns instead — the spine survives.
 
+**Bound:** the run/interruption alternation (a break roughly every
+`--signal-cadence-run-length` rows), the held `--signal-cadence-break-gap`
+around interruptions, chapter statements at `--signal-chapter-size` seated on
+their rule, dwell passages at `--signal-dwell-measure` / `--signal-dwell-leading`
+with saturation stripped, the loop splice across `--signal-loop-gap`, and the
+rail running unbroken end to end. **Open:** run lengths per section, what form
+each interruption takes, how many chapters a feed earns, and whether the loop
+splice is a repeated lead card, a citation, or a chapter index.
+
+The cadence paces the [tiles and rail](pattern.tiles) that carry the content, gives the
+[torn-edge transitions and ref codebook](pattern.transmission-grammar) their editorial
+timing, splits the [type system](pattern.type-system) into its skim and dwell voices,
+and rations the [hazard accents](principle.canvas) by velocity — saturation rides the skim
+layer, the dwell layer stays dark and quiet.
+
+Related: reinforces `pattern.tiles`, `pattern.transmission-grammar`, `pattern.type-system`, `principle.canvas`.
+
 ## Skeleton
 
 ```html
@@ -91,20 +108,3 @@ the rail mid-stream, collapse the columns instead — the spine survives.
   </footer>
 </main>
 ```
-
-**Bound:** the run/interruption alternation (a break roughly every
-`--signal-cadence-run-length` rows), the held `--signal-cadence-break-gap`
-around interruptions, chapter statements at `--signal-chapter-size` seated on
-their rule, dwell passages at `--signal-dwell-measure` / `--signal-dwell-leading`
-with saturation stripped, the loop splice across `--signal-loop-gap`, and the
-rail running unbroken end to end. **Open:** run lengths per section, what form
-each interruption takes, how many chapters a feed earns, and whether the loop
-splice is a repeated lead card, a citation, or a chapter index.
-
-The cadence paces the [tiles and rail](pattern.tiles) that carry the content, gives the
-[torn-edge transitions and ref codebook](pattern.transmission-grammar) their editorial
-timing, splits the [type system](pattern.type-system) into its skim and dwell voices,
-and rations the [hazard accents](principle.canvas) by velocity — saturation rides the skim
-layer, the dwell layer stays dark and quiet.
-
-Related: reinforces `pattern.tiles`, `pattern.transmission-grammar`, `pattern.type-system`, `principle.canvas`.

@@ -36,6 +36,22 @@ relief sheet the hairline flips to `--redline-hairline-on-light`
 Red budget: `--redline-voltage` on at most one value or one active row per grid,
 never on units, labels, or dividers.
 
+**Bound:** the numeral/unit/label anatomy, hairline-only separation, the
+left-index/middle-name/right-status row order, and the one-red-per-grid budget.
+**Open:** cell count (2–4 up), which metric is decisive, whether rows carry a
+squared action or a plain status, and whether the block sits on the dark stage or
+a white relief sheet.
+
+The numerals and rows lean on [hairline and brightness depth](principle.depth) for
+separation rather than shadow, and pair with the [control system](pattern.controls) for
+their labels and any row actions. When these values headline a dedicated
+performance story they lead the surface as its proof act; when they sit inside a
+dense transactional listing, a white relief sheet carries them with the same
+anatomy intact. See the assembled reference in
+[the spec-chapter exemplar](exemplar.spec-chapter).
+
+Related: reinforces `pattern.controls`, `principle.depth`.
+
 ## Skeleton
 
 ```html
@@ -59,19 +75,3 @@ never on units, labels, or dividers.
   </ul>
 </section>
 ```
-
-**Bound:** the numeral/unit/label anatomy, hairline-only separation, the
-left-index/middle-name/right-status row order, and the one-red-per-grid budget.
-**Open:** cell count (2–4 up), which metric is decisive, whether rows carry a
-squared action or a plain status, and whether the block sits on the dark stage or
-a white relief sheet.
-
-The numerals and rows lean on [hairline and brightness depth](principle.depth) for
-separation rather than shadow, and pair with the [control system](pattern.controls) for
-their labels and any row actions. When these values headline a dedicated
-performance story they lead the surface as its proof act; when they sit inside a
-dense transactional listing, a white relief sheet carries them with the same
-anatomy intact. See the assembled reference in
-[the spec-chapter exemplar](exemplar.spec-chapter).
-
-Related: reinforces `pattern.controls`, `principle.depth`.
