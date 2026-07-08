@@ -5,12 +5,22 @@
  * Vessel's token vocabulary (--background, --card, --primary, ...). Summon's
  * eight fingerprints speak a shared dialect (--color-bg, --color-surface,
  * --color-accent, ...) that all of them define in their index token block.
- * This bridge defines every Vessel token the primitives consume as a var()
- * reference into the fingerprint's vocabulary, so one structural layer
- * re-skins per fingerprint with zero changes to either side.
+ * This bridge defines ONLY the Vessel tokens the fingerprints do NOT define
+ * themselves, each as a var() reference into the fingerprint's vocabulary.
+ *
+ * Rule: never redefine a token the fingerprints already own. This file is
+ * appended AFTER the fingerprint token block in the same :root scope, so any
+ * name collision here silently overrides the fingerprint — the design
+ * authority — with a generic default. Tokens the fingerprints define under
+ * Vessel's exact names (--shadow-card, --shadow-popover, --shadow-modal,
+ * --radius-pill: 8/8 as of this writing) pass through natively and MUST NOT
+ * appear below. The coverage test in apps/server/src/materials.test.ts
+ * fails if a primitives-consumed token is neither bridged here nor
+ * fingerprint-owned, and the collision test fails if this file redefines a
+ * fingerprint-owned name.
  *
  * var() references resolve at computed-value time, so declaration order does
- * not matter for the mappings; the literal fallbacks here only apply when a
+ * not matter for the mappings; literal fallbacks apply only when a
  * fingerprint omits an optional token.
  */
 :root {
@@ -38,25 +48,24 @@
   --input: var(--color-border-input, var(--color-border, currentColor));
   --ring: var(--color-accent);
 
-  /* Status (fingerprints without explicit status tokens fall back to accent/danger) */
-  --success: var(--color-ok, var(--color-accent));
-  --warning: var(--color-warn, var(--color-accent));
+  /* Status — the fingerprints' functional palette (8/8 define these). */
+  --success: var(--color-success, var(--color-accent));
+  --warning: var(--color-warning, var(--color-accent));
   --info: var(--color-info, var(--color-accent));
 
-  /* Radii: --radius-sm/md/lg come from the fingerprint (8/8 define them). */
+  /* Radii mapped from the fingerprint scale (--radius-pill is
+     fingerprint-owned and passes through natively). */
   --radius-card: var(--radius-md);
   --radius-input: var(--radius-sm);
-  --radius-pill: var(--radius-lg);
 
-  /* Depth: default flat — most fingerprints reject shadow elevation; a
-     fingerprint that wants depth overrides these in its own token block. */
-  --shadow-btn: none;
-  --shadow-card: none;
-  --shadow-popover: none;
-  --shadow-modal: none;
+  /* Depth: --shadow-card/popover/modal are fingerprint-owned and pass
+     through natively. Only the button shadow needs a name mapping. */
+  --shadow-btn: var(--shadow-mini, none);
   --dark-40: rgba(0, 0, 0, 0.4);
 
-  /* Motion */
+  /* Motion (no fingerprint defines a duration/easing scale yet; these are
+     restrained defaults, not Vessel's — override per fingerprint if one
+     grows a motion vocabulary). */
   --duration-fast: 120ms;
   --duration-normal: 200ms;
   --duration-slow: 320ms;
