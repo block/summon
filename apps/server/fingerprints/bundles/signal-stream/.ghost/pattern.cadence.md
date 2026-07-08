@@ -1,5 +1,5 @@
 ---
-description: The stream cadence — dense-row runs punctuated by full-width interruptions, editorial chapter breaks inside the feed, a loop splice so the stream never dead-ends, and two reading velocities (skim versus dwell) that decide how loud each passage may be. Reach for this when a surface needs its pacing over time, not just its parts.
+description: The stream cadence — dense-row runs punctuated by full-width interruptions, editorial chapter breaks inside the feed, a loop splice so the stream never dead-ends, and two reading velocities (skim versus dwell) that decide how loud each passage may be. Reach for this when a surface needs its pacing over time, not just its parts — including the empty state (no results, awaiting data) before the stream begins.
 ---
 
 ## Composition
@@ -38,7 +38,13 @@ the first chapter, or a compact index of the chapters just passed — across a
 `--signal-loop-gap` of held dark field. The splice is honest wayfinding, not an
 infinite-scroll trick: it says *the transmission continues from the top*, in
 the same mono register as the rail. A footer that trails off into silence, or a
-"load more" dead-end, breaks the signal; the loop splice keeps it live.
+"load more" dead-end, breaks the signal; the loop splice keeps it live. The
+splice applies when the feed exceeds one viewport; a stream that resolves
+within a single viewport ends on its last row without one.
+
+When the stream is empty, the rail still renders with a single mono
+`AWAITING SIGNAL` pill at its head — never a centered illustration or a light
+placeholder panel.
 
 **Two reading velocities.** Every passage is composed for one of two speeds.
 The **skim register** is what a moving eye catches: the rail's ticks, mono
@@ -62,7 +68,8 @@ the rail mid-stream, collapse the columns instead — the spine survives.
 `--signal-cadence-run-length` rows), the held `--signal-cadence-break-gap`
 around interruptions, chapter statements at `--signal-chapter-size` seated on
 their rule, dwell passages at `--signal-dwell-measure` / `--signal-dwell-leading`
-with saturation stripped, the loop splice across `--signal-loop-gap`, and the
+with saturation stripped, the loop splice across `--signal-loop-gap` whenever
+the feed exceeds one viewport, and the
 rail running unbroken end to end. **Open:** run lengths per section, what form
 each interruption takes, how many chapters a feed earns, and whether the loop
 splice is a repeated lead card, a citation, or a chapter index.

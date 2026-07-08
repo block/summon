@@ -1,5 +1,5 @@
 ---
-description: The instrumentation system — plane changes as narrative beats, a thin uppercase-mono `--contrast-meta-strip` metadata row with version, build date, status, and a `SHEET 03 / 07` locator, one deliberate `--contrast-grid-guide` grid exposure behind a table, a constant `--contrast-anchor` wordmark lockup across all three planes, index/overview dual projections of the same items, and stated subtractive sheet scope. Reach for how a surface proves it is an engineered document rather than a decorated page.
+description: "The instrumentation system — plane changes as narrative beats, a thin uppercase-mono `--contrast-meta-strip` metadata row with version, build date, status, and a `SHEET 03 / 07` locator, one deliberate `--contrast-grid-guide` grid exposure behind a table, a constant `--contrast-anchor` wordmark lockup across all three planes, index/overview dual projections of the same items, and stated subtractive sheet scope. Metadata strip, constant anchor across planes, one grid exposure, and index/overview duality — gather for ANY multi-band surface (landing, pricing, proof, comparison): the anchor and plane-pivot rules are checked obligations, not optional finish."
 ---
 
 ## Composition
@@ -8,6 +8,10 @@ Instrumentation is how a Technical Contrast surface proves it was engineered:
 the page carries genuine metadata, exposes its own construction exactly once,
 and keeps one constant anchor across every plane change. None of it is
 decoration — every instrument on the sheet must be true.
+
+**When to instrument.** When the surface is a document (landing, sheet, proof
+page), instrument it; when it is a control (form, dialog, flow step), omit the
+strip and locator — the anchor alone may persist.
 
 **Plane change as narrative beat.** The midnight proof plane arrives exactly
 where the argument pivots from claim to evidence — the
@@ -40,7 +44,8 @@ grid stays implicit in the alignment itself.
 `--contrast-anchor-size` with `--contrast-anchor-tracking`, named from the user's
 prompt per the no-source-brand rule — persists in the same position across pale,
 white, and midnight planes, with only its ink adapting to each plane's fg/bg
-pair. The anchor is what makes the plane flips read as one document changing
+pair. Always render one constant anchor when a surface crosses more than one
+plane. The anchor is what makes the plane flips read as one document changing
 register rather than three stitched pages; individual planes must not restate
 their own header styling, logo treatment, or navigation around it.
 

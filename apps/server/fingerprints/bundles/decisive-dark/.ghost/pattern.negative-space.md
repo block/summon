@@ -38,4 +38,13 @@ whole composition inside the [deletion discipline](principle.deletion-discipline
 after everything deletable is gone, the space left behind is not a gap but the
 frame.
 
+**Bound vs open.** Bound: `--dd-answer-clear` keeps the hero's band unshared —
+no badge, timestamp, or helper line beside it; `--dd-block-gap` of open canvas
+separates the four blocks with the gap as the divider; `--dd-frame-gap` frames
+the composition against the canvas; a `--dd-divider-earned` hairline appears
+only where two regions would otherwise blur. Open: how far the ragged edge
+runs, how the gaps flex on small viewports (they compress before content
+does), and where extra quiet is granted to a meaning line or a bare region
+doing its job.
+
 Related: reinforces `pattern.answer`, `principle.deletion-discipline`.

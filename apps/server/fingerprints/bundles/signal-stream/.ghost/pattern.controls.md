@@ -24,6 +24,14 @@ action; outline pills for secondary; explicit contrast-safe focus rings, no glow
 One primary mint button per region — reach for border weight, position, or the
 active rail before adding more color.
 
+**Bound:** zero `--signal-tab-gap` with the hairline `--signal-tab-border`;
+the 2px mint `--signal-tab-active-underline` (never a fill swap) as the only
+saturated element in the control; uppercase mono tab labels at
+`--signal-tab-tracking`; exactly one mint-filled primary pill per region with
+black text and no shadow; explicit contrast-safe focus rings, no glow; mode
+controls preserved on mobile. **Open:** tab labels and count, secondary
+outline-pill placement, and where the single CTA lands in the region.
+
 These controls borrow the mint and violet hazard accents of the [dark
 canvas](principle.canvas), use the [mono uppercase metadata](pattern.type-system) for their labels,
 and pair with the [tiles](pattern.tiles) they sit beside. The segmented tabs are most at

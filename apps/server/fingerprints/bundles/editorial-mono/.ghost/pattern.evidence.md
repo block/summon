@@ -44,7 +44,7 @@ then violates is worse than no guides at all. Use once per surface at most; the
 guides frame the region that carries the comparison, never the whole page.
 
 **Risk and caveat rows.** Failure, warning, blocked, or caveat states ride the same
-ruled-band rhythm. Keep severity exact and austere without becoming hostile — reach
+ruled-band rhythm. Severity is named, not dramatized — the label carries the weight; reach
 for ink, border weight, and an uppercase Risk or Caveat label before semantic color,
 and reserve true danger, success, info, and warning tokens for real state.
 

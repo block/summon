@@ -7,8 +7,9 @@ description: Signal Stream core — a dark, high-voltage editorial stream langua
 Signal Stream makes a surface feel like a live signal: a near-black field, sharp
 metadata, loud editorial type, and saturated moments of emphasis. It turns feeds,
 reviews, launch updates, and comparisons into a paced **stream** rather than a
-generic dashboard. The voice is electric, editorial, urgent, sharp, dense, and
-confident — technical without becoming chaotic.
+generic dashboard. When legibility and urgency conflict, urgency loses: the
+field stays scannable at speed; when calm neutrality and vivid hierarchy
+conflict, hierarchy wins.
 
 It serves readers scanning live updates and high-volume editorial feeds,
 operators who need fast hierarchy in dense technology briefings, and agents
@@ -307,32 +308,19 @@ its own job.
 
 ## Composition
 
-Five principles carry the language and are true on every surface:
+Five principles carry the language and are true on every surface — each is
+stated in full in its owning node; the index only names them:
 
-1. **The dark canvas is the material.** The warm near-black field is the primary
-   surface and negative space; bright fills are interruptions, not the default.
-   White text, muted-gray metadata, and hairline borders stay crisp against it.
-   No light-mode shells unless a single bright tile is deliberately interrupting
-   the dark rhythm.
-2. **Hazard accents earn attention.** Mint and violet behave like hazard markers
-   — they identify the most important action, state, rail, or tile. Acid mint for
-   primary CTAs, active underlines, and one high-attention tile; electric violet
-   for secondary emphasis, promotional outlines, and rails. Saturated tile colors
-   are solid editorial blocks, never gradients or pastel washes. The accent's job
-   must be legible: priority, action, state, section, or interruption.
-3. **Display shout anchors the page.** One oversized condensed display headline,
-   tight line-height, contrasted with compact metadata — a shout-versus-whisper.
-   Display scale belongs only to a masthead, lead headline, or major section
-   statement; never to buttons, tables, or body. Use `clamp()` so it wraps
-   cleanly and never clips the host frame.
-4. **Metadata is navigation.** Mono uppercase labels (≈0.11–0.18em tracking) carry
-   time, order, category, confidence, state, or action — not decoration. Short,
-   tracked, placed near what they orient. 10–12px minimum; do not shrink on
-   mobile, collapse layout instead.
-5. **Flat depth keeps the signal clean.** Hierarchy comes from 1px borders, inset
-   rules, saturation, and contrast — never elevation shadows. Saturated fills are
-   the loudest tier. Hover changes text or border color, not card lift. No soft
-   shadows, glow, blur, glass, or card lift on primary editorial surfaces.
+1. **The dark canvas is the material** — the field contract lives in the
+   [dark canvas and hazard-accent field](principle.canvas).
+2. **Hazard accents earn attention** — rationing, jobs, and the two voltages
+   live in [principle.canvas](principle.canvas).
+3. **Display shout anchors the page** — the shout-versus-whisper contract lives
+   in the [type system](pattern.type-system).
+4. **Metadata is navigation** — the mono pill rules live in the
+   [type system](pattern.type-system).
+5. **Flat depth keeps the signal clean** — the no-elevation rule lives in
+   [principle.canvas](principle.canvas) and the [tiles](pattern.tiles).
 
 **Tuning a surface from the signal.** Signal Stream has no fixed page types —
 every surface is tuned for its task from the same kit of parts, laid down on the
@@ -361,8 +349,8 @@ the same parts.
 order/recency/sequence visible without paragraph reading (rail, repeated
 timestamp, numbered sequence, or compact status line). A reader should grasp the
 lead, current state, and next action before body detail. Every saturated accent
-must communicate priority/action/state/interruption — no more than a few per
-viewport. Primary hierarchy must never depend on drop shadows. Display headlines
+must communicate priority/action/state/interruption — at most 3 saturated fills
+per viewport; at most 1 mint CTA per region. Primary hierarchy must never depend on drop shadows. Display headlines
 must wrap cleanly inside the host frame; leave ≥72px top breathing room for host
 chrome. On mobile, collapse layout while preserving mode controls, lead
 hierarchy, metadata, and saturation — never desaturate or drop metadata to fit.

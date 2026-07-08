@@ -8,8 +8,9 @@ Garden Notes makes a planning surface feel like a warm, unhurried notebook: a so
 cream field, rounded note panels, gentle green emphasis, and friendly state
 badges. It turns messy personal requests, low-stakes life-admin choices, prep
 tasks, and tiny routines into a **manageable plan** rather than a productivity
-dashboard. The voice is warm, practical, unhurried, encouraging, specific, and
-low-pressure — calm without becoming vague.
+dashboard. When warmth conflicts with a concrete recommendation, the
+recommendation wins. When calm conflicts with an exact date, the date wins
+("picks up Thursday", never "soon").
 
 It serves people planning personal tasks, people comparing low-stakes life-admin
 options such as errands, purchases, appointments, or household choices, and agents
@@ -97,7 +98,8 @@ planning state only — readiness, waiting, blockers, timing — never as confet
 airy spacing ladder paces the notebook, soft note-card radii shape the panels, a
 pill radius carries badges and compact state chips, and soft shadows give note
 layers gentle depth used sparingly. The sans is the friendly planning voice; the
-serif is an optional quiet pull-note, never a primary editorial voice; warm
+serif is an optional quiet pull-note — reach for `--font-serif` only when
+quoting the person's own words back to them, never as a primary editorial voice; warm
 heading scales climb toward a display size that should be scaled down before it
 becomes heroic.
 
@@ -206,6 +208,13 @@ these custom properties rather than inventing values):
   --garden-pickup-lift: 0 24px 60px rgba(66, 99, 58, 0.20); /* the one deeper lift, only while a note is picked up */
   --garden-pickup-scale: 1.02;         /* a held note grows by a hair — closer, never zoomed */
   --garden-recede-veil: rgba(234, 241, 220, 0.72); /* the rest of the plan softens behind the field color while one note is held */
+
+  /* HUMANE ORIENTATION — forward-facing texture and the open later-edge
+     (defined here as the source of truth; principle.humane-orientation explains their use). */
+  --garden-someday-paper: linear-gradient(180deg, #fbf6e0 0%, #f6f0cf 100%); /* someday notes settle a shade quieter than this-week paper */
+  --garden-someday-chip-radius: 12px;  /* someday chips square gently so the week's texture varies structurally */
+  --garden-later-fade: linear-gradient(180deg, rgba(234, 241, 220, 0) 0%, #eaf1dc 100%); /* the unclosed later… edge dissolving into the field */
+  --garden-later-ink: #9aab86;         /* later items rest in quiet-note ink — present, unhurried, unclosed */
 }
 ```
 
@@ -332,8 +341,9 @@ Four principles carry the language and are true on every surface:
    rankings for household choices.
 4. **Warmth serves action.** Warmth is useful when it makes the next action
    easier; it must not become decoration. Use rounded notes, green emphasis, and
-   gentle shadows to pace the plan; let badges communicate readiness, time,
-   effort, confidence, season, or energy; avoid literal garden motifs unless the
+   gentle shadows to pace the plan; reach for a chip only when the state actually
+   helps the user decide — a note without a meaningful state gets no chip, and a
+   row of badges must read like a status sentence, never confetti; avoid literal garden motifs unless the
    task itself is about gardening or seasonal prep, and never let warm filler copy
    replace a concrete recommendation.
 
@@ -350,11 +360,10 @@ not a template: when one clear move is all it needs, one note carrying the singl
 `--garden-chosen-dot` is the whole plan; when the task has real sequence, pace it
 through soft panels and gather what it needs into a prep basket before a short
 beginnable checklist, using now/next/later only as a pressure-release and making
-Later explicitly reassuring; when it weighs low-stakes options, lay them on soft
-parallel criteria — fit, friction, timing, materials, emotional load — so the
-reader compares like against like, never a numeric scorecard, and let one kind
-recommendation wear the green dot and name the tradeoff it accepts rather than a
-hard winner/loser verdict; when it repeats, keep it a short tactile checklist with
+Later explicitly reassuring; when it weighs low-stakes options, compare them
+the way the [good-enough choice and can-wait notes](pattern.good-enough)
+prescribe — soft parallel criteria, one kind recommendation on the green dot,
+never a scorecard or verdict; when it repeats, keep it a short tactile checklist with
 gentle reminder rows, never a streak-counting dashboard. The green marker lands
 once; a rare "check first" caution rides `--garden-clay-accent`, not alert red. If
 a task fits none of these shapes, compose a new surface from the same notes under

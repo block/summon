@@ -34,6 +34,12 @@ comparison marks the chosen option by position, border weight, or an ink label
 before the criteria columns begin. Completeness must never bury the verdict
 under equal-weight criteria, paragraphs, or widgets.
 
+**When the surface is operational rather than judgmental** — a form, a settings
+screen, a login — there is no verdict to promote: the masthead demotes to a
+section heading in the serif voice, the inverse slab goes unspent (it is a
+budget, not a quota), and the page's discipline is carried by the ruled controls
+and mono labels alone.
+
 The reader should understand the verdict, the criteria, and the next action
 before reading a single paragraph of detail. If they have to infer the claim
 from the evidence, the page has failed regardless of how well it is set.

@@ -71,7 +71,7 @@ underneath.
 `--redline-grain-opacity` (0.05) is the single permitted texture — for loader
 frames, band seams, and hover surfaces. No gradients-as-texture, no blur panels,
 no glass; grain is atmosphere on the near-black stage, held so low it is felt
-before it is seen.
+before it is seen — on the near-black stage only; white relief sheets stay clean.
 
 **Red scarcity, codified.** Red appears at most once per viewport, and only on the
 highest-intent element in view — the CTA, the decisive value, or the current
@@ -101,8 +101,9 @@ form; full-bleed reserved for imagery only; the reveal recipe (`opacity 0→1` +
 `--redline-reveal-rise` on `--redline-ease-cinematic`) applied via a single
 `.reveal` class with a composed no-JS resting state; 96–128px (`--space-8`/`--space-9`)
 breaks between acts. **Open:** chapter count and order, which act carries the spec
-grid vs. rows vs. cards, where the one voltage spend lands, and whether a bridge
-strip closes the page or a dark footer does.
+grid vs. rows vs. cards, where the one voltage spend lands, whether a bridge
+strip closes the page or a dark footer does, and whether transactional
+white-sheet regions run the reveal at all (default: they don't).
 
 This cadence paces the [cinematic image](pattern.cinematic-image) breakouts and the
 [hairline and brightness depth](principle.depth) rhythm into numbered acts, gives the

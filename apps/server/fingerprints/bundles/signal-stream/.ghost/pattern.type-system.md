@@ -1,5 +1,5 @@
 ---
-description: The shout-versus-whisper type contract — one condensed uppercase display line per surface at 0.86 leading, sans body split into skim and dwell velocities, and tracked mono metadata doing the navigating; pull it whenever type must anchor or orient, and refuse a calm headline in its place.
+description: The shout-versus-whisper type contract — one condensed uppercase display line per surface at 0.86 leading, sans body split into skim and dwell velocities, and tracked mono metadata doing the navigating; pull it whenever type must anchor or orient — leads, verdicts, review recommendations, comparison conclusions — and refuse a calm headline in its place.
 ---
 
 ## Composition
@@ -47,6 +47,15 @@ cadence](pattern.cadence) decides where they land.
 use a fictional or task-derived title (Signal Brief, Launch File, Field Notes, or
 the user's product name) as a composition role — display scale and placement,
 never copied letterforms or real publisher marks.
+
+**Bound:** one `--signal-shout-*` display line per surface at `0.86` leading,
+uppercase, on the `clamp()` scale — wrapping cleanly, never clipping the host
+frame, ≥72px top breathing room; display scale never on buttons, tables, or
+body; mono metadata tracked at ≈0.11–0.18em with a 10–12px floor (collapse
+layout, never shrink); chapter statements at `--signal-chapter-size`, below the
+shout; skim and dwell velocities never mixed. **Open:** the shout's copy and
+whether it pairs with a kicker or deck, which pills each item carries, and the
+masthead's fictional or task-derived title.
 
 The display shout and mono metadata read against the [dark canvas](principle.canvas); the
 metadata labels ride the rails and tiles of the [tile system](pattern.tiles) and the

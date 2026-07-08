@@ -40,4 +40,12 @@ These labels and stamps cap the [beveled plates](pattern.plates) and sit beside 
 distinct from the action chips of the [control system](pattern.controls): a badge marks
 status or category, a control commits an action.
 
+**Bound:** every dense module capped by a small uppercase Arial Bold
+section-label bar riding the `--chrome-bevel-hard` seam; stamps as hard-edged
+beveled squares, never friendly rounded pills; readouts in cool
+`--chrome-readout-text` teal with no lit warmth and no hover answer; no
+`--chrome-led-glow` on any stamp. **Open:** the label vocabulary, which
+modules earn an amber-ringed lit stamp versus a steady mark, whether readouts
+appear at all, and whether a mascot bubble breaks the masthead.
+
 Related: contrasts with `pattern.controls`; reinforces `pattern.plates`.

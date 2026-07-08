@@ -157,7 +157,7 @@ pnpm dev:demos
 - `@decentralized-design/summon-server` - provider-neutral generation lifecycle,
   runtime validation, and model-provider interfaces. The Ghost
   verdict/receipt/conformance pipeline ships from the `/ghost` subpath and
-  needs `@decentralized-design/ghost` as a peer dependency.
+  needs `@design-intelligence/ghost` as a peer dependency.
 - `@decentralized-design/summon-react` - `SummonSurface` React adapter for inline
   Summon surfaces and replay envelopes. `react` and `react-dom` are peer dependencies.
 

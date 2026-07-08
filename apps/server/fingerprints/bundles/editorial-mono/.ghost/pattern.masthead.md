@@ -1,5 +1,5 @@
 ---
-description: The masthead / deck / folio shell — the editorial frame that opens a page with compact mono metadata, an oversized serif verdict headline, a serif `--editorial-dropcap` initial, an interpreting deck, and the `--editorial-rule-heavy` seam over a strict body grid. Reach for how the surface frames its verdict and opens the composed page.
+description: The masthead / deck / folio shell — the editorial frame that opens a page with compact mono metadata, an oversized serif verdict headline, a serif `--editorial-dropcap-size` initial, an interpreting deck, and the `--editorial-rule-heavy` seam over a strict body grid. Reach for how the surface frames its verdict and opens the composed page.
 ---
 
 ## Composition
@@ -28,9 +28,11 @@ and keeps geometry squared so the page reads as edited paper rather than a card
 layout.
 
 **The breath before the claim.** A well-set front page does not start at its own
-top edge. Above the masthead, spend real emptiness — a `--space-9` or `--space-10`
-band of bare paper carrying only the folio corner — so the verdict headline lands
-after a pause, the way a printed opening spread breathes before the text begins.
+top edge. When the surface is the full page, spend real emptiness above the
+masthead — a `--space-9` or `--space-10` band of bare paper carrying only the
+folio corner — so the verdict headline lands after a pause, the way a printed
+opening spread breathes before the text begins; when the shell is embedded or
+compact, the breath compresses to `--space-6` and the folio corner is optional.
 The emptiness is deliberate stock, not wasted room: it is what makes the display
 serif feel decisive when it finally arrives, and it absorbs the 72px host-chrome
 obligation without crowding. Never fill this band with a preamble, a logo lockup,

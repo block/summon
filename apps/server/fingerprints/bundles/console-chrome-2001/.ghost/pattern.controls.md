@@ -54,4 +54,12 @@ framed by the [command and navigation system](pattern.command-nav); their amber 
 chips sit alongside the amber stamps of the [badge and section-label
 system](pattern.badges), which mark status rather than action.
 
+**Bound:** the amber = utility / signal orange = forward semantics; the
+`--chrome-inset-input` treatment for fields; the full call-and-response cycle
+(rest → hover pip → focus cursor → pressed inverted bevel → release flash or
+rest), stepped, never eased; exactly one lit or pressed member per group.
+**Open:** the number of controls, how a cluster is arranged, the wording on
+chips and labels, and whether a forward action is an orange disc or an orange
+fill.
+
 Related: reinforces `pattern.plates`; contrasts with `pattern.badges`.

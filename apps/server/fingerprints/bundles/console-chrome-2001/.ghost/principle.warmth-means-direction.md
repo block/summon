@@ -1,5 +1,5 @@
 ---
-description: Warm color is rationed wayfinding, never decoration — signal orange (#f68d1f) means forward/submit/launch, amber (#ecab37) means tool/badge/tab, everything steady-state stays cool. Pull this before coloring any surface, chip, or section.
+description: Warm color is rationed wayfinding, never decoration — signal orange (#f68d1f) means forward/submit/launch, amber (#ecab37) means tool/badge/tab, brand red (#e60012) is a sparse error/identity mark, everything steady-state stays cool. Pull this before coloring any surface, chip, section, error, or status indicator.
 ---
 
 ## Stance

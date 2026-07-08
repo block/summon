@@ -39,4 +39,11 @@ The accent moment is the surface's one flash of action color; it lives in the
 turns positive, or in the [action stack](pattern.action) when the CTA is primary — but only
 ever in one of them.
 
+**Bound vs open.** Bound: `--dd-accent-budget` of one — zero or one accent
+moment per surface, never two; the accent marks action, gain, or positive trend
+only, never mood or decoration; where it appears, it appears settled — no pulse,
+no glow, no attention animation. Open: which of the three homes it lands in
+(answer trend, winning evidence bar, or primary CTA), and whether it appears at
+all — zero is correct when the answer is steady or has no clear winner.
+
 Related: reinforces `pattern.answer`, `pattern.action`.

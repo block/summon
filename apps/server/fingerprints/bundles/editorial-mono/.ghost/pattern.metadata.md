@@ -1,5 +1,5 @@
 ---
-description: The mono metadata system — folios, issue labels, timestamps, ranks, and criteria labels set as disciplined uppercase mono with measured tracking, the `--editorial-folio` carrying page-number discipline beside an `--editorial-registration-mark` tick. Reach for the small, exact press furniture that labels and registers the page.
+description: The mono metadata system — folios, issue labels, timestamps, ranks, and criteria labels set as disciplined uppercase mono with measured tracking, the `--editorial-folio` carrying page-number discipline beside an `--editorial-registration-mark` tick. Reach for the small, exact press furniture that labels and registers the page — including marginalia, footnotes, source citations, and the instrument corner.
 ---
 
 ## Composition

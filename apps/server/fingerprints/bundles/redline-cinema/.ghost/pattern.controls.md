@@ -1,5 +1,5 @@
 ---
-description: The scarce-red CTA and machined control system — square 48px-class buttons that spend the race-red voltage once per region, uppercase tracked labels, and rectangular form controls. Reach for it when a surface needs its single decisive action and disciplined, square-geometry inputs.
+description: The scarce-red CTA and machined control system — square 48px-class buttons that spend the race-red voltage once per region, uppercase tracked labels, and rectangular form controls. Reach for it when a surface needs its single decisive action and disciplined, square-geometry inputs — including filter rows, forms, and dense white-sheet transactional regions.
 ---
 
 ## Composition
@@ -14,7 +14,9 @@ and outline, white, or text secondaries. Copy stays short and commanding —
 Explore, Reserve, Configure, Compare, View details. Keep surrounding surfaces
 near-black, white, and grey so the single `--redline-voltage` fill stays
 high-voltage; never let red spread to borders, icons, or category chrome until it
-loses voltage.
+loses voltage. Per-region spending is the local application of the page-wide law:
+never two red elements visible in the same viewport (see
+[editorial cadence](pattern.editorial-cadence)).
 
 **Restrained uppercase labels.** Nav items, CTAs, badges, and section labels are
 uppercase with generous tracking; body copy stays small, calm, and editorial.

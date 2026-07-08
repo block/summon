@@ -9,8 +9,15 @@ near-black canvas is the stage; full-bleed photography or image placeholders car
 the drama; a single saturated race-red accent supplies voltage; and sharp
 rectangular geometry gives every control machined precision. It turns launches,
 spec stories, catalogs, directories, and editorial features into edited
-luxury-magazine acts rather than generic commerce or dashboard pages. The voice is
-cinematic, precise, luxury, restrained, performance-led, and editorial.
+luxury-magazine acts rather than generic commerce or dashboard pages — restrained
+luxury told in editorial acts.
+
+**Tradeoffs — the actual stance:** prefer one cinematic image moment over many
+decorative cards; scarce red emphasis over multi-color categorization; sharp
+rectangular precision over soft friendliness; spec rows, hairlines, and large
+numerals over dashboard widgets when communicating performance. White bands are
+deliberate transactional clarity, not the default mood — return to near-black for
+framing, footers, and cinematic breaks.
 
 It serves people exploring premium products, launches, events, or high-performance
 comparisons; readers who expect cinematic editorial storytelling before
@@ -18,18 +25,19 @@ transactional detail; and agents composing polished generated surfaces from
 luxury-performance briefs. Photography carries the emotion; tables, spec rows, and
 large numerals carry the proof.
 
-**Read order.** For a typical surface, pull in this order: the
-[editorial cadence](pattern.editorial-cadence) first (it sets the grid, chapter
-pacing, and reveal recipe every act obeys), then the
-[cinematic image system](pattern.cinematic-image) for the opening frame, the
-[scarce-red controls](pattern.controls) for the one voltage spend, the
-[spec system](pattern.spec-system) wherever numbers prove capability, and
-[depth](principle.depth) for plate/hairline separation. Before writing markup,
-study the [spec-chapter exemplar](exemplar.spec-chapter); before shipping, sweep
-against the two guards — [red spent everywhere](anti-goal.red-spent-everywhere)
-and [rounded soft luxury](anti-goal.rounded-soft-luxury). Pull the
+**Read order.** Pull by tier, not by list. **Always:** this index, plus the two
+guards held conceptually — [red spent everywhere](anti-goal.red-spent-everywhere)
+and [rounded soft luxury](anti-goal.rounded-soft-luxury) — every surface is swept
+against them before shipping. **Then pull only what the task touches:** a long
+editorial surface pulls the [editorial cadence](pattern.editorial-cadence) for
+its grid, chapter pacing, and reveal recipe; a surface an image opens pulls the
+[cinematic image system](pattern.cinematic-image); any decisive action or form
+pulls the [scarce-red controls](pattern.controls); numbers proving capability
+pull the [spec system](pattern.spec-system); plate/hairline separation questions
+pull [depth](principle.depth); performance-proof or lineup markup starts from the
+[spec-chapter exemplar](exemplar.spec-chapter). The
 [player chrome](pattern.player-chrome) and [livery band](pattern.livery-band)
-only when footage or a full-width statement is actually in play.
+enter only when footage or a full-width statement is actually in play.
 
 **Silence posture.** This fingerprint is deliberately silent on iconography sets,
 data-visualization styling beyond spec grids, illustration, multi-brand theming,
@@ -47,13 +55,6 @@ border, icon, chart, or category color until it loses voltage. Do not let bold
 bombastic display type compete with the image. Avoid drop-shadow elevation
 systems, pill CTAs, confetti badges, and decorative icon sets that replace
 cinematic composition.
-
-**Tradeoffs:** prefer one cinematic image moment over many decorative cards;
-scarce red emphasis over multi-color categorization; sharp rectangular precision
-over soft friendliness; spec rows, hairlines, and large numerals over dashboard
-widgets when communicating performance. White bands are deliberate transactional
-clarity, not the default mood — return to near-black for framing, footers, and
-cinematic breaks.
 
 ## Signature look & feel
 
@@ -380,7 +381,9 @@ headline, one deck, at most two actions — before dense detail. Oversized numer
 must carry meaningful performance, ranking, event, availability, or comparison
 information, each with a label and unit and aligned with comparable metrics. Red
 highlights are limited to the primary action or the one value/state the user must
-notice first — one red focal role per region. Listings, forms, and tables stay
+notice first — one red spend per region, and never two red elements visible in
+the same viewport; the viewport rule is the law, per-region spending its local
+application. Listings, forms, and tables stay
 dense enough to act while remaining visually connected to the cinematic editorial
 frame: white sheets only for transactional regions, uppercase labels,
 hairline-separated rows, and a return to dark framing for transitions, CTA bands,

@@ -38,7 +38,7 @@ sit UNDER this pass; the pass unifies, it does not replace them.
 
 **Diegetic easter-egg labeling.** Chrome zones — bezels, command slabs, footers,
 plate rims — may carry small silkscreen legends set in `--font-mono` micro text
-via `--chrome-etch-label`: fake model numbers (CC-2001A), serial strings, port
+via `--chrome-etch-label-font`/`-size`/`-color`/`-tracking`: fake model numbers (CC-2001A), serial strings, port
 labels (AV OUT · EXT.2), a PAL/NTSC region badge stamped with the
 `--chrome-bevel-hard` seam. These are plausible hardware vernacular, in-world and
 deadpan — never meta-jokes, real product names, or regulatory marks, and never

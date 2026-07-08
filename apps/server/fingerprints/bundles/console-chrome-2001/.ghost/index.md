@@ -8,9 +8,9 @@ Console Chrome 2001 makes a surface feel physically assembled from game
 hardware: cool periwinkle molded plates, carbon command slabs, inset content
 modules, hard indigo bevel seams, and a visible chassis. It turns dashboards,
 launch pages, directories, and playful utility surfaces into a compact machine
-faceplate rather than a modern SaaS page. The voice is playful, hardware-like,
-compact, arcade, directional, early-web, and toyetic — dense and tactile without
-losing legibility.
+faceplate rather than a modern SaaS page. When playfulness conflicts with
+legibility, legibility wins; when density conflicts with modern airiness,
+density wins.
 
 It serves people asking for retro game-console dashboards, launch pages,
 directories, or playful utility surfaces; users who want early-2000s web
@@ -260,32 +260,18 @@ these custom properties rather than inventing values):
 }
 ```
 
-Buttons are beveled chrome chips riding `--chrome-bevel-hard`: amber rectangles
-for tools and utilities, signal-orange fills or arrow discs for submit and
-forward, carbon slabs for side-rail commands. Inputs are white inset fields
-pressed in with `--chrome-inset-input`, hard borders, and native-select geometry.
-Panels are molded periwinkle faceplates with a `--chrome-faceplate-rim`; rows are
-platinum strips parted by `--chrome-divider-dotted`; chips and tabs carry a
-`--chrome-led-pip` amber bead; tables are inset wells with dotted seams between
-lines rather than luxury whitespace. Body copy stays small, plain, and
-subordinate to the panel chrome; controls, labels, and metadata are bold
-uppercase Arial silkscreen legends.
+Buttons, tool chips, and inset inputs follow the [control system](pattern.controls);
+plates, rows, and seams follow the [beveled plate and chrome system](pattern.plates);
+labels and stamps follow the [badge and section-label system](pattern.badges). Body
+copy stays small, plain, and subordinate to the panel chrome; controls, labels, and
+metadata are bold uppercase Arial silkscreen legends.
 
-Interaction states are mechanical, not animated fades. **Hover** lights the
-molded bead with `--chrome-hover-pip` (or lifts a cool plate to
-`--chrome-hover-plate`) — warmth appears only on an action, nav, or tool control,
-never as decoration on a resting surface. **Focus** stamps a hard pressed pixel
-ring: `--chrome-focus-ring` (indigo doubled with a white keyline) on cool
-controls, `--chrome-focus-ring-warm` on lit action/nav chips, and the dotted
-`--chrome-focus-outline` on links and text targets — always a crisp zero-blur
-outline, never a soft glow halo. **Active/pressed** inverts the bevel with
-`--chrome-bevel-pressed` (`--chrome-bevel-pressed-deep` on hero plates) and nudges
-the label by `--chrome-press-offset`, so the control physically sinks into the
-chassis; any transition uses `--chrome-motion-click` (stepped, arcade-quick) or
-`--chrome-motion-instant`, never a smooth ease. **Disabled** drops to a greyed
-dead plate — `--chrome-disabled-plate` behind `--chrome-disabled-text`, the seam
-flattened to `--chrome-disabled-bevel`, all warm signal drained. **Selected**
-holds a lit amber pip or an inverted-bevel pressed state; **loading** and **empty**
+Interaction states are mechanical, not animated fades — the full
+call-and-response cycle (hover pip, hard focus ring, inverted pressed bevel,
+greyed dead disabled plate, all stepped at `--chrome-motion-click` or
+`--chrome-motion-instant`, never eased) is specified in the
+[control system](pattern.controls) and
+[screen logic system](pattern.screen-logic). **Loading** and **empty**
 stay in cool chrome with a section-label bar so no module reads as a blank island;
 **error** is the sparse `--color-brand-red` identity mark, never a page fill.
 
@@ -417,20 +403,21 @@ rather than traced from older screenshots.
 
 ## Read order
 
-For a typical surface, pull in this order: first the
-[warmth means direction](principle.warmth-means-direction) ration and the two
-guards — [no generic flat-card web](anti-goal.flat-card-web) and
-[no borrowed console/game IP](anti-goal.borrowed-ip) — so the enemy is named
-before composing; then the [beveled plate and chrome system](pattern.plates) to
-mold the chassis and the [command and navigation system](pattern.command-nav)
-to frame it; then the [control system](pattern.controls) and
-[badge and section-label system](pattern.badges) for everything interactive and
-labeled; then the [screen logic system](pattern.screen-logic) once the surface
-has views to swap and state to report, and the
-[hardware dressing system](pattern.hardware-dressing) last for bezels, texture,
-and scene sequencing. Check the result against the
-[annotated finder faceplate](exemplar.finder-faceplate) — it is the quality bar
-for what "assembled console faceplate" means in real markup.
+Always: this index (tokens travel with it). For any visual surface add the
+[beveled plate and chrome system](pattern.plates) and
+[no generic flat-card web](anti-goal.flat-card-web). Then pull only what the
+task touches: nav/rails → the
+[command and navigation system](pattern.command-nav); buttons/forms → the
+[control system](pattern.controls) plus
+[warmth means direction](principle.warmth-means-direction); labels/status →
+the [badge and section-label system](pattern.badges); view-swapping or state →
+the [screen logic system](pattern.screen-logic); imagery/texture → the
+[hardware dressing system](pattern.hardware-dressing) (its dressing tokens —
+bezel, artifact, texture-pass, etch-label, scene-number — live there, not in
+this index); mascots or references →
+[no borrowed console/game IP](anti-goal.borrowed-ip); before shipping → the
+[annotated finder faceplate](exemplar.finder-faceplate) as the quality bar for
+what "assembled console faceplate" means in real markup.
 
 **Silence posture.** This fingerprint is deliberately silent on dark mode,
 print styles, data-visualization/charting grammar, long-form article

@@ -196,6 +196,7 @@ class ElementNode {
   __live: boolean;
   __styleProxy: any;
   __classList: any;
+  __dataset: any;
 
   constructor(tag: string, namespace?: string) {
     this.__kind = 'element';
@@ -209,6 +210,7 @@ class ElementNode {
     this.__live = false;
     this.__styleProxy = null;
     this.__classList = null;
+    this.__dataset = null;
 
     defineUnsupportedGetter(this, 'innerHTML', 'Build nodes with document.createElement/createTextNode and append.');
     defineUnsupportedGetter(this, 'outerHTML', 'Build nodes with document.createElement/createTextNode and append.');
@@ -280,6 +282,33 @@ class ElementNode {
     if (typeof value === 'string') this.setAttribute('style', value);
   }
 
+  // el.dataset.someKey — read/write proxy over data-* attributes, mirroring
+  // the real DOM's camelCase <-> kebab-case mapping.
+  get dataset(): any {
+    if (this.__dataset) return this.__dataset;
+    const self = this;
+    this.__dataset = new Proxy({}, {
+      get(_t, key: string | symbol) {
+        if (typeof key !== 'string') return undefined;
+        const value = self.attrs['data-' + camelToKebab(key)];
+        if (value === undefined || value === false) return undefined;
+        return value === true ? '' : String(value);
+      },
+      set(_t, key: string | symbol, value: any) {
+        if (typeof key === 'string') self.setAttribute('data-' + camelToKebab(key), value == null ? '' : String(value));
+        return true;
+      },
+      deleteProperty(_t, key: string | symbol) {
+        if (typeof key === 'string') self.removeAttribute('data-' + camelToKebab(key));
+        return true;
+      },
+      has(_t, key: string | symbol) {
+        return typeof key === 'string' && self.attrs['data-' + camelToKebab(key)] !== undefined;
+      },
+    });
+    return this.__dataset;
+  }
+
   get classList(): any {
     if (this.__classList) return this.__classList;
     const self = this;
@@ -330,6 +359,15 @@ class ElementNode {
   removeAttribute(name: string): void {
     delete this.attrs[name];
     if (this.__live) enqueuePatch({ type: 'remove-attribute', nodeId: this.__id, name: name });
+  }
+  getAttribute(name: string): string | null {
+    const value = this.attrs[name];
+    if (value === undefined || value === false) return null;
+    // Boolean-true attributes read back as '' per the real DOM.
+    return value === true ? '' : String(value);
+  }
+  hasAttribute(name: string): boolean {
+    return this.attrs[name] !== undefined && this.attrs[name] !== false;
   }
   get className(): string { return (this.attrs['class'] as string) || ''; }
   set className(value: any) { this.setAttribute('class', value); }

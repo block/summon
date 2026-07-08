@@ -5,9 +5,9 @@ description: The three-plane polarity system — pale landings, white data sheet
 ## Composition
 
 Contrast planes are the primary material of Technical Contrast — distinct planes
-create rhythm through polarity, not ornament. Pale and white canvases serve
-approachability, product detail, pricing, forms, testimonials, and tables;
-near-black midnight serves proof, research, or high-gravity claims. Avoid broad
+create rhythm through polarity, not ornament. When the band asserts, go pale;
+when it must be verified, go white; when it must be believed, go midnight.
+Avoid broad
 middle-grey backgrounds; if a softer rail is needed, keep it hairline-light and
 functional. Let plane changes separate major ideas before reaching for borders or
 shadows.

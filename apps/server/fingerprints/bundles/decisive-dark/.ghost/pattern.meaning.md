@@ -37,4 +37,12 @@ The meaning interprets the [answer](pattern.answer) and the [evidence](pattern.e
 it, and sets up the [action stack](pattern.action) that follows — it is the bridge between
 what the data is and what the reader should do next.
 
+**Bound vs open.** Bound: meaning is required on every surface; exactly one
+sentence, set in `--color-text-subtle` with the load-bearing value or phrase
+lifted to `--color-text-standard` at weight 500; declarative, no hedge, no
+apology, no restating of the figure; it sits in its own quiet band after the
+evidence and before the action stack. Open: standard one-line vs pull-quote
+treatment (the pull-quote reserved for a sharp upside that earns it), the exact
+phrasing, and which value gets lifted.
+
 Related: reinforces `pattern.answer`, `pattern.action`.

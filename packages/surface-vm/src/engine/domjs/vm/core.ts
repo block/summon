@@ -177,6 +177,17 @@ export function clearHandler(id: string): void { handlers.delete(id); }
 // bounded by the surface's lifetime and cleared on destroy.
 
 export function emit(message: unknown): void { __send(JSON.stringify(message)); }
+
+// Render a thrown value with as much repair signal as QuickJS gives us.
+// QuickJS TypeErrors are terse ("not a function"), so the first stack frame
+// (virtual module + line) is essential context for the model or a human.
+export function describeError(e: any): string {
+  const message = String(e && e.message ? e.message : e);
+  const stack = e && typeof e.stack === 'string' ? e.stack.trim() : '';
+  if (!stack) return message;
+  const firstFrame = stack.split('\n').map((l: string) => l.trim()).filter(Boolean)[0];
+  return firstFrame && !message.includes(firstFrame) ? message + ' (' + firstFrame + ')' : message;
+}
 export function output(payload: unknown): void { emit({ type: 'output', payload: payload }); }
 
 export function enqueuePatch(patch: unknown): void {
@@ -295,7 +306,7 @@ globalThis.__dispatch = async function (message: any): Promise<void> {
       try {
         await fn(message.payload.event);
       } catch (e: any) {
-        emit({ type: 'error', error: String(e && e.message ? e.message : e) });
+        emit({ type: 'error', error: describeError(e) });
       }
     }
     flushPatches();

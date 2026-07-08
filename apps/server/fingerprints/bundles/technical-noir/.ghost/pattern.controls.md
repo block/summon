@@ -1,5 +1,5 @@
 ---
-description: The control and metadata system — tight off-white primary CTAs, ghost secondary buttons bounded only by the warm `--noir-hairline`, dark inputs, and monospace `--noir-gutter` metadata labels. Reach for how the surface offers one primary action and labels state without color shouting.
+description: The control and metadata system — tight off-white primary CTAs, ghost secondary buttons bounded only by the warm `--noir-hairline`, dark inputs, and monospace `--noir-gutter` metadata labels. Reach for how the surface offers one primary action, labels state without color shouting, or renders error, empty, loading, and disabled states — errors whisper on a dot and muted danger text, never a filled banner; empty panels keep their gutter and hairline frame.
 ---
 
 ## Composition
@@ -34,6 +34,21 @@ one `--noir-ink-*` level to the next without a cross-fade. The surface should
 change the way a terminal repaints — discretely, honestly — because smooth
 easing on chrome implies a theatricality this language refuses. The one blinking
 cursor already spends the entire motion budget.
+
+**Quiet empty and error states.** Empty and error states stay quiet — an empty
+panel keeps its gutter and hairline frame, an error whispers on
+`--noir-dot-fail` and muted `--color-danger` text, never a filled alarm banner.
+Loading is the one cursor plus a muted running dot (`--noir-dot-run`); disabled
+recedes via `--state-disabled-opacity` on a still-hairline outline, never a
+grayed color swatch.
+
+**Bound:** compact almost-rectangular geometry (3–4px button radii); one
+off-white primary fill per region with hairline-only secondaries; selection on
+the 2px `--noir-spine`, never a colored chip; mono reserved for technical
+metadata with state on the muted `--noir-dot-*` system; state changes as
+threshold steps, never eased fades. **Open:** which action is primary, label
+wording, chip presence and content, micro-meter presence, where controls sit
+in the layout.
 
 These controls and labels are shared material that appears on every surface —
 the [terminal evidence](pattern.terminal-evidence) command strips and the

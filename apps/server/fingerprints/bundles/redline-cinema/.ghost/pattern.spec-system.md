@@ -1,5 +1,5 @@
 ---
-description: The giant-numeral spec system — oversized spec figures with uppercase labels and units, hairline comparison grids, and race-or-event rows where the scarce race-red marks only the decisive value. Reach for it when raw numbers must prove capability and invite side-by-side comparison.
+description: The giant-numeral spec system — oversized spec figures with uppercase labels and units, hairline comparison grids, and race-or-event rows where the scarce race-red marks only the decisive value. Reach for it when raw numbers must prove capability and invite side-by-side comparison, or when a surface lists sessions, dealers, results, or lineup positions as hairline rows — on the dark stage or a white transactional relief sheet.
 ---
 
 ## Composition
@@ -34,7 +34,8 @@ the mono voice at `--redline-mono-label` (11px, `0.14em` tracking). On a white
 relief sheet the hairline flips to `--redline-hairline-on-light`
 (`1px solid #d2d2d2`) and hover to `--redline-row-hover-on-light` (`#f2f2f2`).
 Red budget: `--redline-voltage` on at most one value or one active row per grid,
-never on units, labels, or dividers.
+never on units, labels, or dividers — the local application of the page-wide
+viewport law: never two red elements visible at once.
 
 **Bound:** the numeral/unit/label anatomy, hairline-only separation, the
 left-index/middle-name/right-status row order, and the one-red-per-grid budget.

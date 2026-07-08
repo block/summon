@@ -49,6 +49,15 @@ card, a mono citation to the first ref code, or a compact chapter index — so t
 tail hands the reader back to the top instead of stopping against a blank wall.
 The [stream cadence](pattern.cadence) governs this pacing.
 
+**Bound:** `--signal-tile-radius` at 20px standard / 24px for feature tiles;
+interior padding 24–32px (40–48px for feature leads); the 1px
+`--signal-tile-border` hairline; `--signal-tile-shadow: none` on every tile;
+static 1px-framed images with no hover zoom, scale, or opacity; the ticked
+rail carrying mono timestamps/ranks/state; the run/interruption alternation.
+**Open:** which tiles take a saturated fill versus `--signal-tile-fill-flat`,
+the lead's form (image slab, saturated block, or headline tile), supporting-grid
+column count, and all content.
+
 The tiles sit on the [dark canvas](principle.canvas) and borrow its saturated hazard fills
 for leads; their labels and timestamps are the [mono metadata](pattern.type-system) and
 their actions are the [hazard-pill controls](pattern.controls). The rail feed is the

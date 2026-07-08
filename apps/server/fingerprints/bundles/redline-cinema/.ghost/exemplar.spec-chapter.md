@@ -23,7 +23,7 @@ voltage), and the page's single livery band closing the act.
         <dt style="margin-top: var(--space-3); font-size: var(--text-xs); letter-spacing: var(--redline-spec-unit-tracking); text-transform: uppercase; color: var(--color-text-muted);">0–100 km/h</dt>
       </div>
       <div style="padding: var(--space-6) var(--space-4); border-right: var(--redline-hairline);">
-        <dd style="margin: 0; font-size: var(--redline-spec-numeral); font-weight: var(--redline-spec-numeral-weight); line-height: 1; letter-spacing: var(--tracking-tight); color: var(--redline-voltage);">830</dd>
+        <dd style="margin: 0; font-size: var(--redline-spec-numeral); font-weight: var(--redline-spec-numeral-weight); line-height: 1; letter-spacing: var(--tracking-tight);">830</dd>
         <dt style="margin-top: var(--space-3); font-size: var(--text-xs); letter-spacing: var(--redline-spec-unit-tracking); text-transform: uppercase; color: var(--color-text-muted);">Peak output · PS</dt>
       </div>
       <div style="padding: var(--space-6) var(--space-4);">
@@ -57,12 +57,12 @@ voltage), and the page's single livery band closing the act.
 
 ## What is load-bearing
 
-- **One voltage spend for the whole region.** Red appears on the decisive
-  numeral (`830`) OR the CTA — the fragment shows the numeral spend; when this
-  chapter's CTA must be the spend instead, the numeral drops back to white ink.
-  In real output pick one; never ship both red as this fragment does only to
-  demonstrate the two candidate roles. Everything else is white ink, grey
-  `--color-text-muted` metadata, and `--redline-hairline` lines.
+- **One voltage spend for the whole region.** The fragment spends the red on the
+  Reserve CTA; every numeral stays white ink. The other legal spend:
+  `color: var(--redline-voltage)` on the decisive `830` numeral instead, with the
+  CTA dropping to a white outline. One or the other — never both. Everything else
+  is white ink, grey `--color-text-muted` metadata, and `--redline-hairline`
+  lines.
 - **Square everywhere.** CTAs, the chip, spec cells: `--redline-machined-radius`
   (`0px`). No shadow anywhere — separation is hairlines top/bottom/right on the
   spec grid and one hairline under each session row.

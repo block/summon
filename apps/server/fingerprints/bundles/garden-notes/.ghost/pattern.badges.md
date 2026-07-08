@@ -1,5 +1,5 @@
 ---
-description: The state language — quiet `--garden-chip-face` pills that name real planning state in words (Ready, Needs one thing, Can wait, Kept) so a row reads like a status sentence; pull when a surface carries time, effort, readiness, or waiting, and hold the line that a note without meaningful state gets no chip.
+description: The state language — quiet `--garden-chip-face` pills that name real planning state in words (Ready, Needs one thing, Can wait, Kept) so a row reads like a status sentence; pull when a surface carries time, effort, readiness, waiting, or a blocker/caution — the rare "check first" rides `--garden-clay-accent`, never alert red — and hold the line that a note without meaningful state gets no chip.
 ---
 
 ## Composition
@@ -35,6 +35,12 @@ not an achievement to celebrate. The chip exists so a kept note names its state
 in words like every other note; it never grows a count ("12 kept!"), a streak,
 or an exclamation mark. If a surface needs to summarize what got done, a short
 row of kept notes says it better than a number ever could.
+
+**Bound:** the one chip recipe — `--garden-chip-face` face, `--garden-chip-ink`
+ink, `--garden-chip-edge` edge, `--garden-chip-pad` padding, `--garden-chip-radius`
+shape. **Open:** which states appear on a given surface, how many chips a note
+carries (including none), and when a state genuinely escalates into a semantic
+color rather than resting on the quiet face.
 
 These chips ride on the [note panels](pattern.note-panels), mark readiness on the
 [good-enough choice and can-wait notes](pattern.good-enough), and appear across every

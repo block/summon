@@ -1,5 +1,5 @@
 ---
-description: The tile and row system — warm-hairline-depth cards and tiles (elevation by `--noir-hairline` contrast, never glow), compact setup/download tiles, and hairline information rows for updates, tasks, and timelines. Reach for how the surface racks discrete items and rows into a calm, shadowless grid.
+description: The tile and row system — warm-hairline-depth cards and tiles (elevation by `--noir-hairline` contrast, never glow), compact setup/download tiles, and hairline information rows for updates, tasks, and timelines. Reach for how the surface racks discrete items and rows into a calm, shadowless grid — including comparisons, option sets, pricing/plan choices, and setup tiles, where criteria stay parallel, pass/fail rides a dot, and the chosen path wears the spine.
 ---
 
 ## Composition
@@ -31,6 +31,12 @@ the eye reads relative load down the column before reading a single number.
 Strips render at `--noir-ink-1`/`--noir-ink-2` by default; only the row wearing
 the spine may fill at `--noir-ink-4`. This is the language's substitute for
 sparklines and mini bar charts — glyph density, stepped, in one ink.
+
+**Bound:** hairline division between every tile and row; tight 3–6px radii;
+the `--noir-spine` on the active row only; per-row state on a 6px
+`--noir-dot-*`; density strips at `--noir-ink-1`/`--noir-ink-2` with
+`--noir-ink-4` reserved for the spined row. **Open:** column count, row
+content, action placement, whether a strip is present.
 
 Tiles and rows are the repeating unit of content, paired with the
 [control and metadata system](pattern.controls) for their labels and actions. A surface

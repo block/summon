@@ -8,9 +8,11 @@ Editorial Mono makes a surface feel like a printed page that has already made up
 its mind: cream paper, black ink, hairline rules, serif display type, and mono
 metadata arranged so the verdict reads first and the evidence justifies it
 second. It turns options, criteria, metrics, and judgment into an **edited
-editorial surface** rather than a neutral inventory of facts. The voice is calm,
-exact, editorial, austere, decisive, and measured — confident enough to commit to
-a recommendation without becoming hostile.
+editorial surface** rather than a neutral inventory of facts. The voice commits:
+when hedging (may, might, consider, it depends) conflicts with a stated
+recommendation, the recommendation wins and the hedge demotes to a labeled Risk
+or Caveat band. When exactness conflicts with warmth, exactness wins — but the
+page never editorializes about the reader.
 
 It serves readers comparing options, decision-makers who need a recommendation
 they can act on, and agents composing refined generated briefs that should scan
@@ -31,8 +33,8 @@ tip into empty, ornamental, or art-directed output that fails to help a decision
 **Tradeoffs:** prefer the verdict over exhaustive explanation when the user came
 to decide; aligned criteria over varied card composition when comparing options;
 evidence density over decorative whitespace, while preserving enough air to scan.
-Use severity carefully — the tone can be exact and austere without becoming
-hostile.
+Severity stays in the labels: a risk is named in a tracked Risk or Caveat band,
+never dramatized in the prose around it.
 
 ## Signature look & feel
 
@@ -254,26 +256,11 @@ these custom properties rather than inventing values):
 
 The body sits on a faint ruled paper grid, sets type in the serif workhorse, and
 routes controls, inputs, labels, and metadata through the mono family; `strong`
-emphasis goes heavy rather than colored. The component vocabulary is editorial
-furniture in the broadsheet tradition: buttons are set as ink-ruled labels —
-squared, mono, tracked — that fill to the inverse slab only when they carry the
-one decisive action, and rest as hairline-outlined text otherwise; rows are ruled
-bands separated by `--editorial-hairline`, not boxed cards; panels are framed by
-rules and paper tiers rather than fills or elevation; inputs are underscored or
-hairline-boxed fields whose label sits above in tracked mono like a form set at
-the press; tables are the native idiom — parallel columns split by
-`--editorial-column-rule` with folio-style headers; chips are the one place pill
-radius is allowed, small mono labels that register status, never decorative
-badges. Interaction states are drawn, not tinted: **hover** thickens a rule to
-`--editorial-hover-rule` or inks a label; **focus** is a crisp
-`--editorial-focus-ring` outline held off the mark by `--editorial-focus-offset`,
-a registration crop rather than a glow; **active/pressed** commits the rule to
-full ink via `--editorial-active-rule`; **selected** marks the chosen option with
-`--editorial-selected-border` weight and the margin `--editorial-selected-marker`,
-never a color wash; **disabled** sets back to `--editorial-disabled-ink` on
-`--editorial-disabled-paper`, legible but quieted without opacity tricks;
-**loading, empty, and error** stay on the page as ruled placeholders and set
-labels so gaps read as part of the record. The copy atoms are exact — Verdict,
+emphasis goes heavy rather than colored. The component vocabulary — buttons,
+inputs, chips, tables, drawn interaction states, and the ruled placeholders that
+carry loading, empty, and error — lives in the
+[ink-drawn press controls](pattern.press-controls); pull it whenever the ask
+involves forms, settings, filters, toolbars, or page states. The copy atoms are exact — Verdict,
 Evidence, Risk, Caveat, Recommendation, Accepted tradeoff, What changed, What to
 watch, Rank, Criteria — while state variants cover selected option, recommended
 path, waiting, blocked risk, ready evidence, empty data, error, and incomplete
@@ -295,8 +282,10 @@ ranks, and timestamps, the [ruled evidence bands](pattern.evidence) that justify
 claim, the [single inverse-ink panel](pattern.inverse-panel) reserved for the verdict,
 the [editorial close](pattern.close) that lands the decision, the
 [dossier structure](pattern.dossier-structure) that orders a long document's movements
-and frames its one verdict, and the [catalog index grammar](pattern.catalog-index) that
-sets many parallel entries as numbered specimen rows on a shared measure. Each surface composes
+and frames its one verdict, the [catalog index grammar](pattern.catalog-index) that
+sets many parallel entries as numbered specimen rows on a shared measure, and the
+[ink-drawn press controls](pattern.press-controls) that carry buttons, inputs,
+interaction states, and the ruled loading/empty/error placeholders. Each surface composes
 these same building blocks for its own job — a brief, a comparison, or a report —
 under one reading order rather than from fixed page templates.
 
@@ -310,7 +299,9 @@ that verdict as the first visual event; then the
 to justify and label it; spend the [single inverse-ink panel](pattern.inverse-panel)
 if one moment must invert; land on the [editorial close](pattern.close). Long
 documents add the [dossier structure](pattern.dossier-structure); collection
-surfaces add the [catalog index grammar](pattern.catalog-index). Before
+surfaces add the [catalog index grammar](pattern.catalog-index); interactive
+surfaces — forms, settings, filters, toolbars — add the
+[ink-drawn press controls](pattern.press-controls). Before
 shipping, check the guards — [anti-goal.soft-card-slop](anti-goal.soft-card-slop)
 and [anti-goal.buried-verdict](anti-goal.buried-verdict) — and calibrate
 against the [annotated dossier fragment](exemplar.dossier-fragment).

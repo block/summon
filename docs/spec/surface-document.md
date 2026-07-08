@@ -115,8 +115,8 @@ Supported API surface in v1:
 - `document.createElement()` / `document.createElementNS()`
 - `document.createTextNode()` / `document.createDocumentFragment()`
 - `textContent`
-- `setAttribute()` / `removeAttribute()`
-- `className`, `classList`
+- `setAttribute()` / `removeAttribute()` / `getAttribute()` / `hasAttribute()`
+- `className`, `classList`, `dataset`
 - style property writes and `style = "..."`
 - `append()`, `appendChild()`, `prepend()`, `insertBefore()`, `removeChild()`, `replaceChildren()`
 - `addEventListener()` and `on<event>` properties

@@ -4,14 +4,14 @@ description: "Technical Contrast core — a restrained technical-platform surfac
 
 ## Intent
 
-Technical Contrast makes complex technical options feel clear, modern, and
-production-ready. It treats contrast planes — pale technical landings, crisp
+Technical Contrast treats contrast planes — pale technical landings, crisp
 white data sheets, and near-black midnight proof sections — as the primary
 material, not decoration. Tight geometric sans copy, uppercase mono labels,
 hairline structure, and aligned data carry the page; one large warm-to-cool
 signal object is allowed but always optional and subordinate to the claim,
-proof, and comparison. The voice is technical, precise, confident, modern,
-restrained, and infrastructure-aware.
+proof, and comparison. When a sentence can flatter or specify, it specifies.
+When copy competes with a number, the number wins the layout. Confidence is
+stated in units, never in superlatives.
 
 It serves technical evaluators comparing infrastructure, models, capacity, or
 platform capabilities; teams deciding between tiers, workflows, experiments,
@@ -295,6 +295,9 @@ geometric sans; buttons, inputs, and controls are mono. Depth is border-led:
 `--shadow-card` and `--shadow-elevated` are `none`, with shadow reserved only for
 truly floating host controls or transient overlays.
 
+**Status colors.** Danger/success/info/warning tint text and hairline edges
+only — never chip fills, never pills, never the signal trio.
+
 **Components and states.** The rectangular CTA is the load-bearing control: a
 tight `--contrast-cta-radius` rectangle with an uppercase mono label, black on
 light planes and white or dark-soft on midnight. Its states flip polarity rather
@@ -331,7 +334,10 @@ everywhere: the [contrast-plane system](principle.contrast-planes) that bands th
 [mono eyebrow and label system](pattern.mono-labels), the
 [rectangular CTA system](pattern.cta-system), the
 [pricing-table and data-sheet system](pattern.data-sheets), the
-[proof-card system](pattern.proof-cards), the [instrumentation system](pattern.instrumentation)
+[proof-card system](pattern.proof-cards), the
+[workflow form-sheet system](pattern.form-sheets), the
+[signal-object system](pattern.signal-object) that contains the one chromatic
+event, the [instrumentation system](pattern.instrumentation)
 that makes the sheet read as a genuinely engineered document, and the
 [drafting-mark system](pattern.drafting-marks) that supplies its sparse
 technical-drawing micro-detail. Every surface is composed from these same
@@ -353,13 +359,16 @@ For a typical surface, pull in this order:
    voice before writing any header, eyebrow, or button.
 3. The task's spine: [pattern.data-sheets](pattern.data-sheets) for comparison,
    [pattern.proof-cards](pattern.proof-cards) for evidence,
-   [pattern.cta-system](pattern.cta-system) for action.
-4. [pattern.instrumentation](pattern.instrumentation) and
+   [pattern.form-sheets](pattern.form-sheets) for forms, settings, and
+   configuration, [pattern.cta-system](pattern.cta-system) for action.
+4. [pattern.signal-object](pattern.signal-object) — before adding imagery or
+   ANY color beyond black/white.
+5. [pattern.instrumentation](pattern.instrumentation) and
    [pattern.drafting-marks](pattern.drafting-marks) — the engineered-document
    finish, applied last and sparsely.
-5. [exemplar.capacity-sheet](exemplar.capacity-sheet) — check the assembled
+6. [exemplar.capacity-sheet](exemplar.capacity-sheet) — check the assembled
    grammar against the worked fragment.
-6. The guards — [anti-goal.shadow-soft-depth](anti-goal.shadow-soft-depth) and
+7. The guards — [anti-goal.shadow-soft-depth](anti-goal.shadow-soft-depth) and
    [anti-goal.source-brand-leakage](anti-goal.source-brand-leakage) — before
    calling the surface done.
 
@@ -375,39 +384,21 @@ to fill the gap.
 
 Five principles carry the language and are true on every surface:
 
-1. **Contrast planes carry the drama.** Distinct planes — pale technical landings,
-   white data sheets, and midnight proof planes — create rhythm through contrast,
-   not decoration. Use pale or white canvases for approachability, product
-   detail, pricing, forms, testimonials, and tables; use near-black midnight for
-   proof, research, or high-gravity claims. Avoid broad middle-grey backgrounds;
-   if a softer rail is needed, keep it hairline-light and functional. Let plane
-   changes separate major ideas before adding borders or shadows.
-2. **Signal artwork is optional and large-scale.** Contrast, table structure, and
-   type carry the language when decoration is unnecessary. Use one large abstract
-   signal object only when it clarifies energy, capability, or proof; keep its
-   warm-to-cool colors contained in the artwork rather than spreading them across
-   controls. Never reduce it to small icons, badges, underlines, category
-   swatches, or CTA fills, and omit it entirely on pricing, model, form, or
-   workflow surfaces when the data should carry the page.
-3. **Type contrast is the technical voice.** Sentence-case geometric sans copy
-   and uppercase mono labels create the voice together. Tight geometric sans for
-   headlines, body, and narrative; uppercase mono for eyebrows, buttons, tabs,
-   table headers, compact metrics, and technical labels. Keep display headlines
-   sentence-case and slightly tight; reserve all-caps for the mono system. Never
-   set paragraphs in mono or buttons in casual body text.
-4. **Technical data stays structured.** Data earns trust through aligned rows,
-   tabs, headers, side navigation, and compact labels. Use tabular or matrix
-   structures for cost, model, capacity, latency, limits, and feature
-   comparisons; keep shared criteria visible rather than buried in separate
-   cards; use mono headers and short parallel row labels. Let dense tables
-   scroll, stack with preserved row labels, or collapse into category accordions
-   instead of being replaced by unrelated cards.
-5. **Hairlines, not shadows.** Depth comes from hairline borders, dividers,
-   surface contrast, and dark-on-dark panels rather than floating shadows. Use
-   1px hairlines on white sheets and dark-soft borders on midnight sections; keep
-   card corners lightly rounded and flat; reserve subtle shadow only for truly
-   floating host controls or transient overlays. Use border weight, fill
-   polarity, or placement to emphasize the chosen option.
+1. **Contrast planes carry the drama.** When the band asserts, go pale; when it
+   must be verified, go white; when it must be believed, go midnight —
+   [principle.contrast-planes](principle.contrast-planes).
+2. **Signal artwork is optional and large-scale.** One large contained
+   warm-to-cool object, used once, never in controls —
+   [pattern.signal-object](pattern.signal-object).
+3. **Type contrast is the technical voice.** Sentence-case geometric sans copy,
+   uppercase mono labels, mono never a paragraph —
+   [pattern.mono-labels](pattern.mono-labels).
+4. **Technical data stays structured.** Shared criteria in aligned mono-headed
+   rows and columns, never scattered cards —
+   [pattern.data-sheets](pattern.data-sheets).
+5. **Hairlines, not shadows.** Depth is border-led: hairlines, fill polarity,
+   and plane contrast; `--contrast-elevation` is `none` —
+   [anti-goal.shadow-soft-depth](anti-goal.shadow-soft-depth).
 
 **Composing a surface from the planes.** Technical Contrast has no fixed page
 types — every surface is composed for its task from the same small kit of parts,
@@ -428,8 +419,9 @@ are part of the comparison, and mark the chosen option with `--contrast-edge-str
 or fill polarity rather than a winner badge or color; when the task argues proof,
 pull the page onto the midnight plane and pair each dark-on-dark card's number with
 its operational implication, never an orphaned stat; when the task is configuration,
-let the white form sheet and its state carry the page and spend the single large
-warm-to-cool signal object — if at all — on one moment and nowhere in the controls.
+let the [white form sheet](pattern.form-sheets) and its state carry the page and spend
+the single large warm-to-cool [signal object](pattern.signal-object) — if at all — on
+one moment and nowhere in the controls.
 If a task fits none of these, compose a new surface from the same planes, labels,
 sheets, cards, and rectangles under the same rules — never collapse to a generic
 layout — compose from the same parts.
@@ -437,7 +429,9 @@ layout — compose from the same parts.
 **Surface obligations (true everywhere).** The first major region must state the
 technical claim, comparison frame, or recommended action before details — a
 sentence-case headline and concise lead before grids or tables, with CTAs near
-the claim when action is expected. Comparisons must expose shared criteria in
+the claim when action is expected. On error and control surfaces the rule
+conditions rather than lapses: on an error flow the claim is the failure — say
+so first, plainly, before remediation detail. Comparisons must expose shared criteria in
 aligned rows, columns, table headers, or side-navigation categories using the
 same criteria names across options; never make the user infer comparable facts
 from differently structured cards. Metrics, proof cards, research snippets, and

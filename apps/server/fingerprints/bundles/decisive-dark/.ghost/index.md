@@ -33,39 +33,29 @@ not boxes; emphasis comes from size, weight, and space before color.
 bold discrete data viz (bars, candlesticks) over subtle continuous lines; confident
 silence over explanatory copy; left-aligned leading hero over symmetric centering.
 Match the register to the moment — a market chart reads technical and precise, a
-personal summary reads warm through space and shape — but the DNA holds: the screen
-must have presence and read in one glance.
+personal summary reads warm, where warm means larger `--dd-block-gap` and
+`--radius-lg`/`--radius-pill` geometry — never a color shift, never an
+illustration — but the DNA holds: the screen must have presence and read in one
+glance.
 
 ## Signature look & feel
 
 If you stripped every label off a Decisive Dark surface and left only the shapes, you
-would still know it by these moves — they belong to this language and no other in the
-catalog:
+would still know it by these moves — each held in full by its pattern node:
 
-- **One hero answer owns the screen.** The answer block leads with a single
-  display-sized element — a `--dd-numeral` metric or a verdict headline — sized like
-  it is the only thing on the screen, at a `--dd-hero-ratio` jump over body. It is
-  unambiguously the loudest thing; there is never a tie.
-- **The canvas is near-black, tiered by depth.** Surfaces step through
-  `--color-bg` → `--color-surface` → `--color-surface-muted` → `--dd-elevated` like
-  planes lifting off true black, so separation reads as depth rather than borders or
-  fills.
-- **The accent is the single mark of action.** `--color-accent` appears at most once
-  — a positive-trend stroke, an earned gain, or the one primary CTA — and never
-  twice. Where it lands, something is about to happen; everywhere else stays neutral.
-- **Numbers are large and tabular.** Figures and metrics set in `--dd-numeral` with
-  `--dd-tnum` tabular figures and a tight `--dd-tracking-numeral`, the unit symbol
-  locked to the number — the calculator-display instinct scaled to every answer.
-- **Evidence is bold and discrete.** Trends render as `--dd-bar` bars and
-  candlesticks at full real estate with clear axis labels, never as soft smoothed
-  curves — the visualization *is* the answer and reads in one glance.
-- **Actions are neutral pills, left-aligned and stacked.** `--dd-pill` controls at
-  `--dd-pill-height` on `--color-surface-muted`, stacked vertically at
-  `--dd-stack-gap` and ragged-left — verb-first labels, neutral by default, accent
-  only on the one primary action.
-- **Warmth comes from breath and shape, never decoration.** Generous whitespace and
-  `--radius-lg` / `--radius-pill` rounding make the surface feel composed and
-  welcoming; there are no emoji, no stock illustrations, no chrome explaining itself.
+- **One hero answer owns the screen** — display-sized, no tie ([pattern.answer](pattern.answer)).
+- **The canvas is near-black, tiered by depth** — separation reads as planes lifting
+  off true black, never borders or fills.
+- **The accent is the single mark of action** — at most once, never twice
+  ([pattern.accent-moment](pattern.accent-moment)).
+- **Numbers are large and tabular** — `--dd-numeral`, `--dd-tnum`, the unit locked to
+  the number.
+- **Evidence is bold and discrete** — bars and candlesticks, never smoothed curves
+  ([pattern.evidence](pattern.evidence)).
+- **Actions are neutral pills, left-aligned and stacked** — verb-first, accent only
+  when primary ([pattern.action](pattern.action)).
+- **Warmth comes from breath and shape, never decoration** — no emoji, no stock
+  illustrations, no chrome explaining itself.
 
 What holds the identity is the discipline of one dominant answer, near-black tiered
 depth, a single earned accent, large tabular numerals, and bold discrete evidence.
@@ -140,7 +130,7 @@ custom properties rather than inventing values):
   --color-warning-pressed: #cc4b03;
   --color-success: #00d533;
 
-  /* Secondary hues — signature tones for category surfaces and supporting moments. */
+  /* Secondary hues — category identifiers in rows/avatars only, never on chrome, trends, or actions. */
   --dd-hue-violet: #9752ff;
   --dd-hue-purple: #b141ff;
   --dd-hue-blue: #377bff;
@@ -259,6 +249,10 @@ custom properties rather than inventing values):
   /* CONFIRMING MICRO-TRANSITIONS — state changes acknowledged, never performed. */
   --dd-confirm-duration: 120ms;                   /* the smallest legible acknowledgment — tier shifts, nothing showier */
   --dd-confirm-ease: ease-out;                    /* resolves immediately toward rest; no bounce, no flourish */
+
+  /* THE ONE PERMITTED MOTION — a single settle-in of the hero figure, or nothing. */
+  --dd-settle-budget: 1;                          /* at most one settle-in, on the hero answer only — otherwise zero motion */
+  --dd-settle-duration: 240ms;                    /* the single settle resolves fast; nothing else animates */
 }
 ```
 
@@ -271,25 +265,16 @@ Set, On track, while state variants cover loading/streaming, positive trend, neg
 trend, steady, blocked, empty data, and error. Sentence-case labels, no terminating
 periods, em dashes for breaks.
 
-**Components read as depth, not chrome.** The pill (`--dd-pill`) is the workhorse
-control — `--dd-pill-height` tall, `--dd-pill-pad` wide, `--radius-pill` fully rounded,
-neutral on `--color-surface-muted` and verb-first in `--dd-pill-text`. Rows, panels, and
-comparison surfaces are not boxed; they separate by stepping a tier
-(`--dd-bg-subtle` → `--dd-bg-standard` → `--dd-bg-prominent`), and where a bare tier edge
-won't carry the read a single `--color-border-subtle` hairline is enough — never a heavy
-outline or fill. The chosen option in a comparison is marked by `--dd-surface-selected`
-and position, not a colored badge. Numerals set in `--dd-numeral` with `--dd-tnum` on so
-figures align on a monospaced grid, the calculator-display instinct scaled to the answer.
-
-**Interaction states across the pill lifecycle.** Hover lifts one tier to
-`--dd-pill-hover`; active/pressed *sinks* to `--dd-pill-active`, so the press reads as
-depth rather than a highlight; disabled recedes toward the canvas with
-`--dd-pill-disabled` and `--dd-pill-text-disabled`, stating plainly that the action is
-not there to take. The one primary action carries `--dd-pill-primary`, pressing to
-`--dd-pill-primary-active` — the surface's single spend of accent. Selected rows use
-`--dd-surface-selected`; loading/streaming, positive/negative trend, steady, blocked,
-empty, and error all resolve in neutrals and the reserved status hues, never in mood
-color.
+**Components read as depth, not chrome.** Rows, panels, and comparison surfaces are
+not boxed; they separate by stepping a tier
+(`--dd-bg-subtle` → `--dd-bg-standard` → `--dd-bg-prominent`), and where a bare tier
+edge won't carry the read a single `--color-border-subtle` hairline is enough — never
+a heavy outline or fill. The pill lifecycle, comparison marking
+(`--dd-surface-selected`), and numeral treatment live in [pattern.action](pattern.action)
+and [pattern.evidence](pattern.evidence); loading/streaming, blocked, empty, and error
+resolve in neutrals and the reserved status hues per [pattern.states](pattern.states),
+never in mood color. Secondary hues appear only as category identifiers in
+rows/avatars, never on chrome, trends, or actions.
 
 **Accessibility intent.** Keyboard focus is always visible: a subtle
 `--dd-focus-ring` lifted by `--dd-focus-offset` so the ring reads cleanly off near-black,
@@ -310,7 +295,9 @@ guides the next move, the [accent moment](pattern.accent-moment) that spends the
 exactly once, the [deletion discipline](principle.deletion-discipline) that runs the
 what-can-we-delete filter over the whole composition, and the [negative-space
 frame](pattern.negative-space) that places the emptiness first so the answer stands
-alone in it. Every surface is streamed together for its own job from these same
+alone in it, and the [states surface](pattern.states) that carries
+loading/streaming, empty, error, and blocked when the answer is not ready. Every
+surface is streamed together for its own job from these same
 building blocks — there are no fixed page types to link to, only the shared kit.
 The [reference answer surface](exemplar.spending-answer) shows the whole kit
 assembled with its load-bearing moves annotated, and two guards hold the negative
@@ -357,8 +344,9 @@ Four principles carry the language and are true on every surface:
 3. **Show the data boldly.** When the answer is a trend or a distribution, the
    visualization is the answer: discrete bars and candlesticks at full real estate
    with clear axis labels, never soft smoothed lines. Match the register to the
-   moment — technical and precise for market data, warm through space and shape for a
-   personal summary.
+   moment — technical and precise for market data, warm for a personal summary,
+   where warm means larger `--dd-block-gap` and `--radius-lg`/`--radius-pill`
+   geometry — never a color shift, never an illustration.
 4. **Spend the accent once.** The accent is the mark of action, spent zero or one
    times per surface and never twice — a positive-trend stroke, an earned gain, or the
    one primary CTA. Zero is correct when the answer is steady or reassuring.
@@ -372,30 +360,25 @@ the first and loudest visual event; justify it with at most one region of
 [bold evidence](pattern.evidence); land the [one-sentence meaning](pattern.meaning) that names the
 so-what; close on the [pill action stack](pattern.action) that hands back the next move;
 and spend the [accent moment](pattern.accent-moment) once or not at all across the whole
-composition. Let the task set the shape of the answer, not a template: when the
-task is a single lookup or a yes/no, the answer reads first as a `--dd-numeral`
-metric or a decisive prefix on its own line; when it resolves a field of metrics,
-the answer is one governing number or delta with the discrete `--dd-bar` chart
-given the most real estate — never four equal-weight KPI cards, never a rainbow
-dashboard where every module fights to be seen; when it weighs options, align the
-shared criteria into uniform parallel rows on the near-black tiers so the reader
-compares like against like, keep weak or empty cells visible because the gap is
-part of the comparison, and mark the chosen path by position, weight, or the one
-accent — never staggered per-option cards that hide the tradeoff. If a task fits
-none of these, stream a new surface from the same parts under the same rules —
-never collapse to a generic layout — compose from the same parts.
+composition. Let the task set the shape of the answer, not a template: a single
+lookup or yes/no leads with a `--dd-numeral` metric or a decisive prefix; a field
+of metrics resolves into one governing number or delta with the `--dd-bar` chart
+given the most real estate — never four equal-weight KPI cards; an option
+comparison aligns into uniform parallel rows per [pattern.evidence](pattern.evidence);
+a surface whose job is a state — loading, empty, error, blocked — follows
+[pattern.states](pattern.states) instead of a hollow four-block scaffold. If a task
+fits none of these, stream a new surface from the same parts under the same rules
+— never collapse to a generic layout.
 
 **Surface obligations (true everywhere).** A reader should grasp the answer before
-reading any supporting detail. The hero answer appears in the first major region,
-left-aligned with a leading element and a clean ragged edge — never centered like a
-marketing splash. Copy is verb-first and verdict-shaped: no hedging (*"you might want
-to…"*), no apologies (*"sorry, nothing yet"* → *"nothing yet"*), no tooltips on
-obvious labels, no onboarding chrome on routine surfaces. Numbers set in tabular
-numerals with the unit tight to the number. The accent appears at most once; if it
-appears twice, demote one. Evidence is bold and discrete, not subtle. The surface
-leaves at least 56px of top breathing room for host chrome, and large display type
-wraps cleanly and reduces scale before words clip or crowd the edges. After the screen
-is functionally correct, run a final presence check: is there one unambiguously
-loudest element, at most one accent moment, a one-second read, verdict-shaped copy,
-and something the reader would be glad to look at? If any answer is no, the work is
-not finished — the presence is missing.
+reading any supporting detail. Copy is verb-first and verdict-shaped: no hedging
+(*"you might want to…"*), no apologies (*"sorry, nothing yet"* → *"nothing yet"* —
+see [pattern.states](pattern.states)), no tooltips on obvious labels, no onboarding
+chrome on routine surfaces. The accent appears at most once; if it appears twice,
+demote one. The surface leaves at least 56px (`--dd-top-safe`) of top breathing room
+for host chrome, and large display type wraps cleanly and reduces scale before words
+clip or crowd the edges. After the screen is functionally correct, run a final
+presence check: is there one unambiguously loudest element, at most one accent
+moment, a one-second read, verdict-shaped copy — and nothing on the screen that
+exists only to reassure? If any answer is no, the work is not finished — the
+presence is missing.

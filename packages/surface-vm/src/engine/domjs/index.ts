@@ -33,7 +33,7 @@ export { document, region, state, reactive } from '${DOMJS_FACADE_MODULE_ID}';
 // the model writes plain DOM code and `export default root`.
 const BOOTSTRAP_SOURCE = `
 import { document, region, state, reactive } from '${DOMJS_FACADE_MODULE_ID}';
-import { mount, output, emit, callTool, getState, onState } from '${DOMJS_CORE_MODULE_ID}';
+import { mount, output, emit, describeError, callTool, getState, onState } from '${DOMJS_CORE_MODULE_ID}';
 
 globalThis.document = document;
 globalThis.region = region;
@@ -50,14 +50,14 @@ try {
   const entry = await import('${ENTRY_PATH}');
   mount(entry.default);
 } catch (e) {
-  emit({ type: 'error', error: String(e && e.message ? e.message : e) });
+  emit({ type: 'error', error: describeError(e) });
 }
 `;
 
 
 const SURFACE_BOOTSTRAP_SOURCE = `
 import { document, region, state, reactive } from '${DOMJS_FACADE_MODULE_ID}';
-import { mount, output, emit, callTool, getState, onState } from '${DOMJS_CORE_MODULE_ID}';
+import { mount, output, emit, describeError, callTool, getState, onState } from '${DOMJS_CORE_MODULE_ID}';
 import { template } from '${TEMPLATE_MODULE_ID}';
 
 globalThis.document = document;
@@ -86,7 +86,7 @@ try {
   }
   mount(root);
 } catch (e) {
-  emit({ type: 'error', error: String(e && e.message ? e.message : e) });
+  emit({ type: 'error', error: describeError(e) });
 }
 `;
 

@@ -1,5 +1,5 @@
 ---
-description: The bold evidence block — supporting data shown as discrete `--dd-bar` bars and candlesticks at full real estate with `--dd-axis` labels, or as tight uniform rows on near-black tiers, never soft smoothed curves. Reach for how the surface proves the answer with data that reads in one glance.
+description: The bold evidence block — supporting data shown as discrete `--dd-bar` bars and candlesticks at full real estate with `--dd-axis` labels, or as tight uniform rows on near-black tiers — including option comparisons, where shared criteria align into parallel rows and the chosen path is marked by tier, never staggered cards — never soft smoothed curves. Reach for how the surface proves the answer with data that reads in one glance.
 ---
 
 ## Composition
@@ -26,6 +26,15 @@ a tabular-numeral amount tracked with `--dd-tnum`. Inset the content by
 `--dd-content-inset` so the eye reads it as content, not chrome, and keep every row
 the same height so the rhythm reads as edited. A number without a claim does not earn
 a place — pair facts with their meaning rather than scattering orphaned stats.
+
+**Option comparisons — parallel rows, never staggered cards.** When the evidence
+weighs options against each other, align the shared criteria into uniform parallel
+rows on the near-black tiers so the reader compares like against like. Keep weak or
+empty cells visible — the gap is part of the comparison, and hiding it edits the
+tradeoff out of the evidence. Mark the chosen path by position, weight, tier
+(`--dd-surface-selected`), or the one [accent moment](pattern.accent-moment) — never a
+colored badge, and never staggered per-option cards that break the parallel read
+and hide the tradeoff.
 
 **Evidence arrives whole and stays still.** A chart draws complete — final bars,
 final heights, final axis — never growing in from zero or animating series by

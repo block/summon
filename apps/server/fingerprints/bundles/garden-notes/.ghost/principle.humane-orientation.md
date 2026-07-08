@@ -1,5 +1,5 @@
 ---
-description: How a plan faces the person — lead with their concern before any taxonomy, one decision per panel, forward phrasing with exact dates (never overdue alarms or guilt), someday-texture variation, and an unclosed `--garden-later-fade` ending; pull when writing plan copy, structuring decisions, or ending a page.
+description: How a plan faces the person — lead with their concern before any taxonomy, one decision per panel, forward phrasing with exact dates (never overdue alarms or guilt), someday-texture variation, and an unclosed `--garden-later-fade` ending; pull when writing plan copy, structuring decisions, ending a page, or composing an empty/first-run state — name a tiny start, never cheerlead.
 ---
 
 ## Composition
@@ -23,7 +23,9 @@ links in `--garden-quiet-note` or `--color-text-muted` ink, never a second
 button competing for the same choice. When a plan genuinely holds two decisions,
 split it into two panels under the [note-panel system](pattern.note-panels) rather than
 stacking competing buttons in one; a panel with two loud buttons has stopped
-lowering pressure.
+lowering pressure. When the task is genuinely a multi-select — pick the
+errands to batch, choose which plants to bring in — the selection itself is
+the one decision: many quiet checkable rows, one filled button to confirm.
 
 **Orient forward, never behind.** Phrase state toward where the person is going,
 not where they are behind: "ready when you are," "picks up Thursday," "waiting
@@ -49,6 +51,16 @@ suggestions, or calls to action. A plan that trails off softly tells the person
 the future has room in it; a plan that ends with a hard line tells them the
 system is done with them.
 
+**An empty state names a tiny start.** When a surface has nothing in it yet —
+a first run, a cleared plan, a fresh week — it stays encouraging and concrete:
+name one tiny start the person could take right now ("jot the first thing on
+your mind," "add the trip"), phrased as a doable verb, not a feature tour or a
+pep talk. No cheerleading, no motivational slogans, no illustration standing in
+for guidance — the empty page is still a plan, and the plan's job is one small
+beginnable step. The tiny start may wear the `--garden-chosen-dot` exactly the
+way a chosen step does, because starting is the one decision the empty panel
+asks for.
+
 **Rest quietly between decisions.** Humane pacing includes what the surface
 does when the person does nothing: nothing. No idle animation, no pulsing
 reminders, no "still there?" nudges, no content that rearranges itself while
@@ -60,7 +72,9 @@ be as deliberately designed as any interaction.
 
 ```css
 :root {
-  /* HUMANE ORIENTATION — forward-facing texture and the open later-edge. */
+  /* HUMANE ORIENTATION — forward-facing texture and the open later-edge.
+     These four are also defined in the index :root block, which is the
+     source of truth; they are repeated here for reading in place. */
   --garden-someday-paper: linear-gradient(180deg, #fbf6e0 0%, #f6f0cf 100%); /* someday notes settle a shade quieter than this-week paper */
   --garden-someday-chip-radius: 12px;  /* someday chips square gently so the week's texture varies structurally */
   --garden-later-fade: linear-gradient(180deg, rgba(234, 241, 220, 0) 0%, #eaf1dc 100%); /* the unclosed later… edge dissolving into the field */

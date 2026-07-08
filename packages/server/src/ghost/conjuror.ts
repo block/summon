@@ -4,8 +4,11 @@ import {
 } from '@summon-internal/engine';
 import {
   buildCatalogMenu,
+  extractSkeletonFences,
+  stripSkeletonSections,
   type GhostCatalog,
-} from '@decentralized-design/ghost/core';
+  type GhostCatalogNode,
+} from '@design-intelligence/ghost/core';
 import type { TextCompletionRequest } from '../types.js';
 
 /**
@@ -127,11 +130,15 @@ const SURFACE_SELECT_SYSTEM_PROMPT = [
 const CONJUROR_SELECT_SYSTEM_PROMPT = [
   'You are Conjuror, a host-side Ghost context selector for Summon. Select a',
   'small authority packet from one flat Ghost fingerprint catalog. Return JSON',
-  'only. The host will validate every id. Do not invent ids. Checks and haunts',
+  'only. The host will validate every id. Do not invent ids. Checks',
   'are not in this menu and must not be requested. Select one lead composition',
   'id and up to the requested number of support ids. The host always includes',
   'the index and token CSS nodes, so do not use support slots for them unless',
-  'they are truly the best lead.',
+  'they are truly the best lead. Entries flagged concrete=true or',
+  'skeleton=true carry material that steers generation strongly — prefer them',
+  'when they plausibly fit. Entries flagged posture=guard are review-critical',
+  'constraints, not building blocks; select one only when the request',
+  'directly implicates it.',
 ].join(' ');
 
 interface SelectorResult {
@@ -237,8 +244,12 @@ export function validateSurface(catalog: GhostCatalog, surfaceId: string): strin
 }
 
 /**
- * Pull the whole flat corpus in prompt order: front door first, the anchor
- * hoisted second (when it is a distinct node), then the rest sorted by id.
+ * Pull the whole flat corpus in steering order (mirroring `ghost pull
+ * --order steering`): front door first, the anchor hoisted second (when it is
+ * a distinct node), then the rest bucketed concrete → steady/wild → guard,
+ * sorted by id within each bucket. Concrete material reads early where it
+ * steers strongest; guard nodes sink last so review-critical prose does not
+ * crowd the generative context.
  */
 export function pullCorpus(catalog: GhostCatalog, anchor: string): PulledGhostNode[] {
   const pulled: PulledGhostNode[] = [];
@@ -255,11 +266,22 @@ export function pullCorpus(catalog: GhostCatalog, anchor: string): PulledGhostNo
 
   push(GHOST_FRONT_DOOR_ID, 'front-door');
   if (anchor !== GHOST_FRONT_DOOR_ID) push(anchor, 'anchor');
-  const rest = [...catalog.nodes.keys()]
-    .filter((id) => id !== GHOST_FRONT_DOOR_ID && id !== anchor)
-    .sort((a, b) => a.localeCompare(b));
-  for (const id of rest) push(id, 'corpus');
+  const rest = [...catalog.nodes.values()]
+    .filter((node) => node.id !== GHOST_FRONT_DOOR_ID && node.id !== anchor)
+    .sort((a, b) => steeringBucket(a) - steeringBucket(b) || a.id.localeCompare(b.id));
+  for (const node of rest) push(node.id, 'corpus');
   return pulled;
+}
+
+/**
+ * Upstream steering buckets (pull-command.ts): concrete material first,
+ * steady/wild prose next, guard posture last.
+ */
+function steeringBucket(node: GhostCatalogNode): number {
+  if (node.guard) return 3;
+  if (node.wild) return 2;
+  if (node.concrete) return 1;
+  return 2;
 }
 
 export function renderCorpusPrompt(
@@ -274,13 +296,38 @@ export function renderCorpusPrompt(
   const glossaryBlock = renderGlossaryPrompt(glossary);
   if (glossaryBlock) blocks.push(glossaryBlock);
   for (const node of pulled) {
-    // Keep the node body verbatim — including any fenced ```css token block.
-    const body = node.body.trim();
+    // Keep the node body verbatim — including any fenced ```css token block —
+    // except `## Skeleton` sections, which are extracted and emitted dead last
+    // (mirroring `ghost pull`'s steering physics: structure seeds the artifact).
+    const body = stripSkeletonSections(node.body).trim();
     if (!body) continue;
     const label = reasonLabel(node);
     blocks.push(label ? `## ${node.id} — ${label}` : `## ${node.id}`, body);
   }
+  const skeletonBlock = renderSkeletonPrompt(pulled);
+  if (skeletonBlock) blocks.push(skeletonBlock);
   return blocks.join('\n\n');
+}
+
+/**
+ * Collect `## Skeleton` fences across the pulled corpus and render them as
+ * the final prompt block, positioned to seed the artifact's structure. Order
+ * follows pull order so the anchor's skeleton leads.
+ */
+function renderSkeletonPrompt(pulled: PulledGhostNode[]): string | null {
+  const sections: string[] = [];
+  for (const node of pulled) {
+    for (const fence of extractSkeletonFences(node.body)) {
+      const info = fence.info ?? '';
+      sections.push(`### From ${node.id}\n\n\`\`\`${info}\n${fence.content.trimEnd()}\n\`\`\``);
+    }
+  }
+  if (sections.length === 0) return null;
+  return [
+    '## Skeletons — begin the artifact from this structure',
+    'Begin the artifact from the matching structure below verbatim, then fill it.',
+    ...sections,
+  ].join('\n\n');
 }
 
 const CSS_BLOCK_RE = /```css\n([\s\S]*?)```/g;
@@ -412,7 +459,10 @@ function buildCompiledSelectorPrompt(
       const node = catalog.nodes.get(entry.id);
       const kind = node?.kind ? ` kind=${node.kind}` : '';
       const css = node?.body && hasCssBlock(node.body) ? ' token-css=true' : '';
-      return `- ${entry.id}${kind}${css}: ${entry.description ?? '(no description)'}`;
+      const concrete = entry.concrete ? ' concrete=true' : '';
+      const skeleton = entry.hasSkeleton ? ' skeleton=true' : '';
+      const posture = entry.posture !== 'steady' ? ` posture=${entry.posture}` : '';
+      return `- ${entry.id}${kind}${css}${concrete}${skeleton}${posture}: ${entry.description ?? '(no description)'}`;
     })
     .join('\n');
   const toolNames = options.tools?.tools.map((tool) => tool.name).join(', ') || 'none';
@@ -500,7 +550,12 @@ function heuristicSelector(catalog: GhostCatalog, prompt: string, warning: strin
 
 function buildCompiledPulled(catalog: GhostCatalog, ids: string[], leadId: string | null): PulledGhostNode[] {
   const ordered = [...ids].sort((a, b) => {
-    const rank = (id: string) => id === GHOST_FRONT_DOOR_ID ? 0 : id === leadId ? 1 : 2;
+    const rank = (id: string) => {
+      if (id === GHOST_FRONT_DOOR_ID) return 0;
+      if (id === leadId) return 1;
+      const node = catalog.nodes.get(id);
+      return node ? 1 + steeringBucket(node) : 5;
+    };
     return rank(a) - rank(b) || a.localeCompare(b);
   });
   return ordered.flatMap((id): PulledGhostNode[] => {

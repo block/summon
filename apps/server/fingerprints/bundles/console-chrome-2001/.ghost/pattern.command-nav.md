@@ -1,5 +1,5 @@
 ---
-description: The command and navigation system — the carbon dual-command bar, side-mounted vertical tabs with amber wayfinding LEDs, right action rail, and beveled chrome footer slab that frame every faceplate. Reach for this when a surface needs hardware-style navigation, command bars, or rails that bracket the chassis.
+description: The command and navigation system — the carbon dual-command bar, side-mounted vertical tabs with amber wayfinding LEDs, right action rail, and beveled chrome footer slab that frame every faceplate, including how the dual bars compress on narrow/mobile screens. Reach for this when a surface needs hardware-style navigation, command bars, rails that bracket the chassis, or responsive nav compression.
 ---
 
 ## Composition

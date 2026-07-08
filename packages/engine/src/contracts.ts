@@ -142,7 +142,7 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
     case 'surface-document-network-not-granted':
       return ['Remove fetch/XHR/WebSocket from main.js; call granted host tools with callTool(toolName, args) instead.'];
     case 'surface-document-unsupported-api':
-      return ['Use only scoped Surface Document APIs in main.js: document.getElementById/querySelector, element querySelector, createElement/createTextNode, textContent, setAttribute/removeAttribute, className/classList, style writes, append/removeChild/replaceChildren, addEventListener/on<event>, state(), region(), getState/onState, and callTool().'];
+      return ['Use only scoped Surface Document APIs in main.js: document.getElementById/querySelector, element querySelector, createElement/createTextNode, textContent, setAttribute/getAttribute/removeAttribute/hasAttribute, className/classList/dataset, style writes, append/removeChild/replaceChildren, addEventListener/on<event>, state(), region(), getState/onState, and callTool().'];
     case 'missing-surface-document-file':
     case 'missing-surface-document-bundle-html':
     case 'missing-surface-document-bundle-css':

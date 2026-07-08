@@ -1,5 +1,5 @@
 ---
-description: Terminal, code, and agent panels as evidence — minimal-chrome warm-dark panels with a single blinking `--noir-cursor`, 6px `--noir-dot` status lights, and mono gutter lines carrying plausible commands, logs, agent steps, and output tied to the task. Reach for how a surface proves state with live-feeling terminal evidence.
+description: Terminal, code, and agent panels as evidence — minimal-chrome warm-dark panels with a single blinking `--noir-cursor`, 6px `--noir-dot` status lights, and mono gutter lines carrying plausible commands, logs, agent steps, and output tied to the task. Reach for how a surface proves state with live-feeling terminal evidence, including landing/launch hero claims proven by evidence panels.
 ---
 
 ## Composition

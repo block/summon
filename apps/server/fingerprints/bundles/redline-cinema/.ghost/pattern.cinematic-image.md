@@ -1,5 +1,5 @@
 ---
-description: The cinematic image system — full-bleed photographic heroes and image-first cards framed edge-to-edge on the warm near-black canvas, with strict placeholder discipline when no real imagery exists. Reach for it when an image must carry the moment full-bleed rather than sit politely in a box.
+description: The cinematic image system — full-bleed photographic heroes and image-first cards framed edge-to-edge on the warm near-black canvas, with strict placeholder discipline when no real imagery exists. Reach for it when an image must carry the moment full-bleed rather than sit politely in a box, and when a loading or empty state must hold the stage — reserve the frame, never fill with decorative cards.
 ---
 
 ## Composition
@@ -30,6 +30,13 @@ The reveal is a fade on the near-black stage, never a zoom, tilt, or shadow lift
 and the reserved plate means nothing reflows. This keeps dense indexes quiet
 while letting the image remain the reward; if red is spent in the region, it is
 not spent again on the reveal.
+
+**When the state is empty or loading.** The same frame discipline governs
+loading and empty states: stay near-black and quiet, reserve the full cinematic
+image slot under `--redline-frame-overlay` rather than filling space with
+decorative cards, and let one line of grey `--color-text-muted` metadata carry an
+empty result. The reserved frame *is* the state — no spinner cards, no skeleton
+grids of soft placeholders.
 
 **Derived image-placeholder discipline.** When prompt imagery is absent, use dark
 gradients, cropped light streaks, abstract silhouettes, material detail, or

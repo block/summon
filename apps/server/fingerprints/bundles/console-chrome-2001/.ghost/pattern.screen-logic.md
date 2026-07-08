@@ -1,5 +1,5 @@
 ---
-description: The screen logic system — game-UI feedback grammar where every interactive element acknowledges input like console hardware, discrete screen-swap transitions instead of smooth scroll, a hardware selection cursor, boot-sequence orientation framing, and diegetic slot/readout chrome. Reach for this when a surface needs its interaction and navigation model to behave like a console menu system, not a webpage.
+description: The screen logic system — game-UI feedback grammar where every interactive element acknowledges input like console hardware, discrete screen-swap transitions instead of smooth scroll, a hardware selection cursor, boot-sequence orientation framing, and diegetic slot/readout chrome including empty (NO CARD), loading, and status states. Reach for this when a surface needs console-menu interaction, screen transitions, or when designing empty states, loading states, or live status readouts.
 ---
 
 ## Composition
@@ -29,8 +29,10 @@ snaps between targets with `--chrome-motion-instant`, it never glides. Lists and
 grids should feel D-pad traversable: uniform target geometry, predictable order,
 no orphan targets floating outside the cursor's track.
 
-**Screens swap, they do not scroll.** Major view changes are discrete screen
-swaps: the old screen cuts out, the new screen cuts in, stepped by
+**Screens swap, they do not scroll.** When a view change replaces the user's
+task context, swap; when content genuinely exceeds one screen, sequence
+numbered scenes — never smooth-scroll between them. Major view changes are
+discrete screen swaps: the old screen cuts out, the new screen cuts in, stepped by
 `--chrome-screen-swap` — optionally through a brief `--chrome-screen-shutter`
 carbon blackout, like a console changing modes. Tabs, wizards, pagination,
 result pages, and detail views all prefer swap-in-place over smooth scrolling or
@@ -62,5 +64,14 @@ and navigation system](pattern.command-nav); slot wells press into the [beveled 
 and chrome system](pattern.plates); and boot strips and readouts are silkscreen kin of
 the [badge and section-label system](pattern.badges) — they report the machine's state,
 they never commit an action.
+
+**Bound:** total acknowledgment — no silently interactive element; exactly one
+hardware cursor per screen, snapping with `--chrome-motion-instant`; discrete
+`--chrome-screen-swap` cuts for view changes, never smooth scroll, parallax,
+or ease-glide; empty slots read NO CARD in disabled grey rather than
+vanishing; slots and readouts stay cool. **Open:** whether a boot strip
+appears, the wording of boot and readout copy, whether swaps pass through the
+`--chrome-screen-shutter` blackout, and which persistent state earns slot
+treatment.
 
 Related: reinforces `pattern.controls`, `pattern.command-nav`, `pattern.hardware-dressing`.

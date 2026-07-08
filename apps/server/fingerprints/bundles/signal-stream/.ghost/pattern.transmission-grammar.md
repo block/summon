@@ -1,5 +1,5 @@
 ---
-description: The transmission grammar — mono catalog-card metadata blocks, the two-voice shout-plus-margin type pairing, atmosphere-first openings on solid plates, torn-edge hard-matte section transitions, rationed static RGB-split emphasis, and a cross-referencing codebook of section codes. Reach for this when a surface needs its pacing, annotation, and cross-referencing to read as an intercepted transmission.
+description: The transmission grammar — mono catalog-card metadata blocks, the two-voice shout-plus-margin type pairing, atmosphere-first openings on solid plates, torn-edge hard-matte section transitions, rationed static RGB-split emphasis, and a cross-referencing codebook of section codes. Gather when a surface needs section navigation, internal anchors/jump links, per-item metadata cards, annotations, or section transitions — the filing system that makes the feed read as an intercepted transmission.
 ---
 
 ## Composition
@@ -8,6 +8,9 @@ The transmission grammar is how a Signal Stream surface paces, annotates, and
 cross-references itself — the moves that make the feed read as an intercepted
 transmission with a filing system behind it, not a styled blog. Everything here
 stays hard-matte and static: no blur, no glow, no feathering, no animation.
+The codebook and filing cards earn their place only when the surface has 3+
+sections or items that cross-reference; below that, the mono pills of
+[pattern.type-system](pattern.type-system) carry orientation alone.
 
 **Catalog-card metadata blocks.** Each stream item may carry a mono filing-card
 index: a compact `--signal-card-*` block listing source, timestamp, ref code,

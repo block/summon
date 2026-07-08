@@ -1,5 +1,5 @@
 ---
-description: The editorial close — a short, decisive closing region landed above the `--editorial-rule-heavy` footer seam and tagged with an `--editorial-folio` beside the `--editorial-registration-mark`, framed as a recommendation, accepted tradeoff, risk, or next action rather than a passive recap or competing CTAs. Reach for how the page commits and registers its final line.
+description: The editorial close — a short, decisive closing region landed above the `--editorial-rule-heavy` footer seam and tagged with an `--editorial-folio-font` folio beside the `--editorial-registration-mark`, framed as a recommendation, accepted tradeoff, risk, or next action rather than a passive recap or competing CTAs. Reach for how the page commits and registers its final line.
 ---
 
 ## Composition

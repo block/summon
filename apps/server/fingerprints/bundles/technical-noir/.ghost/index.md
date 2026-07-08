@@ -10,28 +10,20 @@ agent activity, code, logs, and workflow evidence are the primary visual
 material — not decoration around it. Warmth replaces chromatic branding: a
 brown-warmed dark canvas, an off-white material system, light-weight display
 type, compact spacing, tight geometry, and hairline depth carry quiet
-confidence. The voice is quiet, technical, precise, restrained, operational, and
-confident. "Noir" here means restraint, contrast, and focus — not cinematic
-mood.
+confidence. When a sentence could reassure or could inform, it informs; the
+voice never performs friendliness. "Noir" here means restraint, contrast, and
+focus — not cinematic mood.
 
 It serves developers and technical operators, teams reviewing agentic or
 terminal-like workflows, and agents composing restrained dark-mode product
 surfaces. Every surface should help the user understand what is happening, what
 is available, and what action comes next.
 
-**Stance — what this is not:** no literal recreation of a specific
-developer-tool website, brand, product names, partner names, logos, screenshots,
-or customer quotes. No re-skinning of a researched source site's light-page
-expression as the Technical Noir default. No cinematic noir styling —
-spotlights, fog, film grain, smoked-glass panels, dramatic shadows,
-detective-board metaphors, or mood detached from task evidence. No neon
-cyberpunk terminal aesthetics, gradient backdrops, glassmorphism,
-pure-black-with-neon-green nostalgia, or colorful accent systems. No generic
-SaaS card grids where every panel has equal weight. No soft lifestyle warmth,
-oversized rounded cards, friendly pill CTAs, or pastel productivity styling. No
-heavy billboard typography, excessive uppercase shouting, or hero layouts that
-overpower task content. No decorative terminal mockups with fake or irrelevant
-text.
+**Stance — what this is not:** the negative space is held by the two guards —
+[anti-goal.terminal-cosplay](anti-goal.terminal-cosplay) (cinematic noir mood,
+neon-on-black nostalgia, light-mode skins, source-site recreation) and
+[anti-goal.dashboard-slop](anti-goal.dashboard-slop) (equal-card grids, colored
+charts, badge systems) — review them as the rejection filter.
 
 **Tradeoffs:** prefer readable technical density over spacious marketing gloss;
 off-white emphasis, alignment, and hairlines over color-coded hierarchy; tight
@@ -90,50 +82,11 @@ cursor as the sole motion, and status carried in tiny muted dots rather than col
 blocks. It is named here as heritage only — the lineage grounds the vocabulary; no
 specific tool's brand assets, chrome, or wordmarks are reproduced.
 
-The material is a warm-dark technical token system: a brown-warmed near-charcoal
-page canvas (never pure black or cool gray), slightly lifted warm-dark surfaces
-for cards, tiles, mockups, and inputs, off-white primary text and primary action
-fill, warm-beige muted secondary copy, and low-contrast warm hairlines that carry
-depth instead of shadows. Off-white is both the primary text and the primary
-action color, so no separate chromatic accent is required; semantic danger,
-success, info, and warning tokens stay muted and tied to real state only. Two
-type roles drive the surface — an Inter-like sans for display, headings, body,
-navigation, and button labels, and a DM-Mono-like monospace reserved for
-commands, logs, code, paths, model names, statuses, and short technical chips —
-with an optional rare editorial serif italic. The scale is quiet (display tops
-out around 64px and stays light), spacing follows a compact 4px-ish rhythm with
-10px control steps and 96px major bands, radii stay tight at 2–6px (pills
-reserved for icon buttons and compact state chips), and shadow tokens are
-intentionally inert.
-
-The component vocabulary follows the terminal/editor lineage. Buttons are tight
-rectangles on the compact 10px control step: the primary action is an off-white
-fill on the warm-charcoal void with `--color-accent-fg` text, secondary is a
-`--noir-hairline` outline over the bare canvas, and icon buttons are the rare
-`--radius-pill` exception. Rows and tiles share one alignment grid divided by the
-`--noir-hairline` — never a deck of equal-weight cards; the active row wears the
-2px off-white `--noir-spine` and nothing else. Inputs are warm-dark fills with a
-`--color-border-input` hairline that thickens to `--noir-hairline-strong` on
-focus. Terminal, log, and agent panels are the evidence surfaces: minimal chrome,
-`--radius-md` corners, a mono `--noir-gutter` prefixing every command/log/step
-line, the felt `--noir-grid` behind dense content, and exactly one blinking
-`--noir-cursor` at the live edge. Chips and status labels are compact mono,
-carrying state on a 6px `--noir-dot-*` dot rather than a colored fill.
-
-Interaction states stay expressed in hairline and off-white, never in color.
-Hover lifts a hairline from `--color-border` to `--color-border-strong` (or nudges
-surface toward `--color-surface`), not a glow. Focus is a single off-white
-hairline ring (`--focus-ring`) — crisp, no bloom, no shadow. Active/pressed reads
-as the off-white `--noir-spine` or a momentary off-white edge. Disabled recedes
-via `--state-disabled-opacity` on a still-hairline outline — never a grayed color
-swatch. Selected is the spine; loading is the one cursor plus a muted running dot
-(`--noir-dot-run`); empty and error states stay quiet — an empty panel keeps its
-gutter and hairline frame, an error whispers on `--noir-dot-fail` and muted
-`--color-danger` text, never a filled alarm banner. Density is editorial: rows
-tighten to the 4px rhythm on dense evidence surfaces and relax to 16px bands on
-reading surfaces, and layouts collapse from multi-column tile racks to single
-stacked rows on narrow viewports while preserving the hairline lattice and the
-mono gutter.
+The material is the token vocabulary below — inject it as the visual source of
+truth and reference the custom properties rather than inventing values. How the
+tokens compose into controls, tiles, and evidence panels lives in the pattern
+nodes; how states, density, and responsiveness behave lives in
+[pattern.controls](pattern.controls) and the Composition rules that follow.
 
 Accessibility is built into the pairing. Off-white `--color-text` on
 `--color-bg` and `--color-surface` clears WCAG AA for body and large display;
@@ -361,8 +314,7 @@ never a bright winner badge, a colorful score, or a pricing-table grid; when it
 operates running work, let zones emerge from spacing, hairlines, and alignment so
 the page reads as one workspace and not an equal-weight dashboard, and mark the
 active item with the spine. If a task matches none of these, compose a new surface
-from the same parts under the same rules — never collapse to a generic layout —
-compose from the same parts.
+from the same parts under the same rules — never collapse to a generic layout.
 
 **Surface obligations (true everywhere).** Every surface keeps the
 off-white-on-warm-dark relationship — a warm near-charcoal canvas (never pure

@@ -1,5 +1,5 @@
 ---
-description: 'The field contract — warm near-black #131313 is the material, mint and violet are rationed hazard voltages with legible jobs, and depth stays flat; pull this first on every surface, because bright fills are interruptions, never the default.'
+description: 'The field contract — warm near-black #131313 is the material, mint and violet are rationed hazard voltages with legible jobs, and depth stays flat; pull this first on every surface, because bright fills are interruptions, never the default. Also owns error, failure, danger, status, and alert states — how the voltages signal severity without colliding with their recency jobs.'
 ---
 
 ## Composition
@@ -18,7 +18,16 @@ emphasis, promotional outlines, and rails. Always pair each hazard fill with its
 `-fg` text color so the two voltages stay legible; never invent ad-hoc accent
 hexes. Saturated tile colors are solid editorial blocks, never gradients or
 pastel washes. The accent's job must always be legible: priority, action, state,
-section, or interruption, and no more than a few saturated accents per viewport.
+section, or interruption. At most 3 saturated fills per viewport; at most 1 mint
+CTA per region.
+
+**Semantic status keeps the hazard job.** The status tokens reuse the voltages
+— `--color-danger` is violet, `--color-success` is mint — while the field
+grammar assigns mint to primary/live and violet to secondary/rail/recent. When
+a status is semantic (danger/success/warning/info), the voltage keeps its
+hazard job: violet-as-danger takes a striped/torn hazard edge or an uppercase
+mono `STATE: FAILED` pill so it cannot be misread as recency; never signal
+severity by fill alone.
 
 **Saturated hazard tiles.** High-priority stories become solid saturated blocks
 on the black canvas — black text on mint/yellow/white, white text on
