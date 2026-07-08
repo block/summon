@@ -17,6 +17,11 @@ export {
   emptyConformanceVerdict,
   evaluateConformance,
 } from './conformance.js';
+export {
+  MEDIAN_TELLS,
+  deriveSanctionedTells,
+  scoreMedianTells,
+} from './median-tells.js';
 
 export type {
   GhostPullReason,
@@ -48,6 +53,12 @@ export type {
   GhostReceipt,
   ParseGhostRequestResult,
 } from './adapter.js';
+export type {
+  MedianTell,
+  MedianTellHit,
+  MedianTellsReport,
+  ScoreMedianTellsInput,
+} from './median-tells.js';
 export type {
   ConformanceVerdictValue,
   ConformanceOffered,

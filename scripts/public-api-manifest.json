@@ -405,7 +405,9 @@
       "file": "ghost",
       "values": [
         "GHOST_FRONT_DOOR_ID",
+        "MEDIAN_TELLS",
         "buildGhostReceipt",
+        "deriveSanctionedTells",
         "emptyConformanceVerdict",
         "evaluateConformance",
         "ghostContextMeta",
@@ -416,6 +418,7 @@
         "publicGhostRoots",
         "resolveCatalogGhostGenerationContext",
         "resolveGhostGenerationContext",
+        "scoreMedianTells",
         "selectGhostSurface"
       ],
       "types": [
@@ -445,11 +448,15 @@
         "GhostRoots",
         "GhostSurfacePromptOptions",
         "GhostTokenSource",
+        "MedianTell",
+        "MedianTellHit",
+        "MedianTellsReport",
         "ParseGhostRequestResult",
         "PulledGhostNode",
         "ResolvedCatalogGhostSteer",
         "ResolvedGhostSteer",
         "ResolvedRootGhostSteer",
+        "ScoreMedianTellsInput",
         "SelectGhostSurfaceOptions",
         "TextCompletionClient",
         "TextCompletionRequest"

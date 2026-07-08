@@ -36,7 +36,10 @@ import {
   resolveGhostGenerationContext,
   evaluateConformance,
   emptyConformanceVerdict,
+  deriveSanctionedTells,
+  scoreMedianTells,
   type ConformanceVerdict,
+  type MedianTellsReport,
   type GhostGatherStrategyOption,
   type ResolvedGhostSteer,
 } from '@decentralized-design/summon-server/ghost';
@@ -697,6 +700,26 @@ app.post('/api/generate', async (req, res) => {
         // the verdict is purely additive and a failure here must never fail the
         // generation response.
         let verdict: ConformanceVerdict = emptyConformanceVerdict(ghostContext.surface);
+        // Median-tells pre-pass: deterministic regex scoring of the accepted
+        // artifact against the measured defaults of unsteered generation. No
+        // model call, so it runs even when LLM conformance is disabled.
+        // Fingerprints that deliberately share a median pattern (dark bundles)
+        // get those tells sanctioned from their own token CSS.
+        let medianTells: MedianTellsReport | null = null;
+        if (!summary.blocked && process.env.SUMMON_GHOST_MEDIAN_TELLS !== '0') {
+          try {
+            const artifactSource = extractArtifactSource(summary.emittedLines);
+            if (artifactSource) {
+              medianTells = scoreMedianTells({
+                artifactSource,
+                sanctionedTellIds: deriveSanctionedTells(ghostContext.tokenSource.css),
+              });
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error('[generate] median-tells skipped:', msg);
+          }
+        }
         if (!summary.blocked && process.env.SUMMON_GHOST_CONFORMANCE !== '0') {
           try {
             const artifactSource = extractArtifactSource(summary.emittedLines);
@@ -745,6 +768,7 @@ app.post('/api/generate', async (req, res) => {
               blocked: summary.blocked,
               safetyViolations: runMetrics.safetyViolationCodes ?? [],
               conformance: verdict,
+              medianTells,
             }),
           });
         } catch (err) {

@@ -1,6 +1,8 @@
 export {
   GHOST_FRONT_DOOR_ID,
+  MEDIAN_TELLS,
   buildGhostReceipt,
+  deriveSanctionedTells,
   emptyConformanceVerdict,
   evaluateConformance,
   ghostContextMeta,
@@ -11,6 +13,7 @@ export {
   publicGhostRoots,
   resolveCatalogGhostGenerationContext,
   resolveGhostGenerationContext,
+  scoreMedianTells,
   selectGhostSurface,
 } from '@summon-internal/server/ghost';
 
@@ -41,11 +44,15 @@ export type {
   GhostRoots,
   GhostSurfacePromptOptions,
   GhostTokenSource,
+  MedianTell,
+  MedianTellHit,
+  MedianTellsReport,
   ParseGhostRequestResult,
   PulledGhostNode,
   ResolvedCatalogGhostSteer,
   ResolvedGhostSteer,
   ResolvedRootGhostSteer,
+  ScoreMedianTellsInput,
   SelectGhostSurfaceOptions,
   TextCompletionClient,
   TextCompletionRequest,

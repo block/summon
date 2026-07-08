@@ -32,6 +32,7 @@ import type {
   ConformanceVerdict,
   ConformanceVerdictValue,
 } from './conformance.js';
+import type { MedianTellsReport } from './median-tells.js';
 import type { TextCompletionRequest } from '../types.js';
 
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
@@ -201,6 +202,12 @@ export interface GhostReceipt {
       reason: string;
     }>;
   };
+  /**
+   * Deterministic median-tells pre-pass (regex, no model call). Present when
+   * the host scored the accepted artifact; omitted when generation was
+   * blocked or scoring was skipped.
+   */
+  medianTells?: MedianTellsReport;
 }
 
 export type ParseGhostRequestResult =
@@ -461,6 +468,7 @@ export function buildGhostReceipt(input: {
   blocked: boolean;
   safetyViolations: string[];
   conformance: ConformanceVerdict;
+  medianTells?: MedianTellsReport | null;
 }): GhostReceipt {
   const artifactFiles = artifactFilesFromLines(input.acceptedLines);
   const ctx = input.context;
@@ -512,6 +520,7 @@ export function buildGhostReceipt(input: {
         reason: check.reason,
       })),
     },
+    ...(input.medianTells ? { medianTells: input.medianTells } : {}),
   };
 }
 
