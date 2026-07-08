@@ -5,6 +5,10 @@
 > ship the host-owned channel below. Bundle-side transport (serving a
 > fingerprint's `materials/fonts/` and generating its `@font-face` block) is
 > the remaining follow-up.
+>
+> Update: the demo server now ships the first consumer — vessel-light's
+> HK Grotesk faces serve from `/api/fingerprint-materials/vessel-light/fonts/`
+> and flow to the client via the `/ghost-font-faces` stream meta line.
 
 ## Why this exists
 

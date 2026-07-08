@@ -43,6 +43,7 @@ import {
   type GhostGatherStrategyOption,
   type ResolvedGhostSteer,
 } from '@decentralized-design/summon-server/ghost';
+import { resolveMaterialsAssetPath, structuralMaterials } from './materials.js';
 import {
   loadFingerprintCatalog,
   parseFingerprintRequest,
@@ -310,6 +311,20 @@ app.get('/api/fingerprints', (_req, res) => {
   res.json(publicFingerprints(fingerprintCatalog));
 });
 
+// Vendored materials assets (vessel-light fonts). Path-traversal is rejected
+// by resolveMaterialsAssetPath; only files under fingerprints/materials serve.
+app.get('/api/fingerprint-materials/*', (req, res) => {
+  const raw = (req.params as Record<string, string>)[0] ?? '';
+  const abs = resolveMaterialsAssetPath(raw);
+  if (!abs) {
+    res.status(404).json({ error: 'unknown materials asset' });
+    return;
+  }
+  res.sendFile(abs, (err) => {
+    if (err && !res.headersSent) res.status(404).json({ error: 'unknown materials asset' });
+  });
+});
+
 app.get('/api/ghost-roots', (_req, res) => {
   res.json(
     publicGhostRoots(ghostRoots).map(({ id }) => ({
@@ -545,6 +560,30 @@ app.post('/api/generate', async (req, res) => {
       );
     }
 
+    // Structural materials layer (vessel-light, bridged): appended to the
+    // host token source so it rides the trusted styling channel into the
+    // shadow root, the prompt token vocabulary, and the receipt — never into
+    // generated main.css. The brief extends the fingerprint corpus prompt so
+    // the model composes with the primitives instead of reinventing them.
+    let structuralFontFacesCss: string | null = null;
+    if (ghostContext && process.env.SUMMON_STRUCTURAL_MATERIALS !== '0') {
+      try {
+        const materials = structuralMaterials();
+        ghostContext = {
+          ...ghostContext,
+          prompt: `${ghostContext.prompt}\n\n${materials.brief}`,
+          tokenSource: {
+            ...ghostContext.tokenSource,
+            css: `${ghostContext.tokenSource.css}\n\n${materials.css}`,
+          },
+        };
+        structuralFontFacesCss = materials.fontFacesCss;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[generate] structural materials skipped:', msg);
+      }
+    }
+
     const preludeLines: ProtocolLine[] = [];
 
     // Let the playground repair loop recover the "valid schema, runtime-fatal"
@@ -597,6 +636,13 @@ app.post('/api/generate', async (req, res) => {
         path: '/ghost-token-source',
         value: ghostTokenSourceMeta(ghostContext.tokenSource),
       });
+      if (structuralFontFacesCss) {
+        preludeLines.push({
+          op: 'meta',
+          path: '/ghost-font-faces',
+          value: { css: structuralFontFacesCss },
+        });
+      }
     }
     if (agentPlan) {
       preludeLines.push({

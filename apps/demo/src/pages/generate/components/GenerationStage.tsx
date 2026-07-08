@@ -89,6 +89,7 @@ export function GenerationStage({
   onOpenDiagnostics,
   surfaceRef,
   surfaceTokensSource,
+  surfaceFontFacesSource,
   toolRegistry,
   validationTools,
   appendDevEvent,
@@ -122,6 +123,7 @@ export function GenerationStage({
   onOpenDiagnostics: () => void;
   surfaceRef: RefObject<SummonSurfaceHandle>;
   surfaceTokensSource: string;
+  surfaceFontFacesSource?: string;
   toolRegistry: SummonSurfaceProps["toolRegistry"];
   validationTools: SummonSurfaceProps["validationTools"];
   appendDevEvent: SummonSurfaceProps["onEvent"];
@@ -254,6 +256,7 @@ export function GenerationStage({
               className="block max-h-full w-full overflow-auto border-0 bg-surface"
               title="Summon generate sandbox"
               tokensSource={surfaceTokensSource}
+              fontFacesSource={surfaceFontFacesSource}
               toolRegistry={toolRegistry}
               validationTools={validationTools}
               onEvent={appendDevEvent}

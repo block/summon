@@ -141,6 +141,9 @@ export function GeneratePage() {
   const activeTokensSourceOverrideRef = useRef<string | null>(null);
   const [surfaceTokensSource, setSurfaceTokensSource] =
     useState(defaultTokensSource);
+  const [surfaceFontFacesSource, setSurfaceFontFacesSource] = useState<
+    string | undefined
+  >(undefined);
   const [runtimeToolNames, setRuntimeToolNames] = useState<string[] | null>(
     null,
   );
@@ -642,6 +645,7 @@ export function GeneratePage() {
     setCurrentSurfaceContractView,
     setActiveTokensSourceOverride,
     setSurfaceTokensSource,
+    setSurfaceFontFacesSource,
     setCurrentValidationSummary,
     setCurrentStreamHealth,
     setStatus,
@@ -900,6 +904,7 @@ export function GeneratePage() {
           onOpenDiagnostics={() => setDiagnosticsOpen(true)}
           surfaceRef={surfaceRef}
           surfaceTokensSource={surfaceTokensSource}
+          surfaceFontFacesSource={surfaceFontFacesSource}
           toolRegistry={toolRegistry}
           validationTools={toolContract?.validationTools}
           appendDevEvent={appendDevEvent}

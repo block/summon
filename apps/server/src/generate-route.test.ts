@@ -319,7 +319,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 14), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -329,6 +329,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
+      'meta /ghost-font-faces',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -374,7 +375,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(policyLines)).slice(0, 14), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -384,6 +385,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
+      'meta /ghost-font-faces',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -429,7 +431,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 15), [
+  assert.deepEqual(lineRefs(withoutTiming(agentLines)).slice(0, 16), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -439,6 +441,7 @@ test('api generate sends narrowed contract and stream meta shape through package
     'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
+      'meta /ghost-font-faces',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
@@ -731,7 +734,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 16), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 17), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -741,6 +744,7 @@ test('api generate emits Ghost fingerprint context for root contexts', async (t)
     'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
+      'meta /ghost-font-faces',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',
@@ -1186,7 +1190,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 14), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1196,6 +1200,7 @@ test('api generate can stream with OpenAI provider', async (t) => {
     'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
+      'meta /ghost-font-faces',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -1307,7 +1312,7 @@ test('api generate can stream with Gemini provider', async (t) => {
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 14), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1317,6 +1322,7 @@ test('api generate can stream with Gemini provider', async (t) => {
     'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
+      'meta /ghost-font-faces',
     'meta /surface-policy',
     'meta /surface-plan',
     'meta /surface-contract',
@@ -1477,7 +1483,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
     .split(/\n/)
     .filter(Boolean)
     .map((raw) => JSON.parse(raw) as ProtocolLine);
-  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 13), [
+  assert.deepEqual(lineRefs(withoutTiming(lines)).slice(0, 14), [
     'event /surface',
     'meta /status',
     'event /surface',
@@ -1487,6 +1493,7 @@ test('api generate streams planning preview before slow preflight finishes', asy
     'meta /ghost-gather',
     'meta /ghost-context',
     'meta /ghost-token-source',
+      'meta /ghost-font-faces',
     'meta /agent-goal',
     'meta /agent-policy-resolution',
     'meta /surface-policy',

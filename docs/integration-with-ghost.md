@@ -221,6 +221,30 @@ Ordered, each independently verifiable:
   single-file lint imply references are optional. Either is fine — the
   migration writes `references: [index]` — but the contract should be stated.
 
+### Structural materials layer (vessel-light)
+
+Upstream vessel-light ships Vessel's design language as `.ghost/materials/` —
+a brand-agnostic structural grammar (`primitives.css`: surface/stack/button/
+input/text classes driven entirely by custom properties) plus HK Grotesk
+faces. Summon vendors that layer once (`apps/server/fingerprints/materials/
+vessel-light/`) and hooks it up to **all** catalog fingerprints: `bridge.css`
+maps Vessel's token vocabulary (`--background`, `--card`, `--primary`, …)
+onto the shared dialect every vendored fingerprint already defines
+(`--color-bg`, `--color-surface`, `--color-accent`, `--radius-*`), so one
+structural layer re-skins per fingerprint with no changes to the upstream
+file or the fingerprints.
+
+Trust routing: the layer is appended to the **host token source** (the same
+trusted channel as fingerprint tokens — never generated `main.css`), the
+structural brief extends the corpus prompt so the model composes with the
+primitives, fonts ride the `/ghost-font-faces` meta line into the host's
+`fontFacesSource` channel (document-level install; see
+`docs/adoption/fonts.md`), and font files serve from
+`/api/fingerprint-materials/…` with path-traversal rejection. The fingerprint
+prose stays the design authority — the brief tells the model to override any
+primitive whose grammar the fingerprint rejects. Disable with
+`SUMMON_STRUCTURAL_MATERIALS=0`.
+
 ### Fingerprint hygiene pass
 
 Vendored bundles now carry `glossary.md`, `.ghost/.gitignore`, and checks in

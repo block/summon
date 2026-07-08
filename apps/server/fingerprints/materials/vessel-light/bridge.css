@@ -1,0 +1,72 @@
+/*
+ * Vessel-light -> Summon token bridge.
+ *
+ * primitives.css ships verbatim from upstream vessel-light and speaks
+ * Vessel's token vocabulary (--background, --card, --primary, ...). Summon's
+ * eight fingerprints speak a shared dialect (--color-bg, --color-surface,
+ * --color-accent, ...) that all of them define in their index token block.
+ * This bridge defines every Vessel token the primitives consume as a var()
+ * reference into the fingerprint's vocabulary, so one structural layer
+ * re-skins per fingerprint with zero changes to either side.
+ *
+ * var() references resolve at computed-value time, so declaration order does
+ * not matter for the mappings; the literal fallbacks here only apply when a
+ * fingerprint omits an optional token.
+ */
+:root {
+  /* Surfaces & text */
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface);
+  --popover-foreground: var(--color-text);
+  --muted: var(--color-surface-muted, var(--color-surface));
+  --muted-foreground: var(--color-text-muted, var(--color-text));
+  --accent: var(--color-surface-muted, var(--color-surface));
+  --accent-foreground: var(--color-text);
+  --surface-dark: var(--color-text);
+  --surface-dark-text: var(--color-bg);
+  --surface-dark-border: var(--color-border, var(--color-text));
+
+  /* Controls */
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-accent-fg, var(--color-bg));
+  --destructive: var(--color-danger);
+  --destructive-foreground: var(--color-bg);
+  --border: var(--color-border, var(--color-text-muted, currentColor));
+  --input: var(--color-border-input, var(--color-border, currentColor));
+  --ring: var(--color-accent);
+
+  /* Status (fingerprints without explicit status tokens fall back to accent/danger) */
+  --success: var(--color-ok, var(--color-accent));
+  --warning: var(--color-warn, var(--color-accent));
+  --info: var(--color-info, var(--color-accent));
+
+  /* Radii: --radius-sm/md/lg come from the fingerprint (8/8 define them). */
+  --radius-card: var(--radius-md);
+  --radius-input: var(--radius-sm);
+  --radius-pill: var(--radius-lg);
+
+  /* Depth: default flat — most fingerprints reject shadow elevation; a
+     fingerprint that wants depth overrides these in its own token block. */
+  --shadow-btn: none;
+  --shadow-card: none;
+  --shadow-popover: none;
+  --shadow-modal: none;
+  --dark-40: rgba(0, 0, 0, 0.4);
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+  --ease-spring: cubic-bezier(0.33, 1, 0.68, 1);
+
+  /* Type scale consumed by primitives text/label classes */
+  --label-font-size: 11px;
+  --label-letter-spacing: 0.12em;
+  --label-font-weight: 600;
+  --label-line-height: 1.2;
+  --heading-display-font-size: clamp(40px, 6vw, 72px);
+  --heading-display-letter-spacing: -0.03em;
+}

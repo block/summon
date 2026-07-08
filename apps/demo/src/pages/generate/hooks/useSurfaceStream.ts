@@ -67,6 +67,7 @@ export function useSurfaceStream({
   setCurrentSurfaceContractView,
   setActiveTokensSourceOverride,
   setSurfaceTokensSource,
+  setSurfaceFontFacesSource,
   setCurrentValidationSummary,
   setCurrentStreamHealth,
   setStatus,
@@ -87,6 +88,7 @@ export function useSurfaceStream({
   setCurrentSurfaceContractView: (value: SurfaceContractView | null) => void;
   setActiveTokensSourceOverride: (value: string | null) => void;
   setSurfaceTokensSource: (value: string) => void;
+  setSurfaceFontFacesSource?: (value: string) => void;
   setCurrentValidationSummary: (value: string | null) => void;
   setCurrentStreamHealth: (value: string | null) => void;
   setStatus: (value: string) => void;
@@ -188,6 +190,14 @@ export function useSurfaceStream({
         : [];
       const warn = warnings.length ? `; warnings=${warnings.length}` : '';
       logLine('op-meta', `fingerprint tokens -> ${kind} (${source})${warn}`);
+      return;
+    }
+    if (line.op === 'meta' && line.path === '/ghost-font-faces') {
+      const value = line.value as { css?: unknown } | undefined;
+      if (typeof value?.css === 'string' && value.css) {
+        setSurfaceFontFacesSource?.(value.css);
+        logLine('op-meta', `fingerprint font faces -> ${(value.css.match(/@font-face/g) ?? []).length} face(s)`);
+      }
       return;
     }
     if (line.op === 'meta' && line.path === '/ghost-conformance') {
@@ -331,6 +341,7 @@ export function useSurfaceStream({
     setMode,
     setStatus,
     setSurfaceTokensSource,
+    setSurfaceFontFacesSource,
     surfaceRef,
   ]);
 
