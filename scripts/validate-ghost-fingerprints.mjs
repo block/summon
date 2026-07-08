@@ -6,11 +6,17 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 const BUNDLES_DIR = resolve(import.meta.dirname, '../apps/server/fingerprints/bundles');
-const GHOST_BIN_OVERRIDE = process.env.GHOST_BIN?.trim() || '';
+const VENDORED_GHOST_BIN = resolve(
+  import.meta.dirname,
+  '../node_modules/@design-intelligence/ghost/dist/bin.js',
+);
+const GHOST_BIN_OVERRIDE =
+  process.env.GHOST_BIN?.trim() ||
+  (existsSync(VENDORED_GHOST_BIN) ? VENDORED_GHOST_BIN : '');
 const GHOST_COMMAND = GHOST_BIN_OVERRIDE.endsWith('.js') ? process.execPath : GHOST_BIN_OVERRIDE || 'ghost';
 const GHOST_ARGS_PREFIX = GHOST_BIN_OVERRIDE.endsWith('.js') ? [GHOST_BIN_OVERRIDE] : [];
 const GHOST_LABEL = GHOST_BIN_OVERRIDE || 'ghost';
-const CHECKS_DIR = join('haunts', 'checks');
+const CHECKS_DIR = 'checks';
 
 function listGhostDirs() {
   return readdirSync(BUNDLES_DIR, { withFileTypes: true })
@@ -90,15 +96,18 @@ function hygieneWarnings(ghostPath) {
     }
   }
 
+  if (existsSync(join(ghostPath, 'haunts'))) {
+    warnings.push('legacy .ghost/haunts directory present; checks now live in flat .ghost/checks');
+  }
+
   const checksPath = join(ghostPath, CHECKS_DIR);
   if (!existsSync(checksPath)) {
-    warnings.push('missing .ghost/haunts/checks');
+    warnings.push('missing .ghost/checks');
     return warnings;
   }
 
   const checkFiles = readdirSync(checksPath).filter((name) => name.endsWith('.md')).sort();
-  if (!existsSync(join(checksPath, 'haunt.yml'))) warnings.push('missing .ghost/haunts/checks/haunt.yml');
-  if (checkFiles.length === 0) warnings.push('no check markdown files in .ghost/haunts/checks');
+  if (checkFiles.length === 0) warnings.push('no check markdown files in .ghost/checks');
 
   if (checkFiles.length > 0 && checkFiles.every((name) => isIndexOnlyCheck(join(checksPath, name)))) {
     warnings.push('all checks reference only index; add specific node ids where possible');

@@ -12,3 +12,7 @@ playwright-report
 apps/server/.arrow-audit/
 apps/server/.domjs-audit/
 apps/server/.bakeoff/
+
+# Build metadata and scratch
+*.tsbuildinfo
+.tmp/

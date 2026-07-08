@@ -1,4 +1,4 @@
-import type { GhostCatalog } from '@decentralized-design/ghost/core';
+import type { GhostCatalog } from '@design-intelligence/ghost/core';
 import type { GhostLoadedCheck } from './adapter.js';
 import type { TextCompletionRequest } from '../types.js';
 
@@ -42,7 +42,7 @@ export interface ConformanceVerdict {
 
 export interface EvaluateConformanceInput {
   /**
-   * Checks from the loaded fingerprint package's `checks` haunt
+   * Checks from the loaded fingerprint package's flat `checks/` directory
    * (`LoadedFingerprintPackage.checks`). Ghost selects and emits; it never
    * runs a check — Summon's utility model is the evaluating agent here.
    */

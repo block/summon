@@ -4,8 +4,8 @@
 > why. The live Ghost binding code is `packages/server/src/ghost/adapter.ts`,
 > `packages/server/src/ghost/conformance.ts`, and `packages/server/src/ghost/conjuror.ts`;
 > the demo catalog remains in `apps/server/src/fingerprint-catalog.ts`. The receipt lives in
-> `buildGhostReceipt`. Pinned upstream: `@decentralized-design/ghost`
-> 0.19.x (the flat-corpus + haunts model).
+> `buildGhostReceipt`. Pinned upstream: `@design-intelligence/ghost`
+> 0.20.x (the flat-corpus + flat-checks + steering model).
 
 ## What changed in Ghost
 
@@ -21,9 +21,9 @@ no selection.
 | Structure | directory tree *is* the graph; corridors + `relates` edges | flat set of nodes; folders are browsing convenience only; `relates` is a **rejected** key |
 | Retrieval | name a surface → `resolveGraphSlice` composes own/ancestor/edge nodes | `buildCatalogMenu` → agent selects → read bodies; no slice, no provenance |
 | Front door | `core` root node (`GHOST_GRAPH_ROOT_ID`) | `index` node — a curated-entrypoint *convention*, not a graph position |
-| Checks | `.ghost/checks/*.md`, `surface:`-routed via `selectChecksForSurfaces` | `.ghost/haunts/checks/*.md` under a `haunt.yml` anchor; routed by diff-material matching in `ghost review`; `surface:` is gone; ≥1 `references` entry required |
-| Haunts | — | opt-in capabilities under `.ghost/haunts/`; **never emitted by gather/pull**, so they cannot leak into generation context |
+| Checks | `.ghost/checks/*.md`, `surface:`-routed via `selectChecksForSurfaces` | flat `.ghost/checks/*.md` (0.20 removed the 0.19 `haunts/checks/` + `haunt.yml` nesting); routed by diff-material matching in `ghost review`; `surface:` is gone; ≥1 `references` entry required; **never emitted by gather/pull**, so checks cannot leak into generation context |
 | Incarnation / `--as` | essence vs medium-tagged nodes | removed |
+| Steering | — | catalog nodes carry `concrete` / `hasSkeleton` / `posture: steady\|wild\|guard` (glossary-derived); `ghost pull` orders concrete → steady/wild → guard and extracts `## Skeleton` fences dead last; Summon mirrors both in `pullCorpus` / `renderCorpusPrompt` |
 | Materials | — | `materials:` frontmatter — locators (repo globs / https URLs) for the concrete assets a truth is about |
 
 The fingerprint is still pure prose plus markdown checks. There is still no
@@ -32,10 +32,10 @@ author opts into pixel determinism.
 
 ## The live contracts (verified against the Ghost source)
 
-- **Library:** `@decentralized-design/ghost/fingerprint` →
+- **Library:** `@design-intelligence/ghost/fingerprint` →
   `resolveFingerprintPackage`, `loadFingerprintPackage` → `{ manifest,
-  catalog, haunts, checks, invalid, invalidHaunts }`.
-  `@decentralized-design/ghost/core` → `buildCatalogMenu`,
+  catalog, checks, hasChecksDir, invalid, invalidChecks }`.
+  `@design-intelligence/ghost/core` → `buildCatalogMenu`,
   `assembleCatalog`, catalog/check types.
 - **`GhostCatalog`** = `{ nodes: Map<id, GhostCatalogNode> }` — a flat map.
   **`GhostCatalogNode`** = `{ id, kind?, slug, description?, materials?,
@@ -59,7 +59,7 @@ author opts into pixel determinism.
 
 Unchanged from the graph era, and now cheaper: Summon consumes Ghost as a
 library — typed catalog/check values, no subprocess per generation, version
-pinned via a packed tarball (`vendor/decentralized-design-ghost-*.tgz`).
+pinned via a packed tarball (`vendor/design-intelligence-ghost-*.tgz`).
 The CLI's `gather`/`pull` are the reference behavior the adapter mirrors.
 
 One BYOA note: `gather`/`pull` through the CLI append to the fingerprint's
@@ -87,7 +87,9 @@ authoring gate for bundle content.
 
 The graph slice is gone, so "what does the generator see" needed a new answer.
 Summon's answer (`pullCorpus` in `ghost-adapter.ts`): **pull the whole flat
-corpus**, ordered front door → anchor → rest-by-id.
+corpus**, ordered front door → anchor → rest in **steering order** (mirroring
+`ghost pull --order steering`): concrete nodes first, steady/wild prose next,
+guard-posture nodes last, sorted by id within each bucket.
 
 - **Why pull everything:** Ghost's contract is agent-side selection over the
   menu, but Summon's generator is single-shot — it cannot call back mid-run to
@@ -105,6 +107,16 @@ corpus**, ordered front door → anchor → rest-by-id.
   anchor line, then each node body verbatim under `## <id> — <label>`
   (front door / lead composition / kind). Node bodies keep their fenced
   ```css blocks — the prose is the only place the model sees token *names*.
+- **Skeletons** (steering, upstream 0.19+): `## Skeleton` sections are stripped
+  from node bodies (`stripSkeletonSections`) and their fences re-emitted as
+  the final prompt block — *"begin the artifact from this structure"* — so
+  authored structure seeds the artifact instead of drowning mid-corpus. Order
+  follows pull order, so the anchor's skeleton leads.
+- **Catalog postures in selection:** the compiled selector menu advertises
+  `concrete=true`, `skeleton=true`, and `posture=wild|guard` from
+  `CatalogMenuEntry`, and the selector system prompt teaches the model to
+  prefer concrete/skeleton nodes and treat guard nodes as review-critical
+  constraints rather than building blocks.
 - The Summon surface brief (task frame, surface plan, signature-moves block
   extracted from the front door's `## Signature look & feel` section, output
   rules) is appended after the corpus, exactly as before.
@@ -118,7 +130,7 @@ historical full-corpus pull. Above `SUMMON_GHOST_GATHER_FULL_PULL_NODE_LIMIT`
 (default `12`), Summon compiles a selected gather packet instead: `index` and every
 fenced-CSS token node are mandatory, selector-chosen lead/support nodes fill the
 remaining budget, all ids are host-validated, and missing/model-invalid choices
-fall back safely. Checks and haunts are loaded for governance only and never
+fall back safely. Checks are loaded for governance only and never
 enter generation context.
 
 The stream emits `/ghost-gather` with schema `summon.ghost-gather/v1` so hosts can
@@ -177,14 +189,17 @@ Ordered, each independently verifiable:
 
 1. ✅ **Bundle content migration** (one-shot, since retired): stripped
    `relates:` (rejected key) into a trailing `Related: …` prose line,
-   moved `.ghost/checks/` → `.ghost/haunts/checks/` + `haunt.yml`, rewrote
+   moved `.ghost/checks/` → `.ghost/haunts/checks/` + `haunt.yml` (since
+   reversed: 0.20 flattened checks back to `.ghost/checks/`, and the bundles
+   were migrated forward again), rewrote
    `surface: core` → `references: [index]` (the loader requires ≥1 reference;
    `index` is the faithful home for a fingerprint-wide check). Gated on
    `ghost validate` — all 8 bundles passed with 0 errors. Also surfaced one
    latent YAML bug (unquoted `description` with a nested-mapping colon in
    `technical-contrast/drafting-marks.md`).
-2. ✅ **Dependency repointed** — `@decentralized-design/ghost` (graph-era `next`
-   snapshot) → `@decentralized-design/ghost` 0.19.0 packed tarball.
+2. ✅ **Dependency repointed** — `@design-intelligence/ghost` (graph-era `next`
+   snapshot) → `@design-intelligence/ghost` packed tarball (0.19.0, since
+   bumped to 0.20.0).
 3. ✅ **Adapter rewritten** — `pullCorpus`/`renderCorpusPrompt` replace
    `resolveGraphSlice`/`renderSlicePrompt`; anchor selection over
    `buildCatalogMenu`; `GHOST_FRONT_DOOR_ID = 'index'` replaces
@@ -208,8 +223,8 @@ Ordered, each independently verifiable:
 
 ### Fingerprint hygiene pass
 
-Vendored bundles now carry `glossary.md`, `.ghost/.gitignore`, and checks under
-`haunts/checks/`. Existing checks were retargeted toward specific node ids where
+Vendored bundles now carry `glossary.md`, `.ghost/.gitignore`, and checks in
+the flat `.ghost/checks/` directory (0.20 shape). Existing checks were retargeted toward specific node ids where
 obvious, and previously unchecked bundles have high-signal conformance checks.
 The next content-quality pass is the larger typed-node migration
 (`principle.*`, `pattern.*`, `asset.*`, `anti-goal.*`) so descriptions, glossary

@@ -25,7 +25,7 @@ const rootManifest = JSON.parse(await readFile(join(rootDir, 'package.json'), 'u
 const core = byName.get('@decentralized-design/summon');
 const serverPackage = byName.get('@decentralized-design/summon-server');
 const react = byName.get('@decentralized-design/summon-react');
-const ghostFingerprintTarball = join(rootDir, 'vendor', 'decentralized-design-ghost-0.19.0.tgz');
+const ghostFingerprintTarball = join(rootDir, 'vendor', 'design-intelligence-ghost-0.20.0.tgz');
 if (!core?.tarballPath || !serverPackage?.tarballPath || !react?.tarballPath) {
   throw new Error('public package smoke could not find all packed tarballs');
 }
@@ -37,7 +37,7 @@ await writeFile(join(projectDir, 'package.json'), JSON.stringify({
   dependencies: {
     '@decentralized-design/summon': `file:${core.tarballPath}`,
     '@decentralized-design/summon-server': `file:${serverPackage.tarballPath}`,
-    '@decentralized-design/ghost': `file:${ghostFingerprintTarball}`,
+    '@design-intelligence/ghost': `file:${ghostFingerprintTarball}`,
     '@decentralized-design/summon-react': `file:${react.tarballPath}`,
     react: '19.2.5',
     'react-dom': '19.2.5',

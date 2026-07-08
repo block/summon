@@ -50,13 +50,13 @@
     "typescript": "^5.4.0"
   },
   "devDependencies": {
-    "@decentralized-design/ghost": "file:../../vendor/decentralized-design-ghost-0.19.0.tgz"
+    "@design-intelligence/ghost": "file:../../vendor/design-intelligence-ghost-0.20.0.tgz"
   },
   "peerDependencies": {
-    "@decentralized-design/ghost": "^0.19.0"
+    "@design-intelligence/ghost": "^0.20.0"
   },
   "peerDependenciesMeta": {
-    "@decentralized-design/ghost": {
+    "@design-intelligence/ghost": {
       "optional": true
     }
   }

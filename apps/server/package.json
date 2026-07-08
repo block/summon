@@ -17,7 +17,7 @@
     "@decentralized-design/summon-server": "workspace:*",
     "@summon-internal/engine": "workspace:*",
     "yaml": "^2.8.3",
-    "@decentralized-design/ghost": "file:../../vendor/decentralized-design-ghost-0.19.0.tgz"
+    "@design-intelligence/ghost": "file:../../vendor/design-intelligence-ghost-0.20.0.tgz"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

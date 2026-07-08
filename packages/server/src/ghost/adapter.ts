@@ -7,11 +7,11 @@ import {
   loadFingerprintPackage,
   resolveFingerprintPackage,
   type LoadedFingerprintPackage,
-} from '@decentralized-design/ghost/fingerprint';
+} from '@design-intelligence/ghost/fingerprint';
 import {
   parseGlossary,
   type GhostCatalog,
-} from '@decentralized-design/ghost/core';
+} from '@design-intelligence/ghost/core';
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
@@ -37,7 +37,7 @@ import type { TextCompletionRequest } from '../types.js';
 const ROOT_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
 
 /**
- * One check loaded from the fingerprint's `checks` haunt. Ghost does not
+ * One check loaded from the fingerprint's flat `.ghost/checks/` directory. Ghost does not
  * export this type from a public subpath, so it is derived from the loaded
  * package — the map value IS the integration contract.
  */
@@ -91,7 +91,7 @@ interface BaseGhostSteer {
   catalog: GhostCatalog;
   /** Package glossary categories and their meanings, surfaced for generation. */
   glossary: GhostGlossaryEntry[];
-  /** Checks from the `checks` haunt (never part of the generation context). */
+  /** Checks from `.ghost/checks/` (never part of the generation context). */
   checks: Map<string, GhostLoadedCheck>;
   /** The full corpus, pulled in prompt order (front door → anchor → corpus). */
   pulled: PulledGhostNode[];

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   loadFingerprintPackage,
   resolveFingerprintPackage,
-} from '@decentralized-design/ghost/fingerprint';
+} from '@design-intelligence/ghost/fingerprint';
 import { evaluateConformance, formatArtifactSourceForConformance } from '../src/ghost/conformance.js';
 import type { GhostLoadedCheck } from '../src/ghost/adapter.js';
 import type { TextCompletionRequest } from '../src/types.js';

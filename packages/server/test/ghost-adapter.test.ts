@@ -12,7 +12,7 @@ import {
   resolveGhostGenerationContext,
 } from '../src/ghost/adapter.js';
 import { selectGhostSurface } from '../src/ghost/conjuror.js';
-import { assembleCatalog } from '@decentralized-design/ghost/core';
+import { assembleCatalog } from '@design-intelligence/ghost/core';
 
 const fixtureRoots: string[] = [];
 
