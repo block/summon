@@ -1,8 +1,10 @@
-# Safe font inclusion (design exploration)
+# Safe font inclusion
 
-> **Status: exploration.** Nothing here is implemented. This note records the
-> constraints and the recommended shape for giving fingerprints real typefaces
-> without weakening the Surface Document boundary.
+> **Status: host mechanism implemented.** `fontFacesSource` on
+> `mountSummonSurface` / `SummonSurface` and the `fontFacesCss` envelope field
+> ship the host-owned channel below. Bundle-side transport (serving a
+> fingerprint's `materials/fonts/` and generating its `@font-face` block) is
+> the remaining follow-up.
 
 ## Why this exists
 
@@ -46,9 +48,14 @@ interface SummonSurfaceOptions {
   the **host** serves (same-origin or its own CDN). The model never sees or
   authors these rules.
 - `SummonSurface` installs `fontFacesSource` into `document.head` (not the
-  shadow root, per constraint 2), deduplicated per surface id / content hash,
-  and removes it on dispose only if no other live surface installed the same
-  hash.
+  shadow root, per constraint 2), deduplicated by content hash and refcounted,
+  removed on dispose only when no other live surface shares the same hash
+  (`packages/host/src/font-faces.ts`).
+- The source is sanitized to `@font-face` blocks only before install:
+  selectors, `@import`, and other at-rules are dropped. The channel is
+  host-trusted by contract, but hosts will pipe fingerprint-bundle content
+  into it, and this keeps a sloppy or compromised bundle from smuggling
+  document-level CSS through the font channel.
 - The fingerprint's token CSS binds the family:
   `--font-sans: "HK Grotesk", system-ui, sans-serif;`. Generated `main.css`
   keeps using `var(--font-sans)` — no validator change, no new authority for
@@ -77,10 +84,12 @@ interface SummonSurfaceOptions {
   `<style>` install with more code and the same document-scoping; no safety
   gain. Not worth the divergence from the existing style-install path.
 
+The envelope carries the sibling field: `fontFacesCss` rides
+`SurfaceEnvelope` next to `tokenCss`, so replay hosts get fonts without
+wiring a prop (`SummonSurface` prefers the prop, then the envelope field).
+
 ## Open questions
 
-- Should `fontFacesSource` ride the surface envelope (like `tokenCss`) so
-  remote hosts get it without wiring a prop? Probably yes, as a sibling field.
 - CSP interaction: hosts with strict `font-src` must allowlist their own font
   origin; Summon should document this, not manage it.
 - Subsetting/licensing is host responsibility; vendored demo bundles should

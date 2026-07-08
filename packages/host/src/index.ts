@@ -1,4 +1,6 @@
 export { mountSummonSurface } from './summon-surface.js';
+export { installFontFaces, sanitizeFontFacesCss } from './font-faces.js';
+export type { InstalledFontFaces } from './font-faces.js';
 export type {
   SummonSurfaceArtifact,
   SummonSurfaceHandle,

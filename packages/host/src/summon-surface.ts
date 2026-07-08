@@ -7,6 +7,7 @@ import type {
 } from '@summon-internal/engine';
 
 import { buildSurfaceDocumentModules, mountSurface } from '@summon-internal/surface-vm';
+import { installFontFaces, type InstalledFontFaces } from './font-faces.js';
 
 export type SummonSurfaceArtifact = SurfaceDocumentArtifact;
 
@@ -17,6 +18,14 @@ export interface SummonSurfaceOptions {
   validationTools?: ValidationTool[];
   initialState?: Record<string, unknown>;
   tokensSource?: string;
+  /**
+   * Host-owned `@font-face` CSS. Installed into the document head (font
+   * faces are document-scoped and do not load inside shadow roots) after
+   * sanitization to @font-face blocks only; deduplicated and refcounted
+   * across live surfaces. Generated `main.css` never carries fonts — token
+   * stacks reference the family and fall back to system fonts when absent.
+   */
+  fontFacesSource?: string;
   onToolCall?: (
     tool: string,
     args: Record<string, unknown>,
@@ -171,6 +180,10 @@ export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurface
   root.dataset.summonSurface = surfaceId;
   root.classList.add('summon-surface');
   installTokenStyle(root, surfaceId, options.tokensSource);
+  const installedFontFaces: InstalledFontFaces | null = installFontFaces(
+    options.fontFacesSource,
+    root.ownerDocument,
+  );
 
   const notifyState = () => {
     const snapshot = cloneState(currentState);
@@ -350,6 +363,7 @@ export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurface
     },
     dispose() {
       disposed = true;
+      installedFontFaces?.release();
       teardownVmRuntime();
       subscribers.clear();
       root.replaceChildren();

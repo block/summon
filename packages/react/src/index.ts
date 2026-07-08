@@ -35,6 +35,8 @@ export interface SummonSurfaceProps {
   validationTools?: ValidationTool[];
   toolRegistry?: ToolRegistry | null;
   tokensSource?: string;
+  /** Host-owned @font-face CSS; installed document-level, refcounted. */
+  fontFacesSource?: string;
   initialState?: Record<string, unknown>;
   onToolCall?: (tool: string, args: Record<string, unknown>) =>
     | void
@@ -124,6 +126,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       ...(props.initialState ?? {}),
     };
     const renderableArtifact = resolveRenderableArtifact(props);
+    const fontFacesSource = props.fontFacesSource ?? props.envelope?.fontFacesCss ?? undefined;
 
     let handle: MountedSummonSurfaceHandle | null = null;
     const policy = new PolicyEngine({
@@ -143,6 +146,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
       validationTools,
       initialState,
       tokensSource: props.tokensSource ?? props.envelope?.tokenCss ?? defaultTokensSource,
+      ...(fontFacesSource ? { fontFacesSource } : {}),
       events,
       onRuntimeError: props.onRuntimeError,
       onToolRejected: props.onToolRejected,
@@ -182,6 +186,7 @@ export const SummonSurface = forwardRef<SummonSurfaceHandle, SummonSurfaceProps>
     props.onRuntimeError,
     props.onHandlerError,
     props.tokensSource,
+    props.fontFacesSource,
     props.toolRegistry,
   ]);
 

@@ -38,6 +38,8 @@ export interface SurfaceEnvelope {
     validationMode?: 'observe';
   };
   tokenCss?: string | null;
+  /** Host-owned @font-face CSS for the fingerprint's typefaces. */
+  fontFacesCss?: string | null;
   runtimeVersion: string;
 }
 
@@ -56,6 +58,7 @@ export interface CreateSurfaceEnvelopeInput {
   };
   metadata?: SurfaceEnvelope['metadata'];
   tokenCss?: string | null;
+  fontFacesCss?: string | null;
   runtimeVersion?: string;
 }
 
@@ -90,6 +93,7 @@ export function createSurfaceEnvelope(input: CreateSurfaceEnvelopeInput): Surfac
     },
     metadata: input.metadata ?? {},
     tokenCss: input.tokenCss ?? null,
+    fontFacesCss: input.fontFacesCss ?? null,
     runtimeVersion: input.runtimeVersion ?? 'summon-surface-envelope-v4',
   };
 }
@@ -132,6 +136,9 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
   if (!isGrants(input.grants)) return false;
   if (!isMetadata(input.metadata)) return false;
   if (input.tokenCss !== undefined && input.tokenCss !== null && typeof input.tokenCss !== 'string') {
+    return false;
+  }
+  if (input.fontFacesCss !== undefined && input.fontFacesCss !== null && typeof input.fontFacesCss !== 'string') {
     return false;
   }
 
