@@ -54,7 +54,7 @@ test('surface-document strategy blocks when provider lacks generateSurfaceDocume
   const summary = await runSurfaceGeneration({
     prompt: 'surface document without provider',
     playground: true,
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: incapableProvider,
   }, (line) => lines.push(line));
 
@@ -68,7 +68,7 @@ test('surface-document output mode reports the bundle schema', async () => {
   await runSurfaceGeneration({
     prompt: 'surface document output mode',
     playground: true,
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: surfaceDocumentProvider,
   }, (line) => lines.push(line));
 
@@ -84,7 +84,7 @@ test('a valid surface-document bundle flows through to an accepted artifact', as
   const summary = await runSurfaceGeneration({
     prompt: 'a counter',
     playground: true,
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: surfaceDocumentProvider,
   }, (line) => lines.push(line));
 
@@ -103,7 +103,7 @@ test('a valid surface-document bundle can be generated and rendered by the host'
   const summary = await runSurfaceGeneration({
     prompt: 'a renderable counter',
     playground: true,
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: surfaceDocumentProvider,
   }, (line) => lines.push(line));
 
@@ -145,7 +145,7 @@ test('surface-document bundle-shape failures can repair', async () => {
     prompt: 'missing css then repaired',
     playground: true,
     maxRepairAttempts: 1,
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
   }, (line) => lines.push(line));
 
@@ -170,7 +170,7 @@ test('surface-document inertness and JS authority violations are blocked', async
     const summary = await runSurfaceGeneration({
       prompt: `bad ${code}`,
         playground: true,
-      surfacePolicy: { tier: 'static', purpose: 'inform' },
+      surfacePolicy: { purpose: 'inform' },
       modelProvider: provider,
     }, (line) => lines.push(line));
 

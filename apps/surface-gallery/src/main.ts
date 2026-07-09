@@ -1,5 +1,6 @@
 import {
   compileSurfacePolicy,
+  displayTier,
   PolicyEngine,
   type ApprovalDecision,
   type ApprovalRequest,
@@ -440,7 +441,6 @@ function validationContextForPolicy(
     mode: compiledPolicy.mode,
     allowedTools: grantedTools,
     tools,
-    surfacePlan: compiledPolicy.surfacePlan,
   };
 }
 
@@ -583,7 +583,9 @@ function renderContract(): void {
     ['provider', 'Model provider', provider ? `${provider.name} - ${generationModel}` : modelProviderLabel],
     ['utility', 'Utility model', utilityModel],
     ['policy', 'Surface config', policy],
-    ['tier', 'Surface type', contract?.surface.policy.tier ?? selectedPreset.surfacePolicy.tier],
+    ['tier', 'Surface type', displayTier(
+      contract?.surface.policy.ceiling ?? selectedPreset.surfacePolicy.ceiling,
+    )],
     ...(contract
       ? [['runtime', 'Runtime', `${contract.surface.mode} - ${contract.surface.plan.runtime}`] as [string, string, string]]
       : []),
@@ -878,14 +880,18 @@ function inspectorTabLabel(tab: InspectorTab): string {
   return 'Contract';
 }
 
+function presetTierLabel(preset: GalleryPreset): string {
+  return displayTier(preset.surfacePolicy.ceiling);
+}
+
 function compactPolicyText(preset: GalleryPreset): string {
   const grants = policyGrants(preset.surfacePolicy);
   const grantText = grants.length ? grants.join(',') : 'no tools';
-  return `${preset.surfacePolicy.tier} / ${grantText}`;
+  return `${presetTierLabel(preset)} / ${grantText}`;
 }
 
 function centerPolicyText(preset: GalleryPreset): string {
-  return `${preset.surfacePolicy.tier} / ${preset.surfacePolicy.purpose ?? 'surface'}`;
+  return `${presetTierLabel(preset)} / ${preset.surfacePolicy.purpose ?? 'surface'}`;
 }
 
 function parseSurfaceContractView(value: unknown): SurfaceContractView | null {

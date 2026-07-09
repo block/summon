@@ -116,7 +116,7 @@ test('planAgentSurface proposes and compiles a declarative policy', async () => 
   });
 
   assert.deepEqual(plan.surfacePolicy, {
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'read' },
     purpose: 'explore',
     grants: ['search'],
     persistence: 'replayable',
@@ -138,14 +138,14 @@ test('planAgentSurface keeps passive summary prompts static despite powerful nou
     prompt: 'make a product update summary for this launch',
     tools,
   });
-  assert.equal(updateSummary.surfacePolicy.tier, 'static');
+  assert.equal(updateSummary.surfacePolicy.ceiling, undefined);
   assert.equal(updateSummary.surfacePolicy.grants, undefined);
 
   const riskSummary = await planAgentSurface({
     prompt: 'summarize launch risk for next week',
     tools,
   });
-  assert.equal(riskSummary.surfacePolicy.tier, 'static');
+  assert.equal(riskSummary.surfacePolicy.ceiling, undefined);
   assert.equal(riskSummary.surfacePolicy.grants, undefined);
 });
 
@@ -154,23 +154,26 @@ test('planAgentSurface selects worker and approval tiers from catalog-backed too
     prompt: 'analyze launch risk in the background and score readiness',
     tools,
   });
-  assert.equal(worker.surfacePolicy.tier, 'worker');
+  assert.equal(worker.surfacePolicy.ceiling?.data, 'worker');
+  assert.equal(worker.compiledPolicy.displayTier, 'worker');
   assert.deepEqual(worker.surfacePolicy.grants, ['analysis']);
 
   const approval = await planAgentSurface({
     prompt: 'publish the prepared product update summary',
     tools,
   });
-  assert.equal(approval.surfacePolicy.tier, 'approval');
+  assert.equal(approval.surfacePolicy.ceiling?.authority, 'approval-gated');
+  assert.equal(approval.compiledPolicy.displayTier, 'approval');
   assert.deepEqual(approval.surfacePolicy.grants, ['publish_summary']);
   assert.equal(approval.surfacePolicy.purpose, 'operate');
 });
 
-test('planAgentSurface downgrades to the strongest legal tier instead of the static cliff', async () => {
-  // Approval verb ("update ... my") escalates to approval tier, but the only
-  // available tool (choose) is host-action, not approval-gated. Previously this
-  // collapsed to a dead static surface; now it falls back to declarative with
-  // the legal tool, failing closed on authority but not on functionality.
+test('planAgentSurface keeps at-or-below grants when a proposed authority goes unused', async () => {
+  // Approval verb ("update ... my") proposes an approval-gated authority
+  // ceiling, but the only available tool (choose) is host-action. Under
+  // ceiling semantics the tool is at-or-below the ceiling, so it survives and
+  // the ceiling shrinks to the join of what was actually granted — no cliff,
+  // no downgrade, no fallback.
   const chooseOnly: ToolPack = {
     tools: [tools.tools.find((tool) => tool.name === 'choose')!],
   };
@@ -178,10 +181,11 @@ test('planAgentSurface downgrades to the strongest legal tier instead of the sta
     prompt: 'help me compare three pricing plans and update my preferred pick',
     tools: chooseOnly,
   });
-  assert.equal(approvalStarved.surfacePolicy.tier, 'declarative');
+  assert.deepEqual(approvalStarved.surfacePolicy.ceiling, { data: 'embedded', authority: 'host-action' });
+  assert.equal(approvalStarved.compiledPolicy.displayTier, 'declarative');
   assert.deepEqual(approvalStarved.surfacePolicy.grants, ['choose']);
   assert.equal(approvalStarved.compiledPolicy.mode, 'interactive');
-  assert.equal(approvalStarved.policyResolution.fallback, true);
+  assert.equal(approvalStarved.policyResolution.fallback, false);
   // The legal tool is granted, so it must not appear as rejected.
   assert.deepEqual(approvalStarved.policyResolution.rejectedTools, []);
 
@@ -190,7 +194,7 @@ test('planAgentSurface downgrades to the strongest legal tier instead of the sta
     prompt: 'publish the release note for me',
     tools: { tools: [] },
   });
-  assert.equal(noUsableTool.surfacePolicy.tier, 'static');
+  assert.equal(noUsableTool.surfacePolicy.ceiling, undefined);
   assert.equal(noUsableTool.surfacePolicy.grants, undefined);
 });
 
@@ -214,7 +218,7 @@ test('planAgentSurface passes a model/provided multi-tool goal through the clamp
     },
   });
   assert.equal(plan.goalSource, 'provided');
-  assert.equal(plan.surfacePolicy.tier, 'declarative');
+  assert.equal(plan.compiledPolicy.displayTier, 'declarative');
   assert.deepEqual([...(plan.surfacePolicy.grants ?? [])].sort(), ['choose', 'counter']);
   assert.equal(plan.policyResolution.fallback, false);
 });
@@ -224,14 +228,14 @@ test('planAgentSurface keeps multi-tool class inference narrow', async () => {
     prompt: 'publish the prepared summary',
     tools: multiToolPack,
   });
-  assert.equal(approval.surfacePolicy.tier, 'approval');
+  assert.equal(approval.surfacePolicy.ceiling?.authority, 'approval-gated');
   assert.deepEqual(approval.surfacePolicy.grants, ['publish_summary']);
 
   const search = await planAgentSurface({
     prompt: 'search recipes for dinner',
     tools: multiToolPack,
   });
-  assert.equal(search.surfacePolicy.tier, 'declarative');
+  assert.equal(search.compiledPolicy.displayTier, 'declarative');
   assert.deepEqual(search.surfacePolicy.grants, ['search']);
 
   const ambiguousSearch = await planAgentSurface({
@@ -257,7 +261,7 @@ test('planAgentSurface keeps multi-tool class inference narrow', async () => {
       ],
     },
   });
-  assert.equal(ambiguousSearch.surfacePolicy.tier, 'static');
+  assert.equal(ambiguousSearch.surfacePolicy.ceiling, undefined);
   assert.equal(ambiguousSearch.surfacePolicy.grants, undefined);
 });
 
@@ -267,7 +271,7 @@ test('planAgentSurface selects host actions only from explicit action phrasing',
     tools,
   });
 
-  assert.equal(plan.surfacePolicy.tier, 'declarative');
+  assert.equal(plan.compiledPolicy.displayTier, 'declarative');
   assert.equal(plan.surfacePolicy.purpose, 'operate');
   assert.deepEqual(plan.surfacePolicy.grants, ['choose']);
     assert.deepEqual(plan.compiledPolicy.surfacePlan, {
@@ -298,7 +302,7 @@ test('model-assisted tool can narrow to known names but cannot add unknown grant
     goalModel,
   });
 
-  assert.equal(plan.surfacePolicy.tier, 'approval');
+  assert.equal(plan.surfacePolicy.ceiling?.authority, 'approval-gated');
   assert.equal(plan.goalSource, 'model');
   assert.deepEqual(plan.surfacePolicy.grants, ['publish_summary']);
   assert.deepEqual(plan.policyResolution.rejectedTools, []);
@@ -319,7 +323,7 @@ test('provided tool is reported separately from model and deterministic sources'
   });
 
   assert.equal(plan.goalSource, 'provided');
-  assert.equal(plan.surfacePolicy.tier, 'declarative');
+  assert.equal(plan.compiledPolicy.displayTier, 'declarative');
   assert.deepEqual(plan.surfacePolicy.grants, ['search']);
 });
 
@@ -333,7 +337,6 @@ test('host policy resolver can force a static fallback', async () => {
   assert.equal(plan.policyResolution.source, 'host');
   assert.equal(plan.policyResolution.fallback, true);
   assert.deepEqual(plan.surfacePolicy, {
-    tier: 'static',
     purpose: 'inform',
     persistence: 'replayable',
   });
@@ -362,7 +365,7 @@ test('runAgentSurfaceGeneration emits agent diagnostics before policy metadata',
     'meta /surface-plan',
     'meta /surface-contract',
   ]);
-  assert.equal(summary.agent.surfacePolicy.tier, 'declarative');
+  assert.equal(summary.agent.compiledPolicy.displayTier, 'declarative');
   assert.equal(summary.agent.goalSource, 'deterministic');
   const policyResolution = lines[1] as Extract<ProtocolLine, { op: 'meta' }>;
   assert.equal((policyResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');

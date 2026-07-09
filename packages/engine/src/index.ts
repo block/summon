@@ -154,9 +154,7 @@ export {
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   SURFACE_NETWORK_VALUES,
-  inferSurfacePlan,
   normalizeSurfacePlan,
-  suggestSurfacePlan,
 } from './surface-plan.js';
 export type {
   ToolSurface,
@@ -164,7 +162,6 @@ export type {
   SurfaceData,
   SurfacePersistence,
   SurfacePlan,
-  SurfacePlanInferenceInput,
   SurfacePlanMode,
   SurfacePurpose,
   SurfaceNetwork,
@@ -186,14 +183,23 @@ export type {
 export {
   compileSurfacePolicy,
   normalizeSurfacePolicy,
-  SURFACE_TIER_VALUES,
+  surfacePlanCoversGrants,
+  capabilityCovers,
+  capabilityForTool,
+  ceilings,
+  displayTier,
+  joinCapabilities,
 } from './surface-policy.js';
 export type {
   CompiledSurfacePolicy,
   CompileSurfacePolicyOptions,
+  GrantCapabilitySource,
+  NormalizedSurfaceCeiling,
   NormalizedSurfacePolicy,
+  SurfaceCeiling,
   SurfacePolicy,
   SurfaceTier,
+  ToolCapability,
 } from './surface-policy.js';
 export {
   compileSurfaceContractView,

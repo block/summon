@@ -4,7 +4,12 @@ import type {
   SurfacePlanMode,
   SurfaceScale,
 } from '@decentralized-design/summon/engine';
-import type { ToolRegistry, SurfacePolicy } from '@decentralized-design/summon';
+import {
+  ceilings,
+  compileSurfacePolicy,
+  type ToolRegistry,
+  type SurfacePolicy,
+} from '@decentralized-design/summon';
 import { createDemoToolRegistry, type DemoHandlerOptions } from './tools.js';
 
 export type Mode = SurfacePlanMode;
@@ -55,7 +60,14 @@ export interface ActiveContract {
   }>;
 }
 
-export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
+/**
+ * Scenario definitions author only the policy; the plan is computed from it
+ * at module load (compileSurfacePolicy is the single source of truth for
+ * policy→plan derivation — no hand-maintained parallel copies).
+ */
+type ShowcaseScenarioDefinition = Omit<ShowcaseScenario, 'surfacePlan'>;
+
+const SCENARIO_DEFINITIONS: ShowcaseScenarioDefinition[] = [
   {
     id: 'host-resource-search',
     label: 'Hike finder',
@@ -63,15 +75,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       "help me find a weekend hike near me — let me search by distance and difficulty and compare a couple options",
     mode: 'interactive',
     toolNames: ['search'],
-    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search'] },
-      surfacePlan: {
-        purpose: 'explore',
-        runtime: 'surface-document',
-        data: 'host-resource',
-        authority: 'read',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'explore', grants: ['search'] },
     },
   {
     id: 'host-ai-brainstorm',
@@ -80,15 +84,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       "brainstorm names for my new coffee cart — playful, easy to say, and not already a big chain",
     mode: 'interactive',
     toolNames: ['ai'],
-    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['ai'] },
-      surfacePlan: {
-        purpose: 'explore',
-        runtime: 'surface-document',
-        data: 'host-resource',
-        authority: 'read',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'explore', grants: ['ai'] },
     },
   {
     id: 'github-profile-lookup',
@@ -97,15 +93,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'look up a GitHub username and help me understand their profile, top repos, and how active they have been',
     mode: 'interactive',
     toolNames: ['github_lookup'],
-    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['github_lookup'] },
-      surfacePlan: {
-        purpose: 'explore',
-        runtime: 'surface-document',
-        data: 'host-resource',
-        authority: 'read',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'explore', grants: ['github_lookup'] },
     },
   {
     id: 'surface-document-fidelity',
@@ -115,18 +103,10 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     mode: 'interactive',
     toolNames: ['choose'],
     surfacePolicy: {
-      tier: 'declarative',
+      ceiling: ceilings.declarative,
       purpose: 'review',
       grants: ['choose'],
     },
-      surfacePlan: {
-        purpose: 'review',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
     },
   {
     id: 'static-summary',
@@ -134,15 +114,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
     prompt: 'explain what a 401k match actually means for someone who has never had one, and show when it makes sense to max it out',
     mode: 'static',
     toolNames: [],
-    surfacePolicy: { tier: 'static', purpose: 'compare' },
-      surfacePlan: {
-        purpose: 'compare',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'none',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { purpose: 'compare' },
     },
   {
     id: 'decision-picker',
@@ -151,15 +123,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'help me choose between three phone plans for a family of four, compare tradeoffs, and save the best fit',
     mode: 'interactive',
     toolNames: ['choose'],
-    surfacePolicy: { tier: 'declarative', purpose: 'compare', grants: ['choose'] },
-      surfacePlan: {
-        purpose: 'compare',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'compare', grants: ['choose'] },
     },
   {
     id: 'declarative-form',
@@ -168,15 +132,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'collect RSVPs for my housewarming with headcount and plus-ones, and let me submit the final guest list',
     mode: 'interactive',
     toolNames: ['submit'],
-    surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
-      surfacePlan: {
-        purpose: 'collect',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'collect', grants: ['submit'] },
     },
   {
     id: 'worker-analysis',
@@ -185,15 +141,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'analyze my past three months of spending, compute a savings-rate score, and show me the biggest leaks to fix',
     mode: 'interactive',
     toolNames: ['analysis', 'compute_score'],
-    surfacePolicy: { tier: 'worker', purpose: 'review', grants: ['analysis', 'compute_score'] },
-      surfacePlan: {
-        purpose: 'review',
-        runtime: 'surface-document',
-        data: 'worker',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.worker, purpose: 'review', grants: ['analysis', 'compute_score'] },
     },
   {
     id: 'approval-publish',
@@ -202,15 +150,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'draft a price increase email to my clients i can review, then ask for approval before publishing it',
     mode: 'interactive',
     toolNames: ['publish_summary'],
-    surfacePolicy: { tier: 'approval', purpose: 'operate', grants: ['publish_summary'] },
-      surfacePlan: {
-        purpose: 'operate',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'approval-gated',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.approval, purpose: 'operate', grants: ['publish_summary'] },
     },
   {
     id: 'local-state-motion',
@@ -219,15 +159,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'help me and my roommate divide the chores fairly, compare the options, track votes, and make the final split less awkward',
     mode: 'interactive',
     toolNames: ['choose', 'counter'],
-    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose', 'counter'] },
-      surfacePlan: {
-        purpose: 'explore',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'explore', grants: ['choose', 'counter'] },
     },
   {
     id: 'offer-picker',
@@ -236,15 +168,7 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'compare three savings accounts on fees and rate, make the preferred one easy to choose, and show the saved selection clearly',
     mode: 'interactive',
     toolNames: ['choose'],
-    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['choose'] },
-      surfacePlan: {
-        purpose: 'explore',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'explore', grants: ['choose'] },
   },
   {
     id: 'layout-card',
@@ -253,16 +177,8 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'create a freelance request intake card where i can submit scope, budget, deadline, and next step',
     mode: 'interactive',
     toolNames: ['submit'],
-    surfacePolicy: { tier: 'declarative', purpose: 'collect', grants: ['submit'] },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'collect', grants: ['submit'] },
     layoutId: 'card-structured',
-      surfacePlan: {
-        purpose: 'collect',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
     },
   {
     id: 'sibling-summon',
@@ -271,19 +187,34 @@ export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = [
       'help me search for weekend getaway spots and spin up a separate packing guide for the trip i decide to take',
     mode: 'interactive',
     toolNames: ['search', 'summon'],
-    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['search', 'summon'] },
-      surfacePlan: {
-        purpose: 'explore',
-        runtime: 'surface-document',
-        data: 'host-resource',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy: { ceiling: ceilings.declarative, purpose: 'explore', grants: ['search', 'summon'] },
     },
 ];
 
+function planForPolicy(policy: SurfacePolicy): SurfacePlan {
+  return compileSurfacePolicy(policy, { tools: showcaseToolPack() }).surfacePlan;
+}
+
+let cachedToolPack: ToolPack | null = null;
+
+function showcaseToolPack(): ToolPack {
+  cachedToolPack ??= createDemoToolRegistry({ onSummon: () => {} }).toContract().pack;
+  return cachedToolPack;
+}
+
+export const SHOWCASE_SCENARIOS: ShowcaseScenario[] = SCENARIO_DEFINITIONS.map(
+  (definition) => ({
+    ...definition,
+    surfacePlan: planForPolicy(definition.surfacePolicy),
+  }),
+);
+
 export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
+  const surfacePolicy: SurfacePolicy = {
+    ceiling: ceilings.declarative,
+    purpose: 'review',
+    grants: ['choose'],
+  };
   return {
     id: `ghost-${rootId}`,
     label: `Fingerprint: ${rootId}`,
@@ -291,15 +222,8 @@ export function createGhostShowcaseScenario(rootId: string): ShowcaseScenario {
       'compare three possible directions for a small project update, explain the tradeoffs, and let me save the best fit',
     mode: 'interactive',
     toolNames: ['choose'],
-    surfacePolicy: { tier: 'declarative', purpose: 'review', grants: ['choose'] },
-      surfacePlan: {
-        purpose: 'review',
-        runtime: 'surface-document',
-        data: 'embedded',
-        authority: 'host-action',
-        persistence: 'replayable',
-        network: 'none',
-      },
+    surfacePolicy,
+    surfacePlan: planForPolicy(surfacePolicy),
     fingerprintId: rootId,
   };
 }

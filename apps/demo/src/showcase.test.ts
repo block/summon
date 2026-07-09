@@ -69,7 +69,10 @@ test('showcase scenarios declare contract-complete surfaces', () => {
     assert.ok(scenario.label);
     assert.ok(scenario.prompt);
     assert.deepEqual(normalizeSurfacePolicy(scenario.surfacePolicy), {
-      tier: scenario.surfacePolicy.tier,
+      ceiling: {
+        data: scenario.surfacePolicy.ceiling?.data ?? 'embedded',
+        authority: scenario.surfacePolicy.ceiling?.authority ?? 'none',
+      },
       purpose: scenario.surfacePolicy.purpose ?? 'inform',
       grants: scenario.surfacePolicy.grants ?? [],
       persistence: scenario.surfacePolicy.persistence ?? 'replayable',
@@ -79,18 +82,14 @@ test('showcase scenarios declare contract-complete surfaces', () => {
       tools,
     });
     assert.deepEqual(compiled.issues, [], `${scenario.id} has invalid SurfacePolicy`);
-    assert.deepEqual(compiled.surfacePlan, scenario.surfacePlan, `${scenario.id} policy does not compile to its SurfacePlan`);
+    // scenario.surfacePlan is computed from the policy at module load, so no
+    // plan/policy sync assertion is needed — the derivation is the code path.
     assert.deepEqual(
       compiled.tools?.tools.map((tool) => tool.name) ?? [],
       scenario.toolNames,
       `${scenario.id} grants do not match tool names`,
     );
 
-    assert.ok(scenario.surfacePlan.purpose);
-    assert.ok(scenario.surfacePlan.runtime);
-    assert.ok(scenario.surfacePlan.data);
-    assert.ok(scenario.surfacePlan.authority);
-    assert.ok(scenario.surfacePlan.persistence);
     assert.equal(scenario.mode, compiled.mode);
   }
 });

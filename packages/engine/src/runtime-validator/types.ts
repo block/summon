@@ -4,7 +4,7 @@ import type {
   ToolStateKeys,
   ToolTrigger,
 } from '../tool-contract.js';
-import type { ToolSurface, SurfacePlan } from '../surface-plan.js';
+import type { ToolSurface } from '../surface-plan.js';
 import type { ValidationLimits } from '../validation-limits.js';
 
 export interface ValidationContext {
@@ -12,7 +12,6 @@ export interface ValidationContext {
   allowedTools?: Iterable<string>;
   tools?: Iterable<ValidationTool>;
   definedTokens?: ReadonlySet<string>;
-  surfacePlan?: SurfacePlan;
   limits?: Partial<ValidationLimits>;
 }
 

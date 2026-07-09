@@ -1,5 +1,3 @@
-import type { ToolPack } from './prompt.js';
-
 export type SurfacePurpose =
   | 'inform'
   | 'compare'
@@ -67,13 +65,6 @@ export interface ToolSurface {
   authority?: Extract<SurfaceAuthority, 'read' | 'host-action' | 'approval-gated'>;
 }
 
-export interface SurfacePlanInferenceInput {
-  prompt: string;
-  mode: 'static' | 'interactive';
-  tools?: ToolPack | null;
-  persistence?: SurfacePersistence;
-}
-
 export const DEFAULT_SURFACE_PLAN: SurfacePlan = {
   purpose: 'inform',
   runtime: 'surface-document',
@@ -101,58 +92,6 @@ export function normalizeSurfacePlan(raw: unknown): SurfacePlan | null {
   const network = enumValue(input.network, NETWORKS) ?? 'none';
   if (!purpose || !runtime || !data || !authority || !persistence) return null;
   return { purpose, runtime, data, authority, persistence, network };
-}
-
-export function suggestSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan {
-  if (input.mode === 'static') {
-    return {
-      purpose: inferPurpose(input.prompt),
-      runtime: 'surface-document',
-      data: 'embedded',
-      authority: 'none',
-      persistence: input.persistence ?? 'replayable',
-      network: 'none',
-    };
-  }
-
-  const tools = input.tools?.tools ?? [];
-  const promptText = input.prompt.toLowerCase();
-  const wantsWorker = /\b(analy[sz]e|calculate|compute|forecast|simulate|score|worker|batch)\b/.test(promptText);
-  const wantsApproval = /\b(approve|approval|confirm|publish|commit|send|update|delete|change)\b/.test(promptText);
-  const wantsResource = /\b(search|lookup|fetch|load|find|explore|browse|filter|data)\b/.test(promptText);
-  const hasWorker = wantsWorker && tools.some((tool) => tool.surface?.data === 'worker');
-  const hasApproval = wantsApproval && tools.some((tool) => tool.surface?.authority === 'approval-gated');
-  const hasResource = wantsResource && tools.some((tool) => tool.kind === 'resource');
-  const hasAction = tools.some((tool) => (tool.kind ?? 'action') === 'action');
-
-  return {
-    purpose: inferPurpose(input.prompt),
-    runtime: 'surface-document',
-    data: hasWorker ? 'worker' : hasResource ? 'host-resource' : 'embedded',
-    authority: hasApproval ? 'approval-gated' : hasAction ? 'host-action' : hasResource ? 'read' : 'none',
-    persistence: input.persistence ?? 'replayable',
-    network: 'none',
-  };
-}
-
-/**
- * @deprecated Use suggestSurfacePlan(). Surface plan heuristics are advisory
- * host UI scaffolding only; generation authority should use a host-selected
- * explicit SurfacePlan.
- */
-export function inferSurfacePlan(input: SurfacePlanInferenceInput): SurfacePlan {
-  return suggestSurfacePlan(input);
-}
-
-function inferPurpose(prompt: string): SurfacePurpose {
-  const text = prompt.toLowerCase();
-  if (/\b(compare|comparison|versus|vs\.?|pros|cons|trade-?offs?)\b/.test(text)) return 'compare';
-  if (/\b(export|download|csv|spreadsheet|table file)\b/.test(text)) return 'export';
-  if (/\b(approve|approval|review|audit|confirm|verify)\b/.test(text)) return 'review';
-  if (/\b(collect|intake|form|survey|questionnaire|submit)\b/.test(text)) return 'collect';
-  if (/\b(search|find|explore|browse|filter|lookup|discover)\b/.test(text)) return 'explore';
-  if (/\b(update|create|delete|save|send|publish|change|operate|run)\b/.test(text)) return 'operate';
-  return 'inform';
 }
 
 function enumValue<T extends string>(raw: unknown, values: ReadonlySet<T>): T | null {

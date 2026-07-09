@@ -923,3 +923,66 @@ test('surface envelope parser rejects malformed, wrong-version, and escalating e
   assert.equal(parseSurfaceEnvelope({ ...envelope, version: 2 }), null);
   assert.equal(parseSurfaceEnvelope(envelope), null);
 });
+
+test('surface envelope parser rejects plans that understate grant capability', () => {
+  const artifact = {
+    runtime: 'surface-document' as const,
+    source: {
+      'main.html': '<p>Saved</p>',
+      'main.css': 'p { color: var(--color-text); }',
+    },
+  };
+  const honest = createSurfaceEnvelope({
+    prompt: 'publish a note',
+    surfacePlan: {
+      purpose: 'operate',
+      runtime: 'surface-document',
+      data: 'embedded',
+      authority: 'approval-gated',
+      persistence: 'replayable',
+      network: 'none',
+    },
+    artifact,
+    protocolLines: [{ op: 'artifact', path: '/artifact', value: artifact }],
+    grants: {
+      tools: ['publish'],
+      validationTools: [
+        {
+          name: 'publish',
+          kind: 'action',
+          triggers: ['click'],
+          surface: { authority: 'approval-gated' },
+        },
+      ],
+    },
+    metadata: { mode: 'interactive' },
+  });
+
+  // Honest label parses.
+  assert.equal(parseSurfaceEnvelope(JSON.stringify(honest))?.id, honest.id);
+
+  // Same grants, spoofed trust label: the plan claims a read-only, inert
+  // surface while carrying an approval-gated grant. Any host chrome rendered
+  // from this plan would lie to the user — the parser must reject it.
+  const spoofed = {
+    ...honest,
+    surfacePlan: {
+      purpose: 'inform',
+      runtime: 'surface-document',
+      data: 'embedded',
+      authority: 'none',
+      persistence: 'replayable',
+      network: 'none',
+    },
+  };
+  assert.equal(parseSurfaceEnvelope(JSON.stringify(spoofed)), null);
+
+  // Grants with no validationTools entries fail closed to action defaults:
+  // an authority:none plan cannot cover them either.
+  const bareGrants = {
+    ...honest,
+    grants: { tools: ['publish'] },
+    surfacePlan: { ...spoofed.surfacePlan },
+  };
+  assert.equal(parseSurfaceEnvelope(JSON.stringify(bareGrants)), null);
+});

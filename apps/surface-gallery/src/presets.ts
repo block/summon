@@ -1,4 +1,4 @@
-import type { SurfacePolicy } from '@decentralized-design/summon';
+import { ceilings, displayTier, type SurfacePolicy } from '@decentralized-design/summon';
 
 export interface GalleryPresetNotes {
   setup: string;
@@ -57,7 +57,6 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       takeaway: 'Expression can be large even when authority is zero.',
     },
     surfacePolicy: {
-      tier: 'static',
       purpose: 'compare',
     },
   },
@@ -83,7 +82,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       takeaway: 'Generated UI can explore real data without owning network access.',
     },
     surfacePolicy: {
-      tier: 'declarative',
+      ceiling: ceilings.declarative,
       purpose: 'explore',
       grants: ['search'],
     },
@@ -110,7 +109,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       takeaway: 'Generated actions are requests; durable truth belongs to the host.',
     },
     surfacePolicy: {
-      tier: 'declarative',
+      ceiling: ceilings.declarative,
       purpose: 'compare',
       grants: ['choose'],
     },
@@ -137,7 +136,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       takeaway: 'The model can argue for an operation; only the host can authorize it.',
     },
     surfacePolicy: {
-      tier: 'approval',
+      ceiling: ceilings.approval,
       purpose: 'operate',
       grants: ['issue_refund'],
     },
@@ -164,7 +163,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       takeaway: 'Rich visual fidelity can live in Surface Document while authority stays plain-data.',
     },
     surfacePolicy: {
-      tier: 'declarative',
+      ceiling: ceilings.declarative,
       purpose: 'review',
       grants: ['choose'],
     },
@@ -191,7 +190,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       takeaway: 'Generated surfaces can orchestrate background workflows without running privileged work.',
     },
     surfacePolicy: {
-      tier: 'worker',
+      ceiling: ceilings.worker,
       purpose: 'review',
       grants: ['analysis', 'compute_score'],
     },
@@ -216,7 +215,7 @@ export const GALLERY_PRESETS: GalleryPreset[] = [
       takeaway: 'Summon is designed for model misbehavior, not model obedience.',
     },
     surfacePolicy: {
-      tier: 'declarative',
+      ceiling: ceilings.declarative,
       purpose: 'explore',
       grants: ['search'],
     },
@@ -238,7 +237,7 @@ export function createGhostGalleryPreset(root: GhostRootInfo): GalleryPreset {
     prompt:
       'generate a compact review surface that follows this Ghost fingerprint root and keeps all controls host-allowed',
     surfacePolicy: {
-      tier: 'declarative',
+      ceiling: ceilings.declarative,
       purpose: 'review',
       grants: ['choose'],
     },
@@ -256,5 +255,6 @@ export function policyGrants(policy: SurfacePolicy): string[] {
 export function policyText(policy: SurfacePolicy): string {
   const grants = policyGrants(policy);
   const grantText = grants.length > 0 ? grants.join(',') : 'none';
-  return `${policy.tier} · allowed host tools ${grantText} · Surface Document UI`;
+  const label = displayTier(policy.ceiling);
+  return `${label} · allowed host tools ${grantText} · Surface Document UI`;
 }

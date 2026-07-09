@@ -5,6 +5,7 @@ import {
   type SurfacePlan,
   type SurfacePolicy,
   buildFingerprintSteeringPayload,
+  displayTier,
   fingerprintIdFromSelection,
   fingerprintSelectionValue as engineFingerprintSelectionValue,
 } from '@decentralized-design/summon/engine';
@@ -140,18 +141,16 @@ export function surfacePolicyForPlan(
   plan: SurfacePlan,
   toolNames: string[],
 ): SurfacePolicy {
-  const tier = plan.authority === 'approval-gated'
-    ? 'approval'
-    : plan.data === 'worker'
-      ? 'worker'
-      : plan.data === 'host-resource' || plan.authority !== 'none'
-        ? 'declarative'
-        : 'static';
+  // Under ceiling vocabulary this mapping is lossless: the plan's capability
+  // axes are the policy's ceiling vocabulary. No tier reconstruction needed.
+  const interactive = plan.data !== 'embedded' || plan.authority !== 'none';
   return {
-    tier,
+    ...(interactive
+      ? { ceiling: { data: plan.data, authority: plan.authority } }
+      : {}),
     purpose: plan.purpose,
     persistence: plan.persistence,
-    ...(tier !== 'static' && toolNames.length > 0 ? { grants: toolNames } : {}),
+    ...(interactive && toolNames.length > 0 ? { grants: toolNames } : {}),
   };
 }
 
@@ -282,7 +281,15 @@ export function agentPolicyText(value: unknown): string {
     : null;
   const source = typeof item.source === 'string' ? item.source : 'ward';
   const goalSource = typeof item.goalSource === 'string' ? item.goalSource : '';
-  const tier = typeof policy?.tier === 'string' ? policy.tier : 'policy';
+  const ceiling = policy?.ceiling && typeof policy.ceiling === 'object'
+    ? policy.ceiling as Record<string, unknown>
+    : null;
+  const tier = ceiling
+    ? displayTier({
+        data: (typeof ceiling.data === 'string' ? ceiling.data : 'embedded') as SurfacePlan['data'],
+        authority: (typeof ceiling.authority === 'string' ? ceiling.authority : 'none') as SurfacePlan['authority'],
+      })
+    : 'static';
   const purpose = typeof policy?.purpose === 'string' ? policy.purpose : 'inform';
   const fallback = item.fallback === true ? ' · fallback' : '';
   const rejectedTools = Array.isArray(item.rejectedTools) ? item.rejectedTools.length : 0;

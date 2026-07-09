@@ -215,9 +215,8 @@ ${enforcementLine}
 
 ### Surface
 
-Capability boundaries (hard limits — the sandbox enforces these):
+Capability boundaries (hard limits — exceeding them is blocked at the granted tool set, the PolicyEngine, and the Surface Document sandbox boundary):
 
-- Tier: \`${surface.policy.tier}\`
 - Runtime: \`${surface.plan.runtime}\`, data: \`${surface.plan.data}\`, authority: \`${surface.plan.authority}\`, persistence: \`${surface.plan.persistence}\`
 - Mode: \`${surface.mode}\`
 

@@ -6,7 +6,10 @@ import type {
   ToolPack,
   ToolSpec,
 } from './prompt.js';
+import type { ToolKind } from './tool-contract.js';
 import {
+  SURFACE_AUTHORITY_VALUES,
+  SURFACE_DATA_VALUES,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
   type SurfaceAuthority,
@@ -17,24 +20,52 @@ import {
   type SurfacePurpose,
 } from './surface-plan.js';
 
+/**
+ * Display names for the four named ceiling presets. Tier is *derived* from
+ * the capability axes for chrome and prompts — it is not a policy input.
+ * See docs/spec/surface-policy-ceilings.md.
+ */
 export type SurfaceTier = 'static' | 'declarative' | 'worker' | 'approval';
 
-export const SURFACE_TIER_VALUES = [
-  'static',
-  'declarative',
-  'worker',
-  'approval',
-] as const satisfies readonly SurfaceTier[];
+/**
+ * A point in the (data × authority) capability lattice. Grants whose
+ * capability exceeds the ceiling are rejected at compile time. Omitted axes
+ * fail closed to the weakest value.
+ */
+export interface SurfaceCeiling {
+  data?: SurfaceData;
+  authority?: SurfaceAuthority;
+}
+
+export interface NormalizedSurfaceCeiling {
+  data: SurfaceData;
+  authority: SurfaceAuthority;
+}
+
+/**
+ * Named ceiling presets — the blessed authoring path. These map onto the
+ * historical tier names. Note `approval` includes `data: 'worker'` (stated
+ * decision: gives the presets a total order and makes compute-then-commit
+ * expressible; `data` is sandbox compute locality, a smaller hazard than
+ * `authority`).
+ */
+export const ceilings = {
+  static: { data: 'embedded', authority: 'none' },
+  declarative: { data: 'host-resource', authority: 'host-action' },
+  worker: { data: 'worker', authority: 'host-action' },
+  approval: { data: 'worker', authority: 'approval-gated' },
+} as const satisfies Record<SurfaceTier, NormalizedSurfaceCeiling>;
 
 export interface SurfacePolicy {
-  tier: SurfaceTier;
+  /** Capability ceiling. Omitted = `ceilings.static` (fail closed). */
+  ceiling?: SurfaceCeiling;
   purpose?: SurfacePurpose;
   grants?: string[];
   persistence?: SurfacePersistence;
 }
 
 export interface NormalizedSurfacePolicy {
-  tier: SurfaceTier;
+  ceiling: NormalizedSurfaceCeiling;
   purpose: SurfacePurpose;
   grants: string[];
   persistence: SurfacePersistence;
@@ -49,38 +80,141 @@ export interface CompiledSurfacePolicy {
   tools: ToolPack | null;
   mode: SurfacePlanMode;
   surfacePlan: SurfacePlan;
+  /** Least ceiling preset covering the policy's ceiling — for chrome/prompts. */
+  displayTier: SurfaceTier;
   issues: ContractIssue[];
 }
 
-const TIERS = new Set<SurfaceTier>(SURFACE_TIER_VALUES);
 const PURPOSES = new Set<SurfacePurpose>(SURFACE_PURPOSE_VALUES);
 const PERSISTENCES = new Set<SurfacePersistence>(SURFACE_PERSISTENCE_VALUES);
+const DATA = new Set<SurfaceData>(SURFACE_DATA_VALUES);
+const AUTHORITIES = new Set<SurfaceAuthority>(SURFACE_AUTHORITY_VALUES);
 
 const DEFAULT_POLICY: NormalizedSurfacePolicy = {
-  tier: 'static',
+  ceiling: ceilings.static,
   purpose: 'inform',
   grants: [],
   persistence: 'replayable',
 };
 
+const DATA_RANK: Record<SurfaceData, number> = {
+  embedded: 0,
+  'host-resource': 1,
+  worker: 2,
+};
+
+const AUTHORITY_RANK: Record<SurfaceAuthority, number> = {
+  none: 0,
+  read: 1,
+  'host-action': 2,
+  'approval-gated': 3,
+};
+
+/**
+ * Minimal tool shape needed to derive the capability a grant implies.
+ * Structurally compatible with ToolSpec, SurfaceContractTool input specs,
+ * and ValidationTool.
+ */
+export interface GrantCapabilitySource {
+  name: string;
+  kind?: ToolKind;
+  surface?: {
+    data?: SurfaceData;
+    authority?: SurfaceAuthority;
+  };
+}
+
+export interface ToolCapability {
+  data: SurfaceData;
+  authority: SurfaceAuthority;
+}
+
+/**
+ * The capability a granted tool implies. Single source of truth for the
+ * kind-based defaults (resources read host data; actions act on the host).
+ */
+export function capabilityForTool(tool: GrantCapabilitySource): ToolCapability {
+  const kind: ToolKind = tool.kind ?? 'action';
+  return {
+    data: tool.surface?.data ?? (kind === 'resource' ? 'host-resource' : 'embedded'),
+    authority: tool.surface?.authority ?? (kind === 'resource' ? 'read' : 'host-action'),
+  };
+}
+
+/** True when `capability` is at-or-below `ceiling` on both axes. */
+export function capabilityCovers(
+  ceiling: ToolCapability | NormalizedSurfaceCeiling,
+  capability: ToolCapability,
+): boolean {
+  return (
+    DATA_RANK[ceiling.data] >= DATA_RANK[capability.data] &&
+    AUTHORITY_RANK[ceiling.authority] >= AUTHORITY_RANK[capability.authority]
+  );
+}
+
+/**
+ * Lattice join: the strongest capability on each axis independently. The
+ * single source of truth for capability ordering — consumers must not
+ * re-encode the axis order.
+ */
+export function joinCapabilities(capabilities: readonly ToolCapability[]): ToolCapability {
+  let data: SurfaceData = 'embedded';
+  let authority: SurfaceAuthority = 'none';
+  for (const capability of capabilities) {
+    if (DATA_RANK[capability.data] > DATA_RANK[data]) data = capability.data;
+    if (AUTHORITY_RANK[capability.authority] > AUTHORITY_RANK[authority]) {
+      authority = capability.authority;
+    }
+  }
+  return { data, authority };
+}
+
+/**
+ * Least ceiling preset name covering the given axes — a display label only.
+ * Accepts partial or absent ceilings; omitted axes fail closed to the
+ * weakest value, matching normalizeCeiling.
+ */
+export function displayTier(axes?: SurfaceCeiling | ToolCapability): SurfaceTier {
+  const data = axes?.data ?? 'embedded';
+  const authority = axes?.authority ?? 'none';
+  if (authority === 'approval-gated') return 'approval';
+  if (data === 'worker') return 'worker';
+  if (data === 'embedded' && authority === 'none') return 'static';
+  return 'declarative';
+}
+
 export function normalizeSurfacePolicy(raw: unknown): NormalizedSurfacePolicy | null {
   if (!raw || typeof raw !== 'object') return null;
   const input = raw as Record<string, unknown>;
-  const tier = enumValue(input.tier, TIERS);
-  if (!tier) return null;
+  // `tier` was removed as a policy input (docs/spec/surface-policy-ceilings.md).
+  // Reject rather than silently ignore, so stale callers surface immediately.
+  if ('tier' in input) return null;
+  const ceiling = normalizeCeiling(input.ceiling);
   const purpose = input.purpose === undefined
     ? DEFAULT_POLICY.purpose
     : enumValue(input.purpose, PURPOSES);
   const persistence = input.persistence === undefined
     ? DEFAULT_POLICY.persistence
     : enumValue(input.persistence, PERSISTENCES);
-  if (!purpose || !persistence) return null;
+  if (!ceiling || !purpose || !persistence) return null;
   return {
-    tier,
+    ceiling,
     purpose,
     grants: dedupeStrings(input.grants),
     persistence,
   };
+}
+
+function normalizeCeiling(raw: unknown): NormalizedSurfaceCeiling | null {
+  if (raw === undefined) return ceilings.static;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const input = raw as Record<string, unknown>;
+  const data = input.data === undefined ? 'embedded' : enumValue(input.data, DATA);
+  const authority = input.authority === undefined
+    ? 'none'
+    : enumValue(input.authority, AUTHORITIES);
+  if (!data || !authority) return null;
+  return { data, authority };
 }
 
 export function compileSurfacePolicy(
@@ -91,15 +225,22 @@ export function compileSurfacePolicy(
   const normalized = normalizeSurfacePolicy(policy);
   const effective = normalized ?? DEFAULT_POLICY;
   if (!normalized) {
+    const hasLegacyTier = Boolean(
+      policy && typeof policy === 'object' && 'tier' in (policy as Record<string, unknown>),
+    );
     issues.push(surfacePolicyIssue(
       'surface-policy-invalid',
-      'surfacePolicy must include a valid tier',
+      hasLegacyTier
+        ? 'surfacePolicy.tier was removed; author a capability ceiling (see docs/spec/surface-policy-ceilings.md)'
+        : 'surfacePolicy must include a valid capability ceiling',
     ));
   }
 
   const toolPack = options.tools ?? null;
   const toolsByName = new Map((toolPack?.tools ?? []).map((tool) => [tool.name, tool]));
 
+  // Grants exceeding the ceiling are excluded from the narrowed pack (fail
+  // closed) in addition to raising a blocking issue.
   const selectedTools: ToolSpec[] = [];
   for (const grant of effective.grants) {
     const tool = toolsByName.get(grant);
@@ -110,118 +251,78 @@ export function compileSurfacePolicy(
       ));
       continue;
     }
+    const capability = capabilityForTool(tool);
+    if (!capabilityCovers(effective.ceiling, capability)) {
+      issues.push(surfacePolicyIssue(
+        'surface-policy-ceiling-exceeded',
+        `Grant "${grant}" (data=${capability.data}, authority=${capability.authority}) exceeds the ceiling (data=${effective.ceiling.data}, authority=${effective.ceiling.authority})`,
+      ));
+      continue;
+    }
     selectedTools.push(tool);
-    validateToolForTier(effective.tier, tool, issues);
   }
 
-  validateTierRequirements(effective, selectedTools, issues);
+  validateCeilingFloors(effective, selectedTools, issues);
 
   const surfacePlan = planForPolicy(effective, selectedTools);
   return {
     policy: effective,
     tools: narrowToolPack(toolPack, selectedTools, effective.grants),
-    mode: effective.tier === 'static' ? 'static' : 'interactive',
+    mode: selectedTools.length > 0 ? 'interactive' : 'static',
     surfacePlan,
+    displayTier: displayTier(effective.ceiling),
     issues,
   };
 }
 
-function validateToolForTier(
-  tier: SurfaceTier,
-  tool: ToolSpec,
-  issues: ContractIssue[],
-): void {
-  const data = toolData(tool);
-  const authority = toolAuthority(tool);
-  if (tier === 'static') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `Static SurfacePolicy cannot use grant "${tool.name}"`,
-    ));
-    return;
-  }
-  if (tier === 'declarative' && data === 'worker') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `${tier} SurfacePolicy cannot use worker-backed grant "${tool.name}"`,
-    ));
-  }
-  if (tier === 'declarative' && authority === 'approval-gated') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `${tier} SurfacePolicy cannot use approval-gated grant "${tool.name}"`,
-    ));
-  }
-  if (tier === 'worker' && data !== 'worker') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `Worker SurfacePolicy can only use worker-backed grants; "${tool.name}" is not worker-backed`,
-    ));
-  }
-  if (tier === 'approval' && authority !== 'approval-gated') {
-    issues.push(surfacePolicyIssue(
-      'surface-policy-tier-exceeded',
-      `Approval SurfacePolicy can only use approval-gated grants; "${tool.name}" is ${authority}`,
-    ));
-  }
-}
-
-function validateTierRequirements(
+/**
+ * A ceiling whose *display label* names a capability no grant reaches is
+ * noise; require the floor so the label stays truthful. Keyed off the label,
+ * not each raw axis: `ceilings.approval` deliberately includes worker-data
+ * headroom (total-order decision, see spec), and unused headroom below the
+ * label's distinguishing capability grants nothing and misleads no one.
+ */
+function validateCeilingFloors(
   policy: NormalizedSurfacePolicy,
   tools: ToolSpec[],
   issues: ContractIssue[],
 ): void {
+  const capabilities = tools.map(capabilityForTool);
+  const label = displayTier(policy.ceiling);
   if (
-    policy.tier === 'worker' &&
-    !tools.some((tool) => toolData(tool) === 'worker')
+    label === 'approval' &&
+    !capabilities.some((capability) => capability.authority === 'approval-gated')
   ) {
     issues.push(surfacePolicyIssue(
-      'surface-policy-tier-requirement',
-      'Worker SurfacePolicy requires at least one worker-backed grant',
+      'surface-policy-ceiling-requirement',
+      'An approval-gated ceiling requires at least one approval-gated grant',
     ));
   }
   if (
-    policy.tier === 'approval' &&
-    !tools.some((tool) => toolAuthority(tool) === 'approval-gated')
+    label === 'worker' &&
+    !capabilities.some((capability) => capability.data === 'worker')
   ) {
     issues.push(surfacePolicyIssue(
-      'surface-policy-tier-requirement',
-      'Approval SurfacePolicy requires at least one approval-gated grant',
+      'surface-policy-ceiling-requirement',
+      'A worker-data ceiling requires at least one worker-backed grant',
     ));
   }
 }
 
+/**
+ * The plan reports reality: a uniform lattice join over the granted tools.
+ * The ceiling gates grant selection; it never inflates the plan.
+ */
 function planForPolicy(
   policy: NormalizedSurfacePolicy,
   tools: ToolSpec[],
 ): SurfacePlan {
-  if (policy.tier === 'static') {
-    return {
-      purpose: policy.purpose,
-      runtime: 'surface-document',
-      data: 'embedded',
-      authority: 'none',
-      persistence: policy.persistence,
-      network: 'none',
-    };
-  }
-
-  const data = policy.tier === 'worker'
-    ? 'worker'
-    : strongestData([
-        ...tools.map(toolData),
-      ]);
-  const authority = policy.tier === 'approval'
-    ? 'approval-gated'
-    : strongestAuthority([
-        ...tools.map(toolAuthority),
-      ]);
-
+  const joined = joinCapabilities(tools.map(capabilityForTool));
   return {
     purpose: policy.purpose,
     runtime: 'surface-document',
-    data,
-    authority,
+    data: joined.data,
+    authority: joined.authority,
     persistence: policy.persistence,
     network: 'none',
   };
@@ -243,27 +344,38 @@ function narrowToolPack(
   };
 }
 
-function toolData(tool: ToolSpec): SurfaceData {
-  return tool.surface?.data ??
-    (tool.kind === 'resource' ? 'host-resource' : 'embedded');
-}
-
-function toolAuthority(tool: ToolSpec): SurfaceAuthority {
-  return tool.surface?.authority ??
-    (tool.kind === 'resource' ? 'read' : 'host-action');
-}
-
-function strongestData(values: SurfaceData[]): SurfaceData {
-  if (values.includes('worker')) return 'worker';
-  if (values.includes('host-resource')) return 'host-resource';
-  return 'embedded';
-}
-
-function strongestAuthority(values: SurfaceAuthority[]): SurfaceAuthority {
-  if (values.includes('approval-gated')) return 'approval-gated';
-  if (values.includes('host-action')) return 'host-action';
-  if (values.includes('read')) return 'read';
-  return 'none';
+/**
+ * Verify a SurfacePlan does not understate the capability implied by its
+ * grants. Plans are derived from policy at compile time (planForPolicy), but
+ * that invariant evaporates at deserialization: a crafted envelope can claim
+ * `authority: 'none'` while carrying approval-gated grants, and any trust
+ * chrome rendered from the plan would display attacker-controlled metadata.
+ * Re-derive the capability floor from the grants and require the claimed
+ * plan to meet it. Overstatement is tolerated (it errs toward scarier
+ * chrome, never toward hiding privilege); understatement is rejected.
+ *
+ * Grants without a matching tool entry fail closed to the action defaults
+ * (`data: 'embedded'`, `authority: 'host-action'`), mirroring
+ * capabilityForTool.
+ */
+export function surfacePlanCoversGrants(
+  plan: SurfacePlan,
+  grantNames: readonly string[],
+  tools?: readonly GrantCapabilitySource[] | null,
+): boolean {
+  if (grantNames.length === 0) return true;
+  const byName = new Map((tools ?? []).map((tool) => [tool.name, tool]));
+  let dataFloor = 0;
+  let authorityFloor = 0;
+  for (const name of grantNames) {
+    const capability = capabilityForTool(byName.get(name) ?? { name });
+    dataFloor = Math.max(dataFloor, DATA_RANK[capability.data]);
+    authorityFloor = Math.max(authorityFloor, AUTHORITY_RANK[capability.authority]);
+  }
+  return (
+    DATA_RANK[plan.data] >= dataFloor &&
+    AUTHORITY_RANK[plan.authority] >= authorityFloor
+  );
 }
 
 function surfacePolicyIssue(code: string, message: string): ContractIssue {

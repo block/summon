@@ -12,12 +12,13 @@ export {
 } from '@summon-internal/host';
 
 export {
+  ceilings,
   compileSurfaceContractView,
   compileSurfacePolicy,
+  displayTier,
   surfaceContractViewFromCompiledPolicy,
   SURFACE_PERSISTENCE_VALUES,
   SURFACE_PURPOSE_VALUES,
-  SURFACE_TIER_VALUES,
 } from '@summon-internal/engine';
 
 export type {
@@ -51,6 +52,7 @@ export type {
   CompiledSurfacePolicy,
   CompileSurfacePolicyOptions,
   ToolSpec,
+  SurfaceCeiling,
   SurfaceContractLayout,
   SurfaceContractTool,
   SurfaceContractView,

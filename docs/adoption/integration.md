@@ -27,7 +27,10 @@ import { runSurfaceGeneration } from '@decentralized-design/summon-server';
 
 await runSurfaceGeneration({
   prompt,
-  surfacePolicy: { tier: 'declarative', purpose: 'search' },
+  surfacePolicy: {
+    ceiling: { data: 'host-resource', authority: 'host-action' },
+    purpose: 'explore',
+  },
   modelProvider,
 }, (line) => {
   response.write(`${JSON.stringify(line)}\n`);

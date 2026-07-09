@@ -1,8 +1,6 @@
 import {
-  useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
   type RefObject,
@@ -24,9 +22,7 @@ import type { ChildSurfaceModel, GhostRootInfo } from "../types.js";
 import type { GenerationTrace } from "../generationTrace.js";
 import { ChildSurface } from "./ChildSurface.js";
 import { ConformanceGlyphs } from "./ConformanceGlyphs.js";
-import { FrameSeam } from "./FrameSeam.js";
 import { ReceiptTab } from "./ReceiptTab.js";
-import { TraceChoreography } from "./TraceChoreography.js";
 
 const promptActionRadiusClass = "!rounded-[22px]";
 
@@ -116,7 +112,7 @@ export function GenerationStage({
   statusText: string;
   generationDisabledReason?: string | null;
   stageNotice: {
-    tone: "pending" | "error";
+    tone: "error";
     title: string;
     detail?: string;
   } | null;
@@ -139,8 +135,10 @@ export function GenerationStage({
   const showSamplePills = showWelcome && !running;
   // The sandbox frame is visible for the whole generation lifecycle: the
   // host-owned, fingerprint-derived drafting surface inside SummonSurface is
-  // the loading state. No app-level loading overlay competes with it.
+  // the loading state. The page-level summoning field pulses around it while
+  // a run is in flight; nothing else competes.
   const showSandboxFrame = !showWelcome;
+  const summoning = running && !trace.done;
   const selectedFingerprint =
     fingerprints.find(
       (fingerprint) => fingerprint.id === selectedFingerprintId,
@@ -173,40 +171,6 @@ export function GenerationStage({
   const generateDisabled = Boolean(
     running || !prompt.trim() || generationDisabledReason,
   );
-  const [surfaceOverflowing, setSurfaceOverflowing] = useState(false);
-  const frameRef = useRef<HTMLDivElement>(null);
-  const [framePulse, setFramePulse] = useState(false);
-  const pulseTimerRef = useRef<number | null>(null);
-  const handleGatherAbsorbed = useCallback(() => {
-    setFramePulse(true);
-    if (pulseTimerRef.current !== null) window.clearTimeout(pulseTimerRef.current);
-    pulseTimerRef.current = window.setTimeout(() => setFramePulse(false), 420);
-  }, []);
-  useEffect(() => {
-    return () => {
-      if (pulseTimerRef.current !== null) window.clearTimeout(pulseTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!showSandboxFrame) {
-      setSurfaceOverflowing(false);
-      return;
-    }
-
-    const root = surfaceRef.current?.root;
-    if (!root) return;
-
-    const updateOverflow = () => {
-      setSurfaceOverflowing(root.scrollHeight > root.clientHeight + 1);
-    };
-    updateOverflow();
-    const resizeObserver = new ResizeObserver(updateOverflow);
-    resizeObserver.observe(root);
-    Array.from(root.children).forEach((child) => resizeObserver.observe(child));
-    return () => resizeObserver.disconnect();
-  }, [showSandboxFrame, surfaceInstanceKey, surfaceRef]);
-
   useEffect(() => {
     if (showWelcome) {
       setWelcomeLeaving(false);
@@ -229,6 +193,27 @@ export function GenerationStage({
         className="absolute inset-0 overflow-hidden bg-surface px-4 pb-[184px] pt-[76px] max-[760px]:pb-[244px]"
         aria-label="Generated surface"
       >
+        {/* Page-level summoning field: while a surface is being conjured the
+            whole page participates. The resting dot field energizes and a
+            wave train of circular pulses rides outward around the frame —
+            energy converging on the apparition condensing inside it. */}
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 z-[1] transition-opacity duration-700 ease-out motion-reduce:hidden",
+            summoning ? "opacity-100" : "opacity-0",
+          )}
+          aria-hidden="true"
+        >
+          <div className="summon-summoning-field" />
+          {summoning ? (
+            <>
+              <span className="summon-ripple-wave" />
+              <span className="summon-ripple-wave" />
+              <span className="summon-ripple-wave" />
+              <span className="summon-ripple-wave" />
+            </>
+          ) : null}
+        </div>
         <div
           className={cn(
             "relative z-[2] mx-auto min-h-[280px] max-h-[calc(100vh-260px)] transition-[opacity,filter,transform,width] duration-700 ease-out max-[760px]:max-h-[calc(100vh-320px)]",
@@ -240,11 +225,7 @@ export function GenerationStage({
         >
           <div
             id="sandbox-frame"
-            ref={frameRef}
-            className={cn(
-              "relative z-0 h-auto min-h-[280px] max-h-full overflow-hidden rounded-[32px] border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-700 ease-out motion-safe:animate-[summon-sandbox-rise_960ms_cubic-bezier(0.16,1,0.3,1)_both]",
-              framePulse && "ring-2 ring-accent/35",
-            )}
+            className="relative z-0 h-auto min-h-[280px] max-h-[inherit] overflow-hidden rounded-[32px] border border-line bg-surface-raised shadow-elevated transition-[opacity,filter,transform] duration-700 ease-out motion-safe:animate-[summon-sandbox-rise_960ms_cubic-bezier(0.16,1,0.3,1)_both]"
           >
             <span id="surface-status" className="sr-only">
               {statusText}
@@ -253,7 +234,7 @@ export function GenerationStage({
               key={surfaceInstanceKey}
               ref={surfaceRef}
               id="sandbox"
-              className="block max-h-full w-full overflow-auto border-0 bg-surface"
+              className="block max-h-[inherit] w-full overflow-auto border-0 bg-surface"
               title="Summon generate sandbox"
               tokensSource={surfaceTokensSource}
               fontFacesSource={surfaceFontFacesSource}
@@ -266,30 +247,17 @@ export function GenerationStage({
             />
             <ConformanceGlyphs trace={trace} />
             <ReceiptTab trace={trace} />
-            {surfaceOverflowing ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[4] flex justify-center rounded-b-[32px] bg-gradient-to-t from-surface-raised via-surface-raised/72 to-transparent pb-3 pt-10" aria-hidden="true">
-                <span className="rounded-full border border-line bg-surface-raised/95 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase text-ink-muted shadow-card">
-                  scrolls ↓
-                </span>
-              </div>
-            ) : null}
             {stageNotice ? (
               <div
                 className="absolute inset-0 z-[2] flex items-center justify-center bg-surface/95 px-6 text-center transition-[opacity,filter,transform] duration-500 ease-out motion-safe:animate-[summon-blur-fade-up_500ms_cubic-bezier(0.22,1,0.36,1)_both]"
                 id="stage-notice"
-                role={stageNotice.tone === "error" ? "alert" : "status"}
+                role="alert"
               >
                 <div className="grid max-w-[min(520px,100%)] justify-items-center gap-3">
                   <div className="font-mono text-[10px] font-semibold uppercase tracking-normal text-ink-muted">
                     {statusText}
                   </div>
-                  <div
-                    className={
-                      stageNotice.tone === "error"
-                        ? "text-[18px] font-semibold leading-tight text-danger"
-                        : "text-[18px] font-semibold leading-tight text-ink"
-                    }
-                  >
+                  <div className="text-[18px] font-semibold leading-tight text-danger">
                     {stageNotice.title}
                   </div>
                   {stageNotice.detail ? (
@@ -297,28 +265,20 @@ export function GenerationStage({
                       {stageNotice.detail}
                     </p>
                   ) : null}
-                  {stageNotice.tone === "error" ? (
-                    <Button
-                      id="open-diagnostics"
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="mt-1"
-                      onClick={onOpenDiagnostics}
-                    >
-                      Diagnostics
-                    </Button>
-                  ) : null}
+                  <Button
+                    id="open-diagnostics"
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="mt-1"
+                    onClick={onOpenDiagnostics}
+                  >
+                    Diagnostics
+                  </Button>
                 </div>
               </div>
             ) : null}
           </div>
-          <FrameSeam trace={trace} running={running} />
-          <TraceChoreography
-            trace={trace}
-            frameRef={frameRef}
-            onAbsorb={handleGatherAbsorbed}
-          />
         </div>
       </section>
 

@@ -294,7 +294,7 @@ test('mocked generation renders and generated host tool requests update host sta
   expect(captured.generationModel).toBe('claude-haiku-4-5');
   expect(captured.utilityModel).toBe('claude-haiku-4-5');
   expect(captured.surfacePolicy).toEqual({
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     purpose: 'compare',
     grants: ['choose'],
   });
@@ -414,7 +414,7 @@ test('host search resource renders host-owned empty state', async ({ page }) => 
   await expect(page.locator('#status')).toContainText('done');
 
   expect(captured.surfacePolicy).toEqual({
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     purpose: 'explore',
     grants: ['search'],
   });
@@ -524,7 +524,7 @@ test('approval refund uses host-owned approval card for approve and deny decisio
   await expect(page.locator('#status')).toContainText('done');
 
   expect(captured.surfacePolicy).toEqual({
-    tier: 'approval',
+    ceiling: { data: 'worker', authority: 'approval-gated' },
     purpose: 'operate',
     grants: ['issue_refund'],
   });
@@ -738,7 +738,7 @@ test('gallery loads Ghost root preset and sends Ghost generation payload', async
     targetPath: '.',
   });
   expect(captured.surfacePolicy).toEqual({
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     purpose: 'review',
     grants: ['choose'],
   });

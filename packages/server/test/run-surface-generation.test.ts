@@ -35,7 +35,7 @@ test('runSurfaceGeneration emits server-owned preview and artifact lines', async
   const lines: ProtocolLine[] = [];
   const summary = await runSurfaceGeneration({
     prompt: 'hello',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: validProvider,
   }, (line) => {
     lines.push(line);
@@ -88,7 +88,7 @@ test('runSurfaceGeneration runs a fidelity repair pass when the reviewer blocks'
   let reviewCalls = 0;
   const summary = await runSurfaceGeneration({
     prompt: 'hello',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
     maxRepairAttempts: 0,
     maxFidelityRepairs: 1,
@@ -127,7 +127,7 @@ test('runSurfaceGeneration ships a valid surface when no fidelity reviewer is se
   const lines: ProtocolLine[] = [];
   const summary = await runSurfaceGeneration({
     prompt: 'hello',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: validProvider,
   }, (line) => {
     lines.push(line);
@@ -160,7 +160,7 @@ test('runSurfaceGeneration repairs unsafe bundles with validation hints', async 
 
   const summary = await runSurfaceGeneration({
     prompt: 'repair',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
   }, (line) => lines.push(line));
 
@@ -197,7 +197,7 @@ test('runSurfaceGeneration repairs main.js syntax errors before runtime', async 
 
   const summary = await runSurfaceGeneration({
     prompt: 'repair syntax',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
   }, (line) => lines.push(line));
 
@@ -227,7 +227,7 @@ test('runSurfaceGeneration blocks syntax errors in observe mode without repair',
     playground: true,
     validationMode: 'observe',
     maxRepairAttempts: 0,
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
   }, (line) => lines.push(line));
 
@@ -264,7 +264,7 @@ test('runSurfaceGeneration can restrict repair attempts to selected issue codes'
     validationMode: 'observe',
     maxRepairAttempts: 1,
     repairIssueCodes: ['invalid-surface-document-source-syntax'],
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
   }, (line) => lines.push(line));
 
@@ -296,7 +296,7 @@ test('runSurfaceGeneration repairs bundles missing required files', async () => 
 
   const summary = await runSurfaceGeneration({
     prompt: 'repair missing css',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
   }, (line) => lines.push(line));
 
@@ -322,7 +322,7 @@ test('runSurfaceGeneration blocks invalid bundle when repair is unavailable', as
 
   const summary = await runSurfaceGeneration({
     prompt: 'bad',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
     maxRepairAttempts: 0,
   }, (line) => lines.push(line));
@@ -344,7 +344,7 @@ test('runSurfaceGeneration emits heartbeat while provider is slow', async () => 
 
   const summary = await runSurfaceGeneration({
     prompt: 'slow',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: provider,
     heartbeatIntervalMs: 10,
   }, (line) => lines.push(line));
@@ -359,7 +359,7 @@ test('runSurfaceGeneration playground mode skips preview scaffold and preview bu
   const summary = await runSurfaceGeneration({
     prompt: 'playground artifact only',
     playground: true,
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     modelProvider: validProvider,
   }, (line) => lines.push(line));
 
@@ -392,7 +392,7 @@ test('runSurfaceGeneration observe mode accepts renderable artifacts with valida
 
   const summary = await runSurfaceGeneration({
     prompt: 'observe blocker',
-    surfacePolicy: { tier: 'static', purpose: 'inform' },
+    surfacePolicy: { purpose: 'inform' },
     validationMode: 'observe',
     maxRepairAttempts: 0,
     modelProvider: provider,
@@ -409,7 +409,11 @@ test('runSurfaceGeneration observe mode does not preflight-block policy issues',
   const lines: ProtocolLine[] = [];
   const summary = await runSurfaceGeneration({
     prompt: 'unknown grant',
-    surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: ['missing'] },
+    surfacePolicy: {
+      ceiling: { data: 'host-resource', authority: 'host-action' },
+      purpose: 'explore',
+      grants: ['missing'],
+    },
     validationMode: 'observe',
     maxRepairAttempts: 0,
     modelProvider: validProvider,

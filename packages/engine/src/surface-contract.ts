@@ -11,6 +11,7 @@ import type {
   SummonLayout,
 } from './prompt.js';
 import {
+  capabilityForTool,
   compileSurfacePolicy,
   type CompileSurfacePolicyOptions,
   type CompiledSurfacePolicy,
@@ -126,10 +127,7 @@ function formatTools(pack: ToolPack | null): SurfaceContractTool[] {
         : defaultTriggersForKind(kind),
       argsSchema: spec.argsSchema,
       stateShape: spec.stateShape,
-      surface: {
-        data: spec.surface?.data ?? (kind === 'resource' ? 'host-resource' : 'embedded'),
-        authority: spec.surface?.authority ?? (kind === 'resource' ? 'read' : 'host-action'),
-      },
+      surface: capabilityForTool(spec),
     };
     if (spec.stateKeys) tool.stateKeys = { ...spec.stateKeys };
     if (spec.actionStateKeys) tool.actionStateKeys = { ...spec.actionStateKeys };

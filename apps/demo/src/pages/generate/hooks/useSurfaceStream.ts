@@ -372,7 +372,6 @@ export function useSurfaceStream({
       mode: active.mode,
       allowedTools: toolPack.tools.map((tool) => tool.name),
       tools: toolPack.tools,
-      surfacePlan: active.surfacePlan,
     };
 
     const modelSelectionPayload = {

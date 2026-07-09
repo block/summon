@@ -9,7 +9,7 @@ const expectedRootExports = [
   'PolicyEngine',
   'SURFACE_PERSISTENCE_VALUES',
   'SURFACE_PURPOSE_VALUES',
-  'SURFACE_TIER_VALUES',
+  'ceilings',
   'compileSurfaceContractView',
   'compileSurfacePolicy',
   'createToolRegistry',
@@ -20,6 +20,7 @@ const expectedRootExports = [
   'defineToolHandler',
   'defineWorkerAction',
   'defineWorkerResource',
+  'displayTier',
   'surfaceContractViewFromCompiledPolicy',
 ].sort();
 

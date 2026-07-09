@@ -282,7 +282,7 @@ test('api generate sends narrowed contract and stream meta shape through package
       fingerprint: { id: 'editorial-mono' },
       tools: searchTools,
       surfacePolicy: {
-        tier: 'declarative',
+        ceiling: { data: 'host-resource', authority: 'host-action' },
         purpose: 'explore',
         grants: ['search'],
       },
@@ -350,7 +350,7 @@ test('api generate sends narrowed contract and stream meta shape through package
       prompt: 'build a dinner finder where i can search',
       fingerprint: { id: 'editorial-mono' },
       surfacePolicy: {
-        tier: 'declarative',
+        ceiling: { data: 'host-resource', authority: 'host-action' },
         purpose: 'explore',
         grants: ['search'],
       },
@@ -394,7 +394,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.deepEqual(phaseStatuses(policyLines), ['planning', 'contract', 'contract', 'drafting', 'validating', 'rendering', 'rendering', 'finalizing']);
   assert.equal(policyLines.some((line) => line.path === '/mode-upgraded'), false);
   assert.deepEqual(firstMetaLine(policyLines, '/surface-policy').value, {
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     purpose: 'explore',
     grants: ['search'],
     persistence: 'replayable',
@@ -457,7 +457,7 @@ test('api generate sends narrowed contract and stream meta shape through package
   assert.equal((agentResolution.value as { goalSource?: unknown }).goalSource, 'deterministic');
   const agentPolicy = firstMetaLine(agentLines, '/surface-policy');
   assert.deepEqual(agentPolicy.value, {
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'read' },
     purpose: 'explore',
     grants: ['search'],
     persistence: 'replayable',
@@ -885,7 +885,6 @@ test('api generate emits compiled Ghost gather packet for root contexts', async 
         targetPath: '.',
       },
       surfacePolicy: {
-        tier: 'static',
         purpose: 'inform',
       },
     }),
@@ -1044,7 +1043,6 @@ test('api generate forwards Anthropic model overrides and speed options', async 
         effort: 'low',
       },
       surfacePolicy: {
-        tier: 'static',
         purpose: 'inform',
       },
     }),
@@ -1169,7 +1167,6 @@ test('api generate can stream with OpenAI provider', async (t) => {
       utilityModel: 'gpt-5.4-nano',
       modelOptions: { maxOutputTokens: 12000 },
       surfacePolicy: {
-        tier: 'static',
         purpose: 'inform',
       },
     }),
@@ -1291,7 +1288,6 @@ test('api generate can stream with Gemini provider', async (t) => {
       utilityModel: 'gemini-3.1-flash-lite',
       modelOptions: { maxOutputTokens: 12000 },
       surfacePolicy: {
-        tier: 'static',
         purpose: 'inform',
       },
     }),

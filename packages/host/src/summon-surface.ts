@@ -8,6 +8,7 @@ import type {
 
 import { buildSurfaceDocumentModules, mountSurface } from '@summon-internal/surface-vm';
 import { installFontFaces, type InstalledFontFaces } from './font-faces.js';
+import { mountDraftingApparition, type ApparitionHandle } from './drafting-apparition.js';
 
 export type SummonSurfaceArtifact = SurfaceDocumentArtifact;
 
@@ -73,6 +74,18 @@ export interface SummonSurfaceHandle {
 }
 
 const PREVIEW_ROOT_ATTR = 'data-summon-preview-root';
+
+// Live apparition canvases keyed by their drafting root. WeakMap so a
+// drafting root removed by any path (dispose, clearRuntimeChildren) cannot
+// leak its handle; the apparition also self-destroys when disconnected.
+const apparitions = new WeakMap<HTMLElement, ApparitionHandle>();
+
+function destroyApparition(root: HTMLElement): void {
+  const draftingRoot = root.querySelector<HTMLElement>(`[${PREVIEW_ROOT_ATTR}]`);
+  if (!draftingRoot) return;
+  apparitions.get(draftingRoot)?.destroy();
+  apparitions.delete(draftingRoot);
+}
 
 interface SummonSurfaceToolCallOptions {
   surfaceId: string;
@@ -366,6 +379,7 @@ export function mountSummonSurface(options: SummonSurfaceOptions): SummonSurface
       installedFontFaces?.release();
       teardownVmRuntime();
       subscribers.clear();
+      destroyApparition(root);
       root.replaceChildren();
       root.classList.remove('summon-surface');
       delete root.dataset.summonSurface;
@@ -491,18 +505,20 @@ function renderDraftingSurface(root: HTMLElement, snapshot: SurfacePreviewSnapsh
     material.className = 'summon-drafting__material';
     material.setAttribute('aria-hidden', 'true');
 
-    const mark = document.createElement('div');
-    mark.className = 'summon-drafting__mark';
-    mark.setAttribute('aria-hidden', 'true');
-
     const kicker = document.createElement('span');
     kicker.className = 'summon-drafting__kicker';
 
     const detail = document.createElement('p');
     detail.className = 'summon-drafting__detail';
 
-    draftingRoot.append(material, mark, kicker, detail);
+    draftingRoot.append(material, kicker, detail);
     root.append(draftingRoot);
+
+    // The apparition canvas is the loading visual: the surface being
+    // conjured out of dithered ink. Falls back to the CSS-only treatment
+    // when a canvas context is unavailable.
+    const apparition = mountDraftingApparition(draftingRoot);
+    if (apparition) apparitions.set(draftingRoot, apparition);
   }
 
   const status = snapshot.status?.status ?? 'planning';
@@ -514,6 +530,15 @@ function renderDraftingSurface(root: HTMLElement, snapshot: SurfacePreviewSnapsh
     draftingRoot.dataset.summonDraftingRepair = 'true';
   }
   draftingRoot.dataset.summonDraftingPhase = status;
+
+  // Drive the apparition from validated metadata only: phase rank plus the
+  // ids of nodes the stream has accepted. Node ids seed skeleton geometry;
+  // no model-authored content reaches the canvas.
+  apparitions.get(draftingRoot)?.update({
+    phaseRank: phaseRank(status),
+    nodeIds: snapshot.nodes.map((node) => node.id),
+    repair: Boolean(draftingRoot.dataset.summonDraftingRepair),
+  });
 
   const kicker = draftingRoot.querySelector<HTMLElement>('.summon-drafting__kicker');
   if (kicker) {
@@ -554,6 +579,8 @@ function completeDraftingHandoff(root: HTMLElement): void {
   const reducedMotion = typeof globalThis.matchMedia === 'function'
     && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reducedMotion) {
+    apparitions.get(draftingRoot)?.destroy();
+    apparitions.delete(draftingRoot);
     draftingRoot.remove();
     return;
   }
@@ -562,6 +589,8 @@ function completeDraftingHandoff(root: HTMLElement): void {
   const remove = () => {
     if (removed) return;
     removed = true;
+    apparitions.get(draftingRoot)?.destroy();
+    apparitions.delete(draftingRoot);
     draftingRoot.remove();
   };
   draftingRoot.addEventListener('transitionend', remove, { once: true });
@@ -580,6 +609,7 @@ function installTokenStyle(root: HTMLElement, surfaceId: string, tokensSource?: 
 }
 
 function clearRuntimeChildren(root: HTMLElement, opts?: { keepPreview?: boolean }): void {
+  if (!opts?.keepPreview) destroyApparition(root);
   for (const child of Array.from(root.children)) {
     if (child instanceof HTMLStyleElement && child.dataset.summonSurfaceTokens) continue;
     if (opts?.keepPreview && child instanceof HTMLElement && child.hasAttribute(PREVIEW_ROOT_ATTR)) continue;
@@ -974,19 +1004,19 @@ function defaultPreviewCss(surfaceId: string): string {
 }
 
 /* Drafting surface: host-owned, styled entirely from fingerprint tokens.
- * Two fingerprints must look visibly different here — the treatment leans on
- * the tokens with the widest cross-fingerprint variance: accent, radius,
- * shadow, display type, and tracking. */
+ * The apparition canvas is the visual — a dithered conjuring of the surface
+ * being summoned, drawn in the fingerprint's text and accent inks. The
+ * kicker/detail sit quietly at the bottom edge and stay legible over it. */
 [data-summon-surface="${surfaceId}"] .summon-drafting {
   position: relative;
   isolation: isolate;
   display: grid;
   min-height: 100%;
-  align-content: center;
+  align-content: end;
   justify-items: start;
-  gap: var(--space-3, 12px);
+  gap: var(--space-1, 4px);
   overflow: hidden;
-  padding: var(--space-8, 40px) var(--space-7, 32px);
+  padding: var(--space-8, 40px) var(--space-7, 32px) var(--space-6, 24px);
   background: var(--color-bg, Canvas);
   transition: opacity 320ms ease;
 }
@@ -1003,23 +1033,23 @@ function defaultPreviewCss(surfaceId: string): string {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--color-accent, CanvasText) 9%, transparent), transparent 52%),
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--color-accent, CanvasText) 7%, transparent), transparent 52%),
     linear-gradient(160deg, var(--color-bg, Canvas), color-mix(in srgb, var(--color-surface, Canvas) 72%, var(--color-bg, Canvas)));
-  animation: summon-drafting-breathe 3.2s ease-in-out infinite;
 }
-[data-summon-surface="${surfaceId}"] .summon-drafting__mark {
-  width: var(--space-9, 48px);
-  height: var(--space-2, 8px);
-  border-radius: var(--radius-sm, 2px);
-  background: var(--color-accent, CanvasText);
-  box-shadow: var(--shadow-mini, none);
-  transform-origin: left center;
-  animation: summon-drafting-draw 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+[data-summon-surface="${surfaceId}"] .summon-drafting__apparition {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  image-rendering: pixelated;
 }
 [data-summon-surface="${surfaceId}"] .summon-drafting__kicker {
   color: var(--color-text, CanvasText);
   font-family: var(--font-serif, var(--font-sans, system-ui, sans-serif));
-  font-size: var(--text-lg, 18px);
+  font-size: var(--text-md, 15px);
   line-height: var(--leading-display, 1.15);
   letter-spacing: var(--tracking-display, normal);
 }
@@ -1031,9 +1061,7 @@ function defaultPreviewCss(surfaceId: string): string {
   line-height: var(--leading-body, 1.5);
   letter-spacing: var(--tracking-label, 0.02em);
 }
-[data-summon-surface="${surfaceId}"] .summon-drafting[data-summon-drafting-repair] .summon-drafting__mark {
-  background: var(--color-warning, var(--color-accent, CanvasText));
-}
+
 
 /* The mounted artifact fades in underneath the departing drafting surface. */
 [data-summon-surface="${surfaceId}"] .summon-surface-document-host {
@@ -1050,10 +1078,6 @@ function defaultPreviewCss(surfaceId: string): string {
   [data-summon-surface="${surfaceId}"] .summon-drafting,
   [data-summon-surface="${surfaceId}"] .summon-surface-document-host {
     transition: none;
-  }
-  [data-summon-surface="${surfaceId}"] .summon-drafting__material,
-  [data-summon-surface="${surfaceId}"] .summon-drafting__mark {
-    animation: none;
   }
 }
 [data-summon-surface="${surfaceId}"] .summon-runtime-error {
@@ -1078,15 +1102,6 @@ function defaultPreviewCss(surfaceId: string): string {
   color: var(--color-text, CanvasText);
   font-size: clamp(15px, 2vw, 20px);
   line-height: 1.45;
-}
-@keyframes summon-drafting-draw {
-  0% { transform: scaleX(0.18); opacity: 0.5; }
-  55% { transform: scaleX(1); opacity: 1; }
-  100% { transform: scaleX(0.18); opacity: 0.5; }
-}
-@keyframes summon-drafting-breathe {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
 }
 `;
 }

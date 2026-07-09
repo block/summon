@@ -256,13 +256,13 @@ test('generate page renders a mocked Surface Document artifact through the Summo
             source: 'default',
             goalSource: 'deterministic',
             proposedSurfacePolicy: {
-              tier: 'declarative',
+              ceiling: { data: 'host-resource', authority: 'read' },
               purpose: 'explore',
               grants: ['search'],
               persistence: 'replayable',
             },
             surfacePolicy: {
-              tier: 'declarative',
+              ceiling: { data: 'host-resource', authority: 'read' },
               purpose: 'explore',
               grants: ['search'],
               persistence: 'replayable',
@@ -271,7 +271,7 @@ test('generate page renders a mocked Surface Document artifact through the Summo
             fallback: false,
           },
         },
-        { op: 'meta', path: '/surface-policy', value: { tier: 'declarative', purpose: 'explore', grants: ['search'] } },
+        { op: 'meta', path: '/surface-policy', value: { ceiling: { data: 'host-resource', authority: 'read' }, purpose: 'explore', grants: ['search'] } },
         { op: 'meta', path: '/surface-plan', value: hostSearchPlan },
         {
           op: 'meta',
@@ -349,7 +349,7 @@ test('generation shows the fingerprint-derived drafting surface until the artifa
   const drafting = page.locator('#sandbox [data-summon-preview-root]');
   await expect(drafting).toBeAttached();
   await expect(drafting).toHaveClass(/summon-drafting/);
-  await expect(drafting.locator('.summon-drafting__mark')).toBeAttached();
+  await expect(drafting.locator('.summon-drafting__apparition')).toBeAttached();
 
   await page.locator('#go').click();
 

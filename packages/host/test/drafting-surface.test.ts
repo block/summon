@@ -53,7 +53,7 @@ test('mounting without an artifact renders the drafting surface immediately', ()
   assert.ok(drafting, 'drafting surface should paint at t=0');
   assert.equal(drafting.getAttribute('role'), 'status');
   assert.equal(drafting.getAttribute('aria-live'), 'polite');
-  assert.ok(drafting.querySelector('.summon-drafting__mark'), 'fingerprint mark should exist');
+  assert.ok(drafting.querySelector('.summon-drafting__material'), 'material layer should exist');
   assert.equal(handle.lifecycle(), 'preview');
   handle.dispose();
 });
@@ -72,7 +72,6 @@ test('drafting styles derive from the fingerprint token source', () => {
   // the drafting treatment consumes accent/radius/shadow/type tokens.
   assert.match(style.textContent ?? '', /--color-accent: #ff2244/);
   assert.match(style.textContent ?? '', /var\(--color-accent/);
-  assert.match(style.textContent ?? '', /var\(--radius-sm/);
   assert.match(style.textContent ?? '', /var\(--tracking-display/);
   assert.match(style.textContent ?? '', /prefers-reduced-motion/);
   handle.dispose();

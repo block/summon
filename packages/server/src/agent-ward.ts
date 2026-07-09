@@ -1,6 +1,12 @@
 import {
+  capabilityCovers,
+  capabilityForTool,
   compileSurfacePolicy,
+  joinCapabilities,
   SURFACE_PURPOSE_VALUES,
+  type SurfaceCeiling,
+  type SurfaceData,
+  type ToolCapability,
   type ToolPack,
   type CompiledSurfacePolicy,
   type ToolSpec,
@@ -26,7 +32,8 @@ export type SurfaceGoalInteraction =
   | 'background'
   | 'approval';
 
-export type SurfaceGoalDataNeed = 'embedded' | 'host-resource' | 'worker';
+/** Merged into the engine's SurfaceData — one vocabulary for data locality. */
+export type SurfaceGoalDataNeed = SurfaceData;
 export type SurfaceGoalSideEffect =
   | 'none'
   | 'local-state'
@@ -243,41 +250,28 @@ export function policyFromGoal(
 ): SurfacePolicy {
   const persistence = options.persistence ?? 'replayable';
   const hasSurfaceAccess = goal.requestedTools.length > 0;
-  if (goal.sideEffect === 'approval-required' || goal.interaction === 'approval') {
-    return {
-      tier: 'approval',
-      purpose: 'operate',
-      grants: goal.requestedTools,
-      persistence,
-    };
+  // The ceiling is the join of what the goal asks for on each axis
+  // independently — no branch ordering, so a compute-then-commit goal keeps
+  // both its worker data and its approval authority.
+  const wantsApproval = goal.sideEffect === 'approval-required' || goal.interaction === 'approval';
+  const wantsWorker = goal.dataNeed === 'worker' || goal.interaction === 'background';
+  const wantsInteractive = hasSurfaceAccess && (
+    goal.interaction !== 'none' ||
+    goal.dataNeed === 'host-resource' ||
+    goal.sideEffect === 'local-state' ||
+    goal.sideEffect === 'external-action'
+  );
+  if (!wantsApproval && !wantsWorker && !wantsInteractive) {
+    return { purpose: goal.purpose, persistence };
   }
-  if (goal.dataNeed === 'worker' || goal.interaction === 'background') {
-    return {
-      tier: 'worker',
-      purpose: goal.purpose,
-      grants: goal.requestedTools,
-      persistence,
-    };
-  }
-  if (
-    hasSurfaceAccess &&
-    (
-      goal.interaction !== 'none' ||
-      goal.dataNeed === 'host-resource' ||
-      goal.sideEffect === 'local-state' ||
-      goal.sideEffect === 'external-action'
-    )
-  ) {
-    return {
-      tier: 'declarative',
-      purpose: goal.purpose,
-      grants: goal.requestedTools,
-      persistence,
-    };
-  }
+  const ceiling: SurfaceCeiling = {
+    data: wantsWorker ? 'worker' : 'host-resource',
+    authority: wantsApproval ? 'approval-gated' : 'host-action',
+  };
   return {
-    tier: 'static',
-    purpose: goal.purpose,
+    ceiling,
+    purpose: wantsApproval ? 'operate' : goal.purpose,
+    grants: goal.requestedTools,
     persistence,
   };
 }
@@ -416,7 +410,7 @@ async function resolveHostPolicy(
     proposedSurfacePolicy: narrowed.surfacePolicy,
     tools: input.tools ?? null,
   });
-  const hostNarrowed = narrowSurfacePolicy(hostPolicy ?? { tier: 'static', purpose: 'inform' }, {
+  const hostNarrowed = narrowSurfacePolicy(hostPolicy ?? { purpose: 'inform' }, {
     tools: input.tools ?? null,
   });
   return {
@@ -444,78 +438,44 @@ function narrowSurfacePolicy(
   const rawGrants = Array.isArray(policy.grants) ? policy.grants.filter(isString) : [];
   const knownGrantNames = rawGrants.filter((name) => toolNames.has(name));
   const knownTools = toolsByName(options.tools, knownGrantNames);
-
   const rejectedTools = rawGrants.filter((name) => !toolNames.has(name));
-  const tier = strongestTier(policy.tier, knownTools);
-  const grants = knownTools
-    .filter((tool) => toolAllowedForTier(tier, tool))
-    .map((tool) => tool.name);
 
+  // Fail closed on authority: the ceiling never widens past what the
+  // proposer asked for. Grants above the ceiling are rejected, not the
+  // surface — no cliff, no downgrade ladder. The ceiling then *shrinks* to
+  // the join of what survived, so the compiled floors always hold and the
+  // display label never overstates.
+  const proposedCeiling: ToolCapability = {
+    data: policy.ceiling?.data ?? 'embedded',
+    authority: policy.ceiling?.authority ?? 'none',
+  };
+  const surviving = knownTools.filter((tool) =>
+    capabilityCovers(proposedCeiling, capabilityForTool(tool)),
+  );
   for (const name of knownGrantNames) {
-    if (!grants.includes(name)) rejectedTools.push(name);
+    if (!surviving.some((tool) => tool.name === name)) rejectedTools.push(name);
   }
 
-  if ((tier === 'worker' && grants.length === 0) ||
-    (tier === 'approval' && !knownTools.some((tool) => toolAuthority(tool) === 'approval-gated'))) {
-    // The proposed tier (worker/approval) cannot be satisfied by the available
-    // tools. Rather than collapse to a dead `static` surface (the older
-    // "static cliff"), fall back to the strongest *legal* tier the available
-    // tools support. We fail-closed on authority — never granting an approval
-    // or worker capability the host didn't authorize — but not on the surface's
-    // ability to function. Mirrors Ghost's "fall back to core: keep everything,
-    // lose focus" instead of "fall back to nothing".
-    const declarativeGrants = knownTools
-      .filter((tool) => toolAllowedForTier('declarative', tool))
-      .map((tool) => tool.name);
-    // Recompute rejections against the *downgraded* tier so a tool that is
-    // legal at `declarative` isn't reported as rejected just because it was
-    // illegal at the proposed approval/worker tier. Unknown (off-ceiling) names
-    // stay rejected.
-    const downgradeRejected = [
-      ...new Set([
-        ...rawGrants.filter((name) => !toolNames.has(name)),
-        ...knownGrantNames.filter((name) => !declarativeGrants.includes(name)),
-      ]),
-    ];
-    if (declarativeGrants.length === 0) {
-      // No usable interactive tools at all — static is the only legal surface.
-      return {
-        surfacePolicy: staticFallbackPolicy(policy),
-        rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
-        fallback: true,
-      };
-    }
-    const downgraded: SurfacePolicy = {
-      tier: 'declarative',
-      purpose: PURPOSES.has(policy.purpose as SurfacePurpose) ? policy.purpose : 'inform',
-      grants: declarativeGrants,
-      persistence: policy.persistence === 'ephemeral' ? 'ephemeral' : 'replayable',
-    };
-    const downgradedCompiled = compileSurfacePolicy(downgraded, {
-      tools: options.tools,
-    });
-    if (downgradedCompiled.issues.some((issue) => issue.severity === 'block')) {
-      return {
-        surfacePolicy: staticFallbackPolicy(policy),
-        rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
-        fallback: true,
-      };
-    }
+  if (surviving.length === 0) {
     return {
-      surfacePolicy: downgraded,
-      rejectedTools: downgradeRejected,
-      fallback: true,
+      surfacePolicy: {
+        purpose: PURPOSES.has(policy.purpose as SurfacePurpose) ? policy.purpose : 'inform',
+        persistence: policy.persistence === 'ephemeral' ? 'ephemeral' : 'replayable',
+      },
+      rejectedTools: [...new Set(rejectedTools)],
+      fallback: rawGrants.length > 0,
     };
   }
 
+  const ceiling: SurfaceCeiling = joinCapabilities(surviving.map(capabilityForTool));
   const surfacePolicy: SurfacePolicy = {
-    tier,
+    ceiling,
     purpose: PURPOSES.has(policy.purpose as SurfacePurpose)
       ? policy.purpose
-      : tier === 'approval'
+      : ceiling.authority === 'approval-gated'
         ? 'operate'
         : 'inform',
-    ...(grants.length > 0 ? { grants } : {}),
+    grants: surviving.map((tool) => tool.name),
     persistence: policy.persistence === 'ephemeral' ? 'ephemeral' : 'replayable',
   };
   const compiled = compileSurfacePolicy(surfacePolicy, {
@@ -523,7 +483,10 @@ function narrowSurfacePolicy(
   });
   if (compiled.issues.some((issue) => issue.severity === 'block')) {
     return {
-      surfacePolicy: staticFallbackPolicy(policy),
+      surfacePolicy: {
+        purpose: PURPOSES.has(policy.purpose as SurfacePurpose) ? policy.purpose : 'inform',
+        persistence: policy.persistence === 'ephemeral' ? 'ephemeral' : 'replayable',
+      },
       rejectedTools: [...new Set([...rejectedTools, ...knownGrantNames])],
       fallback: true,
     };
@@ -533,33 +496,6 @@ function narrowSurfacePolicy(
     rejectedTools: [...new Set(rejectedTools)],
     fallback: false,
   };
-}
-
-function strongestTier(
-  proposedTier: SurfacePolicy['tier'],
-  tools: ToolSpec[],
-): SurfacePolicy['tier'] {
-  if (proposedTier === 'static') return 'static';
-  if (tools.some((tool) => toolAuthority(tool) === 'approval-gated')) return 'approval';
-  if (tools.some((tool) => toolData(tool) === 'worker')) return 'worker';
-  return proposedTier;
-}
-
-function staticFallbackPolicy(policy: SurfacePolicy): SurfacePolicy {
-  return {
-    tier: 'static',
-    purpose: PURPOSES.has(policy.purpose as SurfacePurpose) ? policy.purpose : 'inform',
-    persistence: policy.persistence === 'ephemeral' ? 'ephemeral' : 'replayable',
-  };
-}
-
-function toolAllowedForTier(tier: SurfacePolicy['tier'], tool: ToolSpec): boolean {
-  if (tier === 'static') return false;
-  const data = toolData(tool);
-  const authority = toolAuthority(tool);
-  if (tier === 'worker') return data === 'worker';
-  if (tier === 'approval') return authority === 'approval-gated';
-  return data !== 'worker' && authority !== 'approval-gated';
 }
 
 function inferToolNames(prompt: string, pack: ToolPack | null): string[] {
@@ -675,12 +611,14 @@ function toolsByName(pack: ToolPack | null | undefined, names: string[]): ToolSp
   return names.map((name) => byName.get(name)).filter((tool): tool is ToolSpec => Boolean(tool));
 }
 
+// Kind-based capability defaults live in the engine (capabilityForTool);
+// these are thin local aliases so call sites stay terse.
 function toolData(tool: ToolSpec): SurfaceGoalDataNeed {
-  return tool.surface?.data ?? (tool.kind === 'resource' ? 'host-resource' : 'embedded');
+  return capabilityForTool(tool).data;
 }
 
 function toolAuthority(tool: ToolSpec): 'none' | 'read' | 'host-action' | 'approval-gated' {
-  return tool.surface?.authority ?? (tool.kind === 'resource' ? 'read' : 'host-action');
+  return capabilityForTool(tool).authority;
 }
 
 function enumValue<T extends string>(raw: unknown, values: readonly T[]): T | null {

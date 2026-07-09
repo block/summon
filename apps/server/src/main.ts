@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import {
+  ceilings,
   compileSurfacePolicy,
   type ToolPack,
   type ProtocolLine,
@@ -471,8 +472,13 @@ app.post('/api/generate', async (req, res) => {
       const startedAt = performance.now();
       const grantedTools = (toolCeiling?.tools ?? []).map((tool) => tool.name);
       const playgroundPolicy: SurfacePolicy = grantedTools.length > 0
-        ? { tier: 'declarative', purpose: 'explore', persistence: 'ephemeral', grants: grantedTools }
-        : { tier: 'static', purpose: 'explore', persistence: 'ephemeral' };
+        ? {
+            ceiling: ceilings.declarative,
+            purpose: 'explore',
+            persistence: 'ephemeral',
+            grants: grantedTools,
+          }
+        : { purpose: 'explore', persistence: 'ephemeral' };
       generationSurfacePolicy = playgroundPolicy;
       const compiledPolicy = compileSurfacePolicy(playgroundPolicy, {
         tools: toolCeiling,

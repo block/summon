@@ -10,6 +10,7 @@ import {
   isSurfaceDocumentArtifact,
   isProtocolLine,
   normalizeSurfacePlan,
+  surfacePlanCoversGrants,
   validateProtocolLine,
 } from '@summon-internal/engine';
 
@@ -135,6 +136,17 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
   if (!isStreamGraphSnapshot(input.streamGraph)) return false;
   if (!isGrants(input.grants)) return false;
   if (!isMetadata(input.metadata)) return false;
+
+  // The plan is a trust label: hosts render capability chrome from it. It is
+  // derived from policy at generation time, but a persisted envelope is
+  // attacker-writable, so re-verify the claim against the grants it travels
+  // with. A plan that understates the capability of its grants (e.g.
+  // `authority: 'none'` alongside approval-gated tools) is rejected here
+  // rather than trusted.
+  const grants = input.grants as SurfaceEnvelope['grants'];
+  if (!surfacePlanCoversGrants(surfacePlan, grants.tools, grants.validationTools)) {
+    return false;
+  }
   if (input.tokenCss !== undefined && input.tokenCss !== null && typeof input.tokenCss !== 'string') {
     return false;
   }
@@ -159,7 +171,6 @@ export function isSurfaceEnvelope(value: unknown): value is SurfaceEnvelope {
 }
 
 function validationContextForEnvelope(input: {
-  surfacePlan: SurfacePlan;
   grants: SurfaceEnvelope['grants'];
   metadata?: SurfaceEnvelope['metadata'];
 }) {
@@ -167,7 +178,6 @@ function validationContextForEnvelope(input: {
     mode: input.metadata?.mode ?? (input.grants.tools.length === 0 ? 'static' as const : 'interactive' as const),
     tools: input.grants.validationTools,
     allowedTools: input.grants.tools,
-    surfacePlan: input.surfacePlan,
   };
 }
 

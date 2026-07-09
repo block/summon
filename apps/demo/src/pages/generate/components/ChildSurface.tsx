@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { SummonSurface, type SummonSurfaceHandle } from '@decentralized-design/summon-react';
 import { consumeSurfaceStream } from '@decentralized-design/summon/browser';
-import { buildFingerprintSteeringPayload } from '@decentralized-design/summon/engine';
+import { buildFingerprintSteeringPayload, ceilings } from '@decentralized-design/summon/engine';
 import { Button, panelClass } from '../../../components/ui.js';
 import { cn } from '../../../lib/cn.js';
 import { createScopedDemoRegistry } from '../../../showcase.js';
@@ -45,7 +45,13 @@ export function ChildSurface({
             tools: contract.pack,
             ...(child.agentWard
               ? { agent: { enabled: true } }
-              : { surfacePolicy: { tier: 'declarative', purpose: 'explore', grants: childToolNames } }),
+              : {
+                  surfacePolicy: {
+                    ceiling: ceilings.declarative,
+                    purpose: 'explore',
+                    grants: childToolNames,
+                  },
+                }),
           }),
           signal: abort.signal,
         });

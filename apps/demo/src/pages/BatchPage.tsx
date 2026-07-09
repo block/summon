@@ -39,7 +39,12 @@ function summarizeAgentMeta(value: unknown): string {
     ? item.surfacePolicy as Record<string, unknown>
     : null;
   if (policy) {
-    const tier = typeof policy.tier === 'string' ? policy.tier : 'policy';
+    const ceiling = policy.ceiling && typeof policy.ceiling === 'object'
+      ? policy.ceiling as Record<string, unknown>
+      : null;
+    const tier = ceiling
+      ? `${typeof ceiling.data === 'string' ? ceiling.data : 'embedded'}/${typeof ceiling.authority === 'string' ? ceiling.authority : 'none'}`
+      : 'static';
     const purpose = typeof policy.purpose === 'string' ? policy.purpose : 'inform';
     const goalSource = typeof item.goalSource === 'string' ? ` · ${item.goalSource}` : '';
     const fallback = item.fallback === true ? ' · fallback' : '';

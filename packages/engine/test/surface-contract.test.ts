@@ -52,12 +52,12 @@ const tools: ToolPack = {
 };
 
 test('static policy contract view has no tools and Surface Document runtime', () => {
-  const view = compileSurfaceContractView({ tier: 'static', purpose: 'inform' }, {
+  const view = compileSurfaceContractView({ purpose: 'inform' }, {
     tools,
   });
 
   assert.deepEqual(view.tools, []);
-  assert.equal(view.surface.policy.tier, 'static');
+  assert.deepEqual(view.surface.policy.ceiling, { data: 'embedded', authority: 'none' });
   assert.equal(view.surface.plan.runtime, 'surface-document');
   assert.equal(view.surface.mode, 'static');
   assert.deepEqual(view.issues, []);
@@ -65,7 +65,7 @@ test('static policy contract view has no tools and Surface Document runtime', ()
 
 test('declarative search policy includes only selected resource state keys', () => {
   const view = compileSurfaceContractView({
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     purpose: 'explore',
     grants: ['search'],
   }, { tools });
@@ -95,7 +95,7 @@ test('declarative search policy includes only selected resource state keys', () 
 
 test('surface-contract block voices purpose as an overrulable hint, never a hard limit', () => {
   const compiled = compileSurfacePolicy({
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     purpose: 'compare',
     grants: ['choose'],
   }, { tools });
@@ -107,13 +107,13 @@ test('surface-contract block voices purpose as an overrulable hint, never a hard
   assert.match(block, /not a constraint/);
   assert.match(block, /Never narrow, omit, or genericize the surface to fit the Purpose hint/);
   // Purpose must NOT appear on the hard-limit policy/plan lines anymore.
-  assert.doesNotMatch(block, /tier=`declarative`, purpose=/);
+  assert.doesNotMatch(block, /Tier:/);
   assert.doesNotMatch(block, /Plan: purpose=/);
 });
 
 test('purpose hint firmness scales with goal provenance, boundaries unchanged', () => {
   const compiled = compileSurfacePolicy({
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     purpose: 'compare',
     grants: ['choose'],
   }, { tools });
@@ -141,7 +141,7 @@ test('purpose hint firmness scales with goal provenance, boundaries unchanged', 
 
 test('invalid grants preserve compile issues in derived view', () => {
   const compiled = compileSurfacePolicy({
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     grants: ['missing', 'analysis'],
   }, { tools });
   const view = surfaceContractViewFromCompiledPolicy(compiled, {
@@ -151,7 +151,7 @@ test('invalid grants preserve compile issues in derived view', () => {
 
   assert.deepEqual(view.issues.map((issue) => issue.code), [
     'surface-policy-unknown-grant',
-    'surface-policy-tier-exceeded',
+    'surface-policy-ceiling-exceeded',
   ]);
   assert.deepEqual(view.layout, {
     id: 'host-layout',

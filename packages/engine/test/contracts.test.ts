@@ -6,9 +6,7 @@ import {
   compileSystemContracts,
   compileTokenContract,
   hintsForContractIssue,
-  inferSurfacePlan,
   normalizeSurfacePlan,
-  suggestSurfacePlan,
   SUMMON_FIXED_SURFACE_DOCUMENT_INSTRUCTIONS,
   SUMMON_STRUCTURED_SURFACE_DOCUMENT_BUNDLE_INSTRUCTIONS,
   SURFACE_AUTHORITY_VALUES,
@@ -177,7 +175,7 @@ test('system compiler includes compact surface contract view without dropping de
     ],
   };
   const surfaceContract = compileSurfaceContractView({
-    tier: 'declarative',
+    ceiling: { data: 'host-resource', authority: 'host-action' },
     purpose: 'explore',
     grants: ['search'],
   }, { tools });
@@ -199,10 +197,9 @@ test('system compiler includes compact surface contract view without dropping de
   assert.doesNotMatch(surfaceBlock?.text ?? '', /Trusted components/);
   assert.equal(compiled.promptBlocks.some((block) => block.id === 'surface-plan'), false);
   assert.match(compiled.promptBlocks.find((block) => block.id === 'tools')?.text ?? '', /Available data resources/);
-  assert.deepEqual(compiled.validationContext.surfacePlan, surfaceContract.surface.plan);
 });
 
-test('surface plan normalization and suggestions are stable', () => {
+test('surface plan normalization is stable', () => {
   assert.deepEqual(normalizeSurfacePlan({
     purpose: 'operate',
     runtime: 'surface-document',
@@ -217,46 +214,6 @@ test('surface plan normalization and suggestions are stable', () => {
     persistence: 'replayable',
     network: 'none',
   });
-
-  const suggestion = suggestSurfacePlan({
-    prompt: 'compare payment plans and help me pick one',
-    mode: 'interactive',
-    tools: {
-      tools: [
-        {
-          name: 'choose',
-          description: 'Choose.',
-          argsSchema: '{}',
-          stateShape: '{}',
-          surface: { authority: 'host-action' },
-        },
-      ],
-    },
-  });
-
-  assert.deepEqual(suggestion, {
-    purpose: 'compare',
-    runtime: 'surface-document',
-    data: 'embedded',
-    authority: 'host-action',
-    persistence: 'replayable',
-    network: 'none',
-  });
-  assert.deepEqual(inferSurfacePlan({
-    prompt: 'compare payment plans and help me pick one',
-    mode: 'interactive',
-    tools: {
-      tools: [
-        {
-          name: 'choose',
-          description: 'Choose.',
-          argsSchema: '{}',
-          stateShape: '{}',
-          surface: { authority: 'host-action' },
-        },
-      ],
-    },
-  }), suggestion);
 });
 
 test('surface plan host diagnostics expose stable enum values', () => {

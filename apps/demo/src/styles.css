@@ -187,8 +187,8 @@ pre {
 
 /*
  * Resting page dot field. Shares the exact dot spec (18px pitch, ink 22%)
- * with the loader field so the idle background and the summon pulse read as
- * the same dots — only their energy changes.
+ * with the summoning field so the idle background and the summon pulse read
+ * as the same dots — only their energy changes.
  */
 .summon-page-dot-field {
   position: absolute;
@@ -205,6 +205,73 @@ pre {
   opacity: 0.34;
   mask-image: radial-gradient(circle at 50% 50%, black 0 52%, transparent 94%);
   animation: summon-dot-field-breathe 4.6s ease-in-out infinite;
+}
+
+/*
+ * Summoning field: the page-level generation state. The same resting dots,
+ * energized — a stronger breathe plus a water-ripple wave train of concentric
+ * rings riding outward from the frame. Each wave is a layer of the *same*
+ * dots; the ring mask brightens dots as the wave passes, and amplitude
+ * decays with travel. The frame's apparition condenses at the center while
+ * the page pulses around it: energy in, form out.
+ */
+.summon-summoning-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-ink) 22%, transparent) 0 1px,
+      transparent 1.25px
+    );
+  background-position: 50% 50%;
+  background-size: 18px 18px;
+  opacity: 0.5;
+  mask-image: radial-gradient(circle at 50% 50%, black 0 58%, transparent 95%);
+  animation: summon-dot-field-breathe 3.4s ease-in-out infinite;
+}
+
+.summon-ripple-wave {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-ink) 100%, transparent) 0 1.7px,
+      transparent 2.2px
+    );
+  background-position: 50% 50%;
+  background-size: 18px 18px;
+  --summon-ring: 0%;
+  --summon-ring-band: 11%;
+  mask-image: radial-gradient(
+    circle at 50% 50%,
+    transparent calc(var(--summon-ring) - var(--summon-ring-band)),
+    black var(--summon-ring),
+    transparent calc(var(--summon-ring) + var(--summon-ring-band))
+  );
+  -webkit-mask-image: radial-gradient(
+    circle at 50% 50%,
+    transparent calc(var(--summon-ring) - var(--summon-ring-band)),
+    black var(--summon-ring),
+    transparent calc(var(--summon-ring) + var(--summon-ring-band))
+  );
+  opacity: 0;
+  animation: summon-ripple-wave 3.2s linear infinite;
+}
+
+.summon-ripple-wave:nth-child(2) {
+  animation-delay: 0.8s;
+}
+
+.summon-ripple-wave:nth-child(3) {
+  animation-delay: 1.6s;
+}
+
+.summon-ripple-wave:nth-child(4) {
+  animation-delay: 2.4s;
 }
 
 /*
@@ -275,43 +342,42 @@ pre {
   }
 }
 
-@property --summon-dot-r {
-  syntax: "<length>";
+@property --summon-ring {
+  syntax: "<percentage>";
   inherits: false;
-  initial-value: 1.2px;
+  initial-value: 0%;
 }
 
-@property --summon-wave-size {
-  syntax: "<length>";
+@property --summon-ring-band {
+  syntax: "<percentage>";
   inherits: false;
-  initial-value: 0px;
+  initial-value: 11%;
 }
 
 @keyframes summon-ripple-wave {
   0% {
-    --summon-wave-size: 0px;
-    --summon-dot-r: 0.6px;
+    --summon-ring: 0%;
+    --summon-ring-band: 7%;
     opacity: 0;
   }
 
-  8% {
-    --summon-dot-r: 2.6px;
+  6% {
     opacity: 1;
   }
 
-  45% {
-    --summon-dot-r: 1.8px;
-    opacity: 0.55;
+  40% {
+    --summon-ring-band: 11%;
+    opacity: 0.62;
   }
 
   75% {
-    --summon-dot-r: 1.1px;
-    opacity: 0.2;
+    --summon-ring-band: 15%;
+    opacity: 0.22;
   }
 
   100% {
-    --summon-wave-size: 170vmax;
-    --summon-dot-r: 0.6px;
+    --summon-ring: 100%;
+    --summon-ring-band: 18%;
     opacity: 0;
   }
 }
@@ -372,26 +438,6 @@ pre {
 @media (hover: hover) {
   .hover\:shadow-card:hover {
     box-shadow: var(--shadow-card);
-  }
-}
-
-@keyframes summon-frame-seam {
-  0% {
-    transform: translate3d(-120%, 0, 0);
-    opacity: 0;
-  }
-
-  18% {
-    opacity: 1;
-  }
-
-  82% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translate3d(240%, 0, 0);
-    opacity: 0;
   }
 }
 

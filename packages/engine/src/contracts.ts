@@ -159,9 +159,9 @@ export function hintsForContractIssue(issue: ContractIssue): string[] {
       return ['Remove host-owned meta lines; the host emits /surface-policy, /surface-plan, and /surface-contract before artifact delivery.'];
     case 'surface-policy-invalid':
     case 'surface-policy-unknown-grant':
-    case 'surface-policy-tier-exceeded':
-    case 'surface-policy-tier-requirement':
-      return ['Fix the host-selected SurfacePolicy before generation; models cannot widen grants or tiers.'];
+    case 'surface-policy-ceiling-exceeded':
+    case 'surface-policy-ceiling-requirement':
+      return ['Fix the host-selected SurfacePolicy before generation; models cannot widen grants or capability ceilings.'];
     default:
       return ['Emit one valid replacement line for the same target path.'];
   }
@@ -252,8 +252,6 @@ export function compileSystemContracts(
   ];
   const issues: ContractIssue[] = [];
   const startupLines: ProtocolLine[] = [];
-  const activeSurfacePlan = input.surfaceContract?.surface.plan ?? null;
-
   const activeTokensCss = input.activeTokensCss ?? null;
 
   const ghostBlockText = input.ghost?.prompt;
@@ -312,7 +310,6 @@ export function compileSystemContracts(
       mode: input.mode,
       allowedTools: tool.toolNames,
       tools: tool.validationTools,
-      surfacePlan: activeSurfacePlan ?? undefined,
       definedTokens: activeTokensCss ? parseDefinedTokens(activeTokensCss) : undefined,
     },
   };

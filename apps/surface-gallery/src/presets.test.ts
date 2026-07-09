@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { compileSurfacePolicy } from '@decentralized-design/summon';
+import { compileSurfacePolicy, displayTier } from '@decentralized-design/summon';
 import { normalizeSurfacePolicy } from '@decentralized-design/summon/engine';
 import { allGalleryToolNames, createGalleryToolRegistry } from './tools.js';
 import { GALLERY_PRESETS } from './presets.js';
@@ -30,7 +30,10 @@ test('gallery presets are explicit, valid, and policy-complete', () => {
     seen.add(preset.id);
     assert.equal(Boolean(preset.claim), true, `${preset.id} needs a claim`);
     assert.deepEqual(normalizeSurfacePolicy(preset.surfacePolicy), {
-      tier: preset.surfacePolicy.tier,
+      ceiling: {
+        data: preset.surfacePolicy.ceiling?.data ?? 'embedded',
+        authority: preset.surfacePolicy.ceiling?.authority ?? 'none',
+      },
       purpose: preset.surfacePolicy.purpose ?? 'inform',
       grants: preset.surfacePolicy.grants ?? [],
       persistence: preset.surfacePolicy.persistence ?? 'replayable',
@@ -53,10 +56,12 @@ test('gallery presets are explicit, valid, and policy-complete', () => {
 test('featured gallery presets cover the main surface policy story', () => {
   const featured = GALLERY_PRESETS.filter((preset) => preset.featured);
   assert.equal(featured.length >= 6, true);
-  assert.equal(featured.some((preset) => preset.surfacePolicy.tier === 'static'), true);
-  assert.equal(featured.some((preset) => preset.surfacePolicy.tier === 'declarative'), true);
-  assert.equal(featured.some((preset) => preset.surfacePolicy.tier === 'approval'), true);
-  assert.equal(featured.some((preset) => preset.surfacePolicy.tier === 'worker'), true);
+  const label = (preset: (typeof featured)[number]) =>
+    displayTier(preset.surfacePolicy.ceiling);
+  assert.equal(featured.some((preset) => label(preset) === 'static'), true);
+  assert.equal(featured.some((preset) => label(preset) === 'declarative'), true);
+  assert.equal(featured.some((preset) => label(preset) === 'approval'), true);
+  assert.equal(featured.some((preset) => label(preset) === 'worker'), true);
   assert.equal(featured.some((preset) => Boolean(preset.adversarialPrompt)), true);
 });
 
